@@ -1,0 +1,65 @@
+unit StringClass;
+
+interface
+
+uses
+  Classes, SysUtils;
+
+type
+
+  { TString }
+
+  TString = class
+  private
+    FText: String;
+    function GetChar(I: Cardinal): Char;
+    procedure SetChar(I: Cardinal; AValue: Char);
+    procedure SetText(AValue: String);
+  public
+    constructor Create(AString: String); overload;
+    constructor Create; overload;
+
+    destructor Destroy; override;
+
+    property Text: String read FText write SetText;
+    property Char[I: Cardinal]: Char read GetChar write SetChar;
+  end;
+
+implementation
+
+{ TString }
+
+function TString.GetChar(I: Cardinal): Char;
+begin
+  Result := FText[I + 1];
+end;
+
+procedure TString.SetChar(I: Cardinal; AValue: Char);
+begin
+  FText[I + 1] := AValue;
+end;
+
+procedure TString.SetText(AValue: String);
+begin
+  if FText = AValue then
+    Exit;
+  FText := AValue;
+end;
+
+constructor TString.Create(AString: String);
+begin
+  FText := AString;
+end;
+
+constructor TString.Create;
+begin
+  FText := '';
+end;
+
+destructor TString.Destroy;
+begin
+  inherited Destroy;
+end;
+
+end.
+

@@ -1,0 +1,740 @@
+unit InputHandler;
+
+interface
+
+uses
+  BitField, Controls, Forms, Classes, VectorGeometry, Windows
+  {$IFNDEF FPC}
+  , Types
+  {$ENDIF}
+  ;
+
+type
+
+  { TKeyboardInput }
+
+  TKeyboardInput = class
+  private
+    FKeys, FNotifyDown, FNotifyUp: TBitField;
+    FCharBuffer: String;
+    FAnsiCharBuffer: AnsiString;
+
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure ResetNotifyUp;
+    procedure ResetNotifyDown;
+
+    procedure ResetCharBuffer;
+
+    procedure Reset;
+
+    procedure ReleaseAllKeys;
+
+    // WRITE
+    procedure PressKey(Key: Byte);
+    procedure ReleaseKey(Key: Byte);
+    procedure PressChar(Key: Char);
+
+    // READ
+    function KeyDown(Key: Byte): Boolean;
+    function KeyPressed(Key: Byte): Boolean;
+    function KeyUp(Key: Byte): Boolean;
+    function KeyReleased(Key: Byte): Boolean;
+    property CharBuffer: String read FCharBuffer;
+    property AnsiCharBuffer: AnsiString read FAnsiCharBuffer;
+
+    function AnyKeyDown: Boolean;
+  end;
+
+  { TMouseInput }
+
+  TMouseInput = class
+  private
+    FButtons, FNotifyUp, FNotifyDown: TBitfield;
+    FScrolledUp, FScrolledDown: Boolean;
+    FWidth, FHeight: Integer;
+    FPos: TGVector2;
+    FPosNotify: Boolean;
+    FOnScreen: Boolean;
+    FOnScreenNotify: Boolean;
+    FResizeNotify: Boolean;
+
+  public
+    constructor Create(AForm: TForm);
+    destructor Destroy; override;
+
+    procedure ResetNotifyUp;
+    procedure ResetNotifyDown;
+    procedure ResetPosNotify;
+    procedure ResetScroll;
+    procedure ResetOnScreenNotify;
+    procedure ResetResizeNotify;
+
+    procedure Reset;
+
+    // WRITE
+    procedure PressButton(Button: TMouseButton);
+    procedure ReleaseButton(Button: TMouseButton);
+    procedure ReleaseAllButtons;
+    procedure SetPosition(APos: TGVector2);
+    procedure ScrollUp;
+    procedure ScrollDown;
+    procedure Leave;
+    procedure Enter;
+
+    procedure Resize(AWidth, AHeight: Integer);
+
+    // READ
+    function ButtonDown(Button: TMouseButton): Boolean;
+    function ButtonPressed(Button: TMouseButton): Boolean;
+    function ButtonUp(Button: TMouseButton): Boolean;
+    function ButtonReleased(Button: TMouseButton): Boolean;
+    function AnyButtonDown: Boolean;
+    function MousePos: TGVector2;
+    function MouseMoved: Boolean;
+    function ScrolledUp: Boolean;
+    function ScrolledDown: Boolean;
+    function OnScreen: Boolean;
+    function OnScreenChanged: Boolean;
+
+    function Resized: Boolean;
+    function Width: Integer;
+    function Height: Integer;
+  end;
+
+  { TInputHandler }
+
+  TInputHandler = class
+  private
+    FMouse: TMouseInput;
+    FKeyboard: TKeyboardInput;
+
+    FOldKeyDown, FOldKeyUp: TKeyEvent;
+    FOldKeyPress: TKeyPressEvent;
+    FOldMouseDown, FOldMouseUp: TMouseEvent;
+    FOldMouseMove: TMouseMoveEvent;
+    FOldResize, FOldMouseLeave, FOldMouseEnter: TNotifyEvent;
+    FOldMouseWheel: TMouseWheelEvent;
+
+    function GetCharBuffer: String;
+    function GetCharInBuffer: Boolean;
+    procedure OnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure OnKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure OnKeyPress(Sender: TObject; var Key: Char);
+    procedure OnMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure OnMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+    procedure OnMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure OnMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+    procedure OnResize(Sender: TObject);
+    procedure OnMouseLeave(Sender: TObject);
+    procedure OnMouseEnter(Sender: TObject);
+    function GetAnsiCharBuffer: AnsiString;
+
+  public
+    constructor Create(AForm: TForm);
+    destructor Destroy; override;
+
+    // FMouse
+    function ButtonDown(Button: TMouseButton): Boolean; inline;
+    function ButtonPressed(Button: TMouseButton): Boolean; inline;
+    function ButtonUp(Button: TMouseButton): Boolean; inline;
+    function ButtonReleased(Button: TMouseButton): Boolean; inline;
+
+    function AnyButtonDown: Boolean; inline;
+
+    function MousePos: TGVector2; inline;
+    function MouseMoved: Boolean; inline;
+
+    function ScrolledUp: Boolean; inline;
+    function ScrolledDown: Boolean; inline;
+    function Scrolled: Boolean; inline;
+
+    function MouseOnScreen: Boolean; inline;
+    function MouseOnScreenChanged: Boolean; inline;
+    function MouseLeftScreen: Boolean; inline;
+    function MouseEnteredScreen: Boolean; inline;
+
+    function Resized: Boolean; inline;
+    function Width: Integer; inline;
+    function Height: Integer; inline;
+
+    // FKeyboard
+    function KeyDown(Key: Byte): Boolean; overload; inline;
+    function KeyPressed(Key: Byte): Boolean; overload; inline;
+    function KeyUp(Key: Byte): Boolean; overload; inline;
+    function KeyReleased(Key: Byte): Boolean; overload; inline;
+
+    function KeyDown(Key: Char): Boolean; overload; inline;
+    function KeyPressed(Key: Char): Boolean; overload; inline;
+    function KeyUp(Key: Char): Boolean; overload; inline;
+    function KeyReleased(Key: Char): Boolean; overload; inline;
+
+    property CharBuffer: String read GetCharBuffer;
+    property AnsiCharBuffer: AnsiString read GetAnsiCharBuffer;
+    property CharInBuffer: Boolean read GetCharInBuffer;
+
+    function AnyKeyDown: Boolean; inline;
+
+    // Both
+    function AnyAction: Boolean; inline;
+
+    procedure NotifyChanges;
+
+    procedure ReleaseAll;
+  end;
+
+implementation
+
+const
+  MouseButtonCount = Ord(High(TMouseButton)) + 1;
+
+{ TInputHandler }
+
+procedure TInputHandler.OnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  FKeyboard.PressKey(Key);
+  if Assigned(FOldKeyDown) then
+    FOldKeyDown(Sender, Key, Shift);
+end;
+
+function TInputHandler.GetAnsiCharBuffer: AnsiString;
+begin
+  Result := FKeyboard.AnsiCharBuffer;
+end;
+
+function TInputHandler.GetCharBuffer: String;
+begin
+  Result := FKeyboard.CharBuffer;
+end;
+
+function TInputHandler.GetCharInBuffer: Boolean;
+begin
+  Result := CharBuffer <> '';
+end;
+
+procedure TInputHandler.OnKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  FKeyboard.ReleaseKey(Key);
+  if Assigned(FOldKeyUp) then
+    FOldKeyUp(Sender, Key, Shift);
+end;
+
+procedure TInputHandler.OnKeyPress(Sender: TObject; var Key: Char);
+begin
+  FKeyboard.PressChar(Key);
+end;
+
+procedure TInputHandler.OnMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  FMouse.PressButton(Button);
+  if Assigned(FOldMouseDown) then
+    FOldMouseDown(Sender, Button, Shift, X, Y);
+end;
+
+procedure TInputHandler.OnMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+begin
+  FMouse.SetPosition(TGVector2.Create(X, Y));
+  if Assigned(FOldMouseMove) then
+    FOldMouseMove(Sender, Shift, X, Y);
+end;
+
+procedure TInputHandler.OnMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  FMouse.ReleaseButton(Button);
+  if Assigned(FOldMouseUp) then
+    FOldMouseUp(Sender, Button, Shift, X, Y);
+end;
+
+procedure TInputHandler.OnMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+begin
+  Handled := True;
+  if WheelDelta > 0 then
+    FMouse.ScrollUp
+  else if WheelDelta < 0 then
+    FMouse.ScrollDown;
+  if Assigned(FOldMouseWheel) then
+    FOldMouseWheel(Sender, Shift, WheelDelta, MousePos, Handled);
+end;
+
+procedure TInputHandler.OnResize(Sender: TObject);
+begin
+  with TForm(Sender) do
+    FMouse.Resize(ClientWidth, ClientHeight);
+  if Assigned(FOldResize) then
+    FOldResize(Sender);
+end;
+
+procedure TInputHandler.OnMouseLeave(Sender: TObject);
+begin
+  FMouse.ReleaseAllButtons;
+  FMouse.Leave;
+  if Assigned(FOldMouseLeave) then
+    FOldMouseLeave(Sender);
+end;
+
+procedure TInputHandler.OnMouseEnter(Sender: TObject);
+begin
+  FMouse.Enter;
+  if Assigned(FOldMouseEnter) then
+    FOldMouseEnter(Sender);
+end;
+
+constructor TInputHandler.Create(AForm: TForm);
+begin
+  FMouse := TMouseInput.Create(AForm);
+  FKeyboard := TKeyboardInput.Create;
+
+  FOldKeyDown := AForm.OnKeyDown;
+  FOldKeyUp := AForm.OnKeyUp;
+  FOldKeyPress := AForm.OnKeyPress;
+  FOldMouseDown := AForm.OnMouseDown;
+  FOldMouseUp := AForm.OnMouseUp;
+  FOldMouseMove := AForm.OnMouseMove;
+  FOldMouseWheel := AForm.OnMouseWheel;
+  FOldResize := AForm.OnResize;
+  FOldMouseLeave := AForm.OnMouseLeave;
+  FOldMouseEnter := AForm.OnMouseEnter;
+
+  AForm.OnKeyDown := OnKeyDown;
+  AForm.OnKeyUp := OnKeyUp;
+  AForm.OnKeyPress := OnKeyPress;
+  AForm.OnMouseDown := OnMouseDown;
+  AForm.OnMouseUp := OnMouseUp;
+  AForm.OnMouseMove := OnMouseMove;
+  AForm.OnMouseWheel := OnMouseWheel;
+  AForm.OnResize := OnResize;
+  AForm.OnMouseLeave := OnMouseLeave;
+  AForm.OnMouseEnter := OnMouseEnter;
+end;
+
+destructor TInputHandler.Destroy;
+begin
+  FMouse.Free;
+  FKeyboard.Free;
+  inherited Destroy;
+end;
+
+function TInputHandler.ButtonDown(Button: TMouseButton): Boolean;
+begin
+  Result := FMouse.ButtonDown(Button);
+end;
+
+function TInputHandler.ButtonPressed(Button: TMouseButton): Boolean;
+begin
+  Result := FMouse.ButtonPressed(Button);
+end;
+
+function TInputHandler.ButtonUp(Button: TMouseButton): Boolean;
+begin
+  Result := FMouse.ButtonUp(Button);
+end;
+
+function TInputHandler.ButtonReleased(Button: TMouseButton): Boolean;
+begin
+  Result := FMouse.ButtonReleased(Button);
+end;
+
+function TInputHandler.MousePos: TGVector2;
+begin
+  Result := FMouse.MousePos;
+end;
+
+function TInputHandler.MouseMoved: Boolean;
+begin
+  Result := FMouse.MouseMoved;
+end;
+
+function TInputHandler.ScrolledUp: Boolean;
+begin
+  Result := FMouse.ScrolledUp;
+end;
+
+function TInputHandler.ScrolledDown: Boolean;
+begin
+  Result := FMouse.ScrolledDown;
+end;
+
+function TInputHandler.Scrolled: Boolean;
+begin
+  Result := ScrolledUp or ScrolledDown;
+end;
+
+function TInputHandler.MouseOnScreen: Boolean;
+begin
+  Result := FMouse.OnScreen;
+end;
+
+function TInputHandler.MouseOnScreenChanged: Boolean;
+begin
+  Result := FMouse.OnScreenChanged;
+end;
+
+function TInputHandler.MouseLeftScreen: Boolean;
+begin
+  Result := MouseOnScreenChanged and not MouseOnScreen;
+end;
+
+function TInputHandler.MouseEnteredScreen: Boolean;
+begin
+  Result := MouseOnScreenChanged and MouseOnScreen;
+end;
+
+function TInputHandler.Resized: Boolean;
+begin
+  Result := FMouse.Resized;
+end;
+
+function TInputHandler.Width: Integer;
+begin
+  Result := FMouse.Width;
+end;
+
+function TInputHandler.Height: Integer;
+begin
+  Result := FMouse.Height;
+end;
+
+function TInputHandler.KeyDown(Key: Byte): Boolean;
+begin
+  Result := FKeyboard.KeyDown(Key);
+end;
+
+function TInputHandler.KeyPressed(Key: Byte): Boolean;
+begin
+  Result := FKeyboard.KeyPressed(Key);
+end;
+
+function TInputHandler.KeyUp(Key: Byte): Boolean;
+begin
+  Result := FKeyboard.KeyUp(Key);
+end;
+
+function TInputHandler.KeyReleased(Key: Byte): Boolean;
+begin
+  Result := FKeyboard.KeyReleased(Key);
+end;
+
+function TInputHandler.KeyDown(Key: Char): Boolean;
+begin
+  Result := KeyDown(Ord(Key));
+end;
+
+function TInputHandler.KeyPressed(Key: Char): Boolean;
+begin
+  Result := KeyPressed(Ord(Key));
+end;
+
+function TInputHandler.KeyUp(Key: Char): Boolean;
+begin
+  Result := KeyUp(Ord(Key));
+end;
+
+function TInputHandler.KeyReleased(Key: Char): Boolean;
+begin
+  Result := KeyReleased(Ord(Key));
+end;
+
+function TInputHandler.AnyKeyDown: Boolean;
+begin
+  Result := FKeyboard.AnyKeyDown;
+end;
+
+function TInputHandler.AnyAction: Boolean;
+begin
+  Result := AnyKeyDown or AnyButtonDown or Scrolled;
+end;
+
+function TInputHandler.AnyButtonDown: Boolean;
+begin
+  Result := FMouse.AnyButtonDown;
+end;
+
+procedure TInputHandler.NotifyChanges;
+begin
+  FMouse.Reset;
+  FKeyboard.Reset;
+end;
+
+procedure TInputHandler.ReleaseAll;
+begin
+  FMouse.ReleaseAllButtons;
+  FKeyboard.ReleaseAllKeys;
+end;
+
+{ TMouseInput }
+
+constructor TMouseInput.Create(AForm: TForm);
+begin
+  FButtons := TBitField.Create(MouseButtonCount);
+  FNotifyUp := TBitField.Create(MouseButtonCount);
+  FNotifyDown := TBitField.Create(MouseButtonCount);
+  FWidth := AForm.ClientWidth;
+  FHeight := AForm.ClientHeight;
+end;
+
+destructor TMouseInput.Destroy;
+begin
+  FButtons.Free;
+  FNotifyUp.Free;
+  FNotifyDown.Free;
+  inherited;
+end;
+
+procedure TMouseInput.ResetNotifyUp;
+begin
+  FNotifyUp.Clear;
+end;
+
+procedure TMouseInput.ResetNotifyDown;
+begin
+  FNotifyDown.Clear;
+end;
+
+procedure TMouseInput.ResetPosNotify;
+begin
+  FPosNotify := False;
+end;
+
+procedure TMouseInput.ResetScroll;
+begin
+  FScrolledDown := False;
+  FScrolledUp := False;
+end;
+
+procedure TMouseInput.ResetOnScreenNotify;
+begin
+  FOnScreenNotify := False;
+end;
+
+procedure TMouseInput.ResetResizeNotify;
+begin
+  FResizeNotify := False;
+end;
+
+procedure TMouseInput.Reset;
+begin
+  ResetNotifyDown;
+  ResetNotifyUp;
+  ResetPosNotify;
+  ResetScroll;
+  ResetOnScreenNotify;
+  ResetResizeNotify;
+end;
+
+procedure TMouseInput.PressButton(Button: TMouseButton);
+begin
+  FButtons[Ord(Button)] := True;
+  FNotifyDown[Ord(Button)] := True;
+end;
+
+procedure TMouseInput.ReleaseButton(Button: TMouseButton);
+begin
+  FButtons[Ord(Button)] := False;
+  FNotifyUp[Ord(Button)] := True;
+end;
+
+procedure TMouseInput.ReleaseAllButtons;
+begin
+  FButtons.Clear;
+  FNotifyUp.Fill;
+end;
+
+procedure TMouseInput.SetPosition(APos: TGVector2);
+begin
+  FPos.X := (APos.X * 2 - FWidth) / FHeight; // -aspect <-> +aspect
+  FPos.Y := 1 - APos.Y / FHeight * 2;       // -1      <-> +1
+  FPosNotify := True;
+end;
+
+procedure TMouseInput.ScrollUp;
+begin
+  FScrolledUp := True;
+end;
+
+procedure TMouseInput.ScrollDown;
+begin
+  FScrolledDown := True;
+end;
+
+procedure TMouseInput.Leave;
+begin
+  FOnScreen := False;
+  FOnScreenNotify := True;
+end;
+
+procedure TMouseInput.Enter;
+begin
+  FOnScreen := True;
+  FOnScreenNotify := True;
+end;
+
+procedure TMouseInput.Resize(AWidth, AHeight: Integer);
+begin
+  FWidth := AWidth;
+  FHeight := AHeight;
+  FResizeNotify := True;
+end;
+
+function TMouseInput.ButtonDown(Button: TMouseButton): Boolean;
+begin
+  Result := FButtons[Ord(Button)];
+end;
+
+function TMouseInput.ButtonPressed(Button: TMouseButton): Boolean;
+begin
+  Result := FNotifyDown[Ord(Button)];
+end;
+
+function TMouseInput.ButtonUp(Button: TMouseButton): Boolean;
+begin
+  Result := not FButtons[Ord(Button)];
+end;
+
+function TMouseInput.ButtonReleased(Button: TMouseButton): Boolean;
+begin
+  Result := FNotifyUp[Ord(Button)];
+end;
+
+function TMouseInput.AnyButtonDown: Boolean;
+begin
+  Result := FButtons.Ones > 0;
+end;
+
+function TMouseInput.MousePos: TGVector2;
+begin
+  Result := FPos;
+end;
+
+function TMouseInput.MouseMoved: Boolean;
+begin
+  Result := FPosNotify;
+end;
+
+function TMouseInput.ScrolledUp: Boolean;
+begin
+  Result := FScrolledUp;
+end;
+
+function TMouseInput.ScrolledDown: Boolean;
+begin
+  Result := FScrolledDown;
+end;
+
+function TMouseInput.OnScreen: Boolean;
+begin
+  Result := FOnScreen;
+end;
+
+function TMouseInput.OnScreenChanged: Boolean;
+begin
+  Result := FOnScreenNotify;
+end;
+
+function TMouseInput.Resized: Boolean;
+begin
+  Result := FResizeNotify;
+end;
+
+function TMouseInput.Width: Integer;
+begin
+  Result := FWidth;
+end;
+
+function TMouseInput.Height: Integer;
+begin
+  Result := FHeight;
+end;
+
+{ TKeyboardInput }
+
+constructor TKeyboardInput.Create;
+begin
+  FKeys := TBitField.Create($100);
+  FNotifyUp := TBitField.Create($100);
+  FNotifyDown := TBitField.Create($100);
+end;
+
+destructor TKeyboardInput.Destroy;
+begin
+  FKeys.Free;
+  FNotifyUp.Free;
+  FNotifyDown.Free;
+  inherited;
+end;
+
+procedure TKeyboardInput.ResetNotifyUp;
+begin
+  FNotifyUp.Clear;
+end;
+
+procedure TKeyboardInput.ResetNotifyDown;
+begin
+  FNotifyDown.Clear;
+end;
+
+procedure TKeyboardInput.ResetCharBuffer;
+begin
+  FCharBuffer := '';
+end;
+
+procedure TKeyboardInput.Reset;
+begin
+  ResetNotifyUp;
+  ResetNotifyDown;
+  ResetCharBuffer;
+end;
+
+procedure TKeyboardInput.ReleaseAllKeys;
+begin
+  FKeys.Clear;
+  FNotifyUp.Fill;
+end;
+
+procedure TKeyboardInput.PressKey(Key: Byte);
+begin
+  FNotifyDown[Key] := not FKeys[Key];
+  FKeys[Key] := True;
+end;
+
+procedure TKeyboardInput.ReleaseKey(Key: Byte);
+begin
+  FNotifyUp[Key] := FKeys[Key];
+  FKeys[Key] := False;
+end;
+
+procedure TKeyboardInput.PressChar(Key: Char);
+begin
+  FCharBuffer := FCharBuffer + Key;
+end;
+
+function TKeyboardInput.KeyDown(Key: Byte): Boolean;
+begin
+  // Result := FKeys[Key];
+  Result := (GetAsyncKeyState(Key) and -1) <> 0;
+end;
+
+function TKeyboardInput.KeyPressed(Key: Byte): Boolean;
+begin
+  Result := FNotifyDown[Key];
+end;
+
+function TKeyboardInput.KeyUp(Key: Byte): Boolean;
+begin
+  // Result := not FKeys[Key];
+  Result := (GetAsyncKeyState(Key) and -1) = 0;
+end;
+
+function TKeyboardInput.KeyReleased(Key: Byte): Boolean;
+begin
+  Result := FNotifyUp[Key];
+end;
+
+function TKeyboardInput.AnyKeyDown: Boolean;
+begin
+  Result := FKeys.Ones > 0;
+end;
+
+end.
+

@@ -1,0 +1,73 @@
+unit OpenGLForm;
+
+{$IFDEF FPC}
+{$mode Delphi}
+{$ENDIF}
+
+interface
+
+uses
+  Forms, InputHandler, dglOpenGL, Windows;
+
+type
+
+  { TOpenGLForm }
+
+  TOpenGLForm = class (TForm)
+    constructor Create; virtual;
+
+  private
+
+    RC: HGLRC;
+    DC: HDC;
+
+    procedure InitGL;
+
+  public
+    Input: TInputHandler;
+
+
+  end;
+
+implementation
+
+{ TOpenGLForm }
+{
+procedure TOpenGLForm.OnResize(Sender: TObject);
+begin
+  glViewport(0, 0, ClientWidth, ClientHeight);
+end;
+
+procedure TOpenGLForm.OnCreate(Sender: TObject);
+begin
+  InitGL;
+  Input := TInputHandler.Create(Self);
+end;
+
+procedure TOpenGLForm.OnDestroy(Sender: TObject);
+begin
+ Input.Free;
+
+  DeactivateRenderingContext;
+  DestroyRenderingContext(RC);
+  ReleaseDC(Handle, DC);
+end;
+  }
+procedure TOpenGLForm.InitGL;
+begin
+  if not InitOpenGL then
+    Halt;
+  DC := GetDC(Handle);
+  RC := CreateRenderingContext(DC, [opDoubleBuffered], 32, 24, 0, 0, 0, 0);
+  ActivateRenderingContext(DC, RC);
+end;
+
+constructor TOpenGLForm.Create;
+begin
+  inherited Create(Application);
+  InitGL;
+end;
+
+
+end.
+

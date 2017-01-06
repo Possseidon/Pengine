@@ -1,0 +1,1609 @@
+unit Lists;
+
+interface
+
+uses
+  Classes, SysUtils, VectorGeometry, BasicTypeClasses;
+
+type
+
+  { TFindFunction }
+
+  TFindFunction<T: class> = class abstract
+  protected
+    function Find(AElement: T): Boolean; virtual; abstract;
+  end;
+
+ { TPair }
+
+  TPair<TKey, TData> = record
+  private
+    FKey: TKey;
+    FData: TData;
+  public
+    constructor Create(AKey: TKey; AData: TData);
+
+    property Key: TKey read FKey;
+    property Data: TData read FData;
+  end;
+
+  { TArray<T> }
+
+  TArray<T> = class
+  protected
+    type
+      TCompareFunction = function(A, B: T): Boolean;
+      TCompareFunctionOfObject = function(A, B: T): Boolean of object;
+      TFindFunction = function(A: T): Boolean;
+      TFindFunctionOfObject = function(A: T): Boolean of object;
+
+      TIntArray = TArray<Integer>;
+
+  private
+    FItems: array of T;
+    FIterReversed: Boolean;
+    FSizeSteps: Integer;
+    FCount: Integer;
+
+    procedure SortLR(ACompareFunc: TCompareFunction; ALeft, ARight: Integer);
+
+  public
+    type
+
+      { TIterator }
+
+      TIterator = class
+      private
+        FList: TArray<T>;
+
+        FCurrent: Integer;
+        FReversed: Boolean;
+        FAutoFree: Boolean;
+
+        FRemoveFlag: Boolean;
+
+        function GetCurrent: T;
+      public
+        constructor Create(AList: TArray<T>; AReversed, AAutoFree: Boolean);
+
+        function MoveNext: Boolean;
+        property Current: T read GetCurrent;
+
+        procedure RemoveCurrent;
+      end;
+
+  protected
+    function GetItem(AIndex: Integer): T;
+    procedure SetItem(AIndex: Integer; AValue: T);
+
+    procedure FreeData(const {-%H}AData: T); virtual;
+
+  public
+    constructor Create(ASizeSteps: Integer = 16);
+
+    function Add(AElement: T): T;
+    function Insert(AElement: T; AIndex: Integer): T;
+
+    procedure Del(AIndex: Integer);
+    procedure DelLast;
+    procedure DelAll;
+
+    procedure Swap(A, B: Integer);
+
+    function FindFirstIndex(AFunc: TFindFunction): Integer; overload;
+    function FindFirstIndex(AFunc: TFindFunctionOfObject): Integer; overload;
+    function FindFirst(AFunc: TFindFunction): T; overload;
+    function FindFirst(AFunc: TFindFunctionOfObject): T; overload;
+
+    function FindLastIndex(AFunc: TFindFunction): Integer; overload;
+    function FindLastIndex(AFunc: TFindFunctionOfObject): Integer; overload;
+    function FindLast(AFunc: TFindFunction): T; overload;
+    function FindLast(AFunc: TFindFunctionOfObject): T; overload;
+
+    function FindIndexAsArray(AFunc: TFindFunction): TArray<Integer>; overload;
+    function FindIndexAsArray(AFunc: TFindFunctionOfObject): TArray<Integer>; overload;
+    function FindAsArray(AFunc: TFindFunction): TArray<T>; overload;
+    function FindAsArray(AFunc: TFindFunctionOfObject): TArray<T>; overload;
+
+    procedure Sort(AFunc: TCompareFunction); overload;
+    procedure Sort(AFunc: TCompareFunctionOfObject); overload;
+
+    function Copy: TArray<T>;
+
+    property Count: Integer read FCount;
+    function Empty: Boolean;
+
+    property Items[I: Integer]: T read GetItem write SetItem; default;
+
+    function First: T;
+    function Last: T;
+
+    function GetEnumerator(AAutoFree: Boolean = False): TIterator;
+    function IterReversed: TArray<T>;
+
+    procedure RangeCheckException(AIndex: Integer);
+    function RangeCheck(AIndex: Integer): Boolean;
+  end;
+
+  { TObjectArray<T> }
+
+  TObjectArray<T: class> = class (TArray<T>)
+  private
+    FReferenceList: Boolean;
+
+  protected
+    procedure FreeData(const AData: T); override;
+
+  public
+    constructor Create(AReferenceList: Boolean = False; ASizeSteps: Integer = 16);
+    destructor Destroy; override;
+
+    function ToString: String; override;
+  end;
+
+  { TObjectStack<T> }
+
+  TObjectStack<T: class> = class
+  private
+    type
+
+      { TItem }
+
+      TItem = class
+        Prev: TItem;
+        Data: T;
+
+        constructor Create(AData: T; APrev: TItem);
+      end;
+
+  private
+    FTop: TItem;
+    FReferenceList: Boolean;
+
+  public
+    constructor Create(AReferenceList: Boolean = False);
+    destructor Destroy; override;
+
+    function Push(AElement: T): T;
+    function Pop: Boolean;
+    function Top: T;
+
+    function Copy: TObjectStack<T>;
+  end;
+
+  { THashBase }
+
+  THashBase<TKey> = class abstract
+  protected
+    FCount: Cardinal;
+    FInternalSize: Cardinal;
+
+    function GetKeyHash(AKey: TKey): Cardinal; virtual; abstract;
+    class function CantIndex({%H-}AKey: TKey): Boolean; virtual;
+    class function KeysEqual(AKey1, AKey2: TKey): Boolean; virtual; abstract;
+
+  public
+    constructor Create(AInternalSize: Cardinal);
+  end;
+
+  { TMap }
+
+  TMap<TKey, TData> = class abstract (THashBase<TKey>)
+  private
+    type
+
+      { THashEntry }
+
+      THashEntry = class
+      public
+        Key: TKey;
+        Data: TData;
+        Next: THashEntry;
+      end;
+
+  public
+    type
+
+      { TIterator }
+
+      TIterator = class
+      private
+        FList: TMap<TKey, TData>;
+        FIndex: Integer;
+        FEntry: THashEntry;
+
+        function GetCurrent: TPair<TKey, TData>;
+
+      public
+        constructor Create(AList: TMap<TKey, TData>);
+
+        function MoveNext: Boolean;
+        property Current: TPair<TKey, TData> read GetCurrent;
+
+      end;
+
+  private
+    FData: array of THashEntry;
+
+  protected
+    property InternalSize: Cardinal read FInternalSize; // for getHash
+
+    function GetEntry(AKey: TKey): TData; virtual;
+    procedure SetEntry(AKey: TKey; AValue: TData); virtual;
+
+    procedure FreeData(const {%H-}AData: TData); virtual;
+
+  public
+    constructor Create(AInternalSize: Cardinal = 256);
+    destructor Destroy; override;
+
+    function Get(AKey: TKey; out AData: TData): Boolean;
+    function HasKey(AKey: TKey): Boolean;
+    procedure Del(AKey: TKey);
+
+    property Data[AKey: TKey]: TData read GetEntry write SetEntry; default;
+
+    function NextKeyCheck(AKey: TKey; out AOut: TKey): Boolean;
+    function PrevKeyCheck(AKey: TKey; out AOut: TKey): Boolean;
+
+    function HasNextKey(AKey: TKey): Boolean;
+    function HasPrevKey(AKey: TKey): Boolean;
+
+    function NextKey(AKey: TKey): TKey;
+    function PrevKey(AKey: TKey): TKey;
+
+    function FirstKeyCheck(out AOut: TKey): Boolean;
+    function LastKeyCheck(out AOut: TKey): Boolean;
+
+    function FirstKey: TKey;
+    function LastKey: TKey;
+
+    function NextData(AKey: TKey): TData;
+    function PrevData(AKey: TKey): TData;
+
+    procedure DelAll;
+
+    function GetEnumerator: TIterator;
+    property Count: Cardinal read FCount;
+
+  end;
+
+  { TObjectMap }
+
+  TObjectMap<TKey, TData: class> = class (TMap<TKey, TData>)
+  private
+    FReferenceList: Boolean;
+
+  protected
+    function GetKeyHash(AKey: TKey): Cardinal; override;
+    class function CantIndex(AKey: TKey): Boolean; override;
+    class function KeysEqual(AKey1, AKey2: TKey): Boolean; override;
+
+    procedure FreeData(const AData: TData); override;
+
+  public
+    constructor Create(AReferenceList: Boolean = False; AInternalSize: Cardinal = 256);
+  end;
+
+  { TStringMap<TData> }
+
+  TStringMap<TData> = class (TMap<String, TData>)
+    function GetKeyHash(AKey: String): Cardinal; override;
+    class function CantIndex(AKey: String): Boolean; override;
+    class function KeysEqual(AKey1, AKey2: String): Boolean; override;
+  end;
+
+  { TAnsiStringMap<TData> }
+
+  TAnsiStringMap<TData> = class (TMap<AnsiString, TData>)
+    function GetKeyHash(AKey: AnsiString): Cardinal; override;
+    class function CantIndex(AKey: AnsiString): Boolean; override;
+    class function KeysEqual(AKey1, AKey2: AnsiString): Boolean; override;
+  end;
+
+  { TStringObjectMap }
+
+  TStringObjectMap<TData: class> = class (TStringMap<TData>)
+    procedure FreeData(const AData: TData); override;
+  end;
+
+  { TAnsiStringObjectMap<TData> }
+
+  TAnsiStringObjectMap<TData: class> = class (TAnsiStringMap<TData>)
+    procedure FreeData(const AData: TData); override;
+  end;
+
+  { TIntVectorMap<TData> }
+
+  TIntVectorMap<TData> = class (TMap<TIntVector, TData>)
+  public
+    function GetKeyHash(AKey: TIntVector): Cardinal; override;
+    class function KeysEqual(AKey1, AKey2: TIntVector): Boolean; override;
+  end;
+
+  { TStringArray }
+
+  TStringArray = class (TObjectArray<TString>)
+  private
+    function GetString(I: Integer): String;
+  protected
+    procedure SetString(I: Integer; AValue: String); virtual;
+  public
+    property Strings[I: Integer]: String read GetString write SetString; default;
+
+    procedure Add(AString: String); reintroduce;
+  end;
+
+  { TNotifyStringArray }
+
+  TNotifyStringArray = class (TStringArray)
+  private
+    FChanged: Boolean;
+  protected
+    procedure SetString(I: Integer; AValue: String); override;
+  public
+    procedure NotifyChanges;
+    property Changed: Boolean read FChanged;
+  end;
+
+  { TSet<T> }
+
+  TSet<T> = class abstract (THashBase<T>)
+  private
+    type
+
+      { TEntry }
+
+      TEntry = class
+      public
+        Data: T;
+        Next: TEntry;
+      end;
+
+      { TIterator }
+
+      TIterator = class
+      private
+        FList: TSet<T>;
+        FIndex: Integer;
+        FEntry: TEntry;
+        function GetCurrent: T;
+      public
+        constructor Create(AList: TSet<T>);
+
+        function MoveNext: Boolean;
+        property Current: T read GetCurrent;
+      end;
+
+  private
+    FTags: array of TEntry;
+
+  protected
+    function GetElement(S: T): Boolean; virtual;
+    procedure SetElement(S: T; AValue: Boolean); virtual;
+
+    procedure FreeData(const {%H-}AData: T); virtual;
+
+  public
+    constructor Create(AInternalSize: Cardinal = 256);
+    destructor Destroy; override;
+
+    property Elements[S: T]: Boolean read GetElement write SetElement; default;
+    procedure Add(S: T);
+    procedure Del(S: T);
+
+    property Count: Cardinal read FCount;
+
+    procedure Clear;
+
+    procedure Assign(ATagList: TSet<T>);
+
+    function GetEnumerator: TIterator;
+  end;
+
+  { TObjectSet }
+
+  TObjectSet<T: class> = class (TSet<T>)
+  private
+    FReferenceList: Boolean;
+
+  protected
+    function GetKeyHash(AKey: T): Cardinal; override;
+    class function CantIndex(AKey: T): Boolean; override;
+    class function KeysEqual(AKey1, AKey2: T): Boolean; override;
+
+    procedure FreeData(const AData: T); override;
+
+  public
+    constructor Create(AReferenceList: Boolean; AInternalSize: Cardinal);
+
+  end;
+
+  { TTags }
+
+  TTags = class (TSet<String>)
+  protected
+    function GetKeyHash(AKey: String): Cardinal; override;
+    class function CantIndex(AKey: String): Boolean; override;
+    class function KeysEqual(AKey1, AKey2: String): Boolean; override;
+  end;
+
+function GetHash(AObject: TObject; ARange: Cardinal): Cardinal; overload; inline;
+function GetHash(AString: WideString; ARange: Cardinal): Cardinal; overload; inline;
+function GetHash(AString: AnsiString; ARange: Cardinal): Cardinal; overload; inline;
+function GetHash(AIntVector: TIntVector; ARange: Cardinal): Cardinal; overload; inline;
+
+implementation
+
+function GetHash(AObject: TObject; ARange: Cardinal): Cardinal;
+var
+  I: NativeUInt;
+begin
+  I := NativeUInt(Pointer(AObject));
+  Result := (I xor Cardinal(I shl 3) xor (I shr 7)) mod ARange;
+end;
+
+function GetHash(AString: WideString; ARange: Cardinal): Cardinal;
+var
+  C: Char;
+begin
+  Result := 0;
+  for C in AString do
+    Result := Cardinal((Result + Ord(C)) xor Ord(C) * Ord(C));
+  Result := Result mod ARange;
+end;
+
+function GetHash(AString: AnsiString; ARange: Cardinal): Cardinal;
+var
+  C: AnsiChar;
+begin
+  Result := 0;
+  for C in AString do
+    Result := Cardinal((Result + Ord(C)) xor Ord(C) * Ord(C));
+  Result := Result mod ARange;
+end;
+
+function GetHash(AIntVector: TIntVector; ARange: Cardinal): Cardinal;
+var
+  X, Y, Z: PCardinal;
+begin
+  AIntVector.X := Integer(AIntVector.X * 53);
+  AIntVector.Y := Integer(AIntVector.Y * 97);
+  AIntVector.Z := Integer(AIntVector.Z * 193);
+  X := @AIntVector.X;
+  Y := @AIntVector.Y;
+  Z := @AIntVector.Z;
+  Result := (X^ xor Y^ xor Z^) mod ARange;
+end;
+
+{ TObjectStack<T>.TItem }
+
+constructor TObjectStack<T>.TItem.Create(AData: T; APrev: TItem);
+begin
+  Data := AData;
+  Prev := APrev;
+end;
+
+{ TPair<TKey, TData> }
+
+constructor TPair<TKey, TData>.Create(AKey: TKey; AData: TData);
+begin
+  FKey := AKey;
+  FData := AData;
+end;
+
+{ THashTable<TKey, TData> }
+
+function TMap<TKey, TData>.GetEntry(AKey: TKey): TData;
+begin
+  if not Get(AKey, Result) then
+    raise Exception.Create('HashTable Key missing');
+end;
+
+procedure TMap<TKey, TData>.SetEntry(AKey: TKey; AValue: TData);
+var
+  Entry: THashEntry;
+  Hash: Cardinal;
+begin
+  if CantIndex(AKey) then
+    raise Exception.Create('Invalid HashTable-Index');
+
+  Hash := GetKeyHash(AKey);
+  if FData[Hash] = nil then
+  begin
+    // create new base entry
+    FData[Hash] := THashEntry.Create;
+    FData[Hash].Key := AKey;
+    FData[Hash].Data := AValue;
+    Inc(FCount);
+    Exit;
+  end;
+
+  Entry := FData[Hash];
+  // find key in list
+  while not KeysEqual(Entry.Key, AKey) do
+  begin
+    if Entry.Next = nil then // not fount > add entry
+    begin
+      Entry.Next := THashEntry.Create;
+      Entry.Next.Key := AKey;
+      Entry.Next.Data := AValue;
+      Inc(FCount);
+      Exit;
+    end;
+    Entry := Entry.Next;
+  end;
+
+  // update Data
+  FreeData(Entry.Data);
+  Entry.Data := AValue;
+end;
+
+procedure TMap<TKey, TData>.FreeData(const AData: TData);
+begin
+  // might not do anything depending on generic Data Type
+end;
+
+constructor TMap<TKey, TData>.Create(AInternalSize: Cardinal);
+begin
+  inherited Create(AInternalSize);
+  SetLength(FData, FInternalSize);
+end;
+
+destructor TMap<TKey, TData>.Destroy;
+begin
+  DelAll;
+  inherited Destroy;
+end;
+
+function TMap<TKey, TData>.Get(AKey: TKey; out AData: TData): Boolean;
+var
+  Entry: THashEntry;
+  Hash: Cardinal;
+begin
+  if CantIndex(AKey) then
+    raise Exception.Create('Invalid HashTable-Index');
+
+  Hash := GetKeyHash(AKey);
+  if FData[Hash] = nil then // base entry doesn't exist > not found
+    Exit(False);
+
+  Entry := FData[Hash];
+  while not KeysEqual(Entry.Key, AKey) do
+  begin
+    if Entry.Next = nil then // end reached > not found
+      Exit(False);
+    Entry := Entry.Next;
+  end;
+  // found
+  AData := Entry.Data;
+  Result := True;
+end;
+
+function TMap<TKey, TData>.HasKey(AKey: TKey): Boolean;
+var
+  _: TData;
+begin
+  Result := Get(AKey, _);
+end;
+
+procedure TMap<TKey, TData>.Del(AKey: TKey);
+var
+  Hash: Cardinal;
+  Entry, PrevEntry: THashEntry;
+begin
+  Hash := GetKeyHash(AKey);
+  Entry := FData[Hash];
+  if Entry = nil then
+    Exit; // already nil
+
+  PrevEntry := nil;
+  // find key in list
+  while not KeysEqual(Entry.Key, AKey) do
+  begin
+    if Entry.Next = nil then // not found
+      Exit;
+    PrevEntry := Entry;
+    Entry := Entry.Next;
+  end;
+
+  FreeData(Entry.Data);
+
+  if PrevEntry <> nil then
+    PrevEntry.Next := Entry.Next
+  else
+    FData[Hash] := Entry.Next;
+
+  Entry.Free;
+  Dec(FCount);
+end;
+
+function TMap<TKey, TData>.NextKeyCheck(AKey: TKey; out AOut: TKey): Boolean;
+var
+  Hash: Cardinal;
+  Current: THashEntry;
+begin
+  Hash := GetKeyHash(AKey);
+  // Find Entry
+  Current := FData[Hash];
+  while not KeysEqual(Current.Key, AKey) do
+  begin
+    Current := Current.Next;
+    if Current = nil then
+      Exit(False);
+  end;
+
+  // Find Next
+  if Current.Next <> nil then
+  begin
+    AOut := Current.Next.Key;
+    Exit(True);
+  end;
+  repeat
+    Inc(Hash);
+  until (Hash = FInternalSize) or (FData[Hash] <> nil);
+  if Hash = FInternalSize then
+    Exit(False);
+  AOut := FData[Hash].Key;
+  Result := True;
+end;
+
+function TMap<TKey, TData>.PrevKeyCheck(AKey: TKey; out AOut: TKey): Boolean;
+var
+  Hash: Cardinal;
+  Current: THashEntry;
+begin
+  Hash := GetKeyHash(AKey);
+  // Find Entry
+  if FData[Hash] = nil then
+    Exit(False);
+  Current := FData[Hash];
+  while not KeysEqual(Current.Key, AKey) do
+  begin
+    if (Current.Next <> nil) and KeysEqual(Current.Next.Key, AKey) then
+    begin
+      AOut := Current.Key;
+      Exit(True)
+    end
+    else if Current.Next = nil then
+      Exit(False);
+    Current := Current.Next;
+  end;
+
+  // Find Prev
+  while Hash > 0 do
+  begin
+    Dec(Hash);
+    if FData[Hash] <> nil then
+    begin
+      Current := FData[Hash];
+      while Current.Next <> nil do
+        Current := Current.Next;
+      AOut := Current.Key;
+      Exit(True);
+    end;
+  end;
+  Result := False;
+end;
+
+function TMap<TKey, TData>.HasNextKey(AKey: TKey): Boolean;
+var
+  _: TKey;
+begin
+  Result := NextKeyCheck(AKey, _);
+end;
+
+function TMap<TKey, TData>.HasPrevKey(AKey: TKey): Boolean;
+var
+  _: TKey;
+begin
+  Result := PrevKeyCheck(AKey, _);
+end;
+
+function TMap<TKey, TData>.NextKey(AKey: TKey): TKey;
+begin
+  if not NextKeyCheck(AKey, Result) then
+    raise Exception.Create('No next Key!');
+end;
+
+function TMap<TKey, TData>.PrevKey(AKey: TKey): TKey;
+begin
+  if not NextKeyCheck(AKey, Result) then
+    raise Exception.Create('No previous Key!');
+end;
+
+function TMap<TKey, TData>.FirstKeyCheck(out AOut: TKey): Boolean;
+var
+  I: Integer;
+begin
+  if Count = 0 then
+    Exit(False);
+  Result := True;
+  for I := 0 to FInternalSize - 1 do
+    if FData[I] <> nil then
+      AOut := FData[I].Key;
+end;
+
+function TMap<TKey, TData>.FirstKey: TKey;
+begin
+  if not FirstKeyCheck(Result) then
+    raise Exception.Create('No first Key!');
+end;
+
+function TMap<TKey, TData>.LastKey: TKey;
+begin
+  if not LastKeyCheck(Result) then
+    raise Exception.Create('No last Key!');
+end;
+
+function TMap<TKey, TData>.LastKeyCheck(out AOut: TKey): Boolean;
+var
+  I: Cardinal;
+  Current: THashEntry;
+begin
+  if Count = 0 then
+    Exit(False);
+  Result := True;
+  for I := FInternalSize - 1 downto 0 do
+  begin
+    Current := FData[I];
+    if Current <> nil then
+    begin
+      while Current.Next <> nil do
+        Current := Current.Next;
+      AOut := Current.Key;
+    end;
+  end;
+end;
+
+function TMap<TKey, TData>.NextData(AKey: TKey): TData;
+begin
+  Result := Data[NextKey(AKey)];
+end;
+
+function TMap<TKey, TData>.PrevData(AKey: TKey): TData;
+begin
+  Result := Data[PrevKey(AKey)];
+end;
+
+procedure TMap<TKey, TData>.DelAll;
+var
+  Next: THashEntry;
+  I: Integer;
+begin
+  for I := 0 to FInternalSize - 1 do
+  begin
+    while FData[I] <> nil do
+    begin
+      Next := FData[I].Next;
+      FreeData(FData[I].Data);
+      FData[I].Free;
+      FData[I] := Next;
+    end;
+  end;
+end;
+
+function TMap<TKey, TData>.GetEnumerator: TIterator;
+begin
+  Result := TIterator.Create(Self);
+end;
+
+{ THashTable<TKey, TData>.TIterator }
+
+function TMap<TKey, TData>.TIterator.GetCurrent: TPair<TKey, TData>;
+begin
+  Result := TPair<TKey, TData>.Create(FEntry.Key, FEntry.Data);
+end;
+
+constructor TMap<TKey, TData>.TIterator.Create(AList: TMap<TKey, TData>);
+begin
+  FList := AList;
+  FIndex := -1;
+  FEntry := nil;
+end;
+
+function TMap<TKey, TData>.TIterator.MoveNext: Boolean;
+begin
+  if (FIndex = -1) or (FEntry.Next = nil) then
+  begin
+    // Move to next list
+    repeat
+      FIndex := FIndex + 1;
+      if Cardinal(FIndex) = FList.FInternalSize then
+        Exit(False);
+      FEntry := FList.FData[FIndex];
+    until (FEntry <> nil);
+  end
+  else
+  begin
+    FEntry := FEntry.Next;
+  end;
+  Result := True;
+end;
+
+{ TStringHashTable<TData> }
+
+function TStringMap<TData>.GetKeyHash(AKey: String): Cardinal;
+begin
+  Result := GetHash(AKey, InternalSize);
+end;
+
+class function TStringMap<TData>.CantIndex(AKey: String): Boolean;
+begin
+  Result := AKey = '';
+end;
+
+class function TStringMap<TData>.KeysEqual(AKey1, AKey2: String): Boolean;
+begin
+  Result := AKey1 = AKey2;
+end;
+
+{ TStringObjectHashTable<TData> }
+
+procedure TStringObjectMap<TData>.FreeData(const AData: TData);
+begin
+  AData.Free;
+end;
+
+{ THashBase<TKey> }
+
+constructor THashBase<TKey>.Create(AInternalSize: Cardinal);
+begin
+  if AInternalSize = 0 then
+    raise Exception.Create('Internal Size for HashTable must be at least 1');
+  FInternalSize := AInternalSize;
+end;
+
+class function THashBase<TKey>.CantIndex(AKey: TKey): Boolean;
+begin
+  Result := False;
+end;
+
+{ TObjectHashTable<TKey, TData> }
+
+constructor TObjectMap<TKey, TData>.Create(AReferenceList: Boolean; AInternalSize: Cardinal);
+begin
+  inherited Create(AInternalSize);
+  FReferenceList := AReferencelist;
+end;
+
+function TObjectMap<TKey, TData>.GetKeyHash(AKey: TKey): Cardinal;
+begin
+  Result := GetHash(TObject(AKey), FInternalSize);
+end;
+
+class function TObjectMap<TKey, TData>.CantIndex(AKey: TKey): Boolean;
+begin
+  Result := AKey = nil;
+end;
+
+class function TObjectMap<TKey, TData>.KeysEqual(AKey1, AKey2: TKey): Boolean;
+begin
+  Result := Pointer(AKey1) = Pointer(AKey2);
+end;
+
+procedure TObjectMap<TKey, TData>.FreeData(const AData: TData);
+begin
+  AData.Free;
+end;
+
+{ TIVecHashTable<TData> }
+
+function TIntVectorMap<TData>.GetKeyHash(AKey: TIntVector): Cardinal;
+begin
+  Result := GetHash(AKey, FInternalSize);
+end;
+
+class function TIntVectorMap<TData>.KeysEqual(AKey1, AKey2: TIntVector): Boolean;
+begin
+  Result := AKey1 = AKey2;
+end;
+
+{ TObjectSet<T> }
+
+function TObjectSet<T>.GetKeyHash(AKey: T): Cardinal;
+begin
+  Result := GetHash(TObject(AKey), FInternalSize);
+end;
+
+class function TObjectSet<T>.CantIndex(AKey: T): Boolean;
+begin
+  Result := AKey = nil;
+end;
+
+class function TObjectSet<T>.KeysEqual(AKey1, AKey2: T): Boolean;
+begin
+  Result := Pointer(AKey1) = Pointer(AKey2);
+end;
+
+procedure TObjectSet<T>.FreeData(const AData: T);
+begin
+  if not FReferenceList then
+    AData.Free;
+end;
+
+constructor TObjectSet<T>.Create(AReferenceList: Boolean; AInternalSize: Cardinal);
+begin
+  inherited Create(AInternalSize);
+  FReferenceList := AReferenceList;
+end;
+
+{ TArray<T> }
+
+function TArray<T>.GetItem(AIndex: Integer): T;
+begin
+  RangeCheckException(AIndex);
+  Result := FItems[AIndex];
+end;
+
+procedure TArray<T>.SetItem(AIndex: Integer; AValue: T);
+begin
+  RangeCheckException(AIndex);
+  FreeData(FItems[AIndex]);
+  FItems[AIndex] := AValue;
+end;
+
+procedure TArray<T>.Sort(AFunc: TCompareFunction);
+begin
+  SortLR(AFunc, 0, Count - 1);
+end;
+
+procedure TArray<T>.Sort(AFunc: TCompareFunctionOfObject);
+begin
+  SortLR(AFunc, 0, Count - 1);
+end;
+
+procedure TArray<T>.SortLR(ACompareFunc: TCompareFunction; ALeft, ARight: Integer);
+var
+  Pivot: T;
+  L, R: Integer;
+begin
+  Pivot := FItems[(ALeft + ARight) div 2];
+  L := ALeft;
+  R := ARight;
+  repeat
+    while ACompareFunc(Pivot, FItems[L]) do
+      Inc(L);
+    while ACompareFunc(FItems[R], Pivot) do
+      Dec(R);
+    if L <= R then
+    begin
+      Swap(L, R);
+      Inc(L);
+      Dec(R);
+    end;
+  until L > R;
+  if R > ALeft then
+    SortLR(ACompareFunc, ALeft, R);
+  if L < ARight then
+    SortLR(ACompareFunc, L, ARight);
+end;
+
+constructor TArray<T>.Create(ASizeSteps: Integer);
+begin
+  FSizeSteps := ASizeSteps;
+end;
+
+function TArray<T>.Add(AElement: T): T;
+begin
+  if Count + 1 > Length(FItems) then
+    SetLength(FItems, Length(FItems) + FSizeSteps);
+  FItems[FCount] := AElement;
+  Inc(FCount);
+  Result := AElement;
+end;
+
+function TArray<T>.Insert(AElement: T; AIndex: Integer): T;
+var
+  I: Integer;
+begin
+  if Count + 1 > Length(FItems) then
+    SetLength(FItems, Length(FItems) + FSizeSteps);
+  Move(FItems[AIndex], FItems[AIndex + 1], SizeOf(T) * (Count - AIndex));
+  FItems[AIndex] := AElement;
+  Inc(FCount);
+  Result := AElement;
+end;
+
+procedure TArray<T>.DelLast;
+begin
+  Del(Count - 1);
+end;
+
+procedure TArray<T>.DelAll;
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    Del(I);
+end;
+
+procedure TArray<T>.Del(AIndex: Integer);
+var
+  I: Integer;
+begin
+  RangeCheckException(AIndex);
+  FreeData(FItems[AIndex]);
+  if Count - AIndex > 1 then
+    Move(FItems[AIndex + 1], FItems[AIndex], SizeOf(T) * (Count - AIndex - 1));
+  Dec(FCount);
+  if Length(FItems) - FSizeSteps >= FCount then
+    SetLength(FItems, Length(FItems) - FSizeSteps);
+end;
+
+procedure TArray<T>.Swap(A, B: Integer);
+var
+  Tmp: T;
+begin
+  RangeCheckException(A);
+  RangeCheckException(B);
+  Tmp := FItems[A];
+  FItems[A] := FItems[B];
+  FItems[B] := Tmp;
+end;
+
+function TArray<T>.FindFirstIndex(AFunc: TFindFunction): Integer;
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    if AFunc(FItems[I]) then
+      Exit(I);
+  Result := -1;
+end;
+
+function TArray<T>.FindFirstIndex(AFunc: TFindFunctionOfObject): Integer;
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    if AFunc(FItems[I]) then
+      Exit(I);
+  Result := -1;
+end;
+
+function TArray<T>.FindFirst(AFunc: TFindFunction): T;
+var
+  I: Integer;
+begin
+  I := FindFirstIndex(AFunc);
+  if I = -1 then
+    raise Exception.Create('Array Entry could not be found!');
+  Result := FItems[I];
+end;
+
+function TArray<T>.FindFirst(AFunc: TFindFunctionOfObject): T;
+var
+  I: Integer;
+begin
+  I := FindFirstIndex(AFunc);
+  if I = -1 then
+    raise Exception.Create('Array Entry could not be found!');
+  Result := FItems[I];
+end;
+
+function TArray<T>.FindLastIndex(AFunc: TFindFunction): Integer;
+var
+  I: Integer;
+begin
+  for I := Count - 1 downto 0 do
+    if AFunc(FItems[I]) then
+      Exit(I);
+  Result := -1;
+end;
+
+function TArray<T>.FindLastIndex(AFunc: TFindFunctionOfObject): Integer;
+var
+  I: Integer;
+begin
+  for I := Count - 1 downto 0 do
+    if AFunc(FItems[I]) then
+      Exit(I);
+  Result := -1;
+end;
+
+function TArray<T>.FindLast(AFunc: TFindFunction): T;
+var
+  I: Integer;
+begin
+  I := FindLastIndex(AFunc);
+  if I = -1 then
+    raise Exception.Create('Array Entry could not be found!');
+  Result := FItems[I];
+end;
+
+function TArray<T>.FindLast(AFunc: TFindFunctionOfObject): T;
+var
+  I: Integer;
+begin
+  I := FindLastIndex(AFunc);
+  if I = -1 then
+    raise Exception.Create('Array Entry could not be found!');
+  Result := FItems[I];
+end;
+
+function TArray<T>.FindIndexAsArray(AFunc: TFindFunction): TArray<Integer>;
+var
+  I: Integer;
+begin
+  Result := TArray<Integer>.Create;
+  for I := 0 to Count - 1 do
+    if AFunc(FItems[I]) then
+      Result.Add(I);
+end;
+
+function TArray<T>.FindIndexAsArray(AFunc: TFindFunctionOfObject): TArray<Integer>;
+var
+  I: Integer;
+begin
+  Result := TArray<Integer>.Create;
+  for I := 0 to Count - 1 do
+    if AFunc(FItems[I]) then
+      Result.Add(I);
+end;
+
+function TArray<T>.FindAsArray(AFunc: TFindFunction): TArray<T>;
+var
+  I: Integer;
+begin
+  Result := TArray<T>.Create;
+  for I := 0 to Count - 1 do
+    if AFunc(FItems[I]) then
+      Result.Add(FItems[I]);
+end;
+
+function TArray<T>.FindAsArray(AFunc: TFindFunctionOfObject): TArray<T>;
+var
+  I: Integer;
+begin
+  Result := TArray<T>.Create;
+  for I := 0 to Count - 1 do
+    if AFunc(FItems[I]) then
+      Result.Add(FItems[I]);
+end;
+
+function TArray<T>.Copy: TArray<T>;
+var
+  I: Integer;
+begin
+  Result := TArray<T>.Create;
+  for I := 0 to Count - 1 do
+    Result.Add(FItems[I]);
+end;
+
+function TArray<T>.Empty: Boolean;
+begin
+  Result := Count = 0;
+end;
+
+function TArray<T>.First: T;
+begin
+  Result := FItems[0];
+end;
+
+procedure TArray<T>.FreeData(const AData: T);
+begin
+end;
+
+function TArray<T>.Last: T;
+begin
+  Result := FItems[Count - 1];
+end;
+
+function TArray<T>.GetEnumerator(AAutoFree: Boolean): TIterator;
+begin
+  Result := TIterator.Create(Self, FIterReversed, AAutoFree);
+  FIterReversed := False;
+end;
+
+function TArray<T>.IterReversed: TArray<T>;
+begin
+  FIterReversed := True;
+  Result := Self;
+end;
+
+procedure TArray<T>.RangeCheckException(AIndex: Integer);
+begin
+  if not RangeCheck(AIndex) then
+    Exception.Create('TArray index out of bounds!');
+end;
+
+function TArray<T>.RangeCheck(AIndex: Integer): Boolean;
+begin
+  Result := (AIndex >= 0) and (AIndex < Count);
+end;
+
+{ TTags }
+
+function TTags.GetKeyHash(AKey: String): Cardinal;
+begin
+  Result := GetHash(AKey, FInternalSize);
+end;
+
+class function TTags.CantIndex(AKey: String): Boolean;
+begin
+  Result := AKey = '';
+end;
+
+class function TTags.KeysEqual(AKey1, AKey2: String): Boolean;
+begin
+  Result := AKey1 = AKey2;
+end;
+
+{ TSet<T>.TIterator }
+
+function TSet<T>.TIterator.GetCurrent: T;
+begin
+  Result := FEntry.Data;
+end;
+
+constructor TSet<T>.TIterator.Create(AList: TSet<T>);
+begin
+  FList := AList;
+  FIndex := -1;
+  FEntry := nil;
+end;
+
+function TSet<T>.TIterator.MoveNext: Boolean;
+begin
+  if (FIndex = -1) or (FEntry.Next = nil) then
+  begin
+    // Move to next list
+    repeat
+      FIndex := FIndex + 1;
+      if Cardinal(FIndex) = FList.FInternalSize then
+        Exit(False);
+      FEntry := FList.FTags[FIndex];
+    until (FEntry <> nil);
+  end
+  else
+  begin
+    FEntry := FEntry.Next;
+  end;
+  Result := True;
+end;
+
+{ TSet<T> }
+
+function TSet<T>.GetElement(S: T): Boolean;
+var
+  Entry: TEntry;
+begin
+  if CantIndex(S) then
+    raise Exception.Create('Invalid Set-Index');
+
+  Entry := FTags[GetKeyHash(S)];
+  while Entry <> nil do
+  begin
+    if KeysEqual(Entry.Data, S) then
+      Exit(True);
+    Entry := Entry.Next;
+  end;
+  Result := False;
+end;
+
+procedure TSet<T>.SetElement(S: T; AValue: Boolean);
+var
+  Hash: Cardinal;
+  Entry, EntryToDelete: TEntry;
+begin
+  if CantIndex(S) then
+    raise Exception.Create('Invalid Set-Index');
+
+  Hash := GetKeyHash(S);
+  if FTags[Hash] = nil then
+  begin
+    if AValue then
+    begin
+      // create new base entry
+      FTags[Hash] := TEntry.Create;
+      FTags[Hash].Data := S;
+      Inc(FCount);
+    end;
+    // else doesn't exist in the first place
+  end
+  else
+  begin
+    // first
+    if KeysEqual(FTags[Hash].Data, S) then
+    begin
+      if not AValue then
+      begin
+        // delete first
+        Entry := FTags[Hash].Next;
+        FreeData(FTags[Hash].Data);
+        FTags[Hash].Free;
+        FTags[Hash] := Entry;
+        Dec(FCount);
+      end;
+      Exit;
+    end;
+    // rest
+    Entry := FTags[Hash];
+    while Entry.Next <> nil do
+    begin
+      if KeysEqual(Entry.Next.Data, S) then
+      begin
+        if not AValue then
+        begin
+          // delete in rest
+          EntryToDelete := Entry.Next;
+          Entry.Next := Entry.Next.Next;
+          FreeData(EntryToDelete.Data);
+          EntryToDelete.Free;
+          Dec(FCount);
+        end;
+        // else exists already
+        Exit;
+      end;
+      Entry := Entry.Next;
+    end;
+    // not found
+    if AValue then
+    begin
+      // add
+      Entry.Next := TEntry.Create;
+      Entry.Next.Data := S;
+      Inc(FCount);
+    end;
+    // else doesn't exist in the first place
+  end;
+end;
+
+procedure TSet<T>.FreeData(const AData: T);
+begin
+  // might not do anything depending on generic Data Type
+end;
+
+constructor TSet<T>.Create(AInternalSize: Cardinal);
+begin
+  inherited Create(AInternalSize);
+  SetLength(FTags, FInternalSize);
+end;
+
+destructor TSet<T>.Destroy;
+begin
+  Clear;
+  inherited;
+end;
+
+procedure TSet<T>.Add(S: T);
+begin
+  SetElement(S, True);
+end;
+
+procedure TSet<T>.Del(S: T);
+begin
+  SetElement(S, False);
+end;
+
+procedure TSet<T>.Clear;
+var
+  I: Integer;
+  Next: TEntry;
+begin
+  for I := 0 to FInternalSize - 1 do
+  begin
+    if FCount = 0 then
+      Exit;
+    while FTags[I] <> nil do
+    begin
+      Next := FTags[I].Next;
+      FTags[I].Free;
+      FTags[I] := Next;
+      Dec(FCount);
+    end;
+  end;
+end;
+
+procedure TSet<T>.Assign(ATagList: TSet<T>);
+var
+  S: T;
+begin
+  Clear;
+  for S in ATagList do
+    Self[S] := True;
+end;
+
+function TSet<T>.GetEnumerator: TIterator;
+begin
+  Result := TIterator.Create(Self);
+end;
+
+{ TNotifyStringArray }
+
+procedure TNotifyStringArray.SetString(I: Integer; AValue: String);
+begin
+  inherited SetString(I, AValue);
+  FChanged := True;
+end;
+
+procedure TNotifyStringArray.NotifyChanges;
+begin
+  FChanged := False;
+end;
+
+{ TStringArray }
+
+function TStringArray.GetString(I: Integer): String;
+var
+  S: TString;
+begin
+  S := GetItem(I) as TString;
+  if S = nil then
+    Result := EmptyStr
+  else
+    Result := S.Text;
+end;
+
+procedure TStringArray.SetString(I: Integer; AValue: String);
+begin
+  if AValue = EmptyStr then
+    SetItem(I, nil)
+  else
+    SetItem(I, TString.Create(AValue));
+end;
+
+procedure TStringArray.Add(AString: String);
+begin
+  inherited Add(TString.Create(AString));
+end;
+
+{ TObjectStack }
+
+constructor TObjectStack<T>.Create(AReferenceList: Boolean);
+begin
+  FReferenceList := AReferenceList;
+end;
+
+destructor TObjectStack<T>.Destroy;
+begin
+  while Pop do;
+  inherited Destroy;
+end;
+
+function TObjectStack<T>.Push(AElement: T): T;
+begin
+  FTop := TItem.Create(AElement, FTop);
+  Result := FTop.Data;
+end;
+
+function TObjectStack<T>.Pop: Boolean;
+var
+  Old: TItem;
+begin
+  if FTop = nil then
+    Exit(False);
+  Old := FTop;
+  if not FReferenceList then
+    FTop.Data.Free;
+  FTop := FTop.Prev;
+  Result := FTop <> nil;
+  Old.Free;
+end;
+
+function TObjectStack<T>.Top: T;
+begin
+  Result := FTop.Data;
+end;
+
+function TObjectStack<T>.Copy: TObjectStack<T>;
+var
+  A, B: TItem;
+begin
+  Result := TObjectStack<T>.Create(True);
+  if FTop = nil then
+    Exit;
+  A := TItem.Create(FTop.Data, nil);
+  Result.FTop := A;
+  B := FTop;
+  while B.Prev <> nil do
+  begin
+    B := B.Prev;
+    A.Prev := TItem.Create(B.Data, nil);
+    A := A.Prev;
+  end;
+end;
+
+{ TObjectArray }
+
+constructor TObjectArray<T>.Create(AReferenceList: Boolean; ASizeSteps: Integer);
+begin
+  FReferenceList := AReferenceList;
+  FSizeSteps := ASizeSteps;
+end;
+
+destructor TObjectArray<T>.Destroy;
+begin
+  DelAll;
+  inherited;
+end;
+
+procedure TObjectArray<T>.FreeData(const AData: T);
+begin
+  if not FReferenceList then
+    AData.Free;
+end;
+
+function TObjectArray<T>.ToString: String;
+var
+  I: Integer;
+begin
+  if Count = 0 then
+    Exit('Empty');
+  Result := T(FItems[0]).ToString; // cast only necessary for delphi quick-syntaxcheck
+  for I := 1 to Count - 1 do
+    Result := Result + ', ' + T(FItems[I]).ToString;
+end;
+
+{ TAnsiStringObjectMap<TData> }
+
+procedure TAnsiStringObjectMap<TData>.FreeData(const AData: TData);
+begin
+  AData.Free;
+end;
+
+{ TAnsiStringMap<TData> }
+
+class function TAnsiStringMap<TData>.CantIndex(AKey: AnsiString): Boolean;
+begin
+  Result := AKey = '';
+end;
+
+function TAnsiStringMap<TData>.GetKeyHash(AKey: AnsiString): Cardinal;
+begin
+  Result := GetHash(AKey, FInternalSize);
+end;
+
+class function TAnsiStringMap<TData>.KeysEqual(AKey1, AKey2: AnsiString): Boolean;
+begin
+  Result := AKey1 = AKey2;
+end;
+
+{ TArray<T>.TIterator }
+
+constructor TArray<T>.TIterator.Create(AList: TArray<T>; AReversed, AAutoFree: Boolean);
+begin
+  FList := AList;
+  FReversed := AReversed;
+  FAutoFree := AAutoFree;
+  if FReversed then
+    FCurrent := FList.Count
+  else
+    FCurrent := -1;
+end;
+
+function TArray<T>.TIterator.GetCurrent: T;
+begin
+  Result := FList[FCurrent];
+end;
+
+function TArray<T>.TIterator.MoveNext: Boolean;
+begin
+  if FRemoveFlag then
+  begin
+    FList.Del(FCurrent);
+    FRemoveFlag := False;
+  end
+  else if not FReversed then
+    Inc(FCurrent);
+
+  if FReversed then
+  begin
+    Dec(FCurrent);
+    Result := FCurrent <> -1;
+  end
+  else
+    Result := FCurrent <> FList.Count;
+
+  if not Result and FAutoFree then
+    Free;
+end;
+
+procedure TArray<T>.TIterator.RemoveCurrent;
+begin
+  FRemoveFlag := True;
+end;
+
+end.
+

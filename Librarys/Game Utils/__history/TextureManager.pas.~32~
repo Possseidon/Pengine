@@ -1,0 +1,829 @@
+unit TextureManager;
+
+interface
+
+uses
+  SysUtils, Graphics, dglOpenGL, VectorGeometry, Shaders, Lists, GLEnums, Math, Windows
+  {$IFNDEF FPC}
+  ,pngimage
+  {$ENDIF}
+  ;
+
+type
+
+  { TTextureData }
+
+  TTextureType = (
+    ttMain,
+    ttSpecular,
+    ttNormal
+  );
+  TSubTextureType = ttSpecular .. High(TTextureType);
+  TSubTextureTypes = set of TSubTextureType;
+
+  TTextureData = class
+  private
+    FWidth, FHeight: Word;
+    FBpp: Byte;
+    FData: array [TTextureType] of PByte;
+    FName: String;
+
+    const
+      FileExtension = '.png';
+      FileTypeMarker: array [TSubTextureType] of AnsiString = (
+        'specularmap',
+        'normalmap'
+      );
+
+    function GetData(T: TTextureType): PByte;
+  public
+    constructor Create(AFileName: String; AResource: Boolean = False); overload;
+    constructor Create(AWidth, AHeight: Word; ABpp: Byte; AName: String); overload;
+
+    destructor Destroy; override;
+    procedure FreeData;
+
+    property Width: Word read FWidth;
+    property Height: Word read FHeight;
+    property Bpp: Byte read FBpp;
+    property Data[T: TTextureType]: PByte read GetData;
+    property Name: AnsiString read FName;
+
+  end;
+
+  { TTextureItem }
+
+  TTextureItem = class (TTextureData)
+  private
+    FTexCoord: TTexCoord2;
+  public
+    constructor Create(ATextureData: TTextureData); overload;
+    constructor Create(AFileName: String; AResource: Boolean = False); overload;
+    constructor Create(AWidth, AHeight: Word; ABpp: Byte; AName: String); overload;
+
+    property TexCoord: TTexCoord2 read FTexCoord write FTexCoord;
+  end;
+
+  { ETooManyTexturePages }
+
+  ETooManyTexturePages = class (Exception)
+    constructor Create;
+  end;
+
+  { EMissingTextureName }
+
+  EMissingTextureName = class (Exception)
+    constructor Create(AName: String);
+  end;
+
+  TTexture = class
+  private
+    FID: Integer; // GL-ID for binding
+    FUnitID: Integer; // Unit-ID for GL_TEXTURE0 + I
+
+    FMagFilter: TGLTextureMagFilter;
+    FMinFilter: TGLTextureMinFilter;
+
+    procedure SetMagFilter(AValue: TGLTextureMagFilter);
+    procedure SetMinFilter(AValue: TGLTextureMinFilter);
+
+    class var
+      Initialized: Boolean;
+      MaxUnits: Integer;
+      UnitCount: Integer;
+      BoundTexture: TTexture;
+
+    class procedure Init;
+
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure Bind;
+
+    // GL States
+    property MagFilter: TGLTextureMagFilter read FMagFilter write SetMagFilter;
+    property MinFilter: TGLTextureMinFilter read FMinFilter write SetMinFilter;
+
+    procedure Uniform(AShader: TShader; AName: PAnsiChar);
+  end;
+
+  { TSingleTexture }
+
+  TSingleTexture = class (TTexture)
+  private
+    FTexture: TTextureData;
+    FReferenced: Boolean;
+    procedure SetTexture(AValue: TTextureData);
+  public
+    constructor Create; overload;
+    constructor Create(AFilename: String); overload;
+    destructor Destroy; override;
+
+    property Texture: TTextureData read FTexture write SetTexture;
+  end;
+
+  { TTexturePage }
+
+  TTexturePage = class (TTexture)
+  private
+    FTextures: TStringObjectMap<TTextureItem>;
+    FPxlSize: Integer;
+
+    FSubTextures: array [TSubTextureType] of TTexture;
+    FSizeChanged: Boolean;
+
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure EnableSubType(ASubType: TSubTextureType);
+
+    procedure AddTexture(const ATexture: TTextureItem; const AName: AnsiString); overload;
+    procedure AddTexture(const ATexture: TTextureItem); overload; inline;
+
+    procedure AddTextureFromFile(const AFileName: String); overload; inline;
+    procedure AddTextureFromFile(const AFileName: String; const AName: AnsiString); overload; inline;
+
+    procedure AddTextureFromResource(const AResourceName: String); overload; inline;
+    procedure AddTextureFromResource(const AResourceName: String; const AName: AnsiString); overload; inline;
+
+    procedure DelTexture(const AName: String);
+    procedure DelAll;
+
+    procedure BuildPage(ASegmentResolution: Integer; AFreeTextures: Boolean = True);
+
+    function GetTexCoord(const AName: String; const ATexCoord: TGVector2): TGVector2; overload;
+    function GetTexCoord(const AName: String; S, T: Single): TGVector2; overload; inline;
+
+    function GetBounds(const AName: String): TGBounds2;
+
+    property Textures: TStringObjectMap<TTextureItem> read FTextures;
+    function TextureExists(const AName: String): Boolean;
+
+    property SizeChanged: Boolean read FSizeChanged;
+    procedure NotifySizeChange;
+
+    // Automatically Enables Needed Types
+    procedure Uniform(AShader: TShader; AName: PAnsiChar; ATextureType: TTextureType = ttMain);
+    procedure UniformDefaults(AShader: TShader);
+  end;
+
+implementation
+
+{ TTextureItem }
+
+constructor TTextureItem.Create(ATextureData: TTextureData);
+var
+  T: TTextureType;
+  DataSize: Cardinal;
+begin
+  FWidth := ATextureData.Width;
+  FHeight := ATextureData.Height;
+  FBpp := ATextureData.Bpp;
+  FName := ATextureData.Name;
+  DataSize := ATextureData.Bpp * ATextureData.Width * ATextureData.Height;
+  for T := Low(TTextureType) to High(TTextureType) do
+    if ATextureData.Data[T] <> nil then
+    begin
+      GetMem(FData[T], DataSize);
+      Move(ATextureData.Data[T]^, FData[T]^, DataSize);
+    end;
+end;
+
+constructor TTextureItem.Create(AFileName: String; AResource: Boolean);
+begin
+  inherited;
+end;
+
+constructor TTextureItem.Create(AWidth, AHeight: Word; ABpp: Byte; AName: String);
+begin
+  inherited;
+end;
+
+{ TSingleTexture }
+
+procedure TSingleTexture.SetTexture(AValue: TTextureData);
+begin
+  if Pointer(FTexture) = Pointer(AValue) then
+    Exit;
+  if (FTexture <> nil) and (not FReferenced) then
+    FTexture.Free;
+  FTexture := AValue;
+  Bind;
+  glTexImage2D(
+    GL_TEXTURE_2D,
+    0,
+    GL_RGBA,
+    FTexture.Width,
+    FTexture.Height,
+    0,
+    GL_BGRA,
+    GL_UNSIGNED_BYTE,
+    FTexture.Data[ttMain]
+  );
+  FReferenced := True;
+end;
+
+constructor TSingleTexture.Create;
+begin
+  inherited Create;
+  FReferenced := True;
+end;
+
+constructor TSingleTexture.Create(AFilename: String);
+begin
+  inherited Create;
+  Texture := TTextureData.Create(AFilename);
+  FReferenced := False;
+end;
+
+destructor TSingleTexture.Destroy;
+begin
+  if (FTexture <> nil) and not FReferenced then
+    FTexture.Free;
+  inherited Destroy;
+end;
+
+{ TTexture }
+
+class procedure TTexture.Init;
+begin
+  glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, @MaxUnits);
+  Initialized := True;
+end;
+
+procedure TTexture.SetMagFilter(AValue: TGLTextureMagFilter);
+begin
+  FMagFilter := AValue;
+  Bind;
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, Ord(AValue));
+end;
+
+procedure TTexture.SetMinFilter(AValue: TGLTextureMinFilter);
+begin
+  FMinFilter := AValue;
+  Bind;
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, Ord(AValue));
+end;
+
+constructor TTexture.Create;
+begin
+  if not Initialized then
+    Init;
+
+  if UnitCount >= MaxUnits then
+    raise ETooManyTexturePages.Create;
+  FUnitID := UnitCount;
+  Inc(UnitCount);
+
+  glGenTextures(1, @FID);
+
+  MagFilter := magNearest;
+  MinFilter := minNearest;
+  GLEnums.GLErrorMessage;
+end;
+
+destructor TTexture.Destroy;
+begin
+  glDeleteTextures(1, @FID);
+  inherited Destroy;
+end;
+
+procedure TTexture.Bind;
+begin
+  if Pointer(BoundTexture) <> Pointer(Self) then
+  begin
+    glActiveTexture(GL_TEXTURE0 + FUnitID);
+    glBindTexture(GL_TEXTURE_2D, FID);
+    BoundTexture := Self;
+  end;
+end;
+
+procedure TTexture.Uniform(AShader: TShader; AName: PAnsiChar);
+begin
+  AShader.Enable;
+  glUniform1i(AShader.UniformLocation[AName], FUnitID);
+end;
+
+{ EMissingTextureName }
+
+constructor EMissingTextureName.Create(AName: String);
+begin
+  inherited Create('Texture with name "' + AName + '" does not exist!');
+end;
+
+{ ETooManyTexturePages }
+
+constructor ETooManyTexturePages.Create;
+begin
+  inherited CreateFmt('Too many Texture Pages! Maximum: %d', [TTexturePage.MaxUnits]);
+end;
+
+function TTextureData.GetData(T: TTextureType): PByte;
+begin
+  Result := FData[T];
+end;
+
+constructor TTextureData.Create(AFileName: String; AResource: Boolean);
+const
+  Normal: Cardinal = $007F7FFF;
+
+  function ConvertFileName(AFileName: String; ATextureType: TSubTextureType): String;
+  begin
+    // test.png > test_MARKER.png
+    Result := StringReplace(
+      AFileName,
+      FileExtension,
+      '_' + FileTypeMarker[ATextureType] + FileExtension,
+      [rfIgnoreCase]
+    );
+  end;
+
+  function ConvertResourceName(AName: String; ATextureType: TSubTextureType): String;
+  begin
+    Result := AName + '_' + UpperCase(FileTypeMarker[ATextureType]);
+  end;
+
+  {
+  procedure LoadTexture(AFilename: String; AResource: Boolean = False; ATextureType: TTextureType = ttMain);
+  var
+    Png: TPngImage;
+    Res: ^Byte;
+    Alpha: pByteArray;
+    Y, X: Integer;
+    C: TColor;
+  begin
+    raise Exception.Create('Delphi can''t load textures correctly. Fix it!');
+
+    Png := TPngImage.Create;
+
+    if AResource then
+    begin
+      if FindResource(hInstance, PChar(AName), RT_RCDATA) = 0 then
+        raise Exception.Create('Cannot find resource ' + AName);
+      Png.LoadFromResourceName(hInstance, AName);
+    end
+    else
+    begin
+      if not FileExists(AName) then
+        raise Exception.Create('Cannot find file ' + AName);
+      Png.LoadFromFile(AName);
+    end;
+
+    if ATextureType = ttMain then
+    begin
+      FWidth := Png.Width;
+      FHeight := Png.Height;
+      FBpp := 4;
+    end
+    else if (FWidth <> Png.Width) or (FHeight <> Png.Height) then
+      raise Exception.Create('Texture size for sub textures must be equal to main texture!');
+
+    Size := Png.Width * Png.Height * FBpp;
+    GetMem(Res, Size);
+    FData[ATextureType] := Res;
+
+    for Y := Png.Height - 1 downto 0 do
+    begin
+      Alpha := Png.AlphaScanline[Y];
+      for X := 0 to Png.Width - 1 do
+      begin
+        C := ByteSwap(Png.Pixels[X, Y]) shr 8;
+        Move(C, Res^, 3);
+        Inc(Res, 3);
+        case Png.TransparencyMode of
+          ptmNone:
+            Res^ := $FF;
+          ptmBit:
+            if C = Png.TransparentColor then
+              Res^ := 0
+            else
+              Res^ := $FF;
+          ptmPartial:
+            Res^ := Alpha^[X];
+        end;
+        Inc(Res, 1);
+      end;
+    end;
+    Png.Free;
+  end;
+  }
+  procedure LoadTexture(AName: String; AResource: Boolean = False; ATextureType: TTextureType = ttMain);
+  var
+    Res: PByte;
+    X, Y: Integer;
+    NoSubTexture: Boolean;
+    Size, I: Integer;
+    T: TTextureType;
+    Name: String;
+    {$IFDEF FPC}
+    Png: TPortableNetworkGraphic;
+    P: ^Byte;
+    {$ELSE}
+    Png: TPngImage;
+    Alpha: PByteArray;
+    C: TColor;
+    {$ENDIF}
+  begin
+    {$IFDEF FPC}
+    Png := TPortableNetworkGraphic.Create;
+    {$ELSE}
+    Png := TPngImage.Create;
+    {$ENDIF}
+
+    if AResource then
+    begin
+      if FindResource(hInstance, @AName[1], RT_RCDATA) = 0 then
+        raise Exception.Create('Cannot find resource ' + AName);
+      Png.LoadFromResourceName(hInstance, AName);
+    end
+    else
+    begin
+      if not FileExists(AName) then
+        raise Exception.Create('Cannot find file ' + AName);
+      Png.LoadFromFile(AName);
+    end;
+
+    if ATextureType = ttMain then
+    begin
+      FWidth := Png.Width;
+      FHeight := Png.Height;
+      FBpp := 4;
+    end
+    else if (FWidth <> Png.Width) or (FHeight <> Png.Height) then
+      raise Exception.Create('Texture size for sub textures must be equal to main texture!');
+
+    Size := Png.Width * Png.Height * FBpp;
+    GetMem(Res, Size);
+    FData[ATextureType] := Res;
+
+    {$IFDEF FPC}
+    if Png.Transparent then
+    begin
+      P := Png.RawImage.Data + Png.RawImage.DataSize;
+      for Y := Png.Height - 1 downto 0 do
+      begin
+        Dec(P, Png.Width * 4);
+        Move(P^, Res^, Png.Width * 4);
+        Inc(Res, Png.Width * 4);
+      end;
+    end
+    else
+    begin
+      P := Png.RawImage.Data + Png.RawImage.DataSize;
+      for Y := Png.Height - 1 downto 0 do
+      begin
+        Dec(P, Png.Width * 4);
+        Move(P^, Res^, Png.Width * 4);
+        Inc(Res, 3);
+        for X := 0 to Png.Width - 1 do
+        begin
+          Res^ := $FF;
+          Inc(Res, 4);
+        end;
+        Dec(Res, 3);
+      end;
+    end;
+    {$ELSE}
+    for Y := Png.Height - 1 downto 0 do
+    begin
+      Alpha := Png.AlphaScanline[Y];
+      for X := 0 to Png.Width - 1 do
+      begin
+        C := ByteSwap(Png.Pixels[X, Y]) shr 8;
+        Move(C, Res^, 3);
+        Inc(Res, 3);
+        case Png.TransparencyMode of
+          ptmNone:
+            Res^ := $FF;
+          ptmBit:
+            if C = Png.TransparentColor then
+              Res^ := 0
+            else
+              Res^ := $FF;
+          ptmPartial:
+            Res^ := Alpha^[X];
+        end;
+        Inc(Res, 1);
+      end;
+    end;
+    {$ENDIF}
+    Png.Free;
+
+    if ATextureType = ttMain then
+      for T := Low(TSubTextureType) to High(TSubTextureType) do
+      begin
+        NoSubTexture := False;
+        if AResource then
+        begin
+          Name := ConvertResourceName(AName, T);
+          if FindResource(hInstance, PChar(Name), RT_RCDATA) = 0 then
+            NoSubtexture := True;
+        end
+        else
+        begin
+          Name := ConvertFileName(AName, T);
+          if not FileExists(Name) then
+            NoSubTexture := True;
+        end;
+
+        if NoSubTexture then
+        begin
+          GetMem(FData[T], Size);
+          case T of
+          ttMain, ttSpecular:
+            FillChar(FData[T]^, Size, 0);
+          ttNormal:
+            for I := 0 to Size div SizeOf(Normal) - 1 do
+              Move(Normal, FData[T][I * SizeOf(Normal)], SizeOf(Normal));
+          end;
+        end
+        else
+          LoadTexture(Name, AResource, T);
+      end;
+  end;
+
+begin
+  FName := ExtractFileName(AFileName);
+  LoadTexture(AFileName, AResource);
+end;
+
+constructor TTextureData.Create(AWidth, AHeight: Word; ABpp: Byte; AName: String);
+begin
+  FWidth := AWidth;
+  FHeight := AHeight;
+  FBpp := ABpp;
+  FName := AName;
+  GetMem(FData[ttMain], AWidth * AHeight * ABpp);
+end;
+
+destructor TTextureData.Destroy;
+var
+  P: PByte;
+begin
+  for P in FData do
+    if P <> nil then
+      FreeMem(P);
+end;
+
+procedure TTextureData.FreeData;
+var
+  T: TTextureType;
+begin
+  for T := Low(TTextureType) to High(TTextureType) do
+  begin
+    FreeMem(FData[T]);
+    FData[T] := nil;
+  end;
+end;
+
+{ TTexturePage }
+
+procedure TTexturePage.AddTexture(const ATexture: TTextureItem; const AName: AnsiString);
+begin
+  if FTextures.HasKey(AName) then
+    raise Exception.Create('Tried to create multiple textures with name ' + String(AName));
+  FTextures[AName] := ATexture;
+end;
+
+procedure TTexturePage.AddTexture(const ATexture: TTextureItem);
+begin
+  AddTexture(ATexture, ATexture.Name);
+end;
+
+procedure TTexturePage.AddTextureFromResource(const AResourceName: String);
+begin
+  AddTexture(TTextureItem.Create(AResourceName));
+end;
+
+procedure TTexturePage.AddTextureFromResource(const AResourceName: String; const AName: AnsiString);
+begin
+  AddTexture(TTextureItem.Create(AResourceName, True), AName);
+end;
+
+procedure TTexturePage.AddTextureFromFile(const AFileName: String);
+begin
+  AddTexture(TTextureItem.Create(AFileName, True));
+end;
+
+procedure TTexturePage.AddTextureFromFile(const AFileName: String; const AName: AnsiString);
+begin
+  AddTexture(TTextureItem.Create(AFileName), AName);
+end;
+
+function TTexturePage.TextureExists(const AName: String): Boolean;
+begin
+  Result := FTextures[AName] <> nil;
+end;
+
+procedure TTexturePage.NotifySizeChange;
+begin
+  FSizeChanged := False;
+end;
+
+procedure TTexturePage.Uniform(AShader: TShader; AName: PAnsiChar; ATextureType: TTextureType);
+begin
+  if ATextureType = ttMain then
+    inherited Uniform(AShader, AName)
+  else
+  begin
+    if FSubTextures[ATextureType] = nil then
+      EnableSubType(ATextureType);
+    AShader.Enable;
+    glUniform1i(AShader.UniformLocation[AName], FSubTextures[ATextureType].FUnitID);
+  end;
+end;
+
+procedure TTexturePage.UniformDefaults(AShader: TShader);
+begin
+  Uniform(AShader, 'colormap', ttMain);
+  Uniform(AShader, 'specularmap', ttSpecular);
+  Uniform(AShader, 'normalmap', ttNormal);
+end;
+
+procedure TTexturePage.BuildPage(ASegmentResolution: Integer; AFreeTextures: Boolean);
+var
+  Pxl: Cardinal;
+  Size, MinSize: Integer;
+  X, Y: Integer;
+  S, T: Integer;
+  Map: array of array of Boolean;
+  Fits: Boolean;
+  Pair, Pair2: TPair<AnsiString, TTextureItem>;
+  TexType: TTextureType;
+  OldPixelSize:Integer;
+begin
+  OldPixelSize := FPxlSize;
+  Pxl := 0;
+  FPxlSize := 0;
+  MinSize := 0;
+  for Pair in FTextures do
+  begin
+    Pxl := Pxl + Pair.Data.Width * Pair.Data.Height;
+    MinSize := Max(Max(FPxlSize, Pair.Data.Width), Pair.Data.Height);
+  end;
+  FPxlSize := Max(FPxlSize, Floor(Power(2, Ceil(ln(Pxl) / (2 * ln(2))))));
+  while MinSize > FPxlSize do
+    FPxlSize := FPxlSize * 2;
+
+  Size := FPxlSize div ASegmentResolution;
+
+  SetLength(Map, Size, Size);
+
+  for Pair in FTextures do
+  begin
+    S := 0;
+    T := 0;
+    while True do
+    begin
+      while T + Pair.Data.Height / ASegmentResolution > Size do
+      begin
+        Size := Size * 2;
+        FPxlSize := FPxlSize * 2;
+        SetLength(Map, Size, Size);
+        for Pair2 in FTextures do
+          Pair2.Data.TexCoord := Pair2.Data.TexCoord / 2;
+      end;
+      if S + Pair.Data.Width / ASegmentResolution <= Size then
+      begin
+        Fits := True;
+        for X := 0 to Pair.Data.Width div ASegmentResolution - 1 do
+        begin
+          for Y := 0 to Pair.Data.Height div ASegmentResolution - 1 do
+            if Map[S + X, T + Y] then
+            begin
+              Fits := False;
+              Break;
+            end;
+          if not Fits then
+            Break;
+        end;
+        if Fits then
+          Break;
+      end;
+      S := S + 1;
+      if S = Size then
+      begin
+        S := 0;
+        T := T + 1;
+      end;
+    end;
+    for X := 0 to Pair.Data.Width div ASegmentResolution - 1 do
+      for Y := 0 to Pair.Data.Height div ASegmentResolution - 1 do
+        Map[S + X, T + Y] := True;
+    Pair.Data.TexCoord := TTexCoord2.Create(S, T) / Size;
+
+    while T + Pair.Data.Height / ASegmentResolution > Size do
+    begin
+      Size := Size * 2;
+      FPxlSize := FPxlSize * 2;
+      SetLength(Map, Size, Size);
+      for Pair2 in FTextures do
+      begin
+        Pair2.Data.TexCoord := Pair2.Data.TexCoord / 2;
+      end;
+    end;
+    for X := 0 to Pair.Data.Width div ASegmentResolution - 1 do
+      for Y := 0 to Pair.Data.Height div ASegmentResolution - 1 do
+        Map[S + X, T + Y] := True;
+    Pair.Data.TexCoord := TTexCoord2.Create(S, T) / Size;
+  end;
+
+  for TexType := Low(TTextureType) to High(TTextureType) do
+  begin
+    if TexType = ttMain then
+      Bind
+    else if FSubTextures[TexType] <> nil then
+      FSubTextures[TexType].Bind
+    else
+      Continue;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FPxlSize, FPxlSize, 0, GL_BGRA, GL_UNSIGNED_BYTE, nil);
+  end;
+
+  for Pair in FTextures do
+  begin
+    for TexType := Low(TTextureType) to High(TTextureType) do
+    begin
+      if TexType = ttMain then
+        Bind
+      else if FSubTextures[TexType] <> nil then
+        FSubTextures[TexType].Bind
+      else
+        Continue;
+
+      glTexSubImage2D(
+        GL_TEXTURE_2D,
+        0,
+        Floor(Pair.Data.TexCoord.X * FPxlSize),
+        Floor(Pair.Data.TexCoord.Y * FPxlSize),
+        Pair.Data.Width,
+        Pair.Data.Height,
+        GL_BGRA,
+        GL_UNSIGNED_BYTE,
+        Pair.Data.Data[TexType]
+      );
+    end;
+
+    if AFreeTextures then
+      TTextureData(Pair.Data).FreeData;
+  end;
+
+  if OldPixelSize <> FPxlSize then
+    FSizeChanged := True;
+end;
+
+constructor TTexturePage.Create;
+begin
+  inherited Create;
+  FTextures := TStringObjectMap<TTextureItem>.Create;
+end;
+
+procedure TTexturePage.DelTexture(const AName: String);
+begin
+  FTextures.Del(AName);
+end;
+
+procedure TTexturePage.DelAll;
+begin
+  FTextures.DelAll;
+end;
+
+destructor TTexturePage.Destroy;
+var
+  T: TTextureType;
+begin
+  FTextures.Free;
+  for T := Low(TSubTextureType) to High(TSubTextureType) do
+    FSubTextures[T].Free;
+  inherited;
+end;
+
+procedure TTexturePage.EnableSubType(ASubType: TSubTextureType);
+begin
+  if FSubTextures[ASubType] = nil then
+    FSubTextures[ASubType] := TTexturePage.Create;
+end;
+
+function TTexturePage.GetTexCoord(const AName: String; const ATexCoord: TGVector2): TGVector2;
+begin
+  Result := GetBounds(AName)[ATexCoord];
+end;
+
+function TTexturePage.GetTexCoord(const AName: String; S, T: Single): TGVector2;
+begin
+  Result := GetTexCoord(AName, TTexCoord2.Create(S, T));
+end;
+
+function TTexturePage.GetBounds(const AName: String): TGBounds2;
+begin
+  if FTextures[AName] = nil then
+    raise EMissingTextureName.Create(AName);
+  with FTextures[AName] as TTextureItem do
+  begin
+    Result.C1 := TexCoord;
+    Result.C2 := TexCoord + TGVector2.Create(Width, Height) / FPxlSize;
+  end;
+end;
+
+end.

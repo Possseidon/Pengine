@@ -1,0 +1,105 @@
+unit GenericList;
+
+{$IFDEF FPC}
+{$mode Delphi}
+{$ENDIF}
+
+interface
+
+uses
+  Classes, SysUtils;
+
+type
+
+  TWithEachFunction<T> = procedure (AElement: T) of object;
+
+  { TRefList }
+
+  TRefList<T> = class
+  private
+    type
+      TItem = class
+        Data: T;
+        Next, Prev: TItem;
+      end;
+  private
+    FFirst: TItem;
+    FLast: TItem;
+
+    function Find(AElement: T): TItem;
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure Add(AElement: T);
+    procedure Del(AElement: T);
+
+    procedure WithEach(AFunc: TWithEachFunction);
+  end;
+
+implementation
+
+{ TRefList }
+
+constructor TRefList<T>.Create;
+begin
+
+end;
+
+destructor TRefList<T>.Destroy;
+begin
+  inherited Destroy;
+end;
+
+procedure TRefList<T>.Add(AElement: T);
+begin
+  if FLast = nil then
+  begin
+    FFirst := TItem.Create;
+    FLast := FFirst;
+    FFirst.Data := AElement;
+  end
+  else
+  begin
+    FLast.Next := TItem.Create;
+    FLast := FLast.Next;
+    FLast.Data := AElement;
+  end;
+end;
+
+procedure TRefList<T>.Del(AElement: T);
+var
+  I: TItem;
+begin
+  I := Find(AElement);
+  I.Prev.Next := I.Next;
+  I.Next.Prev := I.Prev;
+  I.Free;
+end;
+
+function TRefList<T>.Find(AElement: T): TItem;
+var
+  I: TItem;
+begin
+  I := FFirst;
+  while (I <> nil) and (Pointer(I.Data) <> Pointer(AElement)) do
+    I := I.Next;
+  if I = nil then
+    raise Exception.Create('TODO! Coud not find Element in List');
+  Result := I;
+end;
+
+procedure TRefList<T>.WithEach(AFunc: TWithEachFunction);
+var
+  I: TItem;
+begin
+  I := FFirst;
+  while I <> nil do
+  begin
+    AFunc(I.Data);
+    I := I.Next;
+  end;
+end;
+
+end.
+

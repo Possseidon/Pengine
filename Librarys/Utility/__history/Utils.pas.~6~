@@ -1,0 +1,148 @@
+unit Utils;
+
+interface
+
+uses
+  Windows, Math, SysUtils
+  {$IFDEF FPC}
+  , Graphics
+  {$ELSE}
+  , Vcl.Graphics
+  {$ENDIF}
+  ;
+
+function HSVtoRGB(H: Integer; S, V: Byte): TColor;
+procedure RGBtoHSV(Red, Green, Blue: Byte; var Hue: Integer; var Saturation, Value: Byte);
+
+function RealMod(X, Min, Max: Real): Real;
+
+procedure WaitForReturn;
+
+implementation
+
+procedure RGBtoHSV(Red, Green, Blue: Byte; var Hue: Integer;
+  var Saturation, Value: Byte);
+var
+  Maximum, Minimum: Byte;
+  Rc, Gc, Bc: Single;
+  H: Single;
+begin
+  Maximum := Max(Red, Max(Green, Blue));
+  Minimum := Min(Red, Min(Green, Blue));
+  Value := Maximum;
+  if Maximum <> 0 then
+    Saturation := MulDiv(Maximum - Minimum, 255, Maximum)
+  else
+    Saturation := 0;
+  if Saturation = 0 then
+    Hue := 0 // arbitrary value
+  else
+  begin
+    Assert(Maximum <> Minimum);
+    Rc := (Maximum - Red) / (Maximum - Minimum);
+    Gc := (Maximum - Green) / (Maximum - Minimum);
+    Bc := (Maximum - Blue) / (Maximum - Minimum);
+    if Red = Maximum then
+      H := Bc - Gc
+    else if Green = Maximum then
+      H := 2 + Rc - Bc
+    else
+    begin
+      Assert(Blue = Maximum);
+      H := 4 + Gc - Rc;
+    end;
+    H := H * 60;
+    if H < 0 then
+      H := H + 360;
+    Hue := Round(H);
+  end;
+end;
+
+function HSVtoRGB(H: Integer; S, V: Byte): TColor;
+var
+  ht, d, t1, t2, t3: Integer;
+  R, G, B: Word;
+begin
+  if S = 0 then
+  begin
+    R := V;
+    G := V;
+    B := V;
+  end
+  else
+  begin
+    ht := H * 6;
+    d := ht mod 360;
+
+    t1 := Round(V * (255 - S) / 255);
+    t2 := Round(V * (255 - S * d / 360) / 255);
+    t3 := Round(V * (255 - S * (360 - d) / 360) / 255);
+
+    case ht div 360 of
+      0:
+        begin
+          R := V;
+          G := t3;
+          B := t1;
+        end;
+      1:
+        begin
+          R := t2;
+          G := V;
+          B := t1;
+        end;
+      2:
+        begin
+          R := t1;
+          G := V;
+          B := t3;
+        end;
+      3:
+        begin
+          R := t1;
+          G := t2;
+          B := V;
+        end;
+      4:
+        begin
+          R := t3;
+          G := t1;
+          B := V;
+        end;
+    else
+      begin
+        R := V;
+        G := t1;
+        B := t2;
+      end;
+    end;
+  end;
+
+  Result := RGB(R, G, B);
+end;
+
+function RealMod(X, Min, Max: Real): Real;
+var
+  Range: Real;
+begin
+  Range := Max - Min;
+  Result := X - Floor((X - Min) / Range) * Range;
+end;
+
+procedure WaitForReturn;
+var
+  flags: DWORD;
+begin
+  Writeln('Press return to continue...');
+  GetHandleInformation(GetStdHandle(STD_INPUT_HANDLE), flags);
+
+
+
+  while GetAsyncKeyState(VK_RETURN) and $8000 = 0 do
+  begin
+      Writeln(Format('0x%.8x', [flags]));
+      Sleep(200);
+    end;
+end;
+
+end.

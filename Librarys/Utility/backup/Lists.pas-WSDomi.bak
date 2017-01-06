@@ -1,0 +1,554 @@
+unit Lists;
+
+{$IFDEF FPC}
+{$mode Delphi}
+{$ENDIF}
+
+interface
+
+uses
+  Classes, SysUtils, Sorting;
+
+type
+
+  TWithEachProcedureBasic = procedure (AElement: TObject) of object;
+
+  TWithEachProcedure = class abstract
+    procedure WithEach(AElement: TObject); virtual; abstract;
+  end;
+
+  TFindFunction = class abstract
+    function Find(AElement: TObject): Boolean; virtual; abstract;
+  end;
+
+  TCompareFunction = class abstract
+    function Compare(A, B: TObject): Boolean; virtual; abstract;
+  end;
+
+  TIterateDirection = (idAscending, idDescending);
+
+  { TObjectList }
+
+  TObjectList = class
+ private
+    type
+      TItem = class
+        Data: TObject;
+        Next, Prev: TItem;
+      end;
+
+  private
+    FFirst: TItem;
+    FLast: TItem;
+    FCount: Integer;
+
+    FReferenceList: Boolean;
+
+    function Find(AElement: TObject): TItem;
+    procedure Del(AItem: TItem); overload;
+    function GetItem(I: Integer): TObject;
+  public
+    type
+      TIterator = class
+      private
+        FPos: TItem;
+        FDirection: TIterateDirection;
+      public
+        constructor Create(AList: TObjectList; AIterateDirection: TIterateDirection = idAscending);
+        destructor Destroy; override;
+
+        function Iterating: Boolean;
+        function Current: TObject;
+        procedure Next;
+        procedure Stop;
+      end;
+  public
+    constructor Create(AReferenceList: Boolean = False);
+    destructor Destroy; override;
+
+    procedure Add(AElement: TObject);
+    procedure Del(AElement: TObject); overload;
+    procedure DelAll;
+
+    procedure WithEach(AFunc: TWithEachProcedure; AFreeFunction: Boolean = True); overload;
+    procedure WithEach(AFunc: TWithEachProcedureBasic); overload;
+    function FindFirst(AFunc: TFindFunction; AFreeFunction: Boolean = True): TObject;
+    function FindLast(AFunc: TFindFunction; AFreeFunction: Boolean = True): TObject;
+    function FindAll(AFunc: TFindFunction; AFreeFunction: Boolean = True): TObjectList;
+
+    // procedure Sort(AFunc: TCompareFunction); // No index > Quicksort very slow, mabye tree sort
+
+    property Count: Integer read FCount;
+
+    function Iterate(AIteratorDirection: TIterateDirection = idAscending): TIterator;
+
+    property Item[I: Integer]: TObject read GetItem; default;
+  end;
+
+  { TObjectArray }
+
+  TObjectArray = class
+  private
+    FItems: array of TObject;
+
+    FReferenceList: Boolean;
+
+    function GetCount: Integer;
+    function GetItem(I: Integer): TObject;
+
+    procedure RangeCheck(AIndex: Integer);
+  public
+    constructor Create(AReferenceList: Boolean = False);
+    destructor Destroy; override;
+
+    procedure Add(AElement: TObject);
+    procedure DelLast;
+
+    procedure Insert(AElement: TObject; AIndex: Integer);
+    procedure Del(AElement: TObject); overload;
+    procedure Del(AIndex: Integer); overload;
+
+    procedure WithEach(AFunc: TWithEachProcedure; AFreeFunction: Boolean = True); overload;
+    procedure WithEach(AFunc: TWithEachProcedureBasic); overload;
+    function FindFirstIndex(AFunc: TFindFunction; AFreeFunction: Boolean = True): Integer;
+    function FindLastIndex(AFunc: TFindFunction; AFreeFunction: Boolean = True): Integer;
+
+    function FindFirst(AFunc: TFindFunction; AFreeFunction: Boolean = True): TObject;
+    function FindLast(AFunc: TFindFunction; AFreeFunction: Boolean = True): TObject;
+
+    function FindAsList(AFunc: TFindFunction; AFreeFunction: Boolean = True): TObjectList;
+    function FindAsArray(AFunc: TFindFunction; AFreeFunction: Boolean = True): TObjectArray;
+
+    function Copy: TObjectArray;
+
+    procedure Sort(AFunc: TCompareFunction; AFreeFunction: Boolean = True);
+
+    function Find(AElement: TObject): Integer;
+
+    property Count: Integer read GetCount;
+    property Item[I: Integer]: TObject read GetItem; default;
+  end;
+
+  { TArraySorter }
+
+  TArraySorter = class (TQuickSorter)
+  private
+    FCompareFunction: TCompareFunction;
+  protected
+    function Compare(A, B: TObject): Boolean; override;
+  public
+    constructor Create(ACompareFunction: TCompareFunction);
+  end;
+
+implementation
+
+{ TArraySorter }
+
+constructor TArraySorter.Create(ACompareFunction: TCompareFunction);
+begin
+  FCompareFunction := ACompareFunction;
+end;
+
+function TArraySorter.Compare(A, B: TObject): Boolean;
+begin
+  Result := FCompareFunction.Compare(A, B);
+end;
+
+{ TObjectArray }
+
+function TObjectArray.GetItem(I: Integer): TObject;
+begin
+  RangeCheck(I);
+  Result := FItems[I];
+end;
+
+procedure TObjectArray.RangeCheck(AIndex: Integer);
+begin
+  if (AIndex >= Count) or (AIndex < 0) then
+     raise Exception.Create('Item out of bounds!'); // TODO: ObjectArray Get Item Exception
+end;
+
+constructor TObjectArray.Create(AReferenceList: Boolean);
+begin
+  FReferenceList := AReferenceList;
+end;
+
+destructor TObjectArray.Destroy;
+var
+  I: Integer;
+begin
+  if not FReferenceList then
+    for I := 0 to Count - 1 do with FItems[I] do
+      Free;
+  inherited;
+end;
+
+procedure TObjectArray.Add(AElement: TObject);
+begin
+  SetLength(FItems, Count + 1);
+  FItems[Count - 1] := AElement;
+end;
+
+procedure TObjectArray.DelLast;
+begin
+  if not FReferenceList then
+    FItems[Count - 1].Free;
+  SetLength(FItems, Count - 1);
+end;
+
+procedure TObjectArray.Insert(AElement: TObject; AIndex: Integer);
+begin
+  SetLength(FItems, Count + 1);
+  Move(FItems[AIndex], FItems[AIndex + 1], SizeOf(FItems[AIndex]) * (Count - AIndex));
+  FItems[AIndex] := AElement;
+end;
+
+procedure TObjectArray.Del(AElement: TObject);
+begin
+  Del(Find(AElement));
+end;
+
+procedure TObjectArray.Del(AIndex: Integer);
+begin
+  if not FReferenceList then
+    FItems[AIndex].Free;
+  if Count - AIndex - 1 > 0 then
+    Move(FItems[AIndex + 1], FItems[AIndex], SizeOf(FItems[AIndex]) * (Count - AIndex - 1));
+  SetLength(FItems, Count - 1);
+end;
+
+procedure TObjectArray.WithEach(AFunc: TWithEachProcedure; AFreeFunction: Boolean);
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    AFunc.WithEach(FItems[I]);
+  if AFreeFunction then
+    AFunc.Free;
+end;
+
+procedure TObjectArray.WithEach(AFunc: TWithEachProcedureBasic);
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    AFunc(FItems[I]);
+end;
+
+function TObjectArray.FindFirstIndex(AFunc: TFindFunction; AFreeFunction: Boolean): Integer;
+var
+  I: Integer;
+begin
+  Result := -1;
+  for I := 0 to Count - 1 do
+    if AFunc.Find(FItems[I]) then
+    begin
+      Result := I;
+      Break;
+    end;
+  if AFreeFunction then
+    AFunc.Free;
+end;
+
+function TObjectArray.FindLastIndex(AFunc: TFindFunction; AFreeFunction: Boolean): Integer;
+var
+  I: Integer;
+begin
+  Result := -1;
+  for I := Count - 1 downto 0 do
+    if AFunc.Find(FItems[I]) then
+    begin
+      Result := I;
+      Break;
+    end;
+  if AFreeFunction then
+    AFunc.Free;
+end;
+
+function TObjectArray.FindFirst(AFunc: TFindFunction; AFreeFunction: Boolean): TObject;
+var
+  I: Integer;
+begin
+  I := FindFirstIndex(AFunc, AFreeFunction);
+  if I = -1 then
+    Result := nil
+  else
+    Result := FItems[I];
+end;
+
+function TObjectArray.FindLast(AFunc: TFindFunction; AFreeFunction: Boolean): TObject;
+var
+  I: Integer;
+begin
+  I := FindLastIndex(AFunc, AFreeFunction);
+  if I = -1 then
+    Result := nil
+  else
+    Result := FItems[I];
+end;
+
+function TObjectArray.FindAsList(AFunc: TFindFunction; AFreeFunction: Boolean): TObjectList;
+var
+  I: Integer;
+begin
+  Result := TObjectList.Create(True);
+  for I := 0 to Count - 1 do
+    if AFunc.Find(FItems[I]) then
+      Result.Add(FItems[I]);
+  if AFreeFunction then
+    AFunc.Free;
+end;
+
+function TObjectArray.FindAsArray(AFunc: TFindFunction; AFreeFunction: Boolean): TObjectArray;
+var
+  I: Integer;
+begin
+  Result := TObjectArray.Create(True);
+  for I := 0 to Count - 1 do
+    if AFunc.Find(FItems[I]) then
+      Result.Add(FItems[I]);
+  if AFreeFunction then
+    AFunc.Free;
+end;
+
+function TObjectArray.Find(AElement: TObject): Integer;
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do with FItems[I] do
+    if Pointer(AElement) = Pointer(FItems[I]) then
+      Exit(I);
+end;
+
+function TObjectArray.Copy: TObjectArray;
+var
+  I: Integer;
+begin
+  Result := TObjectArray.Create(True);
+  for I := 0 to Count - 1 do
+    Result.Add(FItems[I]);
+end;
+
+procedure TObjectArray.Sort(AFunc: TCompareFunction; AFreeFunction: Boolean);
+var
+  QS: TQuickSorter;
+begin
+  QS := TArraySorter.Create(AFunc);
+  QS.Sort(FItems);
+  if AFreeFunction then
+    AFunc.Free;
+end;
+
+function TObjectArray.GetCount: Integer;
+begin
+  Result := Length(FItems);
+end;
+
+{ TObjectList.TIterator }
+
+constructor TObjectList.TIterator.Create(AList: TObjectList; AIterateDirection: TIterateDirection);
+begin
+  FDirection := AIterateDirection;
+  case FDirection of
+    idAscending:
+      FPos := AList.FFirst;
+    idDescending:
+      FPos := AList.FLast;
+  end;
+end;
+
+destructor TObjectList.TIterator.Destroy;
+begin
+  inherited Destroy;
+end;
+
+function TObjectList.TIterator.Iterating: Boolean;
+begin
+  Result := FPos <> nil;
+  if not Result then
+    Free;
+end;
+
+function TObjectList.TIterator.Current: TObject;
+begin
+  if FPos <> nil then
+    Result := FPos.Data
+  else
+    Result := nil;
+end;
+
+procedure TObjectList.TIterator.Next;
+begin
+  if FPos <> nil then
+    case FDirection of
+      idAscending:
+        FPos := FPos.Next;
+      idDescending:
+        FPos := FPos.Prev;
+    end;
+end;
+
+procedure TObjectList.TIterator.Stop;
+begin
+  FPos := nil;
+end;
+
+{ TObjectList }
+
+function TObjectList.Find(AElement: TObject): TItem;
+var
+  I: TItem;
+begin
+  I := FFirst;
+  while (I <> nil) and (Pointer(I.Data) <> Pointer(AElement)) do
+    I := I.Next;
+  if I = nil then
+    raise Exception.Create('TODO! Could not find Element in List');
+  Result := I;
+end;
+
+procedure TObjectList.Del(AItem: TItem);
+begin
+  with AItem do
+  begin
+    if Prev = nil then
+      FFirst := Next
+    else
+      Prev.Next := Next;
+    if Next = nil then
+      FLast := Prev
+    else
+      Next.Prev := Prev;
+
+    if not FReferenceList then
+      Data.Free;
+    Free;
+  end;
+  FCount := FCount - 1;
+end;
+
+function TObjectList.GetItem(I: Integer): TObject;
+var
+  FPos: TItem;
+begin
+  if (I >= Count) or (I < 0) then
+    raise Exception.Create('Item out of bounds'); // TODO: ObjectList Get Item Exception
+  FPos := FFirst;
+  while I > 0 do
+  begin
+    FPos := FPos.Next;
+    Dec(I);
+  end;
+  Result := FPos.Data;
+end;
+
+constructor TObjectList.Create(AReferenceList: Boolean);
+begin
+  FReferenceList := AReferenceList;
+end;
+
+destructor TObjectList.Destroy;
+begin
+  DelAll;
+  inherited Destroy;
+end;
+
+procedure TObjectList.Add(AElement: TObject);
+begin
+   if FLast = nil then
+  begin
+    FFirst := TItem.Create;
+    FLast := FFirst;
+    FFirst.Data := AElement;
+  end
+  else
+  begin
+    FLast.Next := TItem.Create;
+    FLast.Next.Prev := FLast;
+    FLast := FLast.Next;
+    FLast.Data := AElement;
+  end;
+  FCount := FCount + 1;
+end;
+
+procedure TObjectList.Del(AElement: TObject);
+begin
+  Del(Find(AElement));
+end;
+
+procedure TObjectList.DelAll;
+begin
+  while FCount > 0 do
+    Del(FLast);
+end;
+
+procedure TObjectList.WithEach(AFunc: TWithEachProcedure; AFreeFunction: Boolean);
+begin
+  with Iterate do while Iterating do
+  begin
+    AFunc.WithEach(Current);
+    Next;
+  end;
+  if AFreeFunction then
+    AFunc.Free;
+end;
+
+procedure TObjectList.WithEach(AFunc: TWithEachProcedureBasic);
+begin
+  with Iterate do while Iterating do
+  begin
+    AFunc(Current);
+    Next;
+  end;
+end;
+
+function TObjectList.FindFirst(AFunc: TFindFunction; AFreeFunction: Boolean): TObject;
+begin
+  with Iterate do while Iterating do
+  begin
+    if AFunc.Find(Current) then
+    begin
+      Result := Current;
+      Stop;
+    end;
+    Next;
+  end;
+  if AFreeFunction then
+    AFunc.Free;
+end;
+
+function TObjectList.FindLast(AFunc: TFindFunction; AFreeFunction: Boolean): TObject;
+begin
+  with Iterate(idDescending) do while Iterating do
+  begin
+    if AFunc.Find(Current) then
+    begin
+      Result := Current;
+      Stop;
+    end;
+    Next;
+  end;
+  if AFreeFunction then
+    AFunc.Free;
+end;
+
+function TObjectList.FindAll(AFunc: TFindFunction; AFreeFunction: Boolean): TObjectList;
+begin
+  Result := TObjectList.Create(True);
+  with Iterate do while Iterating do
+  begin
+    if AFunc.Find(Current) then
+      Result.Add(Current);
+    Next;
+  end;
+  if AFreeFunction then
+    AFunc.Free;
+end;
+
+function TObjectList.Iterate(AIteratorDirection: TIterateDirection): TIterator;
+begin
+  Result := TIterator.Create(Self, AIteratorDirection);
+end;
+
+end.
+

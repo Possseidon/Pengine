@@ -1,0 +1,56 @@
+TBaseModel (+TEditableModel)
+> Raw Data of Model including 
+  - Vertices
+  - Faces (3 verticie IDs)
+    - TexCoords 
+    - Normals
+    - TextureID (CHANGE!)
+> saved as *.rms (raw model structure)
+   
+TBaseModelList
+> HashList that maps Filename to TBaseModel
+> Model Files are loaded only once and can be used in multiple TypedModels   
+
+TTypedModelList
+> HashList that maps Filename to TTypedModel
+> TypedModel Files are loaded only once and can be used in multiple DisplayModels
+
+
+TTypedModel
+> TBaseModel as Field (got from TBaseModelList)
+> Array that maps TBaseModel TextureID to correct Texture in TTexturePage
+> saved as *.tmd (typed model data)
+
+TBlockModel
+> extends TTypedModel
+> Solid sides
+> Faces that become invisible when side is solid
+
+TAnimatedModel
+> extends TTypedModel
+> Bones connected to facepoints etc...
+
+
+TModelDisplay
+> TTypedModel reference (got from TTypedModelList)
+> VAO
+> Location
+
+TModelDisplayList
+> List of TModelDisplay
+> Every Model thus has its own VAO with Location. Just for compact Rendering
+> Models have no connection what so ever
+
+TBlockModelDisplay
+> TBlockModel reference (got from TTypedModelList)
+> 6 adjacent TBlockModels
+> VAO
+> Position as TIntVector
+> Rotation as TBlockRotation
+> Scale (also scales position to ensure fit with others)
+
+TBlockModelDisplayList
+> array [X,Y,Z] of TBlockModelDisplay
+> Scale (changes scale for every TBlockModelDisplay)
+> automatically updates the adjacency of the models
+> each side of the listcube can be solid/open/another TBlockModelDisplay with offset X/Y from their origins

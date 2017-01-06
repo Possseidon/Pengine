@@ -1,0 +1,43 @@
+unit SetClass;
+
+{$IFDEF FPC}
+{$mode Delphi}
+{$ENDIF}
+
+interface
+
+uses
+  Classes, SysUtils;
+
+type
+
+  { TSetClass }
+
+  TSetClass<T: Ord> = class
+   private
+    FSet: set of T;
+    function GetEnabled(I: T): Boolean;
+    procedure SetEnabled(I: T; AValue: Boolean);
+  public
+    property Enabled[I: T]: Boolean read GetEnabled write SetEnabled; default;
+  end;
+
+implementation
+
+{ TSetClass }
+
+function TSetClass.GetEnabled(I: T): Boolean;
+begin
+  Result := i in FSet;
+end;
+
+procedure TSetClass.SetEnabled(I: T; AValue: Boolean);
+begin
+  if AValue then
+    FSet := FSet + I
+  else
+    FSet := FSet - I;
+end;
+
+end.
+
