@@ -4,7 +4,11 @@ interface
 
 uses
   dglOpenGL, Forms, Controls, Windows, Classes, GLEnums, Color, InputHandler, TimeManager, Lists, Graphics, FBOManager,
-  SysUtils, Dialogs;
+  SysUtils, Dialogs
+  {$IFNDEF FPC}
+  , Messages, UITypes
+  {$ENDIF}
+  ;
 
 type
 
@@ -114,6 +118,7 @@ type
 
     procedure ActivateHandler(Sender: TObject);
     procedure DeactivateHandler(Sender: TObject);
+    function GetAspect: Single;
     function GetDeltaTime: Single;
     function GetFPS: Single;
     function GetFPSInt: Cardinal;
@@ -137,7 +142,12 @@ type
 
     procedure IdleHandler(Sender: TObject; var Done: Boolean);
 
+    function ErrorBox(const ATitle, AMessage: String; AButtons: TMsgDlgButtons; ADefault: TMsgDlgBtn): TModalResult;
+
     procedure Start;
+
+  protected
+    procedure Resize; override;
 
   public
     constructor Create(TheOwner: TComponent); override;
@@ -161,7 +171,6 @@ type
     property State: TOpenGLState read GetState;
 
     procedure WndProc(var AMessage: TMessage); override;
-    procedure DoOnResize; override;
 
     procedure ForceFPSUpdate;
 
@@ -173,8 +182,8 @@ type
 
     procedure Render;
 
-    procedure Init; virtual; abstract;
-    procedure Finalize; virtual; abstract;
+    procedure Init; virtual;
+    procedure Finalize; virtual;
 
     procedure RenderFunc; virtual;
     procedure UpdateFunc; virtual;
@@ -185,6 +194,8 @@ type
     property MultiSampling: Boolean read FMultiSampling write SetMultiSampling;
     property MaxSamples: Cardinal read FMaxSamples;
     property Samples: Cardinal read FSamples write SetSamples;
+
+    property Aspect: Single read GetAspect;
 
     const
       TaskbarWindowClass = 'Shell_TrayWnd';
@@ -354,7 +365,8 @@ begin
   if Fullscreen then
   begin
     ShowWindow(FindWindow(TaskbarWindowClass, nil), SW_HIDE);
-    ShowWindow(Handle, SW_SHOW);
+    BringToFront;
+    //ShowWindow(Handle, SW_SHOW);
   end;
 end;
 
@@ -364,8 +376,14 @@ begin
   if Fullscreen then
   begin
     ShowWindow(FindWindow(TaskbarWindowClass, nil), SW_SHOWNOACTIVATE);
-    ShowWindow(Handle, SW_HIDE);
+    WindowState := wsMinimized;
+    //ShowWindow(Handle, SW_HIDE);
   end;
+end;
+
+function TGLForm.GetAspect: Single;
+begin
+  Result := ClientWidth / ClientHeight;
 end;
 
 function TGLForm.GetFPS: Single;
@@ -552,7 +570,7 @@ begin
       on E: Exception do
       begin
         Pause;
-        if MessageDlg('Game Update Error!', PChar(E.Message), mtError, [mbIgnore, mbClose], 0, mbClose) = mrClose then
+        if ErrorBox('Game Update Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
         begin
           Close;
           Exit;
@@ -570,7 +588,7 @@ begin
     on E: Exception do
     begin
       Pause;
-      if MessageDlg('Render Error!', PChar(E.Message), mtError, [mbIgnore, mbClose], 0, mbClose) = mrClose then
+      if ErrorBox('Render Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
       begin
         Close;
         Exit;
@@ -590,14 +608,12 @@ end;
 procedure TGLForm.WndProc(var AMessage: TMessage);
 var
   W: WPARAM;
-
 begin
   case AMessage.msg of
     WM_SYSCOMMAND:
     begin
       if (AMessage.wParamlo = SC_KEYMENU) and (AMessage.wParamhi = 0) then
         AMessage.msg := WM_NULL;
-      Exit;
     end;
     WM_CHAR:
     begin
@@ -615,17 +631,6 @@ begin
   end;
 
   inherited WndProc(AMessage);
-end;
-
-procedure TGLForm.DoOnResize;
-begin
-  inherited DoOnResize;
-  if not FRunning then
-    Exit;
-
-  ResizeFunc;
-  if MultiSampling then
-    FFBO.Resize(ClientWidth, ClientHeight);
 end;
 
 procedure TGLForm.Render;
@@ -651,12 +656,31 @@ begin
   SwapBuffers(FDC);
 end;
 
+procedure TGLForm.Init;
+begin
+end;
+
+procedure TGLForm.Finalize;
+begin
+end;
+
 procedure TGLForm.RenderFunc;
 begin
 end;
 
 procedure TGLForm.UpdateFunc;
 begin
+end;
+
+procedure TGLForm.Resize;
+begin
+  inherited;
+  if not FRunning then
+    Exit;
+
+  ResizeFunc;
+  if MultiSampling then
+    FFBO.Resize(ClientWidth, ClientHeight);
 end;
 
 procedure TGLForm.ResizeFunc;
@@ -710,7 +734,7 @@ begin
       Close;
     end;
     on E: Exception do
-      if MessageDlg('Initialization Error!', PChar(E.Message), mtError, [mbIgnore, mbClose], 0, mbClose) = mrClose then
+      if ErrorBox('Initialization Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
       begin
         WindowState := wsMinimized; // hide the window sneaky sneaky
         Close;
@@ -718,6 +742,10 @@ begin
       else
         Start;
   end;
+
+  {$IFNDEF FPC}
+  Resize;
+  {$ENDIF}
 end;
 
 destructor TGLForm.Destroy;
@@ -736,6 +764,15 @@ begin
     FFBO.Free;
   FinalizeGL;
   inherited;
+end;
+
+function TGLForm.ErrorBox(const ATitle, AMessage: String; AButtons: TMsgDlgButtons; ADefault: TMsgDlgBtn): TModalResult;
+begin
+  {$IFDEF FPC}
+  Result := MessageDlg(ATitle, PChar(AMessage), mtError, AButtons, 0, ADefault);
+  {$ELSE}
+  Result := MessageDlg(ATitle + sLineBreak + AMessage, mtError, AButtons, 0, ADefault);
+  {$ENDIF}
 end;
 
 procedure TGLForm.PushState;

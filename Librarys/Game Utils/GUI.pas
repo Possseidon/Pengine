@@ -678,7 +678,7 @@ type
     procedure SetFocusedControl(AValue: TGLControl);
 
   public
-    constructor Create(AShader: TShader; AGLForm: TGLForm; AFont: TBMPFontItem; AAspect: Single); reintroduce;
+    constructor Create(AShader: TShader; AGLForm: TGLForm; AFont: TBMPFontItem); reintroduce;
     destructor Destroy; override;
 
     procedure AddToFontVAO; override;
@@ -2700,6 +2700,8 @@ end;
 
 procedure TGUI.SetAspect(AValue: Single);
 begin
+  FGUIVAO.Shader.UniformFloat('aspect', AValue);
+
   AValue := AValue * Height;
   if Width = AValue then
     Exit;
@@ -2740,7 +2742,7 @@ begin
   Result := 0;
 end;
 
-constructor TGUI.Create(AShader: TShader; AGLForm: TGLForm; AFont: TBMPFontItem; AAspect: Single);
+constructor TGUI.Create(AShader: TShader; AGLForm: TGLForm; AFont: TBMPFontItem);
 begin
   FGUIVAO := TGUIVAO.Create(AShader, Self);
   FFontVAO := TFontVAO.Create(AShader, Self);
@@ -2749,7 +2751,7 @@ begin
   FFonts := TBMPFontList.Create;
   FGUI := Self;
   Font := AFont;
-  Width := 2 * AAspect;
+  Width := 2 * FGLForm.Aspect;
   Height := 2;
   XOrigin := haCenter;
   YOrigin := vaCenter;
@@ -2811,11 +2813,11 @@ end;
 procedure TGUI.Render;
 begin
   glClear(Ord(amDepth));
-  FGLForm.Push;
+  FGLForm.PushState;
   FGLForm.State.DepthFunc := cfLEqual;
   FGUIVAO.Render;
   FFontVAO.Render;
-  FGLForm.Pop;
+  FGLForm.PopState;
 end;
 
 end.

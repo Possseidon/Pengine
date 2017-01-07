@@ -32,7 +32,7 @@ type
 
     procedure Bind;
 
-    procedure BindToShader(AShader: TShader; AName: PChar);
+    procedure BindToShader(AShader: TShader; AName: PAnsiChar);
   end;
 
 implementation
@@ -91,7 +91,7 @@ begin
   end;
 end;
 
-procedure TUBO.BindToShader(AShader: TShader; AName: PChar);
+procedure TUBO.BindToShader(AShader: TShader; AName: PAnsiChar);
 var
   BlockIndex: Integer;
 begin

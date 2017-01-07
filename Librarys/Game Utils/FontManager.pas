@@ -49,7 +49,8 @@ type
 
     function GetMonoSpaceOffset(C: AnsiChar): Single;
 
-    procedure Uniform(AShader: TShader; AName: PAnsiChar); //inline;
+    procedure Uniform(AShader: TShader); overload;
+    procedure Uniform(AShader: TShader; AName: PAnsiChar); overload;
 
   end;
 
@@ -312,6 +313,7 @@ end;
 procedure TBMPFontList.Uniform(AShader: TShader; AName: PAnsiChar);
 begin
   FPage.Uniform(AShader, AName);
+  FPage.Bind;
 end;
 
 { TBMPFontItem }
@@ -1125,6 +1127,11 @@ end;
 function TBMPFont.GetMonoSpaceOffset(C: AnsiChar): Single;
 begin
   Result := (MaxWidth - Widths[C]) / 2;
+end;
+
+procedure TBMPFont.Uniform(AShader: TShader);
+begin
+  Uniform(AShader, 'tex');
 end;
 
 procedure TBMPFont.Uniform(AShader: TShader; AName: PAnsiChar);

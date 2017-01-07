@@ -5,9 +5,8 @@ interface
 uses
   BitField, Controls, Forms, Classes, VectorGeometry, Windows, Types, Clipbrd
   {$IFNDEF FPC}
-  , Types
-  {$ENDIF}
-  ;
+  , UITypes
+  {$ENDIF};
 
 type
 
@@ -751,7 +750,11 @@ begin
       ZeroMemory(@Buffer[1], Len);
       ZeroMemory(@Text[1], Len);
       Clipboard.GetTextBuf(@Buffer[1], Len);
-      Utf8ToUnicode(@Text[1], @Buffer[1], Len);
+      //{$IFDEF FPC}
+      //Utf8ToUnicode(@Text[1], @Buffer[1], Len);
+      //{$ELSE}
+      Utf8ToUnicode(@Text[1], Len, @Buffer[1], Len);
+      //{$ENDIF}
       TextNoNull := '';
       for C in Text do
         if C <> #0 then

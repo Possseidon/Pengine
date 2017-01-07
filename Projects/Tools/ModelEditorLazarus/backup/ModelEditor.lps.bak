@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <PathDelim Value="\"/>
+    <Version Value="9"/>
+    <BuildModes Active="Debug"/>
+    <Units Count="9">
+      <Unit0>
+        <Filename Value="ModelEditor.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <WindowIndex Value="-1"/>
+        <TopLine Value="-1"/>
+        <CursorPos X="-1" Y="-1"/>
+        <UsageCount Value="21"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="Main.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmMain"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <TopLine Value="60"/>
+        <CursorPos X="20" Y="75"/>
+        <UsageCount Value="21"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="..\..\..\Librarys\Game Utils\OpenGLContext.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="374"/>
+        <CursorPos X="40" Y="376"/>
+        <UsageCount Value="10"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="..\..\..\Librarys\Game Utils\GUI.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="2154"/>
+        <CursorPos X="51" Y="2169"/>
+        <UsageCount Value="10"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="..\..\..\Librarys\Game Utils\FontManager.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="70"/>
+        <CursorPos X="15" Y="86"/>
+        <UsageCount Value="10"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="..\..\..\Librarys\Game Utils\Shaders.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="322"/>
+        <CursorPos Y="334"/>
+        <UsageCount Value="10"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="..\..\..\Librarys\Game Utils\TextureManager.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="978"/>
+        <CursorPos X="12" Y="983"/>
+        <UsageCount Value="10"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="..\..\..\Librarys\Game Utils\VAOManager.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="80"/>
+        <CursorPos X="15" Y="95"/>
+        <UsageCount Value="10"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="..\..\..\Librarys\Utility\Lists.pas"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="1714"/>
+        <CursorPos X="51" Y="1719"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit8>
+    </Units>
+    <JumpHistory Count="8" HistoryIndex="7">
+      <Position1>
+        <Filename Value="Main.pas"/>
+        <Caret Line="56" Column="17" TopLine="43"/>
+      </Position1>
+      <Position2>
+        <Filename Value="Main.pas"/>
+        <Caret Line="58" Column="21" TopLine="43"/>
+      </Position2>
+      <Position3>
+        <Filename Value="Main.pas"/>
+        <Caret Line="57" Column="43" TopLine="37"/>
+      </Position3>
+      <Position4>
+        <Filename Value="Main.pas"/>
+        <Caret Line="58" Column="44" TopLine="37"/>
+      </Position4>
+      <Position5>
+        <Filename Value="Main.pas"/>
+        <Caret Line="57" Column="36" TopLine="37"/>
+      </Position5>
+      <Position6>
+        <Filename Value="Main.pas"/>
+        <Caret Line="65" Column="33" TopLine="50"/>
+      </Position6>
+      <Position7>
+        <Filename Value="Main.pas"/>
+        <Caret Line="75" Column="20" TopLine="60"/>
+      </Position7>
+      <Position8>
+        <Filename Value="..\..\..\Librarys\Utility\Lists.pas"/>
+        <Caret Line="179" Column="39" TopLine="163"/>
+      </Position8>
+    </JumpHistory>
+  </ProjectSession>
+</CONFIG>

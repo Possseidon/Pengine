@@ -638,7 +638,6 @@ begin
     raise ETooManyTextureUnits.Create;
   FUnitID := FirstSlot;
   UsedUnits[FUnitID] := True;
-  Bind;
   glActiveTexture(GL_TEXTURE0 + FUnitID);
 end;
 
@@ -651,7 +650,6 @@ end;
 
 procedure TTexture.Uniform(AShader: TShader; AName: PAnsiChar);
 begin
-  Activate;
   AShader.UniformInt(AName, FUnitID);
 end;
 
@@ -983,7 +981,6 @@ begin
     inherited Uniform(AShader, AName)
   else
   begin
-    Activate;
     if FSubTextures[ATextureType] = nil then
       EnableSubType(ATextureType);
     AShader.UniformInt(AName, FSubTextures[ATextureType].UnitID);

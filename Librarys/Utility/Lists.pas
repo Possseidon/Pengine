@@ -175,8 +175,13 @@ type
     constructor Create(AReferenceList: Boolean = False; ASizeSteps: Integer = 16);
     destructor Destroy; override;
 
+    {$IFDEF FPC}
     function FindAsObjectArray(AFunc: TFindFunction): TObjectArray<T>; overload;
     function FindAsObjectArray(AFunc: TFindFunctionOfObject): TObjectArray<T>; overload;
+    {$ELSE}
+    function FindAsObjectArray(AFunc: TArray<T>.TFindFunction): TObjectArray<T>; overload;
+    function FindAsObjectArray(AFunc: TArray<T>.TFindFunctionOfObject): TObjectArray<T>; overload;
+    {$ENDIF}
     function FindAsObjectArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): TObjectArray<T>; overload;
 
     function FindObject(AData: T): Integer;
@@ -1710,7 +1715,11 @@ begin
   inherited;
 end;
 
+{$IFDEF FPC}
 function TObjectArray<T>.FindAsObjectArray(AFunc: TFindFunction): TObjectArray<T>;
+{$ELSE}
+function TObjectArray<T>.FindAsObjectArray(AFunc: TArray<T>.TFindFunction): TObjectArray<T>;
+{$ENDIF}
 var
   I: Integer;
 begin
@@ -1720,7 +1729,11 @@ begin
       Result.Add(FItems[I]);
 end;
 
+{$IFDEF FPC}
 function TObjectArray<T>.FindAsObjectArray(AFunc: TFindFunctionOfObject): TObjectArray<T>;
+{$ELSE}
+function TObjectArray<T>.FindAsObjectArray(AFunc: TArray<T>.TFindFunctionOfObject): TObjectArray<T>;
+{$ENDIF}
 var
   I: Integer;
 begin

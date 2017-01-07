@@ -31,7 +31,7 @@ type
     Changed: Boolean;
   end;
 
-  TMatrixUniformNames = array [TMatrixType] of PChar;
+  TMatrixUniformNames = array [TMatrixType] of PAnsiChar;
 
   { TCamera }
   TCamera = class
@@ -42,11 +42,9 @@ type
 
     function GetHorizontalFOV: Single;
     function GetMatrix(I: TMatrixType): TMatrix4;
-    function GetMatrixUniformName(I: TMatrixType): PChar;
-    procedure SetMatrixUniformName(I: TMatrixType; AValue: PChar);
+    function GetMatrixUniformName(I: TMatrixType): PAnsiChar;
+    procedure SetMatrixUniformName(I: TMatrixType; AValue: PAnsiChar);
 
-    procedure SetPos(AValue: TGVector3);
-    procedure SetOffset(const AValue: TGVector3);
     procedure SetAspect(const AValue: Single);
     procedure SetFarClip(const AValue: Single);
     procedure SetFOV(const AValue: Single);
@@ -124,7 +122,7 @@ type
     procedure AddShader(AShader: TShader);
     procedure DelShader(AShader: TShader);
 
-    property MatrixUniformNames[I: TMatrixType]: PChar read GetMatrixUniformName write SetMatrixUniformName;
+    property MatrixUniformNames[I: TMatrixType]: PAnsiChar read GetMatrixUniformName write SetMatrixUniformName;
 
     // VAOs
     procedure AddVAO(AVAO: TVAO);
@@ -459,12 +457,6 @@ begin
   SetMatrixChanged(mtProjection);
 end;
 
-procedure TCamera.SetOffset(const AValue: TGVector3);
-begin
-  FLocation.Offset := AValue;
-  SetMatrixChanged(mtModelView);
-end;
-
 procedure TCamera.SetOrtho(const AValue: Boolean);
 begin
   FOrtho := AValue;
@@ -476,12 +468,6 @@ procedure TCamera.SetOrthoFactor(const Value: Single);
 begin
   FOrthoFactor := Value;
   SetMatrixChanged(mtProjection);
-end;
-
-procedure TCamera.SetPos(AValue: TGVector3);
-begin
-  FLocation.Pos := AValue;
-  SetMatrixChanged(mtModelView);
 end;
 
 function TCamera.GetMatrix(I: TMatrixType): TMatrix4;
@@ -514,12 +500,12 @@ begin
   Result := not AFrustum.AllOutside(Points);
 end;
 
-function TCamera.GetMatrixUniformName(I: TMatrixType): PChar;
+function TCamera.GetMatrixUniformName(I: TMatrixType): PAnsiChar;
 begin
   Result := FMatrixUniformNames[I];
 end;
 
-procedure TCamera.SetMatrixUniformName(I: TMatrixType; AValue: PChar);
+procedure TCamera.SetMatrixUniformName(I: TMatrixType; AValue: PAnsiChar);
 begin
   FMatrixUniformNames[I] := AValue;
   FForceResendLocation := True;

@@ -89,8 +89,6 @@ type
     function GetAttribCount: Cardinal;
 
   protected
-    property Shader: TShader read FShader;
-
     function GetModelMatrix: TMatrix4; virtual;
     function GetBounds: TGBounds3; virtual;
 
@@ -135,6 +133,8 @@ type
     property ModelMatrix: TMatrix4 read GetModelMatrix;
     property Bounds: TGBounds3 read GetBounds;
     function HasBounds: Boolean; virtual;
+
+    property Shader: TShader read FShader;
 
   end;
 

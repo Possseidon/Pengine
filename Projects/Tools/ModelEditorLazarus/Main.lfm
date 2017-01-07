@@ -1,0 +1,8 @@
+object frmMain: TfrmMain
+  Left = 403
+  Height = 586
+  Top = 187
+  Width = 989
+  Caption = 'ModelEditor'
+  LCLVersion = '1.6.2.0'
+end

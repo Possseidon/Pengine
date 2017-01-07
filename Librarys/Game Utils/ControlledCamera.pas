@@ -3,7 +3,10 @@ unit ControlledCamera;
 interface
 
 uses
-  Classes, SysUtils, Camera, InputHandler, Controls, VectorGeometry, Windows, OpenGLContext;
+  Classes, SysUtils, Camera, InputHandler, Controls, VectorGeometry, Windows, OpenGLContext
+  {$IFNDEF FPC}
+  , UITypes
+  {$ENDIF};
 
 type
 
