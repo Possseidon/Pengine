@@ -6,7 +6,8 @@ uses
   Winapi.Windows, Winapi.Messages,
   System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
-  OpenGLContext, Shaders, FontManager, GUI, SkyDome, ControlledCamera, Color;
+  OpenGLContext, Shaders, FontManager, GUI, SkyDome, ControlledCamera, Color, InputHandler, VectorGeometry, Matrix,
+  Vcl.StdCtrls;
 
 type
   TfrmMain = class(TGLForm)
@@ -20,6 +21,13 @@ type
 
     // GUI
     FGUI: TGUI;
+    FButton: TGLButton;
+    FText: TGLTextfield;
+    FCheckbox: TGLCheckbox;
+    FContainer: TGLContainerControl;
+    FContainerIn: TGLContainerControl;
+    FTrackbarF: TGLTrackbarFixed;
+    FTrackbarS: TGLTrackbarSmooth;
 
     // SkyDome
     FSkyDome: TSkyDome;
@@ -34,6 +42,7 @@ type
     procedure ResizeFunc; override;
     procedure UpdateFunc; override;
     procedure RenderFunc; override;
+
   end;
 
 var
@@ -48,7 +57,6 @@ implementation
 procedure TfrmMain.Init;
 begin
   VSync := False;
-  FPSLimit := 256;
 
   FGUIShader := TShader.Create;
   FGUIShader.VertexFragmentShaderFromResource('GUI_SHADER');
@@ -78,13 +86,51 @@ begin
   FGUI := TGUI.Create(FGUIShader, Self, FFont);
   FGUI.AddTextureFromResource('STONE_BUTTON', 'button');
   FGUI.AddTextureFromResource('STONE_TEXTFIELD', 'textfield');
+  FGUI.AddTextureFromResource('STONE_CHECKBOX', 'checkbox');
+  FGUI.AddTextureFromResource('STONE_TRACKBAR', 'trackbar');
 
-  with TGLButton.Create(FGUI) do
-  begin
-    Caption := 'Hi';
-    Height := 0.2;
-    Width := 5;
-  end;
+  FContainer := TGLContainerControl.Create(FGUI);
+  FContainer.Size := TGVector2.Create(1, 1);
+  FContainer.XOrigin := haLeft;
+
+  FContainerIn := TGLContainerControl.Create(FContainer);
+  FContainerIn.Size := TGVector2.Create(1, 1);
+  FContainerIn.XOrigin := haLeft;
+
+  FButton := TGLButton.Create(FContainerIn);
+  FButton.Caption := 'Hi';
+  FButton.Height := 0.2;
+  FButton.Width := 1;
+  FButton.Depth := -0.5;
+
+  FText := TGLTextfield.Create(FGUI);
+  FText.Height := 0.2;
+  FText.PosY := 0.5;
+  FText.Width := 10;
+
+  FCheckbox := TGLCheckbox.Create(FGUI);
+  FCheckbox.PosX := 1;
+  FCheckbox.Height := 0.25;
+
+  FTrackbarF := TGLTrackbarFixed.Create(FContainer);
+  FTrackbarF.Min := 1;
+  FTrackbarF.Max := 5;
+  FTrackbarF.Width := 4;
+  FTrackbarF.Height := 0.5;
+  FTrackbarF.TrackPos := 3;
+  FTrackbarF.XOrigin := haLeft;
+  FTrackbarF.YOrigin := vaTop;
+
+  FTrackbarS := TGLTrackbarSmooth.Create(FContainer);
+  FTrackbarS.Min := 0;
+  FTrackbarS.Ticks := 5;
+  FTrackbarS.Max := 1;
+  FTrackbarS.Width := 4;
+  FTrackbarS.Height := 0.5;
+  FTrackbarS.TrackPos := 0.5;
+  FTrackbarS.XOrigin := haLeft;
+  FTrackbarS.YOrigin := vaBottom;
+
 end;
 
 procedure TfrmMain.Finalize;
@@ -112,6 +158,19 @@ begin
 
   if Input.KeyPressed(VK_F11) then
     Fullscreen := not Fullscreen;
+
+  if FButton.Pressed then
+  begin
+    FText.TextfieldColor := TColorRGB.Rainbow(Random * 6);
+    FText.TextColor := not FText.TextfieldColor;
+    FButton.Caption := 'Aua';
+  end;
+
+  FButton.Pos := FContainerIn.MousePos;
+
+  //FTrackbarF.Height := Sin(Seconds) * 0.15 + 0.4;
+  //FTrackbarS.Height := Sin(Seconds) * 0.1 + 0.6;
+  //FContainer.Height := Sin(Seconds) + 1;
 
   FCamera.Update;
 

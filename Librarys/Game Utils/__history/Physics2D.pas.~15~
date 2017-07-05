@@ -1,0 +1,47 @@
+unit Physics2D;
+
+interface
+
+uses
+  VectorGeometry, Lists;
+
+type
+
+  TPhys2Object = class;
+
+  TPhys2World = class
+  private
+    FHomoGravity: TGVector2;
+    FCircularGravity: TArray<TGVector2>;
+
+    FObjects: TArray<TPhys2Object>;
+
+  public
+
+
+  end;
+
+  TPhys2Object = class abstract
+  private
+
+  public
+
+    property Center: TGVector2;
+
+  end;
+
+  TPhys2Ball = class (TPhys2Object)
+  public
+
+  end;
+
+  TPhys2Triangle = class (TPhys2Object)
+  private
+
+  public
+
+  end;
+
+implementation
+
+end.

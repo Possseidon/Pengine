@@ -369,7 +369,10 @@ begin
   Result := 0;
   // rekursive Determinanten berechnung bis 3x3
   for R := 0 to S - 1 do
-    Result := Result + Minor(R, R).Determinant;
+    if R mod 2 = 0 then
+      Result := Result + E[R, 0] * Minor(R, 0).Determinant
+    else
+      Result := Result - E[R, 0] * Minor(R, 0).Determinant
 end;
 
 function TMatrix.GetElement(I, J: Byte): Single;

@@ -4,7 +4,9 @@ program ModelEditor;
 
 uses
   Vcl.Forms,
-  Main in 'Main.pas' {frmMain};
+  Main in 'Main.pas' {frmMain},
+  Vcl.Themes,
+  Vcl.Styles;
 
 {$R *.res}
 

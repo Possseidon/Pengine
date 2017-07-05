@@ -13,16 +13,24 @@ type
     R, G, B, A: Single;
 
     class operator Add(A, B: TColorRGBA): TColorRGBA;
+    class operator Add(A: TColorRGBA; V: Single): TColorRGBA;
+    class operator Add(V: Single; A: TColorRGBA): TColorRGBA;
+
     class operator Subtract(A, B: TColorRGBA): TColorRGBA;
+    class operator Subtract(A: TColorRGBA; V: Single): TColorRGBA;
+    class operator Subtract(V: Single; A: TColorRGBA): TColorRGBA;
+
     class operator Multiply(A, B: TColorRGBA): TColorRGBA;
-    class operator Multiply(A: TColorrGBA; V: Single): TColorRGBA;
+    class operator Multiply(A: TColorRGBA; V: Single): TColorRGBA;
     class operator Multiply(V: Single; A: TColorrGBA): TColorRGBA;
+
     class operator LogicalNot(A: TColorRGBA): TColorRGBA;
     class operator Equal(A, B: TColorRGBA): Boolean;
     class operator NotEqual(A, B: TColorRGBA): Boolean;
 
     constructor Create(AColor: TColor; A: Single = 1); overload;
     constructor Create(R, G, B: Single; A: Single = 1); overload;
+
     class function HSV(H, S, V: Single; A: Single = 1): TColorRGBA; static;
     class function Gray(V: Single; A: Single = 1): TColorRGBA; static;
     class function Rainbow(H: Single; A: Single = 1): TColorRGBA; static;
@@ -39,16 +47,24 @@ type
     R, G, B: Single;
 
     class operator Add(A, B: TColorRGB): TColorRGB;
+    class operator Add(A: TColorRGB; V: Single): TColorRGB;
+    class operator Add(V: Single; A: TColorRGB): TColorRGB;
+
     class operator Subtract(A, B: TColorRGB): TColorRGB;
+    class operator Subtract(A: TColorRGB; V: Single): TColorRGB;
+    class operator Subtract(V: Single; A: TColorRGB): TColorRGB;
+
     class operator Multiply(A, B: TColorRGB): TColorRGB;
     class operator Multiply(A: TColorrGB; V: Single): TColorRGB;
     class operator Multiply(V: Single; A: TColorrGB): TColorRGB;
+
     class operator LogicalNot(A: TColorRGB): TColorRGB;
     class operator Equal(A, B: TColorRGB): Boolean;
     class operator NotEqual(A, B: TColorRGB): Boolean;
 
     constructor Create(AColor: TColor); overload;
     constructor Create(R, G, B: Single); overload;
+
     class function HSV(H, S, V: Single): TColorRGB; static;
     class function Gray(V: Single): TColorRGB; static;
     class function Rainbow(H: Single): TColorRGB; static;
@@ -58,6 +74,7 @@ type
     class operator Implicit(AValue: TColorRGBA): TColorRGB;
     class operator Implicit(AValue: TColorRGB): TColorRGBA;
     class operator Implicit(AValue: TColorRGB): TGVector3;
+    class operator Implicit(AValue: TColor): TColorRGB;
 
     function ToWinColor: TColor;
 
@@ -130,9 +147,7 @@ end;
 
 class operator TColorRGB.LogicalNot(A: TColorRGB): TColorRGB;
 begin
-  Result.R := 1 - A.R;
-  Result.G := 1 - A.G;
-  Result.B := 1 - A.B;
+  Result := 1 - A;
 end;
 
 class operator TColorRGB.Equal(A, B: TColorRGB): Boolean;
@@ -150,6 +165,20 @@ begin
   R := AColor and $FF / $FF;
   G := AColor shr 8 and $FF / $FF;
   B := AColor shr 16 and $FF / $FF;
+end;
+
+class operator TColorRGB.Add(V: Single; A: TColorRGB): TColorRGB;
+begin
+  Result.R := V + A.R;
+  Result.G := V + A.G;
+  Result.B := V + A.B;
+end;
+
+class operator TColorRGB.Add(A: TColorRGB; V: Single): TColorRGB;
+begin
+  Result.R := A.R + V;
+  Result.G := A.G + V;
+  Result.B := A.B + V;
 end;
 
 constructor TColorRGB.Create(R, G, B: Single);
@@ -216,6 +245,16 @@ begin
   Result := HSV(H, 1, 1);
 end;
 
+class operator TColorRGB.Subtract(V: Single; A: TColorRGB): TColorRGB;
+begin
+
+end;
+
+class operator TColorRGB.Subtract(A: TColorRGB; V: Single): TColorRGB;
+begin
+
+end;
+
 function TColorRGB.ToRGBA(A: Single): TColorRGBA;
 begin
   Result.R := R;
@@ -255,6 +294,11 @@ begin
   Result.B := EnsureRange(B, 0, 1);
 end;
 
+class operator TColorRGB.Implicit(AValue: TColor): TColorRGB;
+begin
+  Result := TColorRGB.Create(AValue);
+end;
+
 { TColorRGBA }
 
 class operator TColorRGBA.Add(A, B: TColorRGBA): TColorRGBA;
@@ -272,10 +316,7 @@ end;
 
 class operator TColorRGBA.LogicalNot(A: TColorRGBA): TColorRGBA;
 begin
-  Result.R := 1 - A.R;
-  Result.G := 1 - A.G;
-  Result.B := 1 - A.B;
-  Result.A := A.A;
+  Result := 1 - A;
 end;
 
 class operator TColorRGBA.Multiply(A, B: TColorRGBA): TColorRGBA;
@@ -315,6 +356,22 @@ begin
   Self.A := A;
 end;
 
+class operator TColorRGBA.Add(V: Single; A: TColorRGBA): TColorRGBA;
+begin
+  Result.R := V + A.R;
+  Result.G := V + A.G;
+  Result.B := V + A.B;
+  Result.A := A.A;
+end;
+
+class operator TColorRGBA.Add(A: TColorRGBA; V: Single): TColorRGBA;
+begin
+  Result.R := A.R + V;
+  Result.G := A.G + V;
+  Result.B := A.B + V;
+  Result.A := A.A;
+end;
+
 constructor TColorRGBA.Create(R, G, B: Single; A: Single);
 begin
   Self.R := R;
@@ -341,6 +398,22 @@ class function TColorRGBA.Rainbow(H: Single; A: Single): TColorRGBA;
 begin
   Result := TColorRGB.Rainbow(H);
   Result.A := A;
+end;
+
+class operator TColorRGBA.Subtract(V: Single; A: TColorRGBA): TColorRGBA;
+begin
+  Result.R := V - A.R;
+  Result.G := V - A.G;
+  Result.B := V - A.B;
+  Result.A := A.A;
+end;
+
+class operator TColorRGBA.Subtract(A: TColorRGBA; V: Single): TColorRGBA;
+begin
+  Result.R := A.R - V;
+  Result.G := A.G - V;
+  Result.B := A.B - V;
+  Result.A := A.A;
 end;
 
 class operator TColorRGBA.Implicit(AValue: TColorRGBA): TGVector4;

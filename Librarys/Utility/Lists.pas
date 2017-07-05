@@ -3,7 +3,7 @@ unit Lists;
 interface
 
 uses
-  Classes, SysUtils, VectorGeometry;
+  Classes, SysUtils;
 
 type
 
@@ -13,6 +13,13 @@ type
   protected
     function Find(AElement: T): Boolean; virtual; abstract;
   end;
+
+  TCompareFunction<T> = function(A, B: T): Boolean;
+  TCompareFunctionOfObject<T> = function(A, B: T): Boolean of object;
+
+  TFindFunctionStatic<T> = function(A: T): Boolean;
+  TFindFunctionOfObject<T> = function(A: T): Boolean of object;
+
 
  { TPair }
 
@@ -27,26 +34,18 @@ type
     property Data: TData read FData;
   end;
 
-  { TArray<T> }
+  { TArrayList<T> }
 
   TIntArray = class;
-  TArray<T> = class
-  public
-    type
-      TCompareFunction = function(A, B: T): Boolean;
-      TCompareFunctionOfObject = function(A, B: T): Boolean of object;
-
-      TFindFunction = function(A: T): Boolean;
-      TFindFunctionOfObject = function(A: T): Boolean of object;
-
+  TArrayList<T> = class
   private
     FItems: array of T;
     FIterReversed: Boolean;
     FSizeSteps: Integer;
     FCount: Integer;
 
-    procedure SortLR(ACompareFunc: TCompareFunction; ALeft, ARight: Integer); overload;
-    procedure SortLR(ACompareFunc: TCompareFunctionOfObject; ALeft, ARight: Integer); overload;
+    procedure SortLR(ACompareFunc: TCompareFunction<T>; ALeft, ARight: Integer); overload;
+    procedure SortLR(ACompareFunc: TCompareFunctionOfObject<T>; ALeft, ARight: Integer); overload;
 
   public
     type
@@ -55,7 +54,7 @@ type
 
       TIterator = class
       private
-        FList: TArray<T>;
+        FList: TArrayList<T>;
 
         FCurrent: Integer;
         FReversed: Boolean;
@@ -65,7 +64,7 @@ type
 
         function GetCurrent: T;
       public
-        constructor Create(AList: TArray<T>; AReversed, AAutoFree: Boolean);
+        constructor Create(AList: TArrayList<T>; AReversed, AAutoFree: Boolean);
 
         function MoveNext: Boolean;
         property Current: T read GetCurrent;
@@ -93,34 +92,34 @@ type
 
     procedure Swap(A, B: Integer);
 
-    function FindFirstIndex(AFunc: TFindFunction): Integer; overload;
-    function FindFirstIndex(AFunc: TFindFunctionOfObject): Integer; overload;
+    function FindFirstIndex(AFunc: TFindFunctionStatic<T>): Integer; overload;
+    function FindFirstIndex(AFunc: TFindFunctionOfObject<T>): Integer; overload;
     function FindFirstIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): Integer; overload;
 
-    function FindFirst(AFunc: TFindFunction): T; overload;
-    function FindFirst(AFunc: TFindFunctionOfObject): T; overload;
+    function FindFirst(AFunc: TFindFunctionStatic<T>): T; overload;
+    function FindFirst(AFunc: TFindFunctionOfObject<T>): T; overload;
     function FindFirst(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): T; overload;
 
-    function FindLastIndex(AFunc: TFindFunction): Integer; overload;
-    function FindLastIndex(AFunc: TFindFunctionOfObject): Integer; overload;
+    function FindLastIndex(AFunc: TFindFunctionStatic<T>): Integer; overload;
+    function FindLastIndex(AFunc: TFindFunctionOfObject<T>): Integer; overload;
     function FindLastIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): Integer; overload;
 
-    function FindLast(AFunc: TFindFunction): T; overload;
-    function FindLast(AFunc: TFindFunctionOfObject): T; overload;
+    function FindLast(AFunc: TFindFunctionStatic<T>): T; overload;
+    function FindLast(AFunc: TFindFunctionOfObject<T>): T; overload;
     function FindLast(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): T; overload;
 
-    function FindIndexAsArray(AFunc: TFindFunction): TIntArray; overload;
-    function FindIndexAsArray(AFunc: TFindFunctionOfObject): TIntArray; overload;
+    function FindIndexAsArray(AFunc: TFindFunctionStatic<T>): TIntArray; overload;
+    function FindIndexAsArray(AFunc: TFindFunctionOfObject<T>): TIntArray; overload;
     function FindIndexAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): TIntArray; overload;
 
-    function FindAsArray(AFunc: TFindFunction): TArray<T>; overload; virtual;
-    function FindAsArray(AFunc: TFindFunctionOfObject): TArray<T>; overload; virtual;
-    function FindAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): TArray<T>; overload; virtual;
+    function FindAsArray(AFunc: TFindFunctionStatic<T>): TArrayList<T>; overload; virtual;
+    function FindAsArray(AFunc: TFindFunctionOfObject<T>): TArrayList<T>; overload; virtual;
+    function FindAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): TArrayList<T>; overload; virtual;
 
-    procedure Sort(AFunc: TCompareFunction); overload;
-    procedure Sort(AFunc: TCompareFunctionOfObject); overload;
+    procedure Sort(AFunc: TCompareFunction<T>); overload;
+    procedure Sort(AFunc: TCompareFunctionOfObject<T>); overload;
 
-    function Copy: TArray<T>; virtual;
+    function Copy: TArrayList<T>; virtual;
 
     property Count: Integer read FCount;
     function Empty: Boolean;
@@ -133,7 +132,7 @@ type
     function Ptr: Pointer;
 
     function GetEnumerator(AAutoFree: Boolean = False): TIterator;
-    function IterReversed: TArray<T>;
+    function IterReversed: TArrayList<T>;
 
     procedure RangeCheckException(AIndex: Integer);
     function RangeCheck(AIndex: Integer): Boolean;
@@ -141,7 +140,7 @@ type
 
   { TNotifyArray }
 
-  TNotifyArray<T> = class (TArray<T>)
+  TNotifyArray<T> = class (TArrayList<T>)
   private
     FChanged: Boolean;
   protected
@@ -153,7 +152,7 @@ type
 
   { TIntArray }
 
-  TIntArray = class (TArray<Integer>)
+  TIntArray = class (TArrayList<Integer>)
   public
     function Sum: Integer;
 
@@ -162,7 +161,7 @@ type
 
   { TObjectArray<T> }
 
-  TObjectArray<T: class> = class (TArray<T>)
+  TObjectArray<T: class> = class (TArrayList<T>)
   private
     FReferenceList: Boolean;
 
@@ -175,19 +174,14 @@ type
     constructor Create(AReferenceList: Boolean = False; ASizeSteps: Integer = 16);
     destructor Destroy; override;
 
-    {$IFDEF FPC}
-    function FindAsObjectArray(AFunc: TFindFunction): TObjectArray<T>; overload;
-    function FindAsObjectArray(AFunc: TFindFunctionOfObject): TObjectArray<T>; overload;
-    {$ELSE}
-    function FindAsObjectArray(AFunc: TArray<T>.TFindFunction): TObjectArray<T>; overload;
-    function FindAsObjectArray(AFunc: TArray<T>.TFindFunctionOfObject): TObjectArray<T>; overload;
-    {$ENDIF}
+    function FindAsObjectArray(AFunc: TFindFunctionStatic<T>): TObjectArray<T>; overload;
+    function FindAsObjectArray(AFunc: TFindFunctionOfObject<T>): TObjectArray<T>; overload;
     function FindAsObjectArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): TObjectArray<T>; overload;
 
     function FindObject(AData: T): Integer;
     procedure DelObject(AData: T);
 
-    function Copy: TArray<T>; override;
+    function Copy: TArrayList<T>; override;
 
     function First: T; override;
     function Last: T; override;
@@ -385,14 +379,6 @@ type
     procedure FreeData(const AData: TData); override;
   end;
 
-  { TIntVectorMap<TData> }
-
-  TIntVectorMap<TData> = class (TMap<TIntVector, TData>)
-  public
-    function GetKeyHash(AKey: TIntVector): Cardinal; override;
-    class function KeysEqual(AKey1, AKey2: TIntVector): Boolean; override;
-  end;
-
   { TSet<T> }
 
   TSet<T> = class abstract (THashBase<T>)
@@ -475,10 +461,18 @@ type
     class function KeysEqual(AKey1, AKey2: String): Boolean; override;
   end;
 
+  { TCardinalSet }
+
+  TCardinalSet = class (TSet<Cardinal>)
+  protected
+    function GetKeyHash(AKey: Cardinal): Cardinal; override;
+    class function CantIndex({%H-}AKey: Cardinal): Boolean; override;
+    class function KeysEqual(AKey1, AKey2: Cardinal): Boolean; override;
+  end;
+
 function GetHash(AObject: TObject; ARange: Cardinal): Cardinal; overload; inline;
 function GetHash(AString: WideString; ARange: Cardinal): Cardinal; overload; inline;
 function GetHash(AString: AnsiString; ARange: Cardinal): Cardinal; overload; inline;
-function GetHash(AIntVector: TIntVector; ARange: Cardinal): Cardinal; overload; inline;
 
 implementation
 
@@ -508,19 +502,6 @@ begin
   for C in AString do
     Result := Cardinal((Result + Ord(C)) xor Ord(C) * Ord(C));
   Result := Result mod ARange;
-end;
-
-function GetHash(AIntVector: TIntVector; ARange: Cardinal): Cardinal;
-var
-  X, Y, Z: PCardinal;
-begin
-  AIntVector.X := Integer(AIntVector.X * 53);
-  AIntVector.Y := Integer(AIntVector.Y * 97);
-  AIntVector.Z := Integer(AIntVector.Z * 193);
-  X := @AIntVector.X;
-  Y := @AIntVector.Y;
-  Z := @AIntVector.Z;
-  Result := (X^ xor Y^ xor Z^) mod ARange;
 end;
 
 { TObjectStack<T>.TItem }
@@ -964,18 +945,6 @@ begin
   AData.Free;
 end;
 
-{ TIVecHashTable<TData> }
-
-function TIntVectorMap<TData>.GetKeyHash(AKey: TIntVector): Cardinal;
-begin
-  Result := GetHash(AKey, FInternalSize);
-end;
-
-class function TIntVectorMap<TData>.KeysEqual(AKey1, AKey2: TIntVector): Boolean;
-begin
-  Result := AKey1 = AKey2;
-end;
-
 { TObjectSet<T> }
 
 function TObjectSet<T>.GetKeyHash(AKey: T): Cardinal;
@@ -1005,34 +974,34 @@ begin
   FReferenceList := AReferenceList;
 end;
 
-{ TArray<T> }
+{ TArrayList<T> }
 
-function TArray<T>.GetItem(AIndex: Integer): T;
+function TArrayList<T>.GetItem(AIndex: Integer): T;
 begin
   RangeCheckException(AIndex);
   Result := FItems[AIndex];
 end;
 
-procedure TArray<T>.SetItem(AIndex: Integer; AValue: T);
+procedure TArrayList<T>.SetItem(AIndex: Integer; AValue: T);
 begin
   RangeCheckException(AIndex);
   FreeData(FItems[AIndex]);
   FItems[AIndex] := AValue;
 end;
 
-procedure TArray<T>.Sort(AFunc: TCompareFunction);
+procedure TArrayList<T>.Sort(AFunc: TCompareFunction<T>);
 begin
   if Count > 1 then
     SortLR(AFunc, 0, Count - 1);
 end;
 
-procedure TArray<T>.Sort(AFunc: TCompareFunctionOfObject);
+procedure TArrayList<T>.Sort(AFunc: TCompareFunctionOfObject<T>);
 begin
   if Count > 1 then
     SortLR(AFunc, 0, Count - 1);
 end;
 
-procedure TArray<T>.SortLR(ACompareFunc: TCompareFunctionOfObject; ALeft, ARight: Integer);
+procedure TArrayList<T>.SortLR(ACompareFunc: TCompareFunctionOfObject<T>; ALeft, ARight: Integer);
 var
   Pivot: T;
   L, R: Integer;
@@ -1058,7 +1027,7 @@ begin
     SortLR(ACompareFunc, L, ARight);
 end;
 
-procedure TArray<T>.SortLR(ACompareFunc: TCompareFunction; ALeft, ARight: Integer);
+procedure TArrayList<T>.SortLR(ACompareFunc: TCompareFunction<T>; ALeft, ARight: Integer);
 var
   Pivot: T;
   L, R: Integer;
@@ -1084,12 +1053,12 @@ begin
     SortLR(ACompareFunc, L, ARight);
 end;
 
-constructor TArray<T>.Create(ASizeSteps: Integer);
+constructor TArrayList<T>.Create(ASizeSteps: Integer);
 begin
   FSizeSteps := ASizeSteps;
 end;
 
-function TArray<T>.Add(AElement: T): T;
+function TArrayList<T>.Add(AElement: T): T;
 begin
   if Count + 1 > Length(FItems) then
     SetLength(FItems, Length(FItems) + FSizeSteps);
@@ -1098,7 +1067,7 @@ begin
   Result := AElement;
 end;
 
-function TArray<T>.Insert(AElement: T; AIndex: Integer): T;
+function TArrayList<T>.Insert(AElement: T; AIndex: Integer): T;
 begin
   if Count + 1 > Length(FItems) then
     SetLength(FItems, Length(FItems) + FSizeSteps);
@@ -1108,12 +1077,12 @@ begin
   Result := AElement;
 end;
 
-procedure TArray<T>.DelLast;
+procedure TArrayList<T>.DelLast;
 begin
   Del(Count - 1);
 end;
 
-procedure TArray<T>.DelAll;
+procedure TArrayList<T>.DelAll;
 var
   I: Integer;
 begin
@@ -1121,7 +1090,7 @@ begin
     Del(I);
 end;
 
-procedure TArray<T>.Del(AIndex: Integer);
+procedure TArrayList<T>.Del(AIndex: Integer);
 begin
   RangeCheckException(AIndex);
   FreeData(FItems[AIndex]);
@@ -1132,7 +1101,7 @@ begin
     SetLength(FItems, Length(FItems) - FSizeSteps);
 end;
 
-procedure TArray<T>.Swap(A, B: Integer);
+procedure TArrayList<T>.Swap(A, B: Integer);
 var
   Tmp: T;
 begin
@@ -1143,13 +1112,13 @@ begin
   FItems[B] := Tmp;
 end;
 
-function TArray<T>.EntryNotFound: T;
+function TArrayList<T>.EntryNotFound: T;
 begin
   raise Exception.Create('Array Entry could not be found!');
   Result := EntryNotFound; // preventing a warning...
 end;
 
-function TArray<T>.FindFirstIndex(AFunc: TFindFunction): Integer;
+function TArrayList<T>.FindFirstIndex(AFunc: TFindFunctionStatic<T>): Integer;
 var
   I: Integer;
 begin
@@ -1159,7 +1128,7 @@ begin
   Result := -1;
 end;
 
-function TArray<T>.FindFirstIndex(AFunc: TFindFunctionOfObject): Integer;
+function TArrayList<T>.FindFirstIndex(AFunc: TFindFunctionOfObject<T>): Integer;
 var
   I: Integer;
 begin
@@ -1169,7 +1138,7 @@ begin
   Result := -1;
 end;
 
-function TArray<T>.FindFirstIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): Integer;
+function TArrayList<T>.FindFirstIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): Integer;
 var
   I: Integer;
 begin
@@ -1181,7 +1150,7 @@ begin
     AFunc.Free;
 end;
 
-function TArray<T>.FindFirst(AFunc: TFindFunction): T;
+function TArrayList<T>.FindFirst(AFunc: TFindFunctionStatic<T>): T;
 var
   I: Integer;
 begin
@@ -1191,7 +1160,7 @@ begin
   Result := FItems[I];
 end;
 
-function TArray<T>.FindFirst(AFunc: TFindFunctionOfObject): T;
+function TArrayList<T>.FindFirst(AFunc: TFindFunctionOfObject<T>): T;
 var
   I: Integer;
 begin
@@ -1201,7 +1170,7 @@ begin
   Result := FItems[I];
 end;
 
-function TArray<T>.FindFirst(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): T;
+function TArrayList<T>.FindFirst(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): T;
 var
   I: Integer;
 begin
@@ -1212,7 +1181,7 @@ begin
 end;
 
 
-function TArray<T>.FindLastIndex(AFunc: TFindFunction): Integer;
+function TArrayList<T>.FindLastIndex(AFunc: TFindFunctionStatic<T>): Integer;
 var
   I: Integer;
 begin
@@ -1222,7 +1191,7 @@ begin
   Result := -1;
 end;
 
-function TArray<T>.FindLastIndex(AFunc: TFindFunctionOfObject): Integer;
+function TArrayList<T>.FindLastIndex(AFunc: TFindFunctionOfObject<T>): Integer;
 var
   I: Integer;
 begin
@@ -1232,7 +1201,7 @@ begin
   Result := -1;
 end;
 
-function TArray<T>.FindLastIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): Integer;
+function TArrayList<T>.FindLastIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): Integer;
 var
   I: Integer;
 begin
@@ -1244,7 +1213,7 @@ begin
     AFunc.Free;
 end;
 
-function TArray<T>.FindLast(AFunc: TFindFunction): T;
+function TArrayList<T>.FindLast(AFunc: TFindFunctionStatic<T>): T;
 var
   I: Integer;
 begin
@@ -1254,7 +1223,7 @@ begin
   Result := FItems[I];
 end;
 
-function TArray<T>.FindLast(AFunc: TFindFunctionOfObject): T;
+function TArrayList<T>.FindLast(AFunc: TFindFunctionOfObject<T>): T;
 var
   I: Integer;
 begin
@@ -1265,7 +1234,7 @@ begin
 end;
 
 
-function TArray<T>.FindLast(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): T;
+function TArrayList<T>.FindLast(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): T;
 var
   I: Integer;
 begin
@@ -1275,7 +1244,7 @@ begin
   Result := FItems[I];
 end;
 
-function TArray<T>.FindIndexAsArray(AFunc: TFindFunction): TIntArray;
+function TArrayList<T>.FindIndexAsArray(AFunc: TFindFunctionStatic<T>): TIntArray;
 var
   I: Integer;
 begin
@@ -1285,7 +1254,7 @@ begin
       Result.Add(I);
 end;
 
-function TArray<T>.FindIndexAsArray(AFunc: TFindFunctionOfObject): TIntArray;
+function TArrayList<T>.FindIndexAsArray(AFunc: TFindFunctionOfObject<T>): TIntArray;
 var
   I: Integer;
 begin
@@ -1295,7 +1264,7 @@ begin
       Result.Add(I);
 end;
 
-function TArray<T>.FindIndexAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): TIntArray;
+function TArrayList<T>.FindIndexAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): TIntArray;
 var
   I: Integer;
 begin
@@ -1307,31 +1276,31 @@ begin
     AFunc.Free;
 end;
 
-function TArray<T>.FindAsArray(AFunc: TFindFunction): TArray<T>;
+function TArrayList<T>.FindAsArray(AFunc: TFindFunctionStatic<T>): TArrayList<T>;
 var
   I: Integer;
 begin
-  Result := TArray<T>.Create;
+  Result := TArrayList<T>.Create;
   for I := 0 to Count - 1 do
     if AFunc(FItems[I]) then
       Result.Add(FItems[I]);
 end;
 
-function TArray<T>.FindAsArray(AFunc: TFindFunctionOfObject): TArray<T>;
+function TArrayList<T>.FindAsArray(AFunc: TFindFunctionOfObject<T>): TArrayList<T>;
 var
   I: Integer;
 begin
-  Result := TArray<T>.Create;
+  Result := TArrayList<T>.Create;
   for I := 0 to Count - 1 do
     if AFunc(FItems[I]) then
       Result.Add(FItems[I]);
 end;
 
-function TArray<T>.FindAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): TArray<T>;
+function TArrayList<T>.FindAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): TArrayList<T>;
 var
   I: Integer;
 begin
-  Result := TArray<T>.Create;
+  Result := TArrayList<T>.Create;
   for I := 0 to Count - 1 do
     if AFunc.Find(FItems[I]) then
       Result.Add(FItems[I]);
@@ -1339,59 +1308,59 @@ begin
     AFunc.Free;
 end;
 
-function TArray<T>.Copy: TArray<T>;
+function TArrayList<T>.Copy: TArrayList<T>;
 var
   I: Integer;
 begin
-  Result := TArray<T>.Create;
+  Result := TArrayList<T>.Create;
   for I := 0 to Count - 1 do
     Result.Add(FItems[I]);
 end;
 
-function TArray<T>.Empty: Boolean;
+function TArrayList<T>.Empty: Boolean;
 begin
   Result := Count = 0;
 end;
 
-function TArray<T>.First: T;
+function TArrayList<T>.First: T;
 begin
   Result := FItems[0];
 end;
 
-procedure TArray<T>.FreeData(const AData: T);
+procedure TArrayList<T>.FreeData(const AData: T);
 begin
   // Nothing to free
 end;
 
-function TArray<T>.Last: T;
+function TArrayList<T>.Last: T;
 begin
   Result := FItems[Count - 1];
 end;
 
-function TArray<T>.Ptr: Pointer;
+function TArrayList<T>.Ptr: Pointer;
 begin
   Result := FItems;
 end;
 
-function TArray<T>.GetEnumerator(AAutoFree: Boolean): TIterator;
+function TArrayList<T>.GetEnumerator(AAutoFree: Boolean): TIterator;
 begin
   Result := TIterator.Create(Self, FIterReversed, AAutoFree);
   FIterReversed := False;
 end;
 
-function TArray<T>.IterReversed: TArray<T>;
+function TArrayList<T>.IterReversed: TArrayList<T>;
 begin
   FIterReversed := True;
   Result := Self;
 end;
 
-procedure TArray<T>.RangeCheckException(AIndex: Integer);
+procedure TArrayList<T>.RangeCheckException(AIndex: Integer);
 begin
   if not RangeCheck(AIndex) then
-    Exception.Create('TArray index out of bounds!');
+    Exception.Create('TArrayList index out of bounds!');
 end;
 
-function TArray<T>.RangeCheck(AIndex: Integer): Boolean;
+function TArrayList<T>.RangeCheck(AIndex: Integer): Boolean;
 begin
   Result := (AIndex >= 0) and (AIndex < Count);
 end;
@@ -1424,6 +1393,23 @@ end;
 class function TClassMap<T>.KeysEqual(AKey1, AKey2: TClass): Boolean;
 begin
   Result := Pointer(AKey1) = Pointer(AKey2);
+end;
+
+{ TCardinalSet }
+
+function TCardinalSet.GetKeyHash(AKey: Cardinal): Cardinal;
+begin
+  Result := AKey mod FInternalSize;
+end;
+
+class function TCardinalSet.CantIndex(AKey: Cardinal): Boolean;
+begin
+  Result := False;
+end;
+
+class function TCardinalSet.KeysEqual(AKey1, AKey2: Cardinal): Boolean;
+begin
+  Result := AKey1 = AKey2;
 end;
 
 { TIntArray }
@@ -1715,11 +1701,7 @@ begin
   inherited;
 end;
 
-{$IFDEF FPC}
-function TObjectArray<T>.FindAsObjectArray(AFunc: TFindFunction): TObjectArray<T>;
-{$ELSE}
-function TObjectArray<T>.FindAsObjectArray(AFunc: TArray<T>.TFindFunction): TObjectArray<T>;
-{$ENDIF}
+function TObjectArray<T>.FindAsObjectArray(AFunc: TFindFunctionStatic<T>): TObjectArray<T>;
 var
   I: Integer;
 begin
@@ -1729,11 +1711,7 @@ begin
       Result.Add(FItems[I]);
 end;
 
-{$IFDEF FPC}
-function TObjectArray<T>.FindAsObjectArray(AFunc: TFindFunctionOfObject): TObjectArray<T>;
-{$ELSE}
-function TObjectArray<T>.FindAsObjectArray(AFunc: TArray<T>.TFindFunctionOfObject): TObjectArray<T>;
-{$ENDIF}
+function TObjectArray<T>.FindAsObjectArray(AFunc: TFindFunctionOfObject<T>): TObjectArray<T>;
 var
   I: Integer;
 begin
@@ -1770,7 +1748,7 @@ begin
   Del(FindObject(AData));
 end;
 
-function TObjectArray<T>.Copy: TArray<T>;
+function TObjectArray<T>.Copy: TArrayList<T>;
 var
   I: Integer;
 begin
@@ -1845,9 +1823,9 @@ begin
   Result := AKey1 = AKey2;
 end;
 
-{ TArray<T>.TIterator }
+{ TArrayList<T>.TIterator }
 
-constructor TArray<T>.TIterator.Create(AList: TArray<T>; AReversed, AAutoFree: Boolean);
+constructor TArrayList<T>.TIterator.Create(AList: TArrayList<T>; AReversed, AAutoFree: Boolean);
 begin
   FList := AList;
   FReversed := AReversed;
@@ -1858,12 +1836,12 @@ begin
     FCurrent := -1;
 end;
 
-function TArray<T>.TIterator.GetCurrent: T;
+function TArrayList<T>.TIterator.GetCurrent: T;
 begin
   Result := FList[FCurrent];
 end;
 
-function TArray<T>.TIterator.MoveNext: Boolean;
+function TArrayList<T>.TIterator.MoveNext: Boolean;
 begin
   if FRemoveFlag then
   begin
@@ -1885,7 +1863,7 @@ begin
     Free;
 end;
 
-procedure TArray<T>.TIterator.RemoveCurrent;
+procedure TArrayList<T>.TIterator.RemoveCurrent;
 begin
   FRemoveFlag := True;
 end;

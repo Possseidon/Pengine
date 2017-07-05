@@ -454,6 +454,8 @@ end;
 
 procedure TGLForm.SetFPSLimit(AValue: Single);
 begin
+  if AValue = 0 then
+    raise Exception.Create('FPS Limit must be greater than zero!');
   if FFPSLimit = AValue then
     Exit;
   FFPSLimit := AValue;

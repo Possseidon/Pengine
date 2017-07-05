@@ -12,9 +12,9 @@ type
 
   TGBasicDir = (sdNone, sdRight, sdLeft, sdUp, sdDown, sdFront, sdBack);
 
-  TGBasicDir3 = sdRight..sdBack;
-  TGBasicDir2 = sdRight..sdDown;
-  TGBasicDir1 = sdRight..sdLeft;
+  TGBasicDir3 = sdRight .. sdBack;
+  TGBasicDir2 = sdRight .. sdDown;
+  TGBasicDir1 = sdRight .. sdLeft;
 
   TGBasicDirs = set of TGBasicDir;
   TGBasicDirs3 = set of TGBasicDir3;
@@ -70,8 +70,6 @@ type
     function AngleTo(const A: TGVector): Single;
     function Floor: TGVector;
     function Ceil: TGVector;
-
-    function ToString: String;
 
     function Rotate(A: TGVector; Angle: Single): TGVector;
 
@@ -138,8 +136,6 @@ type
     function Ceil: TGVector3;
     function MirrorOther(const A: TGVector3): TGVector3;
 
-    function ToString: String;
-
     function Rotate(A: TGVector3; Angle: Single): TGVector3;
 
     constructor Create(const X, Y, Z: Single);
@@ -190,7 +186,7 @@ type
     function ToVec3(const Z: Single = 0): TGVector3;
     function ToVec4(const Z: Single = 0; const W: Single = 1): TGVector4;
 
-    function Cross: TGVector2;  // = Rotate 90
+    function Cross: TGVector2; // = Rotate 90
     function Dot(const A: TGVector2): Single;
     function SqrDot: Single;
     function Length: Single;
@@ -202,8 +198,6 @@ type
     function AngleTo(const A: TGVector2): Single;
     function Floor: TGVector2;
     function Ceil: TGVector2;
-
-    function ToString: String;
 
     function Rotate(Angle: Single): TGVector2;
 
@@ -267,6 +261,8 @@ type
     class operator Multiply(ABounds: TGBounds1; AValue: Single): TGBounds1;
     class operator Divide(ABounds: TGBounds1; AValue: Single): TGBounds1;
 
+    class operator Implicit(ABounds: TGBounds1): String;
+
     constructor Create(AC1, AC2: Single);
   end;
 
@@ -325,7 +321,8 @@ type
     function EnsureRange(ARange: TGBounds2; out AResult: TGBounds2): Boolean;
     function Normalize: TGBounds2;
 
-    class operator In(AVector: TGVector2; ABounds: TGBounds2): Boolean;
+    class operator in(AVector: TGVector2; ABounds: TGBounds2): Boolean;
+    class operator Implicit(ABounds: TGBounds2): String;
 
     constructor Create(AC1, AC2: TGVector2);
   end;
@@ -335,7 +332,7 @@ type
   TGBounds3 = record
   public
     type
-      TCorners = array [0 .. 7] of TGVector3;
+    TCorners = array [0 .. 7] of TGVector3;
   private
     function GetDepth: Single;
     function GetHeight: Single;
@@ -374,7 +371,8 @@ type
 
     function GetCorners: TCorners;
 
-    class operator In(AVector: TGVector3; ABounds: TGBounds3): Boolean;
+    class operator in(AVector: TGVector3; ABounds: TGBounds3): Boolean;
+    class operator Implicit(ABounds: TGBounds3): String;
 
     constructor Create(AC1, AC2: TGVector3);
   end;
@@ -410,6 +408,7 @@ type
     class operator LessThan(AValue: Integer; ABounds: TIntBounds1): Boolean;
     class operator LessThanOrEqual(AValue: Integer; ABounds: TIntBounds1): Boolean;
 
+    class operator Implicit(ABounds: TIntBounds1): String;
 
     constructor Create(AC1, AC2: Integer);
   end;
@@ -465,11 +464,11 @@ type
 
   public
     type
-      TOrthoProjData = record
-        Distance: Single;
-        Height: Single;
-        Point: TGVector3;
-      end;
+    TOrthoProjData = record
+      Distance: Single;
+      Height: Single;
+      Point: TGVector3;
+    end;
   public
     SV, DV: TGVector3;
 
@@ -501,11 +500,11 @@ type
     procedure FillM3x2Line2Intsec(const A: TGLine2); inline;
   public
     type
-      TOrthoProjData = record
-        Distance: Single;
-        Height: Single;
-        Point: TGVector2;
-      end;
+    TOrthoProjData = record
+      Distance: Single;
+      Height: Single;
+      Point: TGVector2;
+    end;
   public
     SV, DV: TGVector2;
 
@@ -543,21 +542,21 @@ type
     procedure FillM3x2PointIntsec(const A: TGVector);
   public
     type
-      TLineIntsecData = record
-        Distance: Single;
-        PlaneCoord: TGVector2;
-        Point: TGVector3;
-      end;
+    TLineIntsecData = record
+      Distance: Single;
+      PlaneCoord: TGVector2;
+      Point: TGVector3;
+    end;
 
-      TOrthoProjData = record
-        Height: Single;
-        PlaneCoord: TGVector2;
-        Point: TGVector3;
-      end;
+    TOrthoProjData = record
+      Height: Single;
+      PlaneCoord: TGVector2;
+      Point: TGVector3;
+    end;
 
-      TPointIntsecData = record
-        PlaneCoord: TGVector2;
-      end;
+    TPointIntsecData = record
+      PlaneCoord: TGVector2;
+    end;
 
   public
     SV, DVS, DVT: TGVector3;
@@ -573,7 +572,8 @@ type
 
     function LineInQuad(const A: TGLine; out AData: TLineIntsecData; const ACheckScale: Single = 1): Boolean; overload;
     function LineInTri(const A: TGLine; out AData: TLineIntsecData; const ACheckScale: Single = 1): Boolean; overload;
-    function LineInCircle(const A: TGLine; out AData: TLineIntsecData; const ACheckScale: Single = 1): Boolean; overload;
+    function LineInCircle(const A: TGLine; out AData: TLineIntsecData; const ACheckScale: Single = 1): Boolean;
+      overload;
 
     function LineInQuad(const A: TGLine; const ACheckScale: Single = 1): Boolean; overload; inline;
     function LineInTri(const A: TGLine; const ACheckScale: Single = 1): Boolean; overload; inline;
@@ -609,7 +609,7 @@ type
     lcFreeMirror);
   TLocationChanges = set of TLocationChange;
 
-  TChangeProcedure = procedure (AChanges: TLocationChanges) of object;
+  TChangeProcedure = procedure(AChanges: TLocationChanges) of object;
 
   { TLocation }
 
@@ -783,18 +783,18 @@ type
 
       { TLineIntsecPointData }
 
-      TLineIntsecPointData = record
-        Point: TGVector3;
-        Distance: Single;
-        Direction: TGDirection;
-      end;
+    TLineIntsecPointData = record
+      Point: TGVector3;
+      Distance: Single;
+      Direction: TGDirection;
+    end;
 
       { TLineIntsecData }
       // Note: NearData and FarData are defined as NearData.Distance < FarData.Distance (Distance = DV factor of line)
-      TLineIntsecData = record
-        NearData, FarData: TLineIntsecPointData;
-        Height: Single;
-      end;
+    TLineIntsecData = record
+      NearData, FarData: TLineIntsecPointData;
+      Height: Single;
+    end;
 
   private
     FLocation: TLocation;
@@ -856,7 +856,7 @@ type
 
   { EBlockDirectionError }
 
-  EBlockDirectionError = class (Exception)
+  EBlockDirectionError = class(Exception)
   public
     constructor Create;
   end;
@@ -896,8 +896,6 @@ type
 
     class operator Implicit(const A: TIntVector): TGVector3;
     class operator Implicit(const A: TIntVector): String;
-
-    function ToString: String;
 
     class function Floor(const AVector: TGVector3): TIntVector; static;
     class function Ceil(const AVector: TGVector3): TIntVector; static;
@@ -961,16 +959,16 @@ type
 
       { TIterator }
 
-      TIterator = class
-      private
-        FBorder: TUniquePointList2;
-        FCurrent: Integer;
-        function GetCurrent: TGVector2;
-      public
-        constructor Create(ABorder: TUniquePointList2);
-        property Current: TGVector2 read GetCurrent;
-        function MoveNext: Boolean;
-      end;
+    TIterator = class
+    private
+      FBorder: TUniquePointList2;
+      FCurrent: Integer;
+      function GetCurrent: TGVector2;
+    public
+      constructor Create(ABorder: TUniquePointList2);
+      property Current: TGVector2 read GetCurrent;
+      function MoveNext: Boolean;
+    end;
 
   private
     FPoints: array of TGVector2;
@@ -1036,26 +1034,27 @@ type
   TGPlanes = array of TGPlane;
 
 const
-  Origin:  TGVector3 = (X: 0; Y: 0; Z: 0);
-  UVecX:   TGVector3 = (X: 1; Y: 0; Z: 0);
-  UVecY:   TGVector3 = (X: 0; Y: 1; Z: 0);
-  UVecZ:   TGVector3 = (X: 0; Y: 0; Z: 1);
-  UVecXY:  TGVector3 = (X: 1; Y: 1; Z: 0);
-  UVecYZ:  TGVector3 = (X: 0; Y: 1; Z: 1);
-  UVecXZ:  TGVector3 = (X: 1; Y: 0; Z: 1);
+  Origin: TGVector3 = (X: 0; Y: 0; Z: 0);
+  UVecX: TGVector3 = (X: 1; Y: 0; Z: 0);
+  UVecY: TGVector3 = (X: 0; Y: 1; Z: 0);
+  UVecZ: TGVector3 = (X: 0; Y: 0; Z: 1);
+  UVecXY: TGVector3 = (X: 1; Y: 1; Z: 0);
+  UVecYZ: TGVector3 = (X: 0; Y: 1; Z: 1);
+  UVecXZ: TGVector3 = (X: 1; Y: 0; Z: 1);
   UVecXYZ: TGVector3 = (X: 1; Y: 1; Z: 1);
 
   InfVec: TGVector3 = (X: Infinity; Y: Infinity; Z: Infinity);
-  NaNVec:  TGVector3 = (X: NaN; Y: NaN; Z: NaN);
+  NaNVec: TGVector3 = (X: NaN; Y: NaN; Z: NaN);
 
   VecDir: array [TGBasicDir] of TIntVector = (
-    (X:  0; Y:  0; Z:  0),
-    (X: +1; Y:  0; Z:  0),
-    (X: -1; Y:  0; Z:  0),
-    (X:  0; Y: +1; Z:  0),
-    (X:  0; Y: -1; Z:  0),
-    (X:  0; Y:  0; Z: +1),
-    (X:  0; Y:  0; Z: -1));
+    (X: 0; Y: 0; Z: 0),
+    (X: +1; Y: 0; Z: 0),
+    (X: -1; Y: 0; Z: 0),
+    (X: 0; Y: +1; Z: 0),
+    (X: 0; Y: -1; Z: 0),
+    (X: 0; Y: 0; Z: +1),
+    (X: 0; Y: 0; Z: -1)
+    );
 
   QuadSideCount = High(TQuadSide) + 1;
 
@@ -1066,7 +1065,8 @@ const
     (X: 1; Y: 1),
     (X: 0; Y: 1),
     (X: 0; Y: 0)
-  );
+    );
+
   QuadMiddleCoords: array [TQuadSide] of TTexCoord2 = (
     (X: -1; Y: -1),
     (X: +1; Y: -1),
@@ -1074,12 +1074,13 @@ const
     (X: +1; Y: +1),
     (X: -1; Y: +1),
     (X: -1; Y: -1)
-  );
+    );
+
   TriangleTexCoords: array [TTriangleSide] of TTexCoord2 = (
     (X: 0; Y: 0),
     (X: 1; Y: 0),
     (X: 0; Y: 1)
-  );
+    );
 
   BasicDirNames: array [TGBasicDir] of String = (
     'none',
@@ -1089,16 +1090,16 @@ const
     'down',
     'front',
     'back'
-  );
+    );
 
   CubePlanes: array [TGBasicDir3] of TGPlane = (
-    (SV: (X: 1; Y: 0; Z: 0); DVS: (X: 0; Y: 1; Z: 0); DVT: (X: 0; Y: 0; Z: 1)), // right
-    (SV: (X: 0; Y: 0; Z: 0); DVS: (X: 0; Y: 1; Z: 0); DVT: (X: 0; Y: 0; Z: 1)), // left
-    (SV: (X: 0; Y: 1; Z: 0); DVS: (X: 1; Y: 0; Z: 0); DVT: (X: 0; Y: 0; Z: 1)), // up
-    (SV: (X: 0; Y: 0; Z: 0); DVS: (X: 1; Y: 0; Z: 0); DVT: (X: 0; Y: 0; Z: 1)), // down
-    (SV: (X: 0; Y: 0; Z: 1); DVS: (X: 1; Y: 0; Z: 0); DVT: (X: 0; Y: 1; Z: 0)), // front
-    (SV: (X: 0; Y: 0; Z: 0); DVS: (X: 1; Y: 0; Z: 0); DVT: (X: 0; Y: 1; Z: 0))  // back
-  );
+    (SV: (X: 1; Y: 0; Z: 0); DVS: (X: 0; Y: 1; Z: 0); DVT: (X: 0; Y: 0; Z: 1)),
+    (SV: (X: 0; Y: 0; Z: 0); DVS: (X: 0; Y: 1; Z: 0); DVT: (X: 0; Y: 0; Z: 1)),
+    (SV: (X: 0; Y: 1; Z: 0); DVS: (X: 1; Y: 0; Z: 0); DVT: (X: 0; Y: 0; Z: 1)),
+    (SV: (X: 0; Y: 0; Z: 0); DVS: (X: 1; Y: 0; Z: 0); DVT: (X: 0; Y: 0; Z: 1)),
+    (SV: (X: 0; Y: 0; Z: 1); DVS: (X: 1; Y: 0; Z: 0); DVT: (X: 0; Y: 1; Z: 0)),
+    (SV: (X: 0; Y: 0; Z: 0); DVS: (X: 1; Y: 0; Z: 0); DVT: (X: 0; Y: 1; Z: 0))
+    );
 
 function InvertBasicDir(ADir: TGBasicDir): TGBasicDir;
 function AbsBasicDir(ADir: TGBasicDir): TGBasicDir;
@@ -1153,101 +1154,149 @@ begin
   if ASteps < 0 then
     ASteps := ASteps - Floor(ASteps / 4) * 4;
   case ASteps mod 4 of
-    0:
-      Exit(ADir);
-    2:
-      Exit(InvertBasicDir(ADir));
-    1: // CW if axis points toward eye
+  0:
+    Exit(ADir);
+  2:
+    Exit(InvertBasicDir(ADir));
+  1: // CW if axis points toward eye
     begin
       case AAxis of
       sdRight:
         case ADir of
-          sdUp:     Exit(sdBack);
-          sdDown:   Exit(sdFront);
-          sdFront:  Exit(sdUp);
-          sdBack:   Exit(sdDown);
+        sdUp:
+          Exit(sdBack);
+        sdDown:
+          Exit(sdFront);
+        sdFront:
+          Exit(sdUp);
+        sdBack:
+          Exit(sdDown);
         end;
       sdLeft:
         case ADir of
-          sdUp:     Exit(sdFront);
-          sdDown:   Exit(sdBack);
-          sdFront:  Exit(sdDown);
-          sdBack:   Exit(sdUp);
+        sdUp:
+          Exit(sdFront);
+        sdDown:
+          Exit(sdBack);
+        sdFront:
+          Exit(sdDown);
+        sdBack:
+          Exit(sdUp);
         end;
       sdUp:
         case ADir of
-          sdRight:  Exit(sdFront);
-          sdLeft:   Exit(sdBack);
-          sdFront:  Exit(sdLeft);
-          sdBack:   Exit(sdRight);
+        sdRight:
+          Exit(sdFront);
+        sdLeft:
+          Exit(sdBack);
+        sdFront:
+          Exit(sdLeft);
+        sdBack:
+          Exit(sdRight);
         end;
       sdDown:
         case ADir of
-          sdRight:  Exit(sdBack);
-          sdLeft:   Exit(sdFront);
-          sdFront:  Exit(sdRight);
-          sdBack:   Exit(sdLeft);
+        sdRight:
+          Exit(sdBack);
+        sdLeft:
+          Exit(sdFront);
+        sdFront:
+          Exit(sdRight);
+        sdBack:
+          Exit(sdLeft);
         end;
       sdFront:
         case ADir of
-          sdRight:  Exit(sdDown);
-          sdLeft:   Exit(sdUp);
-          sdUp:     Exit(sdRight);
-          sdDown:   Exit(sdLeft);
+        sdRight:
+          Exit(sdDown);
+        sdLeft:
+          Exit(sdUp);
+        sdUp:
+          Exit(sdRight);
+        sdDown:
+          Exit(sdLeft);
         end;
       sdBack:
         case ADir of
-          sdRight:  Exit(sdUp);
-          sdLeft:   Exit(sdDown);
-          sdUp:     Exit(sdLeft);
-          sdDown:   Exit(sdRight);
+        sdRight:
+          Exit(sdUp);
+        sdLeft:
+          Exit(sdDown);
+        sdUp:
+          Exit(sdLeft);
+        sdDown:
+          Exit(sdRight);
         end;
       end;
     end;
-    3: // CCW
+  3: // CCW
     begin
       case AAxis of
       sdRight:
         case ADir of
-          sdUp:     Exit(sdFront);
-          sdDown:   Exit(sdBack);
-          sdFront:  Exit(sdDown);
-          sdBack:   Exit(sdUp);
+        sdUp:
+          Exit(sdFront);
+        sdDown:
+          Exit(sdBack);
+        sdFront:
+          Exit(sdDown);
+        sdBack:
+          Exit(sdUp);
         end;
       sdLeft:
         case ADir of
-          sdUp:     Exit(sdBack);
-          sdDown:   Exit(sdFront);
-          sdFront:  Exit(sdUp);
-          sdBack:   Exit(sdDown);
+        sdUp:
+          Exit(sdBack);
+        sdDown:
+          Exit(sdFront);
+        sdFront:
+          Exit(sdUp);
+        sdBack:
+          Exit(sdDown);
         end;
       sdUp:
         case ADir of
-          sdRight:  Exit(sdBack);
-          sdLeft:   Exit(sdFront);
-          sdFront:  Exit(sdRight);
-          sdBack:   Exit(sdLeft);
+        sdRight:
+          Exit(sdBack);
+        sdLeft:
+          Exit(sdFront);
+        sdFront:
+          Exit(sdRight);
+        sdBack:
+          Exit(sdLeft);
         end;
       sdDown:
         case ADir of
-          sdRight:  Exit(sdFront);
-          sdLeft:   Exit(sdBack);
-          sdFront:  Exit(sdLeft);
-          sdBack:   Exit(sdRight);
+        sdRight:
+          Exit(sdFront);
+        sdLeft:
+          Exit(sdBack);
+        sdFront:
+          Exit(sdLeft);
+        sdBack:
+          Exit(sdRight);
         end;
       sdFront:
         case ADir of
-          sdRight:  Exit(sdUp);
-          sdLeft:   Exit(sdDown);
-          sdUp:     Exit(sdLeft);
-          sdDown:   Exit(sdRight);
+        sdRight:
+          Exit(sdUp);
+        sdLeft:
+          Exit(sdDown);
+        sdUp:
+          Exit(sdLeft);
+        sdDown:
+          Exit(sdRight);
         end;
       sdBack:
         case ADir of
-          sdRight:  Exit(sdDown);
-          sdLeft:   Exit(sdUp);
-          sdUp:     Exit(sdRight);
-          sdDown:   Exit(sdLeft);
+        sdRight:
+          Exit(sdDown);
+        sdLeft:
+          Exit(sdUp);
+        sdUp:
+          Exit(sdRight);
+        sdDown:
+          Exit(sdLeft);
         end;
       end;
     end;
@@ -1322,7 +1371,6 @@ function TGBounds3.GetWidth: Single;
 begin
   Result := C2.X - C1.X;
 end;
-
 
 function TGBounds3.GetSize: TGVector3;
 begin
@@ -1407,6 +1455,11 @@ begin
   Result[7] := TGVector3.Create(C2.X, C2.Y, C2.Z);
 end;
 
+class operator TGBounds3.Implicit(ABounds: TGBounds3): String;
+begin
+  Result := Format('<%s~%s>', [String(ABounds.C1), String(ABounds.C2)]);
+end;
+
 class operator TGBounds3.in(AVector: TGVector3; ABounds: TGBounds3): Boolean;
 begin
   Result := (AVector >= ABounds.C1) and (AVector <= ABounds.C2);
@@ -1487,6 +1540,11 @@ end;
 class operator TIntBounds1.GreaterThanOrEqual(AValue: Integer; ABounds: TIntBounds1): Boolean;
 begin
   Result := AValue >= ABounds.High;
+end;
+
+class operator TIntBounds1.Implicit(ABounds: TIntBounds1): String;
+begin
+  Result := Format('<%f~%f>', [ABounds.C1, ABounds.C2]);
 end;
 
 class operator TIntBounds1.LessThan(AValue: Integer; ABounds: TIntBounds1): Boolean;
@@ -1581,6 +1639,11 @@ begin
   Result := AValue >= ABounds.High;
 end;
 
+class operator TGBounds1.Implicit(ABounds: TGBounds1): String;
+begin
+  Result := Format('<%f~%f>', [ABounds.C1, ABounds.C2]);
+end;
+
 class operator TGBounds1.LessThan(AValue: Single; ABounds: TGBounds1): Boolean;
 begin
   Result := AValue < ABounds.Low;
@@ -1647,6 +1710,11 @@ end;
 function TGBounds2.GetArea: Single;
 begin
   Result := Width * Height;
+end;
+
+class operator TGBounds2.Implicit(ABounds: TGBounds2): String;
+begin
+  Result := Format('<%s~%s>', [String(ABounds.C1), String(ABounds.C2)]);
 end;
 
 class operator TGBounds2.in(AVector: TGVector2; ABounds: TGBounds2): Boolean;
@@ -1841,7 +1909,7 @@ begin
 
   for D in InvDirections do // Find Closest
     if CubePlanes[D].LineInQuad(NormalizedLine, Data) and
-       (Data.Distance > FMin) then
+      (Data.Distance > FMin) then
     begin
       FMin := Data.Distance;
       Break;
@@ -2204,7 +2272,7 @@ end;
 function TGLine2.EqualTo(const A: TGLine2; AIgnoreDir: Boolean): Boolean;
 begin
   Result := (SV = A.SV) and (DV = A.DV) or
-            AIgnoreDir and (SV + DV = A.SV) and (DV = -A.DV);
+    AIgnoreDir and (SV + DV = A.SV) and (DV = -A.DV);
 end;
 
 function TGLine2.GetSlope(out FFlipped: Boolean): Single;
@@ -2390,11 +2458,6 @@ begin
   Result.Z := A.Z;
 end;
 
-function TIntVector.ToString: String;
-begin
-  Result := Self;
-end;
-
 class operator TIntVector.Implicit(const A: TIntVector): String;
 begin
   Result := Format('[%d|%d|%d]', [A.X, A.Y, A.Z]);
@@ -2456,18 +2519,18 @@ end;
 function TBlockRotation.Convert(ADirection: TGBasicDir3): TGBasicDir3;
 begin
   case ADirection of
-    sdRight:
-      Exit(FX);
-    sdLeft:
-      Exit(InvertBasicDir(FX));
-    sdUp:
-      Exit(FY);
-    sdDown:
-      Exit(InvertBasicDir(FY));
-    sdFront:
-      Exit(FZ);
-    else // sdBack
-      Exit(InvertBasicDir(FZ));
+  sdRight:
+    Exit(FX);
+  sdLeft:
+    Exit(InvertBasicDir(FX));
+  sdUp:
+    Exit(FY);
+  sdDown:
+    Exit(InvertBasicDir(FY));
+  sdFront:
+    Exit(FZ);
+  else // sdBack
+    Exit(InvertBasicDir(FZ));
   end;
 end;
 
@@ -2505,7 +2568,7 @@ end;
 
 procedure TBlockRotation.FromMatrix(AMatrix: TMatrix3);
 
-  procedure DoIt(Index: Integer; out ADir: TGBasicDIr3);
+  procedure DoIt(Index: Integer; out ADir: TGBasicDir3);
   var
     I: Integer;
   begin
@@ -2565,9 +2628,9 @@ end;
 function TBlockRotation.Equal(ABlockRotation: TBlockRotation): Boolean;
 begin
   Result := (ABlockRotation <> nil) and
-            (ABlockRotation.FX = FX) and
-            (ABlockRotation.FY = FY) and
-            (ABlockRotation.FZ = FZ);
+    (ABlockRotation.FX = FX) and
+    (ABlockRotation.FY = FY) and
+    (ABlockRotation.FZ = FZ);
 end;
 
 procedure TBlockRotation.Assign(ABlockRotation: TBlockRotation);
@@ -2666,7 +2729,7 @@ begin
     -FMatrix[0, 2],
     -FMatrix[1, 2],
     -FMatrix[2, 2]
-  );
+    );
 end;
 
 function TLocation.GetMatrix: TMatrix4;
@@ -2684,7 +2747,7 @@ begin
     Matrix[3, 0],
     Matrix[3, 1],
     Matrix[3, 2]
-  );
+    );
   Result := Result * RotMatrix;
   if FInverted then
     Result := -Result;
@@ -2698,7 +2761,7 @@ begin
     FMatrix[0, 0],
     FMatrix[1, 0],
     FMatrix[2, 0]
-  );
+    );
 end;
 
 function TLocation.GetRotMatrix: TMatrix3;
@@ -2718,7 +2781,7 @@ begin
     FMatrix[0, 1],
     FMatrix[1, 1],
     FMatrix[2, 1]
-  );
+    );
 end;
 
 procedure TLocation.BuildMatrix;
@@ -2922,7 +2985,7 @@ procedure TLocation.ResetScale;
 begin
   if Scale = UVecXYZ then
     Exit;
-  Scale := UvecXYZ;
+  Scale := UVecXYZ;
   TriggerChanges([lcScale]);
 end;
 
@@ -2947,10 +3010,10 @@ var
 begin
   ATurn := ATurn * Pi / 180;
   M.LoadIdentity;
-  M[0, 0] :=  cos(ATurn);
+  M[0, 0] := cos(ATurn);
   M[2, 0] := -sin(ATurn);
-  M[0, 2] :=  sin(ATurn);
-  M[2, 2] :=  cos(ATurn);
+  M[0, 2] := sin(ATurn);
+  M[2, 2] := cos(ATurn);
   FMatrix := FMatrix * M;
   FFreeChanged := True;
   TriggerChanges([lcFreeRotation]);
@@ -2962,10 +3025,10 @@ var
 begin
   APitch := APitch * Pi / 180;
   M.LoadIdentity;
-  M[1, 1] :=  cos(APitch);
+  M[1, 1] := cos(APitch);
   M[2, 1] := -sin(APitch);
-  M[1, 2] :=  sin(APitch);
-  M[2, 2] :=  cos(APitch);
+  M[1, 2] := sin(APitch);
+  M[2, 2] := cos(APitch);
   FMatrix := FMatrix * M;
   FFreeChanged := True;
   TriggerChanges([lcFreeRotation]);
@@ -2977,10 +3040,10 @@ var
 begin
   ARoll := ARoll * Pi / 180;
   M.LoadIdentity;
-  M[0, 0] :=  cos(ARoll);
+  M[0, 0] := cos(ARoll);
   M[1, 0] := -sin(ARoll);
-  M[0, 1] :=  sin(ARoll);
-  M[1, 1] :=  cos(ARoll);
+  M[0, 1] := sin(ARoll);
+  M[1, 1] := cos(ARoll);
   FMatrix := FMatrix * M;
   FFreeChanged := True;
   TriggerChanges([lcFreeRotation]);
@@ -3131,8 +3194,8 @@ var
 begin
   AVector := AVector.Normalize;
 
-  S := Sin(AAngle / 180 * Pi);
-  C := Cos(AAngle / 180 * Pi);
+  S := sin(AAngle / 180 * Pi);
+  C := cos(AAngle / 180 * Pi);
   CInv := 1 - C;
 
   M.Clear;
@@ -3370,15 +3433,10 @@ begin
   Result.Y := Math.Ceil(Y);
 end;
 
-function TGVector2.ToString: String;
-begin
-  Result := Self;
-end;
-
 function TGVector2.Rotate(Angle: Single): TGVector2;
 begin
   Angle := Angle * Pi / 180;
-  Result := Sin(Angle) * Cross + Cos(Angle) * Self;
+  Result := sin(Angle) * Cross + cos(Angle) * Self;
 end;
 
 constructor TGVector2.Create(const X, Y: Single);
@@ -3657,11 +3715,6 @@ begin
   Result := A - 2 * Self.Dot(A) * Self;
 end;
 
-function TGVector3.ToString: String;
-begin
-  Result := Self;
-end;
-
 function TGVector3.Rotate(A: TGVector3; Angle: Single): TGVector3;
 var
   UX, UZ: TGVector3;
@@ -3681,7 +3734,7 @@ begin
   VX := UX.Dot(Self) / UXsqr;
   VY := A.Dot(Self) / Asqr;
 
-  Result := Cos(Angle) * VX * UX + VY * A + Sin(Angle) * VX * UZ;
+  Result := cos(Angle) * VX * UX + VY * A + sin(Angle) * VX * UZ;
 end;
 
 constructor TGVector3.Create(const X, Y, Z: Single);
@@ -3695,10 +3748,10 @@ class function TGVector3.Random: TGVector3;
 var
   O, U: Single;
 begin
-  O := System.Random * 2 * PI;
+  O := System.Random * 2 * Pi;
   U := System.Random * 2 - 1;
-  Result.X := sqrt(1 - sqr(U)) * sin(O);
-  Result.Y := sqrt(1 - sqr(U)) * cos(O);
+  Result.X := Sqrt(1 - Sqr(U)) * sin(O);
+  Result.Y := Sqrt(1 - Sqr(U)) * cos(O);
   Result.Z := U;
 end;
 
@@ -3796,7 +3849,7 @@ begin
   begin
     Result := (P[0] * Self.DV.Z + P[1] * A.DV.Z) <> (A.SV.Z - Self.SV.Z);
     if Result then
-       S := P[0];
+      S := P[0];
   end
   else
     Result := False;
@@ -3873,9 +3926,9 @@ procedure TGPlane.OrthoProj(const A: TGVector3; out AData: TOrthoProjData);
 begin
   // yes, this is probably the fastest i can get :)
   AData.PlaneCoord.X := (DVT.SqrDot * DVS.Dot(A - SV) - DVT.Dot(DVS) * DVT.Dot(A - SV)) /
-                        (DVS.SqrDot * DVT.SqrDot - Sqr(DVS.Dot(DVT)));
+    (DVS.SqrDot * DVT.SqrDot - Sqr(DVS.Dot(DVT)));
   AData.PlaneCoord.Y := (DVS.SqrDot * DVT.Dot(A - SV) - DVS.Dot(DVT) * DVS.Dot(A - SV)) /
-                        (DVT.SqrDot * DVS.SqrDot - Sqr(DVT.Dot(DVS)));
+    (DVT.SqrDot * DVS.SqrDot - Sqr(DVT.Dot(DVS)));
   AData.Point := GetPoint(AData.PlaneCoord);
   AData.Height := (AData.Point - A).Length;
 end;
@@ -3914,9 +3967,9 @@ begin
     Exit;
   C := (AData.PlaneCoord - 0.5) / ACheckScale + 0.5;
   Result := (C.X >= 0) and
-            (C.X <= 1) and
-            (C.Y >= 0) and
-            (C.Y <= 1);
+    (C.X <= 1) and
+    (C.Y >= 0) and
+    (C.Y <= 1);
 end;
 
 function TGPlane.LineInTri(const A: TGLine; out AData: TLineIntsecData; const ACheckScale: Single): Boolean;
@@ -3928,8 +3981,8 @@ begin
     Exit;
   C := (AData.PlaneCoord - 0.5) / ACheckScale + 0.5;
   Result := (C.X >= 0) and
-            (C.Y >= 0) and
-            (C.X + C.Y <= 1);
+    (C.Y >= 0) and
+    (C.X + C.Y <= 1);
 end;
 
 function TGPlane.LineInCircle(const A: TGLine; out AData: TLineIntsecData; const ACheckScale: Single): Boolean;
@@ -4012,7 +4065,7 @@ begin
   AData.Height := Location.RealPosition.DistanceTo(ALine.GetPoint(LineData.Distance));
   if Result then
   begin
-    DistanceOffset := sqrt(1 - sqr(LineData.Height)) / ALineTransformed.DV.Length;
+    DistanceOffset := Sqrt(1 - Sqr(LineData.Height)) / ALineTransformed.DV.Length;
     with AData.NearData do
     begin
       Distance := LineData.Distance - DistanceOffset;
@@ -4049,7 +4102,7 @@ end;
 
 function TGEllipse.GetPoint(S: Single): TGVector;
 begin
-  Result := SV + Sin(S) * DVS + Cos(S) * DVT;
+  Result := SV + sin(S) * DVS + cos(S) * DVT;
 end;
 
 class function TGEllipse.NewS(SV, DVS, DVT: TGVector): TGEllipse;
@@ -4088,7 +4141,7 @@ end;
 
 function TGDirection.ToVector: TGVector;
 begin
-  Result := TGVector.Create(Sin(T) * Cos(P), Sin(P), Cos(T) * Cos(P));
+  Result := TGVector.Create(sin(T) * cos(P), sin(P), cos(T) * cos(P));
 end;
 
 constructor TGDirection.Create(const T, P: Single);
@@ -4151,12 +4204,12 @@ end;
 
 function TGDirection.ToVector(const Scale: Single): TGVector3;
 begin
-  Result := TGVector.Create(Sin(T) * Cos(P), Sin(P), Cos(T) * Cos(P)) * Scale;
+  Result := TGVector.Create(sin(T) * cos(P), sin(P), cos(T) * cos(P)) * Scale;
 end;
 
 function TGDirection.ToVector(const Scale: TGVector3): TGVector3;
 begin
-  Result := TGVector.Create(Sin(T) * Cos(P), Sin(P), Cos(T) * Cos(P)) * Scale;
+  Result := TGVector.Create(sin(T) * cos(P), sin(P), cos(T) * cos(P)) * Scale;
 end;
 
 function TGDirection.Turn(const Angle: Single): TGDirection;
@@ -4338,11 +4391,6 @@ begin
   Result.Z := Math.Ceil(Z);
 end;
 
-function TGVector.ToString: String;
-begin
-  Result := Self;
-end;
-
 class operator TGVector.NotEqual(const A, B: TGVector): Boolean;
 begin
   Result := (A.X <> B.X) or (A.Y <> B.Y) or (A.Z <> B.Z);
@@ -4388,7 +4436,7 @@ begin
   VX := UX.Dot(Self) / UX.Dot(UX);
   VY := A.Dot(Self) / A.Dot(A);
 
-  Result := Cos(Angle) * VX * UX + VY * A + Sin(Angle) * VX * UZ;
+  Result := cos(Angle) * VX * UX + VY * A + sin(Angle) * VX * UZ;
 end;
 
 class operator TGVector.Subtract(const A, B: TGVector): TGVector;
@@ -4417,7 +4465,7 @@ end;
 
 function TGVector.SqrDot: Single;
 begin
-  Result := sqr(X) + sqr(Y) + sqr(Z);
+  Result := Sqr(X) + Sqr(Y) + Sqr(Z);
 end;
 
 end.
