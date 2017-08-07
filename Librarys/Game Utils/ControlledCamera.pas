@@ -10,7 +10,7 @@ uses
 
 type
 
-  TRequestLockPointFunction = function(out APoint: TGVector3): Boolean of object;
+  TRequestLockPointFunction = function(out APoint: TVector3): Boolean of object;
 
   { TControlledCamera }
 
@@ -19,11 +19,11 @@ type
     FInput: TInputHandler;
     FMoving: Boolean;
 
-    FOldMousePos: TGVector2;
+    FOldMousePos: TVector2;
 
     FResetLocation: TLocation;
 
-    FLowerLimit, FUpperLimit: TGVector3;
+    FLowerLimit, FUpperLimit: TVector3;
     FZoomLowerLimit: Single;
     FZoomSpeed: Single;
     FZoomUpperLimit: Single;
@@ -34,18 +34,18 @@ type
     FLockPointOnFront: Boolean;
     FLockPointEnabled: Boolean;
     FLockPointRadius: Single;
-    FLockPointStart: TGDirection;
+    FLockPointStart: TVectorDir;
     FSaveCamTurn, FSaveCamPitch, FSaveCamRoll: Single;
 
-    function GetLockPointDirection: TGDirection;
+    function GetLockPointDirection: TVectorDir;
 
-    procedure SetLowerLimit(AValue: TGVector3);
+    procedure SetLowerLimit(AValue: TVector3);
     procedure SetLowerLimitX(AValue: Single);
     procedure SetLowerLimitY(AValue: Single);
     procedure SetLowerLimitZ(AValue: Single);
     procedure SetPitchLowerLimit(AValue: Single);
     procedure SetPitchUpperLimit(AValue: Single);
-    procedure SetUpperLimit(AValue: TGVector3);
+    procedure SetUpperLimit(AValue: TVector3);
     procedure SetUpperLimitX(AValue: Single);
     procedure SetUpperLimitY(AValue: Single);
     procedure SetUpperLimitZ(AValue: Single);
@@ -61,14 +61,14 @@ type
     property Moving: Boolean read FMoving;
 
     procedure SetReset; overload;
-    procedure SetReset(FPos, FOffset, FScale: TGVector; FTurn, FPitch: Single; FRoll: Single = 0); overload;
+    procedure SetReset(FPos, FOffset, FScale: TVector3; FTurn, FPitch: Single; FRoll: Single = 0); overload;
     procedure Reset;
 
-    property PosLowerLimit: TGVector3 read FLowerLimit write SetLowerLimit;
+    property PosLowerLimit: TVector3 read FLowerLimit write SetLowerLimit;
     property PosLowerLimitX: Single read FLowerLimit.X write SetLowerLimitX;
     property PosLowerLimitY: Single read FLowerLimit.Y write SetLowerLimitY;
     property PosLowerLimitZ: Single read FLowerLimit.Z write SetLowerLimitZ;
-    property PosUpperLimit: TGVector3 read FUpperLimit write SetUpperLimit;
+    property PosUpperLimit: TVector3 read FUpperLimit write SetUpperLimit;
     property PosUpperLimitX: Single read FUpperLimit.X write SetUpperLimitX;
     property PosUpperLimitY: Single read FUpperLimit.Y write SetUpperLimitY;
     property PosUpperLimitZ: Single read FUpperLimit.Z write SetUpperLimitZ;
@@ -86,12 +86,13 @@ type
   end;
 
   { TSmoothControlledCamera }
-
+  {
   TSmoothControlledCamera = class (TControlledCamera)
   private
     FVisibleLocation: TLocation;
     FGLForm: TGLForm;
     FSmoothSpeed: Single;
+    function GetEndLocation: TLocation;
 
   protected
     function GetLocation: TLocation; override;
@@ -102,11 +103,11 @@ type
     procedure HardReset;
 
     property SmoothSpeed: Single read FSmoothSpeed write FSmoothSpeed;
-    property EndLocation: TLocation read FLocation;
+    property EndLocation: TLocation read GetEndLocation;
 
     procedure Update; override;
   end;
-
+  }
 implementation
 
 uses
@@ -116,11 +117,16 @@ const
   MouseSensitivity = 200;
 
 { TSmoothControlledCamera }
-
+{
 procedure TSmoothControlledCamera.Update;
 begin
   inherited Update;
-  FVisibleLocation.Approach(FLocation, 1 - exp(-FSmoothSpeed * FGLForm.DeltaTime));
+  FVisibleLocation.Approach(EndLocation, 1 - exp(-FSmoothSpeed * FGLForm.DeltaTime));
+end;
+
+function TSmoothControlledCamera.GetEndLocation: TLocation;
+begin
+  Result := Location;
 end;
 
 function TSmoothControlledCamera.GetLocation: TLocation;
@@ -147,14 +153,14 @@ begin
   Reset;
   FVisibleLocation.Assign(EndLocation);
 end;
-
+}
 { TControlledCamera }
 
 procedure TControlledCamera.DoMovement;
 var
-  DeltaMouse: TGVector2;
-  LockPoint: TGVector3;
-  LockPointCurrent: TGDirection;
+  DeltaMouse: TVector2;
+  LockPoint: TVector3;
+  LockPointCurrent: TVectorDir;
 begin
   with FInput do
   begin
@@ -165,11 +171,11 @@ begin
       begin
         if Assigned(FGetLockPoint) and FGetLockPoint(LockPoint) then
         begin
-          FSaveCamTurn := FLocation.TurnAngle;
-          FSaveCamPitch := FLocation.PitchAngle;
-          FSaveCamRoll := FLocation.RollAngle;
-          FLockPointRadius := FLocation.Pos.DistanceTo(LockPoint);
-          FLockPointOnFront := FLocation.Look.Dot(FLocation.Pos.VectorTo(LockPoint)) <= 0;
+          FSaveCamTurn := Location.TurnAngle;
+          FSaveCamPitch := Location.PitchAngle;
+          FSaveCamRoll := Location.RollAngle;
+          FLockPointRadius := Location.Pos.DistanceTo(LockPoint);
+          FLockPointOnFront := Location.Look.Dot(Location.Pos.VectorTo(LockPoint)) <= 0;
           FLockPointStart := GetLockPointDirection;
           FLockPointEnabled := True;
         end
@@ -187,11 +193,11 @@ begin
         // Alt Mode
         if ButtonDown(mbRight) then
         begin
-          FLocation.Turn(MouseSensitivity * DeltaMouse.X);
-          FLocation.Lift(-FLocation.OffsetZ * DeltaMouse.Y, True);
+          Location.Turn(MouseSensitivity * DeltaMouse.X);
+          Location.Lift(-Location.OffsetZ * DeltaMouse.Y, True);
         end
         else if ButtoNDown(mbLeft) then
-          SlideMove(-FLocation.OffsetZ * DeltaMouse);
+          SlideMove(-Location.OffsetZ * DeltaMouse);
       end
       else
       begin
@@ -199,9 +205,9 @@ begin
         if ButtonDown(mbRight) and FLockPointEnabled then
         begin
           LockPointCurrent := GetLockPointDirection;
-          FLocation.TurnAngle := FSaveCamTurn +
+          Location.TurnAngle := FSaveCamTurn +
             (LockPointCurrent.TurnAngle - FLockPointStart.TurnAngle);
-          FLocation.PitchAngle := FSaveCamPitch +
+          Location.PitchAngle := FSaveCamPitch +
             (LockPointCurrent.PitchAngle - FLockPointStart.PitchAngle);
         end;
       end;
@@ -212,36 +218,36 @@ begin
       if ButtonDown(mbRight) then
         TurnPitch(MouseSensitivity * DeltaMouse)
       else if ButtonDown(mbLeft) then
-        SlideLift(-FLocation.OffsetZ * DeltaMouse);
+        SlideLift(-Location.OffsetZ * DeltaMouse);
     end;
 
     if ButtonDown(mbLeft) or buttonDown(mbRight) then
       FOldMousePos := FInput.MousePos;
 
-    FLocation.Pos := TGVector3.Create(
-      EnsureRange(FLocation.Pos.X, FLowerLimit.X, FUpperLimit.X),
-      EnsureRange(FLocation.Pos.Y, FLowerLimit.Y, FUpperLimit.Y),
-      EnsureRange(FLocation.Pos.Z, FLowerLimit.Z, FUpperLimit.Z)
+    Location.Pos := Vec3(
+      EnsureRange(Location.Pos.X, FLowerLimit.X, FUpperLimit.X),
+      EnsureRange(Location.Pos.Y, FLowerLimit.Y, FUpperLimit.Y),
+      EnsureRange(Location.Pos.Z, FLowerLimit.Z, FUpperLimit.Z)
     );
 
-    FLocation.PitchAngle := EnsureRange(FLocation.PitchAngle, FPitchLowerLimit, FPitchUpperLimit);
+    Location.PitchAngle := EnsureRange(Location.PitchAngle, FPitchLowerLimit, FPitchUpperLimit);
 
     if ScrolledUp then
-      FLocation.OffsetZ := Max(FLocation.OffsetZ / (1 + FZoomSpeed), FZoomLowerLimit);
+      Location.OffsetZ := Max(Location.OffsetZ / (1 + FZoomSpeed), FZoomLowerLimit);
     if ScrolledDown then
-      FLocation.OffsetZ := FLocation.OffsetZ * (1 + FZoomSpeed);
+      Location.OffsetZ := Location.OffsetZ * (1 + FZoomSpeed);
 
-    FLocation.OffsetZ := Min(FLocation.OffsetZ, FZoomUpperLimit);
+    Location.OffsetZ := Min(Location.OffsetZ, FZoomUpperLimit);
 
   end;
 end;
 
-function TControlledCamera.GetLockPointDirection: TGDirection;
+function TControlledCamera.GetLockPointDirection: TVectorDir;
 var
-  L: TGLine;
-  Data: TGLine.TOrthoProjData;
+  L: TLine3;
   D, P: Single;
   OldT, OldP, OldR: Single;
+  Distance: Single;
 begin
   OldT := Location.TurnAngle;
   OldP := Location.PitchAngle;
@@ -257,10 +263,10 @@ begin
   Location.PitchAngle := OldP;
   Location.RollAngle := OldR;
 
-  L.SV := L.SV - FLocation.Pos;
+  L.SV := L.SV - Location.Pos;
   L.DV := L.DV.Normalize * FLockPointRadius;
-  L.OrthoProj(Origin, Data);
-  P := Data.Height / FLockPointRadius; // percentage (0 = on sphere-middle, 1 = on sphere-side)
+  Distance := L.OrthoProj(0);
+  P := L[Distance].Length / FLockPointRadius; // percentage (0 = on sphere-middle, 1 = on sphere-side)
 
   if P >= 1 then
   begin
@@ -270,24 +276,24 @@ begin
 
   D := Sqrt(1 - Sqr(P));
   if FLockPointOnFront then
-    D := Data.Distance - D
+    D := Distance - D
   else
-    D := Data.Distance + D;
+    D := Distance + D;
 
-  Result := TGDirection.FromVector(L.GetPoint(D));
+  Result := L[D];
   if not FLockPointOnFront then
   begin
-    Result.T := Result.T + Pi;
-    Result.P := -Result.P;
+    Result.TurnAngleRad := Result.TurnAngleRad + Pi;
+    Result.PitchAngleRad := -Result.PitchAngle;
   end;
 end;
 
-procedure TControlledCamera.SetLowerLimit(AValue: TGVector3);
+procedure TControlledCamera.SetLowerLimit(AValue: TVector3);
 begin
   if FLowerLimit = AValue then
     Exit;
   FLowerLimit := AValue;
-  Location.Pos := TGVector3.Create(
+  Location.Pos := Vec3(
     Max(Location.Pos.X, AValue.X),
     Max(Location.Pos.Y, AValue.Y),
     Max(Location.Pos.Z, AValue.Z)
@@ -334,12 +340,12 @@ begin
   Location.PitchAngle := Min(Location.PitchAngle, AValue);
 end;
 
-procedure TControlledCamera.SetUpperLimit(AValue: TGVector3);
+procedure TControlledCamera.SetUpperLimit(AValue: TVector3);
 begin
   if FUpperLimit = AValue then
     Exit;
   FUpperLimit := AValue;
-  Location.Pos := TGVector3.Create(
+  Location.Pos := Vec3(
     Min(Location.Pos.X, AValue.X),
     Min(Location.Pos.Y, AValue.Y),
     Min(Location.Pos.Z, AValue.Z)
@@ -395,8 +401,8 @@ begin
   FInput := AInput;
   FResetLocation := TLocation.Create;
 
-  PosLowerLimit := -InfVec;
-  PosUpperLimit := +InfVec;
+  PosLowerLimit := -InfVec3;
+  PosUpperLimit := +InfVec3;
 
   PitchLowerLimit := -90;
   PitchUpperLimit := +90;
@@ -414,15 +420,15 @@ end;
 
 procedure TControlledCamera.SetReset;
 begin
-  FResetLocation.Pos := FLocation.Pos;
-  FResetLocation.Offset := FLocation.Offset;
-  FResetLocation.Scale := FLocation.Scale;
-  FResetLocation.TurnAngle := FLocation.TurnAngle;
-  FResetLocation.PitchAngle := FLocation.PitchAngle;
-  FResetLocation.RollAngle := FLocation.RollAngle;
+  FResetLocation.Pos := Location.Pos;
+  FResetLocation.Offset := Location.Offset;
+  FResetLocation.Scale := Location.Scale;
+  FResetLocation.TurnAngle := Location.TurnAngle;
+  FResetLocation.PitchAngle := Location.PitchAngle;
+  FResetLocation.RollAngle := Location.RollAngle;
 end;
 
-procedure TControlledCamera.SetReset(FPos, FOffset, FScale: TGVector; FTurn, FPitch: Single; FRoll: Single);
+procedure TControlledCamera.SetReset(FPos, FOffset, FScale: TVector3; FTurn, FPitch: Single; FRoll: Single);
 begin
   FResetLocation.Pos := FPos;
   FResetLocation.Offset := FOffset;
@@ -434,12 +440,12 @@ end;
 
 procedure TControlledCamera.Reset;
 begin
-  FLocation.Pos := FResetLocation.Pos;
-  FLocation.Offset := FResetLocation.Offset;
-  FLocation.Scale := FResetLocation.Scale;
-  FLocation.TurnAngle := FResetLocation.TurnAngle;
-  FLocation.PitchAngle := FResetLocation.PitchAngle;
-  FLocation.RollAngle := FResetLocation.RollAngle;
+  Location.Pos := FResetLocation.Pos;
+  Location.Offset := FResetLocation.Offset;
+  Location.Scale := FResetLocation.Scale;
+  Location.TurnAngle := FResetLocation.TurnAngle;
+  Location.PitchAngle := FResetLocation.PitchAngle;
+  Location.RollAngle := FResetLocation.RollAngle;
 end;
 
 procedure TControlledCamera.Update;

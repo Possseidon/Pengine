@@ -3,70 +3,106 @@ unit Camera;
 interface
 
 uses
-  dglOpenGL, VectorGeometry, Matrix, Shaders, SysUtils, Lists, GLEnums, VAOManager;
+  dglOpenGL, VectorGeometry, Matrix, Shaders, SysUtils, Lists, GLEnums;
 
 const
   RotMin = -180;
   RotMax = RotMin + 360;
 
 type
-  TMatrixType = (
-    // 4x4
-    mtModel,
-    mtView,
-    mtModelView,
-    mtProjection,
-    mtMVP,
-    // 3x3 rotation
-    mtModelRotation,
-    mtViewRotation,
-    mtModelViewRotation
-  );
 
-  // MVP = ModelView * Projection
-  // ModelView = View * Model
+  IRenderable = interface
+    ['{ADF8AA5E-F78C-482C-8CD5-DCDB03B71D20}']
+    function GetVisible: Boolean;
 
-  TMatrixData = record
-    Data: TMatrix4;
-    Changed: Boolean;
+    property Visible: Boolean read GetVisible;
+
+    function HasBounds: Boolean;
+    function Bounds: TBounds3;
+
+    function ModelMatrix: TMatrix4;
+    procedure Render;
   end;
 
-  TMatrixUniformNames = array [TMatrixType] of PAnsiChar;
-
   { TCamera }
+
   TCamera = class
+  public type
+
+    TMatrixType = (
+      mtModel,
+      mtView,
+      mtModelView,
+      mtProjection,
+      mtMVP
+      );
+
+    { TUniform }
+
+    TUniform = class abstract
+    public type
+      TUniformList = TRefArray<TShader.TUniform<TMatrix4>>;
+      TRotationUniformList = TRefArray<TShader.TUniform<TMatrix3>>;
+
+    private
+      FCalculatesTo: TUniform;
+      FValid: Boolean;
+      FData: TMatrix4;
+      FUniforms: TUniformList;
+      FRotationUniforms: TRotationUniformList;
+
+      function GetData: TMatrix4;
+
+    protected
+      procedure SendToUniforms;
+      function Calculate: TMatrix4; virtual; abstract;
+
+      property CalculatesTo: TUniform read FCalculatesTo write FCalculatesTo;
+
+    public
+      constructor Create;
+      destructor Destroy; override;
+
+      procedure SendAllMatrices;
+      procedure Invalidate;
+
+      procedure AddUniform(AUniform: TShader.TUniform<TMatrix4>); overload;
+      procedure DelUniform(AUniform: TShader.TUniform<TMatrix4>); overload;
+
+      procedure AddUniform(AUniform: TShader.TUniform<TMatrix3>); overload;
+      procedure DelUniform(AUniform: TShader.TUniform<TMatrix3>); overload;
+
+      property Data: TMatrix4 read GetData;
+
+    end;
+
+    TUniformBasic = class(TUniform)
+    public type
+      TCalculationMethod = function: TMatrix4 of object;
+    private
+      FCalculationMethod: TCalculationMethod;
+    protected
+      function Calculate: TMatrix4; override;
+    public
+      constructor Create(ACalculationMethod: TCalculationMethod);
+    end;
+
+    TUniformCombined = class(TUniform)
+    private
+      FComponent1: TUniform;
+      FComponent2: TUniform;
+    protected
+      constructor Create(AComponent1, AComponent2: TUniform);
+      function Calculate: TMatrix4; override;
+    end;
+
   private
-    FShaders: TObjectArray<TShader>;
-    FMatrixUniformNames: TMatrixUniformNames;
-    FVAOs: TObjectArray<TVAO>;
+    FRenderObjects: TInterfaceArray<IRenderable>;
 
-    function GetHorizontalFOV: Single;
-    function GetMatrix(I: TMatrixType): TMatrix4;
-    function GetMatrixUniformName(I: TMatrixType): PAnsiChar;
-    procedure SetMatrixUniformName(I: TMatrixType; AValue: PAnsiChar);
-
-    procedure SetAspect(const AValue: Single);
-    procedure SetFarClip(const AValue: Single);
-    procedure SetFOV(const AValue: Single);
-    procedure SetNearClip(const AValue: Single);
-    procedure SetOrtho(const AValue: Boolean);
-
-    procedure BuildModelViewMatrix;
-    procedure BuildProjectionMatrix;
-    procedure BuildMVPMatrix;
-
-    procedure SetOrthoFactor(const Value: Single);
-
-    procedure SetMatrixChanged(M: TMatrixType);
-
-    procedure SendLocation(AShader: TObject);
-
-  protected
     // Translation and Rotation
     FLocation: TLocation;
-    FModelMatrix: TMatrix4;
 
-      // Projection
+    // Projection
     FFOV: Single;
     FAspect: Single;
     FFarClip: Single;
@@ -76,17 +112,38 @@ type
     FOrthoChanged: Boolean;
     FOrthoFactor: Single; // Zooms the whole scene
 
-    FForceResendLocation: Boolean;
+    FMat: array [TMatrixType] of TUniform;
+    // FRotMat: array [TRotationMatrixType] of TUniformMatrix3;
 
-    FMat: array [mtModelView .. mtMVP] of TMatrixData;
+    FModelMatrix: TMatrix4;
 
+    function GetHorizontalFOV: Single;
+
+    procedure SetAspect(const AValue: Single);
+    procedure SetFarClip(const AValue: Single);
+    procedure SetFOV(const AValue: Single);
+    procedure SetNearClip(const AValue: Single);
+    procedure SetOrtho(const AValue: Boolean);
+
+    function GetModelMatrix: TMatrix4;
+    function GetViewMatrix: TMatrix4;
+    function GetProjectionMatrix: TMatrix4;
+
+    procedure SetOrthoFactor(const Value: Single);
+    function GetMatrix(AMatrixType: TMatrixType): TMatrix4;
+    function GetRotMatrix(AMatrixType: TMatrixType): TMatrix3;
+
+  protected
     function GetLocation: TLocation; virtual;
 
-    function VAOVisible(const AFrustum: TGHexahedron; AVAO: TVAO): Boolean; overload;
+    function RenderObjectVisible(const AFrustum: TGHexahedron; ARenderObject: IRenderable): Boolean; overload;
 
   public
     constructor Create(FOV, Aspect, NearClip, FarClip: Single);
     destructor Destroy; override;
+
+    property Matrix[AMatrixType: TMatrixType]: TMatrix4 read GetMatrix;
+    property RotMatrix[AMatrixType: TMatrixType]: TMatrix3 read GetRotMatrix;
 
     // Projection Matrix
     property FOV: Single read FFOV write SetFOV;
@@ -102,33 +159,89 @@ type
     property Location: TLocation read GetLocation;
 
     // Location Movement
-    procedure SlideLift(AVector: TGVector2; AVertical: Boolean = False);
-    procedure SlideMove(AVector: TGVector2; AVertical: Boolean = False);
+    procedure SlideLift(AVector: TVector2; AVertical: Boolean = False);
+    procedure SlideMove(AVector: TVector2; AVertical: Boolean = False);
 
-    procedure TurnPitch(AAngles: TGVector2);
+    procedure TurnPitch(AAngles: TVector2);
 
-    function GetCursorLine(APos: TGVector2): TGLine;
-    function GetUntransformedCursorLine(APos: TGVector2): TGLine;
+    function GetCursorLine(APos: TVector2): TLine3;
+    function GetUntransformedCursorLine(APos: TVector2): TLine3;
 
     function GetViewHexahedron: TGHexahedron;
 
     // Rendering
-    procedure SendMatrices;
     procedure Render;
 
-    property Matrix[I: TMatrixType]: TMatrix4 read GetMatrix;
+    // Shader Uniform Connection
 
-    // Shader Connection (shaders to which, the matrix-uniforms will get sent to)
-    procedure AddShader(AShader: TShader);
-    procedure DelShader(AShader: TShader);
+    /// <summary>
+    /// Adds all Uniforms with their Default-Names.
+    /// <para>See:</para>
+    /// <para><see cref="Camera|TCamera.MatrixNames"/></para>
+    /// <para><see cref="Camera|TCamera.MatrixSuffix"/></para>
+    /// <para><see cref="Camera|TCamera.RotMatrixSuffix"/></para>
+    /// </summary>
+    procedure AddUniforms(AShader: TShader);
+    /// <summary>
+    /// Removes all Uniforms with their Default-Names.
+    /// <para>See:</para>
+    /// <para><see cref="Camera|TCamera.MatrixNames"/></para>
+    /// <para><see cref="Camera|TCamera.MatrixSuffix"/></para>
+    /// <para><see cref="Camera|TCamera.RotMatrixSuffix"/></para>
+    /// </summary>
+    procedure DelUniforms(AShader: TShader);
 
-    property MatrixUniformNames[I: TMatrixType]: PAnsiChar read GetMatrixUniformName write SetMatrixUniformName;
+    /// <summary>Registers a specific Matrix-Uniform-Connection</summary>
+    /// <param name="AType">Which Matrix Type to bind the Uniform to</param>
+    /// <param name="AUniform">The Uniform, getting bound</param>
+    /// <remarks>Inactive Uniforms get ignored automatically</remarks>
+    /// <remarks>Inactive Uniforms get ignored automatically</remarks>
+    /// <remarks>Inactive Uniforms get ignored automatically</remarks>
+    procedure AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>); overload;
+    /// <summary>Registers a specific RotationMatrix-Uniform-Connection</summary>
+    /// <param name="AType">Which Matrix Type to bind the Uniform to</param>
+    /// <param name="AUniform">The Uniform, getting bound</param>
+    procedure AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>); overload;
 
-    // VAOs
-    procedure AddVAO(AVAO: TVAO);
-    procedure DelVAO(AVAO: TVAO);
+    /// <summary>Unregisters a specific Matrix-Uniform-Connection</summary>
+    /// <param name="AType">Which Matrix Type to unbind the Uniform from</param>
+    /// <param name="AUniform">The Uniform, getting unbound</param>
+    procedure DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>); overload;
+    /// <summary>Unregisters a specific RotationMatrix-Uniform-Connection</summary>
+    /// <param name="AType">Which Matrix Type to unbind the Uniform from</param>
+    /// <param name="AUniform">The Uniform, getting unbound</param>
+    procedure DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>); overload;
 
-    function VAOVisible(AVAO: TVAO): Boolean; overload;
+    // VAOs to render with given Model Matrix
+    procedure AddRenderObject(ARenderObject: IRenderable);
+    procedure DelRenderObject(ARenderObject: IRenderable);
+
+    function RenderObjectVisible(AVAO: IRenderable): Boolean; overload;
+
+  const
+    /// <summary>
+    /// Default Matrix Names:
+    /// <code>
+    /// <para>model_matrix</para>
+    /// <para>view_matrix</para>
+    /// <para>modelview_matrix</para>
+    /// <para>projection_matrix</para>
+    /// <para>mvp_matrix</para>
+    /// </code>
+    /// <para>For mat3 Rotation-Matrices replace the _matrix with _rmatrix</para>
+    /// </summary>
+    MatrixNames: array [TMatrixType] of AnsiString = (
+      'model', // mtModel
+      'view', // mtView
+      'modelwiew', // mtModelView
+      'projection', // mtProjection
+      'mvp' // mtMVP
+      );
+
+    /// <summary>For Matrix-Default-Names see: <see cref="Camera|TCamera.MatrixNames"/></summary>
+    MatrixSuffix: AnsiString = '_matrix';
+    /// <summary>For Matrix-Default-Names see: <see cref="Camera|TCamera.MatrixNames"/></summary>
+    RotMatrixSuffix: AnsiString = '_rmatrix';
 
   end;
 
@@ -139,57 +252,7 @@ uses
 
 { TCamera }
 
-procedure TCamera.BuildModelViewMatrix;
-begin
-  FMat[mtModelView].Data := Location.Matrix * FModelMatrix;
-  FMat[mtModelView].Changed := False;
-end;
-
-procedure TCamera.BuildMVPMatrix;
-begin
-  if FMat[mtModelView].Changed then
-    BuildModelViewMatrix;
-  if FMat[mtProjection].Changed then
-    BuildProjectionMatrix;
-
-  FMat[mtMVP].Data := FMat[mtProjection].Data * FMat[mtModelView].Data;
-  FMat[mtMVP].Changed := False;
-  Location.NotifyChanges;
-end;
-
-procedure TCamera.BuildProjectionMatrix;
-var
-  F: Single;
-begin
-  if FOrthoChanged then
-  begin
-    FMat[mtProjection].Data.Clear;
-    FOrthoChanged := False;
-  end;
-
-  if Ortho then
-  begin
-    FMat[mtProjection].Data[0, 0] := OrthoFactor / Aspect;
-    FMat[mtProjection].Data[1, 1] := OrthoFactor;
-    FMat[mtProjection].Data[2, 2] := -2 / (FarClip - NearClip);
-    FMat[mtProjection].Data[3, 2] := -(FarClip + NearClip) / (FarClip - NearClip);
-    FMat[mtProjection].Data[3, 3] := 1;
-  end
-  else
-  begin
-    F := cot(FOV * Pi / 360);
-    FMat[mtProjection].Data[0, 0] := F / Aspect;
-    FMat[mtProjection].Data[1, 1] := F;
-    FMat[mtProjection].Data[2, 2] := -(FarClip + NearClip) / (FarClip - NearClip);
-    FMat[mtProjection].Data[2, 3] := -1;
-    FMat[mtProjection].Data[3, 2] := -(2 * FarClip * NearClip) / (FarClip - NearClip);
-  end;
-  FMat[mtProjection].Changed := False;    
-end;
-
 constructor TCamera.Create(FOV, Aspect, NearClip, FarClip: Single);
-var
-  M: TMatrixType;
 begin
   if FOV = 0 then
     FOrtho := True;
@@ -201,39 +264,30 @@ begin
   FFarClip := FarClip;
 
   FLocation := TLocation.Create(True);
-  FModelMatrix.LoadIdentity;
 
-  // Default Names
-  // 3x3 (Rotation)
-  MatrixUniformNames[mtViewRotation] := 'vr';
-  MatrixUniformNames[mtModelRotation] := 'mr';
-  MatrixUniformNames[mtModelViewRotation] := 'r';
-  // 4x4
-  MatrixUniformNames[mtProjection] := 'p';
-  MatrixUniformNames[mtModel] := 'm';
-  MatrixUniformNames[mtView] := 'v';
-  MatrixUniformNames[mtModelView] := 'mv';
-  MatrixUniformNames[mtMVP] := 'mvp';
+  FMat[mtModel] := TUniformBasic.Create(GetModelMatrix);
+  FMat[mtView] := TUniformBasic.Create(GetViewMatrix);
+  FMat[mtModelView] := TUniformCombined.Create(FMat[mtView], FMat[mtModel]);
+  FMat[mtProjection] := TUniformBasic.Create(GetProjectionMatrix);
+  FMat[mtMVP] := TUniformCombined.Create(FMat[mtProjection], FMat[mtModelView]);
 
-  for M := mtModelView to mtMVP do
-    FMat[M].Changed := True;
-
-  FShaders := TObjectArray<TShader>.Create(True);
-
-  FVAOs := TObjectArray<TVAO>.Create(True);
+  FRenderObjects := TInterfaceArray<IRenderable>.Create;
 end;
 
 destructor TCamera.Destroy;
+var
+  Mat: TUniform;
 begin
-  FShaders.Free;
+  for Mat in FMat do
+    Mat.Free;
   FLocation.Free;
-  FVAOs.Free;
+  FRenderObjects.Free;
   inherited;
 end;
 
-function TCamera.GetCursorLine(APos: TGVector2): TGLine;
+function TCamera.GetCursorLine(APos: TVector2): TLine3;
 var
-  Look, Right, Up: TGVector;
+  Look, Right, Up: TVector3;
 begin
   Look := Location.Look;
   Right := Location.Right;
@@ -252,13 +306,13 @@ begin
   end;
 end;
 
-function TCamera.GetUntransformedCursorLine(APos: TGVector2): TGLine;
+function TCamera.GetUntransformedCursorLine(APos: TVector2): TLine3;
 begin
   if Ortho then
   begin
     raise Exception.Create('Might not work!');
-    Result.SV := (APos.X * UVecX * Aspect + APos.Y * UVecY) / OrthoFactor - FLocation.Offset;
-    Result.DV := -UVecZ;
+    Result.SV := (Vec3(APos.X * Aspect, 0, 0) + Vec3(0, APos.Y, 0)) / OrthoFactor - FLocation.Offset;
+    Result.DV := Vec3(0, 0, -1);
   end
   else
   begin
@@ -271,7 +325,7 @@ end;
 
 function TCamera.GetViewHexahedron: TGHexahedron;
 var
-  P, L, R, U: TGVector3;
+  P, L, R, U: TVector3;
   F: Single;
 begin
   P := Location.RealPosition;
@@ -280,146 +334,126 @@ begin
   L := Location.Look;
   if Ortho then
   begin
-    Result.Faces[sdRight] := TGLine.Create(P + R * OrthoFactor * Aspect, -R);
-    Result.Faces[sdLeft] :=  TGLine.Create(P - R * OrthoFactor * Aspect, +R);
-    Result.Faces[sdUp] :=    TGLine.Create(P + U * OrthoFactor, -U);
-    Result.Faces[sdDown] :=  TGLine.Create(P - U * OrthoFactor, +U);
-    Result.Faces[sdFront] := TGLine.Create(P + L * NearClip, L);
-    Result.Faces[sdBack] :=  TGLine.Create(P + L * FarClip, -L);
+    Result.FaceNormals[sdRight].Create(P + R * OrthoFactor * Aspect, -R);
+    Result.FaceNormals[sdLeft].Create(P - R * OrthoFactor * Aspect, +R);
+    Result.FaceNormals[sdUp].Create(P + U * OrthoFactor, -U);
+    Result.FaceNormals[sdDown].Create(P - U * OrthoFactor, +U);
+    Result.FaceNormals[sdFront].Create(P + L * NearClip, L);
+    Result.FaceNormals[sdBack].Create(P + L * FarClip, -L);
   end
   else
   begin
     F := cot(FOV / 360 * Pi);
-    Result.Faces[sdRight] := TGLine.Create(P, L - R * F / Aspect);
-    Result.Faces[sdLeft] :=  TGLine.Create(P, L + R * F / Aspect);
-    Result.Faces[sdUp] :=    TGLine.Create(P, L - U * F);
-    Result.Faces[sdDown] :=  TGLine.Create(P, L + U * F);
-    Result.Faces[sdFront] := TGLine.Create(P + L * NearClip, L);
-    Result.Faces[sdBack] :=  TGLine.Create(P + L * FarClip, -L);
+    Result.FaceNormals[sdRight].Create(P, L - R * F / Aspect);
+    Result.FaceNormals[sdLeft].Create(P, L + R * F / Aspect);
+    Result.FaceNormals[sdUp].Create(P, L - U * F);
+    Result.FaceNormals[sdDown].Create(P, L + U * F);
+    Result.FaceNormals[sdFront].Create(P + L * NearClip, L);
+    Result.FaceNormals[sdBack].Create(P + L * FarClip, -L);
   end;
 end;
 
-procedure TCamera.AddShader(AShader: TShader);
+function TCamera.GetViewMatrix: TMatrix4;
 begin
-  FShaders.Add(AShader);
-  SendLocation(AShader);
+  Result := FLocation.Matrix;
 end;
 
-procedure TCamera.DelShader(AShader: TShader);
+procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>);
 begin
-  FShaders.DelObject(AShader);
+  if AUniform.Active then
+    FMat[AType].AddUniform(AUniform);
 end;
 
-procedure TCamera.AddVAO(AVAO: TVAO);
+procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>);
 begin
-  FVAOs.Add(AVAO);
+  if AUniform.Active then
+    FMat[AType].AddUniform(AUniform);
 end;
 
-procedure TCamera.DelVAO(AVAO: TVAO);
+procedure TCamera.AddUniforms(AShader: TShader);
+var
+  MatrixType: TMatrixType;
 begin
-  FVAOs.DelObject(AVAO);
+  for MatrixType := Low(TMatrixType) to High(TMatrixType) do
+  begin
+    FMat[MatrixType].AddUniform(AShader.Uniform<TMatrix4>(MatrixNames[MatrixType] + MatrixSuffix));
+    FMat[MatrixType].AddUniform(AShader.Uniform<TMatrix3>(MatrixNames[MatrixType] + RotMatrixSuffix));
+  end;
 end;
 
-function TCamera.VAOVisible(AVAO: TVAO): Boolean;
+procedure TCamera.AddRenderObject(ARenderObject: IRenderable);
 begin
-  Result := VAOVisible(GetViewHexahedron, AVAO);
+  FRenderObjects.Add(ARenderObject);
 end;
 
-procedure TCamera.SlideLift(AVector: TGVector2; AVertical: Boolean);
+procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>);
+begin
+  if AUniform.Active then
+    FMat[AType].DelUniform(AUniform);
+end;
+
+procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>);
+begin
+  if AUniform.Active then
+    FMat[AType].DelUniform(AUniform);
+end;
+
+procedure TCamera.DelUniforms(AShader: TShader);
+var
+  MatrixType: TMatrixType;
+begin
+  for MatrixType := Low(TMatrixType) to High(TMatrixType) do
+  begin
+    FMat[MatrixType].DelUniform(AShader.Uniform<TMatrix4>(MatrixNames[MatrixType] + MatrixSuffix));
+    FMat[MatrixType].DelUniform(AShader.Uniform<TMatrix3>(MatrixNames[MatrixType] + RotMatrixSuffix));
+  end;
+end;
+
+procedure TCamera.DelRenderObject(ARenderObject: IRenderable);
+begin
+  FRenderObjects.Del(ARenderObject);
+end;
+
+function TCamera.RenderObjectVisible(AVAO: IRenderable): Boolean;
+begin
+  Result := RenderObjectVisible(GetViewHexahedron, AVAO);
+end;
+
+procedure TCamera.SlideLift(AVector: TVector2; AVertical: Boolean);
 begin
   FLocation.Slide(AVector.X, AVertical);
   FLocation.Lift(AVector.Y, AVertical);
 end;
 
-procedure TCamera.SlideMove(AVector: TGVector2; AVertical: Boolean);
+procedure TCamera.SlideMove(AVector: TVector2; AVertical: Boolean);
 begin
   FLocation.Slide(AVector.X, AVertical);
   FLocation.Move(AVector.Y, AVertical);
 end;
 
-procedure TCamera.SendLocation(AShader: TObject);
-var
-  M: TMatrixType;
-  L: Integer;
-  Mat3: TMatrix3;
-  OldShader: TShader;
-begin
-  OldShader := TShader.ActiveShader;
-
-  with AShader as TShader do
-  begin
-    Enable;
-    for M := Low(TMatrixType) to High(TMatrixType) do
-    begin
-      if FMatrixUniformNames[M] = nil then
-        Continue;
-      L := UniformLocation[FMatrixUniformNames[M]];
-      if L <> -1 then
-      begin
-        if M in [mtModelRotation, mtViewRotation, mtModelViewRotation] then
-        begin
-          case M of
-            mtModelRotation:
-              Mat3 := FModelMatrix.Minor[3, 3];
-            mtViewRotation:
-              Mat3 := Location.RotMatrix;
-            mtModelViewRotation:
-              Mat3 := Matrix[mtModelView].Minor[3, 3];
-          end;
-          glUniformMatrix3fv(L, 1, ToByteBool(blFalse), @Mat3);
-        end
-        else if M = mtModel then
-          glUniformMatrix4fv(L, 1, ToByteBool(blFalse), @FModelMatrix)
-        else if M = mtView then
-          glUniformMatrix4fv(L, 1, ToByteBool(blFalse), FLocation.Matrix.DataPointer)
-        else
-          glUniformMatrix4fv(L, 1, ToByteBool(blFalse), @FMat[M].Data);
-      end;
-    end;
-  end;
-
-  OldShader.Enable;
-end;
-
-procedure TCamera.SendMatrices;
-var
-  Shader: TShader;
-begin
-  if Location.Changed then
-  begin
-    SetMatrixChanged(mtModelView);
-  end;
-  if FMat[mtMVP].Changed then
-  begin
-    BuildMVPMatrix;
-    for Shader in FShaders do
-      SendLocation(Shader);
-  end
-  else if FForceResendLocation then
-  begin
-    for Shader in FShaders do
-      SendLocation(Shader);
-    FForceResendLocation := False;
-  end;
-end;
-
 procedure TCamera.Render;
 var
-  VAO: TVAO;
+  RenderObject: IRenderable;
   Frustum: TGHexahedron;
 begin
   Frustum := GetViewHexahedron;
-  for VAO in FVAOs do
-    if VAO.Visible and VAOVisible(Frustum, VAO) then
+  if Location.Changed then
+  begin
+    FMat[mtView].Invalidate;
+    Location.NotifyChanges;
+  end;
+
+  for RenderObject in FRenderObjects do
+    if RenderObject.Visible and RenderObjectVisible(Frustum, RenderObject) then
     begin
-      FModelMatrix := VAO.ModelMatrix;
-      SetMatrixChanged(mtModelView);
-      SendMatrices;
-      VAO.Render;
+      FModelMatrix := RenderObject.ModelMatrix;
+      FMat[mtModel].Invalidate;
+      FMat[mtMVP].SendAllMatrices;
+      RenderObject.Render;
     end;
 end;
 
-procedure TCamera.TurnPitch(AAngles: TGVector2);
+procedure TCamera.TurnPitch(AAngles: TVector2);
 begin
   FLocation.Turn(AAngles.X);
   FLocation.Pitch(AAngles.Y);
@@ -428,56 +462,43 @@ end;
 procedure TCamera.SetAspect(const AValue: Single);
 begin
   FAspect := AValue;
-  SetMatrixChanged(mtProjection);
+  FMat[mtProjection].Invalidate;
 end;
 
 procedure TCamera.SetFarClip(const AValue: Single);
 begin
   FFarClip := AValue;
-  SetMatrixChanged(mtProjection);
+  FMat[mtProjection].Invalidate;
 end;
 
 procedure TCamera.SetFOV(const AValue: Single);
 begin
   FFOV := AValue;
-  SetMatrixChanged(mtProjection);
-end;
-
-procedure TCamera.SetMatrixChanged(M: TMatrixType);
-begin
-  // given type changed
-  FMat[M].Changed := True;
-  // anything changed -> MVP changes
-  FMat[mtMVP].Changed := True;
+  FMat[mtProjection].Invalidate;
 end;
 
 procedure TCamera.SetNearClip(const AValue: Single);
 begin
   FNearClip := AValue;
-  SetMatrixChanged(mtProjection);
+  FMat[mtProjection].Invalidate;
 end;
 
 procedure TCamera.SetOrtho(const AValue: Boolean);
 begin
   FOrtho := AValue;
   FOrthoChanged := True;
-  SetMatrixChanged(mtProjection);
+  FMat[mtProjection].Invalidate;
 end;
 
 procedure TCamera.SetOrthoFactor(const Value: Single);
 begin
   FOrthoFactor := Value;
-  SetMatrixChanged(mtProjection);
-end;
-
-function TCamera.GetMatrix(I: TMatrixType): TMatrix4;
-begin
-  Result := FMat[I].Data;
+  FMat[mtProjection].Invalidate;
 end;
 
 function TCamera.GetHorizontalFOV: Single;
 begin
-  Result := arctan(tan(FOV / 360 * Pi) * Aspect) * 360 / Pi;
+  Result := arctan(Tan(FOV / 360 * Pi) * Aspect) * 360 / Pi;
 end;
 
 function TCamera.GetLocation: TLocation;
@@ -485,30 +506,157 @@ begin
   Result := FLocation;
 end;
 
-function TCamera.VAOVisible(const AFrustum: TGHexahedron; AVAO: TVAO): Boolean;
+function TCamera.RenderObjectVisible(const AFrustum: TGHexahedron; ARenderObject: IRenderable): Boolean;
 var
   I: Integer;
-  Points: TGBounds3.TCorners;
+  Points: TBounds3.TCorners;
 begin
-  if not AVAO.HasBounds then
+  if not ARenderObject.HasBounds then
     Exit(True);
 
-  Points := AVAO.Bounds.GetCorners;
+  Points := ARenderObject.Bounds.GetCorners;
   for I := 0 to 7 do
-    Points[I] := AVAO.ModelMatrix * Points[I].ToVec4;
+    Points[I] := ARenderObject.ModelMatrix * Points[I];
 
   Result := not AFrustum.AllOutside(Points);
 end;
 
-function TCamera.GetMatrixUniformName(I: TMatrixType): PAnsiChar;
+function TCamera.GetMatrix(AMatrixType: TMatrixType): TMatrix4;
 begin
-  Result := FMatrixUniformNames[I];
+  Result := FMat[AMatrixType].Data;
 end;
 
-procedure TCamera.SetMatrixUniformName(I: TMatrixType; AValue: PAnsiChar);
+function TCamera.GetModelMatrix: TMatrix4;
 begin
-  FMatrixUniformNames[I] := AValue;
-  FForceResendLocation := True;
+  Result := FModelMatrix;
+end;
+
+function TCamera.GetProjectionMatrix: TMatrix4;
+var
+  F: Single;
+begin
+  Result.Clear;
+  if Ortho then
+  begin
+    Result[0, 0] := OrthoFactor / Aspect;
+    Result[1, 1] := OrthoFactor;
+    Result[2, 2] := -2 / (FarClip - NearClip);
+    Result[3, 2] := -(FarClip + NearClip) / (FarClip - NearClip);
+    Result[3, 3] := 1;
+  end
+  else
+  begin
+    F := cot(DegToRad(FOV) / 2);
+    Result[0, 0] := F / Aspect;
+    Result[1, 1] := F;
+    Result[2, 2] := (NearClip + FarClip) / (NearClip - FarClip);
+    Result[2, 3] := -1;
+    Result[3, 2] := (2 * NearClip * FarClip) / (NearClip - FarClip);
+  end;
+end;
+
+function TCamera.GetRotMatrix(AMatrixType: TMatrixType): TMatrix3;
+begin
+  Result := FMat[AMatrixType].Data.Minor[3, 3];
+end;
+
+{ TCamera.TUniform }
+
+procedure TCamera.TUniform.AddUniform(AUniform: TShader.TUniform<TMatrix3>);
+begin
+  FRotationUniforms.Add(AUniform);
+end;
+
+procedure TCamera.TUniform.AddUniform(AUniform: TShader.TUniform<TMatrix4>);
+begin
+  FUniforms.Add(AUniform);
+end;
+
+constructor TCamera.TUniform.Create;
+begin
+  FUniforms := TUniformList.Create;
+  FRotationUniforms := TRotationUniformList.Create;
+end;
+
+procedure TCamera.TUniform.DelUniform(AUniform: TShader.TUniform<TMatrix3>);
+begin
+  FRotationUniforms.Del(AUniform);
+end;
+
+procedure TCamera.TUniform.DelUniform(AUniform: TShader.TUniform<TMatrix4>);
+begin
+  FUniforms.Del(AUniform);
+end;
+
+destructor TCamera.TUniform.Destroy;
+begin
+  FUniforms.Free;
+  FRotationUniforms.Free;
+  inherited;
+end;
+
+function TCamera.TUniform.GetData: TMatrix4;
+begin
+  if not FValid then
+  begin
+    FData := Calculate;
+    FValid := True;
+  end;
+  Result := FData;
+end;
+
+procedure TCamera.TUniform.SendAllMatrices;
+begin
+  SendToUniforms;
+end;
+
+procedure TCamera.TUniform.SendToUniforms;
+var
+  Uniform: TShader.TUniform<TMatrix4>;
+  RotationUniform: TShader.TUniform<TMatrix3>;
+begin
+  for Uniform in FUniforms do
+    Uniform.Value := Data;
+  for RotationUniform in FRotationUniforms do
+    RotationUniform.Value := Data.Minor[3, 3];
+end;
+
+procedure TCamera.TUniform.Invalidate;
+begin
+  FValid := False;
+  if FCalculatesTo <> nil then
+    FCalculatesTo.Invalidate;
+end;
+
+{ TCamera.TUniformCombined }
+
+function TCamera.TUniformCombined.Calculate: TMatrix4;
+begin
+  FComponent1.SendAllMatrices;
+  FComponent2.SendAllMatrices;
+  Result := FComponent1.Data * FComponent2.Data;
+end;
+
+constructor TCamera.TUniformCombined.Create(AComponent1, AComponent2: TUniform);
+begin
+  inherited Create;
+  FComponent1 := AComponent1;
+  FComponent2 := AComponent2;
+  FComponent1.CalculatesTo := Self;
+  FComponent2.CalculatesTo := Self;
+end;
+
+{ TCamera.TUniformBasic }
+
+function TCamera.TUniformBasic.Calculate: TMatrix4;
+begin
+  Result := FCalculationMethod;
+end;
+
+constructor TCamera.TUniformBasic.Create(ACalculationMethod: TCalculationMethod);
+begin
+  inherited Create;
+  FCalculationMethod := ACalculationMethod;
 end;
 
 end.

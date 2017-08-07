@@ -12,13 +12,17 @@ type
 
   { EMatrixMultiply }
 
-  EMatrixMultiply = class (Exception)
+  EMatrixMultiply = class(Exception)
   public
     constructor Create(AACols, ABRows: Integer);
   end;
 
   { TMatrix }
-
+  /// <remarks>
+  /// This is not a value type
+  /// <para/>
+  /// Use <see cref="Matrix|TMatrix.Copy"/> instead
+  /// </remarks>
   TMatrix = record
   private
     FElement: array of array of Single;
@@ -56,6 +60,39 @@ type
 
     function Cols: Byte;
     function Rows: Byte;
+
+    /// <returns>An exact copy of the Matrix</returns>
+    /// <remarks>
+    /// <see cref="Matrix|TMatrix"/> is not a value type, use this instead
+    /// </remarks>
+    function Copy: TMatrix;
+  end;
+
+  { TMatrix2 }
+
+  TMatrix2 = record
+  private
+    FElement: array [0 .. 1, 0 .. 1] of Single;
+
+    function GetElement(I, J: Byte): Single;
+    procedure SetElement(I, J: Byte; const Value: Single);
+
+    property E[I, J: Byte]: Single read GetElement write SetElement; default;
+  public
+    class operator Add(A, B: TMatrix2): TMatrix2;
+    class operator Multiply(V: Single; A: TMatrix2): TMatrix2;
+    class operator Multiply(A, B: TMatrix2): TMatrix2;
+
+    procedure Clear(Value: Single = 0);
+    procedure LoadIdentity;
+
+    function Transpose: TMatrix2;
+    function Determinant: Single;
+    function Minor(I, J: Integer): Single;
+    function Cofactor(I, J: Integer): Single;
+    function CofactorMatrix: TMatrix2;
+    function Adjugate: TMatrix2;
+    function Inverse: TMatrix2;
   end;
 
   { TMatrix3 }
@@ -78,7 +115,7 @@ type
 
     function Transpose: TMatrix3;
     function Determinant: Single;
-    function Minor(I, J: Integer): TMatrix;
+    function Minor(I, J: Integer): TMatrix2;
     function Cofactor(I, J: Integer): Single;
     function CofactorMatrix: TMatrix3;
     function Adjugate: TMatrix3;
@@ -125,6 +162,7 @@ type
   PMatrix3 = ^TMatrix3;
 
 var
+  // Only use with elementar mathmatical operations to avoid conflicts
   M3x2: TMatrix;
   M4x3: TMatrix;
 
@@ -134,13 +172,18 @@ const
     (0, 1, 0, 0),
     (0, 0, 1, 0),
     (0, 0, 0, 1)
-  ));
+    ));
 
   Matrix3Identity: TMatrix3 = (FElement:(
     (1, 0, 0),
     (0, 1, 0),
     (0, 0, 1)
-  ));
+    ));
+
+  Matrix2Identity: TMatrix2 = (FElement:(
+    (1, 0),
+    (0, 1)
+    ));
 
 implementation
 
@@ -225,7 +268,7 @@ end;
 
 procedure TMatrix3.LoadIdentity;
 begin
-  Move(Matrix3Identity, FElement, 64);
+  Self := Matrix3Identity;
 end;
 
 function TMatrix3.Transpose: TMatrix3;
@@ -244,18 +287,17 @@ end;
 function TMatrix3.Determinant: Single;
 begin
   Result := E[0, 0] * E[1, 1] * E[2, 2] +
-            E[0, 1] * E[1, 2] * E[2, 0] +
-            E[0, 2] * E[1, 0] * E[2, 1] -
-            E[2, 0] * E[1, 1] * E[0, 2] -
-            E[2, 1] * E[1, 2] * E[0, 0] -
-            E[2, 2] * E[1, 0] * E[0, 1];
+    E[0, 1] * E[1, 2] * E[2, 0] +
+    E[0, 2] * E[1, 0] * E[2, 1] -
+    E[2, 0] * E[1, 1] * E[0, 2] -
+    E[2, 1] * E[1, 2] * E[0, 0] -
+    E[2, 2] * E[1, 0] * E[0, 1];
 end;
 
-function TMatrix3.Minor(I, J: Integer): TMatrix;
+function TMatrix3.Minor(I, J: Integer): TMatrix2;
 var
   X1, Y1, X2, Y2: Integer;
 begin
-  Result.SetSize(2, 2);
   X2 := 0;
   for X1 := 0 to 2 do
   begin
@@ -511,6 +553,15 @@ begin
     Result := Result + E[Col, I];
 end;
 
+function TMatrix.Copy: TMatrix;
+var
+  I: Integer;
+begin
+  Result.SetSize(Cols, Rows);
+  for I := 0 to Cols - 1 do
+    Move(FElement[I, 0], Result.FElement[I, 0], SizeOf(Single) * Rows);
+end;
+
 function TMatrix.Minor(I, J: Integer): TMatrix;
 var
   X1, Y1, X2, Y2: Integer;
@@ -677,7 +728,7 @@ end;
 
 procedure TMatrix4.LoadIdentity;
 begin
-  Move(Matrix4Identity, FElement, SizeOf(Single) * 16);
+  Self := Matrix4Identity;
 end;
 
 class operator TMatrix4.Multiply(A, B: TMatrix4): TMatrix4;
@@ -707,7 +758,7 @@ end;
 
 class operator TMatrix4.NotEqual(A, B: TMatrix4): Boolean;
 begin
-  Result := not (A = B);
+  Result := not(A = B);
 end;
 
 class operator TMatrix4.Multiply(V: Single; A: TMatrix4): TMatrix4;
@@ -776,7 +827,107 @@ begin
   Result[3, 3] := FElement[3, 3];
 end;
 
+{ TMatrix2 }
+
+function TMatrix2.GetElement(I, J: Byte): Single;
 begin
+  Result := FElement[I, J];
+end;
+
+procedure TMatrix2.SetElement(I, J: Byte; const Value: Single);
+begin
+  FElement[I, J] := Value;
+end;
+
+class operator TMatrix2.Add(A, B: TMatrix2): TMatrix2;
+begin
+  Result[0, 0] := A[0, 0] + B[0, 0];
+  Result[1, 0] := A[1, 0] + B[1, 0];
+  Result[0, 1] := A[0, 1] + B[0, 1];
+  Result[1, 1] := A[1, 1] + B[1, 1];
+end;
+
+class operator TMatrix2.Multiply(V: Single; A: TMatrix2): TMatrix2;
+begin
+  Result[0, 0] := A[0, 0] * V;
+  Result[1, 0] := A[1, 0] * V;
+  Result[0, 1] := A[0, 1] * V;
+  Result[1, 1] := A[1, 1] * V;
+  Result[0, 2] := A[0, 2] * V;
+end;
+
+class operator TMatrix2.Multiply(A, B: TMatrix2): TMatrix2;
+begin
+  Result[0, 0] := A[0, 0] * B[0, 0] + A[1, 0] * B[0, 1];
+  Result[1, 0] := A[0, 0] * B[1, 0] + A[1, 0] * B[1, 1];
+  Result[0, 1] := A[0, 1] * B[0, 0] + A[1, 1] * B[0, 1];
+  Result[1, 1] := A[0, 1] * B[1, 0] + A[1, 1] * B[1, 1];
+end;
+
+procedure TMatrix2.Clear(Value: Single);
+begin
+  if Value = 0 then
+    FillChar(FElement, SizeOf(Single) * 4, 0)
+  else
+  begin
+    FElement[0, 0] := Value;
+    FElement[1, 0] := Value;
+    FElement[0, 1] := Value;
+    FElement[1, 1] := Value;
+  end;
+end;
+
+procedure TMatrix2.LoadIdentity;
+begin
+  Self := Matrix2Identity;
+end;
+
+function TMatrix2.Transpose: TMatrix2;
+begin
+  Result[0, 0] := FElement[0, 0];
+  Result[1, 0] := FElement[0, 1];
+  Result[0, 1] := FElement[1, 0];
+  Result[1, 1] := FElement[1, 1];
+end;
+
+function TMatrix2.Determinant: Single;
+begin
+  Result := E[0, 0] * E[1, 1] - E[1, 0] * E[0, 1];
+end;
+
+function TMatrix2.Minor(I, J: Integer): Single;
+begin
+  Result := E[1 - I, 1 - J];
+end;
+
+function TMatrix2.Cofactor(I, J: Integer): Single;
+begin
+  if ((I + J) mod 2) = 0 then
+    Result := Minor(I, J)
+  else
+    Result := -Minor(I, J);
+end;
+
+function TMatrix2.CofactorMatrix: TMatrix2;
+var
+  I, J: Integer;
+begin
+  for I := 0 to 1 do
+    for J := 0 to 1 do
+      Result[I, J] := Cofactor(I, J);
+end;
+
+function TMatrix2.Adjugate: TMatrix2;
+begin
+  Result := CofactorMatrix.Transpose;
+end;
+
+function TMatrix2.Inverse: TMatrix2;
+begin
+  Result := 1 / Determinant * Adjugate;
+end;
+
+initialization
   M3x2.SetSize(3, 2);
   M3x2.Clear;
   M4x3.SetSize(4, 3);

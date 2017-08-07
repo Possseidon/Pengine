@@ -37,7 +37,7 @@ type
     type
 
       TData = record
-        Pos: TGVector3;
+        Pos: TVector3;
         Pitch: Single;
       end;
 
@@ -91,7 +91,7 @@ end;
 procedure TSkyDome.BuildVAO;
 const
   PitchSteps = 30; // min 1
-  TurnSteps = 120;  // min 3
+  TurnSteps = 120; // min 3
 
   procedure AddData(T, P: Single);
   var
@@ -99,7 +99,7 @@ const
   begin
     P := P * 90 / PitchSteps;
     T := T * 360 / TurnSteps;
-    Data.Pos := TGDirection.Create(T, P).ToVector;
+    Data.Pos := TVectorDir.Create(T, P);
     Data.Pitch := P;
     AddVertex(Data);
   end;

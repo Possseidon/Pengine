@@ -1,16 +1,15 @@
 {$IF DEFINED(INTERFACE_SECTION)}
 
   {$DEFINE HEADER}{$I DelegateSnippets}{$UNDEF HEADER}<T> = record
-  private
-    type
-      TCall = procedure (const {$DEFINE PARAMLIST}{$I DelegateSnippets}{$UNDEF PARAMLIST}: Pointer) of object;
-      {$IFNDEF FPC}
-      PCall = ^TCall;
-      {$ENDIF}
+  private type
+    TCall = procedure (const {$DEFINE PARAMLIST}{$I DelegateSnippets}{$UNDEF PARAMLIST}: Int64) of object;
+    {$IFNDEF FPC}
+    PCall = ^TCall;
+    {$ENDIF}
   private
     FItems: array of T;
 
-    procedure CallFunction(const {$DEFINE PARAMLIST}{$I DelegateSnippets}{$UNDEF PARAMLIST}: Pointer);
+    procedure CallFunction(const {$DEFINE PARAMLIST}{$I DelegateSnippets}{$UNDEF PARAMLIST}: Int64);
     function GetCallFunction: T;
 
     function Find(const AMethod: T): Integer;
@@ -23,6 +22,11 @@
   end;
 
 {$ELSEIF DEFINED(IMPLEMENTATION_SECTION)}
+
+procedure DelegateCall(AMethod: TMethod);
+asm
+
+end;
 
 function {$DEFINE HEADER}{$I DelegateSnippets}{$UNDEF HEADER}<T>.GetCallFunction: T;
 var
@@ -64,14 +68,17 @@ begin
   Result := -1;
 end;
 
-procedure {$DEFINE HEADER}{$I DelegateSnippets}{$UNDEF HEADER}<T>.CallFunction(const {$DEFINE PARAMLIST}{$I DelegateSnippets}{$UNDEF PARAMLIST}: Pointer);
+procedure {$DEFINE HEADER}{$I DelegateSnippets}{$UNDEF HEADER}<T>.CallFunction(const {$DEFINE PARAMLIST}{$I DelegateSnippets}{$UNDEF PARAMLIST}: Int64);
 var
   Func: T;
 begin
   for Func in FItems do
+    SimpleCall(TMethod(AMethod));
+    (*
     {$IFDEF FPC}
     TCall(Func)({$DEFINE PARAMLIST}{$I DelegateSnippets}{$UNDEF PARAMLIST}); {$ELSE}
     PCall(@Func)^({$DEFINE PARAMLIST}{$I DelegateSnippets}{$UNDEF PARAMLIST}); {$ENDIF}
+    *)
 end;
 
 procedure {$DEFINE HEADER}{$I DelegateSnippets}{$UNDEF HEADER}<T>.Add(const AMethod: T);

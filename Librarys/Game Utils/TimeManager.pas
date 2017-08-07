@@ -47,12 +47,12 @@ type
 
 procedure StartTimer;
 function StopTimer: Single;
-procedure StopTimerAndOutput(ATimeFormat: TTimeFormat = tfSeconds);
-function StopTimerGetString(ATimeFormat: TTimeFormat = tfSeconds): String;
-function ConvertSecondsTo(ASeconds: Single; ATimeFormat: TTimeFormat): Single;
+procedure StopTimerAndOutput(ATimeFormat: TTimeFormat = tfSeconds); inline;
+function StopTimerGetString(ATimeFormat: TTimeFormat = tfSeconds): string; inline;
+function ConvertSecondsTo(ASeconds: Single; ATimeFormat: TTimeFormat): Single; inline;
 
 const
-  TimeFormatString: array [TTimeFormat] of String = (
+  TimeFormatString: array [TTimeFormat] of string = (
     'nanoseconds',
     'microseconds',
     'milliseconds',
@@ -102,7 +102,7 @@ begin
                   [ConvertSecondsTo(StopTimer, ATimeFormat)]));
 end;
 
-function StopTimerGetString(ATimeFormat: TTimeFormat): String;
+function StopTimerGetString(ATimeFormat: TTimeFormat): string;
 begin
   Result := Format('%.3f ' + TimeFormatString[ATimeFormat], [ConvertSecondsTo(StopTimer, ATimeFormat)]);
 end;

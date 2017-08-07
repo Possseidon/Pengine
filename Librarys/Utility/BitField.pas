@@ -22,31 +22,35 @@ type
   { TBitField }
 
   TBitField = class
+  private type
+
+    TDataType = Byte;
+    PDataType = ^TDataType;
+
+    { TIterator }
+
+    TIterator = class
+    private
+      FBitField: TBitField;
+      FCurrent: Integer;
+      FReverse: Boolean;
+    public
+      constructor Create(ABitField: TBitField; AReverse: Boolean);
+      property Current: Integer read FCurrent;
+      function MoveNext: Boolean;
+    end;
+
   private
-    type
-
-      { TIterator }
-
-      TIterator = class
-      private
-        FBitField: TBitField;
-        FCurrent: Integer;
-        FReverse: Boolean;
-      public
-        constructor Create(ABitField: TBitField; AReverse: Boolean);
-        property Current: Integer read FCurrent;
-        function MoveNext: Boolean;
-      end;
-
-  private
-    B: array of Byte;
+    B: array of TDataType;
     FSize: Integer;
     FIterReverse: Boolean;
     FOnes: Integer;
 
+    procedure SetSize(Bits: Integer);
+
     function GetBit(I: Integer): Boolean;
     function GetByteSize: Integer;
-    function GetDataPointer: PByte;
+    function GetDataPointer: PDataType;
     function GetFirstOne: Integer;
     function GetFirstZero: Integer;
     function GetLastOne: Integer;
@@ -62,7 +66,6 @@ type
     constructor Create(Bits: Integer); overload;
     destructor Destroy; override;
 
-    procedure SetSize(Bits: Integer);
     function Toggle(FBit: Integer): Boolean;
     procedure Clear;
     procedure Fill;
@@ -80,9 +83,9 @@ type
 
     function IterReversed: TBitField;
 
-    property Size: Integer read FSize;
+    property Size: Integer read FSize write SetSize;
     property ByteSize: Integer read GetByteSize;
-    property DataPointer: PByte read GetDataPointer;
+    property DataPointer: PDataType read GetDataPointer;
     property Ones: Integer read FOnes;
     property Zeros: Integer read GetZeros;
 
@@ -154,10 +157,10 @@ end;
 
 function TBitField.GetByteSize: Integer;
 begin
-  Result := Length(B);
+  Result := Length(B) * SizeOf(TDataType);
 end;
 
-function TBitField.GetDataPointer: PByte;
+function TBitField.GetDataPointer: PDatatype;
 begin
   Result := @(B[0]);
 end;
@@ -217,7 +220,7 @@ end;
 
 procedure TBitField.SetBit(I: Integer; AValue: Boolean);
 var
-  Old: Byte;
+  Old: TDataType;
 begin
   CheckRange(I);
   Old := B[I div 8];
@@ -259,7 +262,7 @@ end;
 
 procedure TBitField.SetSize(Bits: Integer);
 begin
-  SetLength(B, Ceil(Bits / 8));
+  SetLength(B, Ceil(Bits / (SizeOf(TDataType) * 8)));
   FSize := Bits;
 end;
 

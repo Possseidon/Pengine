@@ -35,7 +35,7 @@ type
     class function Gray(V: Single; A: Single = 1): TColorRGBA; static;
     class function Rainbow(H: Single; A: Single = 1): TColorRGBA; static;
 
-    class operator Implicit(AValue: TColorRGBA): TGVector4;
+    class operator Implicit(AValue: TColorRGBA): TVector4;
     class operator Implicit(AValue: TColor): TColorRGBA;
 
     function ToWinColor: TColor;
@@ -73,7 +73,7 @@ type
 
     class operator Implicit(AValue: TColorRGBA): TColorRGB;
     class operator Implicit(AValue: TColorRGB): TColorRGBA;
-    class operator Implicit(AValue: TColorRGB): TGVector3;
+    class operator Implicit(AValue: TColorRGB): TVector3;
     class operator Implicit(AValue: TColor): TColorRGB;
 
     function ToWinColor: TColor;
@@ -275,7 +275,7 @@ begin
   Result := AValue.ToRGBA(1);
 end;
 
-class operator TColorRGB.Implicit(AValue: TColorRGB): TGVector3;
+class operator TColorRGB.Implicit(AValue: TColorRGB): TVector3;
 begin
   Result.X := AValue.R;
   Result.Y := AValue.G;
@@ -416,7 +416,7 @@ begin
   Result.A := A.A;
 end;
 
-class operator TColorRGBA.Implicit(AValue: TColorRGBA): TGVector4;
+class operator TColorRGBA.Implicit(AValue: TColorRGBA): TVector4;
 begin
   Result.X := AValue.R;
   Result.Y := AValue.G;

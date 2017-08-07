@@ -3,7 +3,8 @@ unit Particles;
 interface
 
 uses
-  Classes, SysUtils, Lists, TextureManager, VAOManager, Shaders, GLEnums, VectorGeometry, Color, Camera, OpenGLContext;
+  Classes, SysUtils, Lists, TextureManager, VAOManager, Shaders, GLEnums, VectorGeometry, Color, Camera, OpenGLContext,
+  InterfaceBase, Matrix;
 
 type
 
@@ -22,41 +23,41 @@ type
       { TData }
 
       TData = record
-        Pos: TGVector3;
+        Pos: TVector3;
         Rotation: Single;
-        Offset: TGVector2;
+        Offset: TVector2;
         Color: TColorRGBA;
         Texcoord: TTexCoord2;
       end;
 
   protected
-    FPos: TGVector3;
+    FPos: TVector3;
     FRotation: Single;
-    FSize: TGVector2;
+    FSize: TVector2;
     FColor: TColorRGBA;
     FTexture: PChar;
 
     FRemoveFlag: Boolean;
 
     FCamDistance: Single;
-    FCamLine: PGLine;
+    FCamLine: PLine3;
 
   public
-    constructor Create(APos: TGVector3; ARotation: Single; ASize: TGVector2; AColor: TColorRGBA; ATexture: PChar);
+    constructor Create(APos: TVector3; ARotation: Single; ASize: TVector2; AColor: TColorRGBA; ATexture: PChar);
 
-    class function CompareDistance(A, B: TObject): Boolean; static;
+    class function CompareDistance(A, B: TBasicParticle): Boolean; static;
 
     class function GetMode: TParticleMode; virtual; abstract;
 
-    procedure SetCamLine(const ACamLine: TGLine);
+    procedure SetCamLine(const ACamLine: TLine3);
     procedure Update(ADeltaTime: Single); virtual;
 
     procedure AddToVAO(FVAO: TVAO; FTexturePage: TTexturePage);
 
-    property Pos: TGVector3 read FPos;
+    property Pos: TVector3 read FPos;
     property Rotation: Single read FRotation;
     property Color: TColorRGBA read FColor;
-    property Size: TGVector2 read FSize;
+    property Size: TVector2 read FSize;
     property Texture: PChar read FTexture;
 
     property RemoveFlag: Boolean read FRemoveFlag;
@@ -77,22 +78,22 @@ type
 
   { TParticleSystem }
   // Render this as far back as possible
-  TParticleSystem = class
+  TParticleSystem = class (TInterfaceBase, IRenderable)
   private
     FVAOs: array [TParticleMode] of TVAO;
     FCamera: TCamera;
-    FOpenGL: TOpenGLContext;
+    FOpenGL: TGLForm;
 
     FTexturePage: TTexturePage;
 
-    FParticles: array [TParticleMode] of TObjectList;
-    FParticleGenerators: TObjectList;
+    FParticles: array [TParticleMode] of TObjectArray<TBasicParticle>;
+    FParticleGenerators: TObjectArray<TBasicParticleGen>;
 
     function GetParticleCount: Cardinal;
 
     procedure BuildVAOs;
   public
-    constructor Create(AShader: TShader; ACamera: TCamera; AOpenGL: TOpenGLContext);
+    constructor Create(AShader: TShader; ACamera: TCamera; AOpenGL: TGLForm);
     destructor Destroy; override;
 
     procedure AddParticle(AParticle: TBasicParticle);
@@ -103,9 +104,15 @@ type
 
     procedure Update(ADeltaTime: Single);
 
+    function GetVisible: Boolean;
+    function HasBounds: Boolean;
+    function Bounds: TBounds3;
+    function ModelMatrix: TMatrix4;
+
     property ParticleCount: Cardinal read GetParticleCount;
 
     procedure Render;
+
   end;
 
 implementation
@@ -119,7 +126,7 @@ end;
 
 { TBasicParticle }
 
-constructor TBasicParticle.Create(APos: TGVector3; ARotation: Single; ASize: TGVector2; AColor: TColorRGBA;
+constructor TBasicParticle.Create(APos: TVector3; ARotation: Single; ASize: TVector2; AColor: TColorRGBA;
   ATexture: PChar);
 begin
   FPos := APos;
@@ -129,12 +136,12 @@ begin
   FTexture := ATexture;
 end;
 
-class function TBasicParticle.CompareDistance(A, B: TObject): Boolean;
+class function TBasicParticle.CompareDistance(A, B: TBasicParticle): Boolean;
 begin
   Result := TBasicParticle(A).FCamDistance < TBasicParticle(B).FCamDistance;
 end;
 
-procedure TBasicParticle.SetCamLine(const ACamLine: TGLine);
+procedure TBasicParticle.SetCamLine(const ACamLine: TLine3);
 begin
   FCamLine := @ACamLine;
 end;
@@ -142,7 +149,7 @@ end;
 procedure TBasicParticle.Update(ADeltaTime: Single);
 begin
   if FCamLine <> nil then
-    FCamDistance := FCamLine.OrthoProjDistance(Pos);
+    FCamDistance := FCamLine.OrthoProj(Pos);
 end;
 
 procedure TBasicParticle.AddToVAO(FVAO: TVAO; FTexturePage: TTexturePage);
@@ -168,20 +175,20 @@ end;
 
 { TParticleSystem }
 
-constructor TParticleSystem.Create(AShader: TShader; ACamera: TCamera; AOpenGL: TOpenGLContext);
+constructor TParticleSystem.Create(AShader: TShader; ACamera: TCamera; AOpenGL: TGLForm);
 var
   M: TParticleMode;
 begin
   for M := Low(TParticleMode) to High(TParticleMode) do
   begin
     FVAOs[M] := TVAO.Create(AShader);
-    FParticles[M] := TObjectList.Create;
+    FParticles[M] := TObjectArray<TBasicParticle>.Create;
   end;
   FCamera := ACamera;
 
   FTexturePage := TTexturePage.Create;
-  FTexturePage.Uniform(AShader, 'tex');
-  FParticleGenerators := TObjectList.Create;
+  FTexturePage.Uniform(AShader.UniformSampler('tex'), ttMain);
+  FParticleGenerators := TObjectArray<TBasicParticleGen>.Create;
 
   FOpenGL := AOpenGL;
 end;
@@ -214,9 +221,9 @@ end;
 procedure TParticleSystem.AddTextureFromFile(AFileName, AName: String);
 begin
   if AName = '' then
-    FTexturePage.AddTexture(AFileName)
+    FTexturePage.AddTextureFromFile(AFileName)
   else
-    FTexturePage.AddTexture(AFileName, AName);
+    FTexturePage.AddTextureFromFile(AFileName, AName);
 end;
 
 procedure TParticleSystem.AddTextureFromResource(AResourceName, AName: String);
@@ -227,6 +234,11 @@ begin
     FTexturePage.AddTextureFromResource(AResourceName, AName);
 end;
 
+function TParticleSystem.Bounds: TBounds3;
+begin
+  Result.Create(0);
+end;
+
 procedure TParticleSystem.BuildTexturePage(ASegmentResolution: Cardinal);
 begin
   FTexturePage.BuildPage(ASegmentResolution);
@@ -235,13 +247,13 @@ end;
 procedure TParticleSystem.Update(ADeltaTime: Single);
 var
   ParticleGen: TBasicParticleGen;
-  CamLine: TGLine;
+  CamLine: TLine3;
   M: TParticleMode;
 begin
-  for TObject(ParticleGen) in FParticleGenerators do
+  for ParticleGen in FParticleGenerators do
     ParticleGen.Update(ADeltaTime);
 
-  CamLine := FCamera.GetCursorLine(Origin);
+  CamLine := FCamera.GetCursorLine(0);
 
   for M := Low(TParticleMode) to High(TParticleMode) do
     with FParticles[M].GetEnumerator(True) do while MoveNext do
@@ -260,26 +272,23 @@ procedure TParticleSystem.Render;
 begin
   BuildVAOs;
 
-  FCamera.ResetModelLocation;
-  FCamera.Render;
-
   FVAOs[pmBinaryAlpha].Render;
 
-  FOpenGL.Push;
+  FOpenGL.PushState;
 
   FOpenGL.State.BlendFactorSrc := bfsSrcAlpha;
   FOpenGL.State.BlendFactorDest := bfdOne;
   FOpenGL.State.DepthTest := False;
   FVAOs[pmAdditive].Render;
 
-  FOpenGL.Pop;
+  FOpenGL.PopState;
 
-  FOpenGL.Push;
+  FOpenGL.PushState;
 
   FOpenGL.State.DepthMask := False;
   FVAOs[pmRealAlpha].Render;
 
-  FOpenGL.Pop;
+  FOpenGL.PopState;
 end;
 
 function TParticleSystem.GetParticleCount: Cardinal;
@@ -291,6 +300,21 @@ begin
     Result := Result + FParticles[M].Count;
 end;
 
+function TParticleSystem.GetVisible: Boolean;
+begin
+  Result := True;
+end;
+
+function TParticleSystem.HasBounds: Boolean;
+begin
+  Result := False;
+end;
+
+function TParticleSystem.ModelMatrix: TMatrix4;
+begin
+  Result.LoadIdentity;
+end;
+
 procedure TParticleSystem.BuildVAOs;
 var
   Particle: TBasicParticle;
@@ -300,7 +324,7 @@ begin
   begin
     FVAOs[M].Generate(FParticles[M].Count * 6, buStreamDraw);
     FVAOs[M].Map(baWriteOnly);
-    for TObject(Particle) in FParticles[M] do
+    for Particle in FParticles[M] do
       Particle.AddToVAO(FVAOs[M], FTexturePage);
     FVAOs[M].Unmap;
   end;

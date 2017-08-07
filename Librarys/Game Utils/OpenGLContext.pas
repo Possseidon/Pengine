@@ -4,11 +4,11 @@ interface
 
 uses
   dglOpenGL, Forms, Controls, Windows, Classes, GLEnums, Color, InputHandler, TimeManager, Lists, Graphics, FBOManager,
-  SysUtils, Dialogs
+  SysUtils, Dialogs, Shaders
   {$IFNDEF FPC}
-  , Messages, UITypes
+    , Messages, UITypes
   {$ENDIF}
-  ;
+    ;
 
 type
 
@@ -19,23 +19,26 @@ type
   // 2) property
   // 3) Update Function
   // 4) Pop
-  // 5) copy
-  // 6) initialization (important for pop to main state)
+  // 5) Copy
+  // 6) InitDefaults
 
   TOpenGLState = class
-  public
-    type
-      TState = (
-        stClearColor,
-        stDepthFunc,
-        stCullFace,
-        stDepthTest,
-        stBlend,
-        stBlendFunc,
-        stDepthMask,
-        stSeamlessCubemap
+  public type
+    TState = (
+      stClearColor,
+      stDepthFunc,
+      stCullFace,
+      stDepthTest,
+      stBlend,
+      stBlendFunc,
+      stDepthMask,
+      stSeamlessCubemap,
+      stDepthClamp,
+      stDebugOutput,
+      stDebugOutputSynced
       );
-     TStates = set of TState;
+    TStates = set of TState;
+
   private
     FBlend: Boolean;
     FBlendFunc: TGLBlendingFunc;
@@ -46,16 +49,22 @@ type
     FDepthMask: Boolean;
     FDepthTest: Boolean;
     FSeamlessCubemap: Boolean;
+    FDepthClamp: Boolean;
+    FDebugOutput: Boolean;
+    FDebugOutputSynced: Boolean;
 
-    procedure SetBlend(AValue: Boolean);
-    procedure SetBlendFactorDest(AValue: TGLBlendingFactorDest);
-    procedure SetBlendFactorSrc(AValue: TGLBlendingFactorSrc);
-    procedure SetClearColor(AValue: TColorRGBA);
-    procedure SetCullFace(AValue: TGLCullFace);
-    procedure SetDepthFunc(AValue: TGLCompareFunction);
-    procedure SetDepthMask(AValue: Boolean);
-    procedure SetDepthTest(AValue: Boolean);
-    procedure SetSeamlessCubemap(AValue: Boolean);
+    procedure SetBlend(const Value: Boolean);
+    procedure SetBlendFactorDest(const Value: TGLBlendingFactorDest);
+    procedure SetBlendFactorSrc(const Value: TGLBlendingFactorSrc);
+    procedure SetClearColor(const Value: TColorRGBA);
+    procedure SetCullFace(const Value: TGLCullFace);
+    procedure SetDepthFunc(const Value: TGLCompareFunction);
+    procedure SetDepthMask(const Value: Boolean);
+    procedure SetDepthTest(const Value: Boolean);
+    procedure SetSeamlessCubemap(const Value: Boolean);
+    procedure SetDepthClamp(const Value: Boolean);
+    procedure SetDebugOutput(const Value: Boolean);
+    procedure SetDebugOutputSynced(const Value: Boolean);
 
   public
     function Copy: TOpenGLState;
@@ -70,6 +79,9 @@ type
     property BlendFactorDest: TGLBlendingFactorDest read FBlendFunc.Dest write SetBlendFactorDest;
     property DepthMask: Boolean read FDepthMask write SetDepthMask;
     property SeamlessCubemap: Boolean read FSeamlessCubemap write SetSeamlessCubemap;
+    property DepthClamp: Boolean read FDepthClamp write SetDepthClamp;
+    property DebugOutput: Boolean read FDebugOutput write SetDebugOutput;
+    property DebugOutputSynced: Boolean read FDebugOutputSynced write SetDebugOutputSynced;
 
     procedure UpdateClearColor;
     procedure UpdateDepthFunc;
@@ -79,13 +91,14 @@ type
     procedure UpdateBlendFunc;
     procedure UpdateDepthMask;
     procedure UpdateSeamlessCubemap;
+    procedure UpdateDepthClamp;
+    procedure UpdateDebugOutput;
+    procedure UpdateDebugOutputSynced;
   end;
-
-  TCharPressEvent = procedure (Sender: TObject; PressedChar: AnsiChar) of object;
 
   { TGLForm }
 
-  TGLForm = class (TForm)
+  TGLForm = class(TForm)
   private
     FFullscreen: Boolean;
     FMustUpdateFPS: Boolean;
@@ -108,8 +121,6 @@ type
 
     FOldWindowState: TWindowState;
 
-    FOnCharPress: TCharPressEvent;
-
     FFBO: TFBO;
 
     FMultiSampling: Boolean;
@@ -129,12 +140,12 @@ type
     procedure InitGL;
     procedure FinalizeGL;
 
-    procedure SetFullscreen(AValue: Boolean);
-    procedure SetCursorVisible(AValue: Boolean);
-    procedure SetMultiSampling(AValue: Boolean);
-    procedure SetSamples(AValue: Cardinal);
-    procedure SetVSync(AValue: Boolean);
-    procedure SetFPSLimit(AValue: Single);
+    procedure SetFullscreen(Value: Boolean);
+    procedure SetCursorVisible(Value: Boolean);
+    procedure SetMultiSampling(Value: Boolean);
+    procedure SetSamples(Value: Cardinal);
+    procedure SetVSync(Value: Boolean);
+    procedure SetFPSLimit(Value: Single);
 
     procedure InitDefaults;
 
@@ -146,8 +157,12 @@ type
 
     procedure Start;
 
+    class procedure DebugCallback(ASource, AType, AID, ASeverity: Cardinal; ALength: Integer; const AMessage: PAnsiChar;
+      AUserdata: Pointer); static; stdcall;
+
   protected
     procedure Resize; override;
+    procedure Paint; override;
 
   public
     constructor Create(TheOwner: TComponent); override;
@@ -178,7 +193,7 @@ type
     procedure PopState;
 
     procedure Pause;
-    procedure Continue;
+    procedure Resume;
 
     procedure Render;
 
@@ -189,16 +204,11 @@ type
     procedure UpdateFunc; virtual;
     procedure ResizeFunc; virtual;
 
-    property OnCharPress: TCharPressEvent read FOnCharPress write FOnCharPress;
-
     property MultiSampling: Boolean read FMultiSampling write SetMultiSampling;
     property MaxSamples: Cardinal read FMaxSamples;
     property Samples: Cardinal read FSamples write SetSamples;
 
     property Aspect: Single read GetAspect;
-
-    const
-      TaskbarWindowClass = 'Shell_TrayWnd';
 
   end;
 
@@ -207,85 +217,115 @@ implementation
 uses
   Math;
 
+const
+  TaskbarWindowClass = 'Shell_TrayWnd';
+
 { TOpenGLState }
 
-procedure TOpenGLState.SetClearColor(AValue: TColorRGBA);
+procedure TOpenGLState.SetClearColor(const Value: TColorRGBA);
 begin
-  if FClearColor = AValue then
+  if FClearColor = Value then
     Exit;
-  FClearColor := AValue;
+  FClearColor := Value;
   Include(FChanges, stClearColor);
   UpdateClearColor;
 end;
 
-procedure TOpenGLState.SetBlend(AValue: Boolean);
+procedure TOpenGLState.SetDebugOutput(const Value: Boolean);
 begin
-  if FBlend = AValue then
+  if FDebugOutput = Value then
     Exit;
-  FBlend := AValue;
+  FDebugOutput := Value;
+  Include(FChanges, stDebugOutput);
+  UpdateDebugOutput;
+end;
+
+procedure TOpenGLState.SetDebugOutputSynced(const Value: Boolean);
+begin
+  if FDebugOutputSynced = Value then
+    Exit;
+  FDebugOutputSynced := Value;
+  Include(FChanges, stDebugOutputSynced);
+  UpdateDebugOutput;
+end;
+
+procedure TOpenGLState.SetBlend(const Value: Boolean);
+begin
+  if FBlend = Value then
+    Exit;
+  FBlend := Value;
   Include(FChanges, stBlend);
   UpdateBlend;
 end;
 
-procedure TOpenGLState.SetBlendFactorDest(AValue: TGLBlendingFactorDest);
+procedure TOpenGLState.SetBlendFactorDest(const Value: TGLBlendingFactorDest);
 begin
-  if FBlendFunc.Dest = AValue then
+  if FBlendFunc.Dest = Value then
     Exit;
-  FBlendFunc.Dest := AValue;
+  FBlendFunc.Dest := Value;
   Include(FChanges, stBlendFunc);
   UpdateBlendFunc;
 end;
 
-procedure TOpenGLState.SetBlendFactorSrc(AValue: TGLBlendingFactorSrc);
+procedure TOpenGLState.SetBlendFactorSrc(const Value: TGLBlendingFactorSrc);
 begin
-  if FBlendFunc.Src = AValue then
+  if FBlendFunc.Src = Value then
     Exit;
-  FBlendFunc.Src := AValue;
+  FBlendFunc.Src := Value;
   Include(FChanges, stBlendFunc);
   UpdateBlendFunc;
 end;
 
-procedure TOpenGLState.SetCullFace(AValue: TGLCullFace);
+procedure TOpenGLState.SetCullFace(const Value: TGLCullFace);
 begin
-  if FCullFace = AValue then
+  if FCullFace = Value then
     Exit;
-  FCullFace := AValue;
+  FCullFace := Value;
   Include(FChanges, stCullFace);
   UpdateCullFace;
 end;
 
-procedure TOpenGLState.SetDepthFunc(AValue: TGLCompareFunction);
+procedure TOpenGLState.SetDepthClamp(const Value: Boolean);
 begin
-  if FDepthFunc = AValue then
+  if FDepthClamp = Value then
     Exit;
-  FDepthFunc := AValue;
+  FDepthClamp := Value;
+  Include(FChanges, stDepthClamp);
+  UpdateDepthClamp;
+end;
+
+procedure TOpenGLState.SetDepthFunc(const Value: TGLCompareFunction);
+begin
+  if FDepthFunc = Value then
+    Exit;
+  FDepthFunc := Value;
   Include(FChanges, stDepthFunc);
   UpdateDepthFunc;
 end;
 
-procedure TOpenGLState.SetDepthMask(AValue: Boolean);
+procedure TOpenGLState.SetDepthMask(const Value: Boolean);
 begin
-  if FDepthMask = AValue then
+  if FDepthMask = Value then
     Exit;
-  FDepthMask := AValue;
+  FDepthMask := Value;
   Include(FChanges, stDepthMask);
   UpdateDepthMask;
 end;
 
-procedure TOpenGLState.SetDepthTest(AValue: Boolean);
+procedure TOpenGLState.SetDepthTest(const Value: Boolean);
 begin
-  if FDepthTest = AValue then
+  if FDepthTest = Value then
     Exit;
-  FDepthTest := AValue;
+  FDepthTest := Value;
   Include(FChanges, stDepthTest);
   UpdateDepthTest;
 end;
 
-procedure TOpenGLState.SetSeamlessCubemap(AValue: Boolean);
+procedure TOpenGLState.SetSeamlessCubemap(const Value: Boolean);
 begin
-  if FSeamlessCubemap = AValue then
+  if FSeamlessCubemap = Value then
     Exit;
-  FSeamlessCubemap := AValue;
+  FSeamlessCubemap := Value;
   Include(FChanges, stSeamlessCubemap);
   UpdateSeamlessCubemap;
 end;
@@ -302,26 +342,53 @@ begin
   Result.FCullFace := FCullFace;
   Result.FDepthMask := FDepthMask;
   Result.FSeamlessCubemap := FSeamlessCubemap;
+  Result.FDepthClamp := FDepthClamp;
+  Result.FDebugOutput := FDebugOutput;
+  Result.FDebugOutputSynced := FDebugOutputSynced;
 end;
 
 procedure TOpenGLState.UpdateClearColor;
 begin
-  glClearColor(FClearColor.R, FClearColor.G, FClearColor.B, FClearColor.A);
+  glClearColor(ClearColor.R, ClearColor.G, ClearColor.B, ClearColor.A);
+end;
+
+procedure TOpenGLState.UpdateDebugOutput;
+begin
+  if DebugOutput then
+    glEnable(GL_DEBUG_OUTPUT)
+  else
+    glDisable(GL_DEBUG_OUTPUT);
+end;
+
+procedure TOpenGLState.UpdateDebugOutputSynced;
+begin
+  if DebugOutputSynced then
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS)
+  else
+    glDisable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+end;
+
+procedure TOpenGLState.UpdateDepthClamp;
+begin
+  if DepthClamp then
+    glEnable(GL_DEPTH_CLAMP)
+  else
+    glDisable(GL_DEPTH_CLAMP);
 end;
 
 procedure TOpenGLState.UpdateDepthFunc;
 begin
-  glDepthFunc(Ord(FDepthFunc));
+  glDepthFunc(Ord(DepthFunc));
 end;
 
 procedure TOpenGLState.UpdateCullFace;
 begin
-  glCullFace(Ord(FCullFace));
+  glCullFace(Ord(CullFace));
 end;
 
 procedure TOpenGLState.UpdateDepthTest;
 begin
-  if FDepthTest then
+  if DepthTest then
     glEnable(GL_DEPTH_TEST)
   else
     glDisable(GL_DEPTH_TEST);
@@ -329,7 +396,7 @@ end;
 
 procedure TOpenGLState.UpdateBlend;
 begin
-  if FBlend then
+  if Blend then
     glEnable(GL_BLEND)
   else
     glDisable(GL_BLEND);
@@ -337,17 +404,17 @@ end;
 
 procedure TOpenGLState.UpdateBlendFunc;
 begin
-  glBlendFunc(Ord(FBlendFunc.Src), Ord(FBlendFunc.Dest));
+  glBlendFunc(Ord(BlendFactorSrc), Ord(BlendFactorDest));
 end;
 
 procedure TOpenGLState.UpdateDepthMask;
 begin
-  glDepthMask(FDepthMask);
+  glDepthMask(DepthMask);
 end;
 
 procedure TOpenGLState.UpdateSeamlessCubemap;
 begin
-  if FSeamlessCubemap then
+  if SeamlessCubemap then
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS)
   else
     glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
@@ -379,6 +446,20 @@ begin
     WindowState := wsMinimized;
     //ShowWindow(Handle, SW_HIDE);
   end;
+end;
+
+class procedure TGLForm.DebugCallback(ASource, AType, AID, ASeverity: Cardinal; ALength: Integer;
+  const AMessage: PAnsiChar; AUserdata: Pointer);
+var
+  S: string;
+begin
+  S := Format(
+    'OpenGL [%s] %s (%s)' + sLineBreak + '%s',
+    [GLDebugMessageSeverityName(TGLDebugMessageSeverity(ASeverity)),
+    GLDebugMessageTypeName(TGLDebugMessageType(AType)),
+    GLDebugMessageSourceName(TGLDebugMessageSource(ASource)),
+    AMessage]);
+  OutputDebugString(@S[1]);
 end;
 
 function TGLForm.GetAspect: Single;
@@ -417,6 +498,8 @@ begin
   FRC := CreateRenderingContextVersion(FDC, [opDoubleBuffered], 4, 3, True, 32, 32, 0, 0, 0, 0);
   ActivateRenderingContext(FDC, FRC);
 
+  glDebugMessageCallback(DebugCallback, Self);
+
   StateStack := TObjectStack<TOpenGLState>.Create;
   StateStack.Push(TOpenGLState.Create);
   InitDefaults;
@@ -431,13 +514,18 @@ begin
   Application.OnIdle := IdleHandler;
 end;
 
+procedure TGLForm.Paint;
+begin
+  Render;
+end;
+
 procedure TGLForm.Pause;
 begin
   FInput.ReleaseAll;
   Application.OnIdle := nil;
 end;
 
-procedure TGLForm.Continue;
+procedure TGLForm.Resume;
 begin
   FTimer.Update;
   Application.OnIdle := IdleHandler;
@@ -452,20 +540,20 @@ begin
   ReleaseDC(Handle, FDC);
 end;
 
-procedure TGLForm.SetFPSLimit(AValue: Single);
+procedure TGLForm.SetFPSLimit(Value: Single);
 begin
-  if AValue = 0 then
+  if Value = 0 then
     raise Exception.Create('FPS Limit must be greater than zero!');
-  if FFPSLimit = AValue then
+  if FFPSLimit = Value then
     Exit;
-  FFPSLimit := AValue;
+  FFPSLimit := Value;
 end;
 
-procedure TGLForm.SetFullscreen(AValue: Boolean);
+procedure TGLForm.SetFullscreen(Value: Boolean);
 var
   Flags: LONG;
 begin
-  FFullscreen := AValue;
+  FFullscreen := Value;
 
   if FFullscreen then
   begin
@@ -494,16 +582,16 @@ begin
   end;
 end;
 
-procedure TGLForm.SetCursorVisible(AValue: Boolean);
+procedure TGLForm.SetCursorVisible(Value: Boolean);
 begin
-  Cursor := TCursor(AValue) - 1;
+  Cursor := TCursor(Value) - 1;
 end;
 
-procedure TGLForm.SetMultiSampling(AValue: Boolean);
+procedure TGLForm.SetMultiSampling(Value: Boolean);
 begin
-  if FMultiSampling = AValue then
+  if FMultiSampling = Value then
     Exit;
-  FMultiSampling := AValue;
+  FMultiSampling := Value;
 
   if FMultiSampling then
   begin
@@ -517,14 +605,14 @@ begin
     FFBO.Free;
 end;
 
-procedure TGLForm.SetSamples(AValue: Cardinal);
+procedure TGLForm.SetSamples(Value: Cardinal);
 begin
-  if (AValue < 1) or (AValue > MaxSamples) then
-    raise Exception.Create('Unspoorted Number of Samples!');
+  if (Value < 1) or (Value > MaxSamples) then
+    raise Exception.Create('Unspported Number of Samples!');
 
-  if (FSamples = AValue) and MultiSampling then
+  if (FSamples = Value) and MultiSampling then
     Exit;
-  FSamples := AValue;
+  FSamples := Value;
 
   if not MultiSampling then
     MultiSampling := True
@@ -532,9 +620,9 @@ begin
     FFBO.SetSamples(FSamples);
 end;
 
-procedure TGLForm.SetVSync(AValue: Boolean);
+procedure TGLForm.SetVSync(Value: Boolean);
 begin
-  FVSync := AValue;
+  FVSync := Value;
   wglSwapIntervalEXT(Integer(FVSync));
 end;
 
@@ -551,12 +639,15 @@ begin
   State.BlendFactorDest := bfdOneMinusSrcAlpha;
   State.DepthMask := True; // default
   State.SeamlessCubemap := True;
+  State.DepthClamp := True;
+  State.DebugOutput := False; // default
+  State.DebugOutputSynced := False; // default
 end;
 
 procedure TGLForm.WaitForFPSLimit;
 begin
   if FPS > FPSLimit then
-    Sleep(Floor(1000 / FPSLimit));
+    Sleep(Ceil(1000 / FPSLimit));
 end;
 
 procedure TGLForm.IdleHandler(Sender: TObject; var Done: Boolean);
@@ -567,7 +658,6 @@ begin
   begin
     try
       UpdateFunc;
-      GLErrorMessage;
     except
       on E: Exception do
       begin
@@ -578,7 +668,7 @@ begin
           Exit;
         end
         else
-          Continue;
+          Resume;
       end;
     end;
   end;
@@ -596,7 +686,7 @@ begin
         Exit;
       end
       else
-        Continue;
+        Resume;
     end;
   end;
 
@@ -613,23 +703,23 @@ var
 begin
   case AMessage.msg of
     WM_SYSCOMMAND:
-    begin
-      if (AMessage.wParamlo = SC_KEYMENU) and (AMessage.wParamhi = 0) then
-        AMessage.msg := WM_NULL;
-    end;
-    WM_CHAR:
-    begin
-      W := MakeWPARAM(AMessage.wParamlo, AMessage.wParamhi);
-      if W = 0 then
-        AMessage.Result := 1
-      else
       begin
+        if (AMessage.wParamlo = SC_KEYMENU) and (AMessage.wParamhi = 0) then
+          AMessage.msg := WM_NULL;
+      end;
+    WM_CHAR:
+      begin
+        W := MakeWPARAM(AMessage.wParamlo, AMessage.wParamhi);
+        if W = 0 then
+          AMessage.Result := 1
+        else
+        begin
         // 0 - 31 = control charachters
         // 127 = Ctrl-Backspace
-        if (W >= 32) and (W < 256) and (W <> 127) then
-          FInput.PressChar(AnsiChar(W));
+          if (W >= 32) and (W < 256) and (W <> 127) then
+            FInput.PressChar(AnsiChar(W));
+        end;
       end;
-    end;
   end;
 
   inherited WndProc(AMessage);
@@ -646,15 +736,10 @@ begin
   end
   else
   begin
-    GLErrorMessage;
     TFBO.BindScreen(ClientWidth, ClientHeight);
-    GLErrorMessage;
     glClear(Ord(ClearMask));
-    GLErrorMessage;
     RenderFunc;
-    GLErrorMessage;
   end;
-
   SwapBuffers(FDC);
 end;
 
@@ -683,6 +768,8 @@ begin
   ResizeFunc;
   if MultiSampling then
     FFBO.Resize(ClientWidth, ClientHeight);
+
+  Render;
 end;
 
 procedure TGLForm.ResizeFunc;
@@ -733,16 +820,14 @@ begin
     on E: EAbort do
     begin
       WindowState := wsMinimized;
-      Close;
+      PostQuitMessage(0);
     end;
     on E: Exception do
-      if ErrorBox('Initialization Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
-      begin
-        WindowState := wsMinimized; // hide the window sneaky sneaky
-        Close;
-      end
-      else
-        Start;
+    begin
+      ErrorBox('Initialization Error!', E.Message, [mbOK], mbOK);
+      WindowState := wsMinimized; // hide the window sneaky sneaky
+      PostQuitMessage(0);
+    end
   end;
 
   {$IFNDEF FPC}
@@ -756,7 +841,7 @@ begin
     Finalize;
   except
     on E: Exception do
-      MessageBox(0, PChar(E.Message), 'Finalization Error!', MB_ICONERROR);
+      ErrorBox('Finalization Error!', E.Message, [mbOK], mbOK);
   end;
   if Fullscreen then
     Fullscreen := False;
@@ -773,7 +858,7 @@ begin
   {$IFDEF FPC}
   Result := MessageDlg(ATitle, PChar(AMessage), mtError, AButtons, 0, ADefault);
   {$ELSE}
-  Result := MessageDlg(ATitle + sLineBreak + AMessage, mtError, AButtons, 0, ADefault);
+  Result := MessageDlg(ATitle + sLineBreak + sLineBreak + AMessage, mtError, AButtons, 0, ADefault);
   {$ENDIF}
 end;
 
@@ -808,9 +893,16 @@ begin
         State.UpdateDepthMask;
       stSeamlessCubemap:
         State.UpdateSeamlessCubemap;
+      stDepthClamp:
+        State.UpdateDepthClamp;
+      stDebugOutput:
+        State.UpdateDebugOutput;
+      stDebugOutputSynced:
+        State.UpdateDebugOutputSynced;
+    else
+      Assert(False);
     end;
   end;
 end;
 
 end.
-

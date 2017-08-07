@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{DE866CF4-C98B-4FCF-8891-D50B208B15B1}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="PengineListsVisualizer.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="VisualizerTestProj.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="PengineListsVisualizer">
+        <MSBuild Projects="PengineListsVisualizer.dproj"/>
+    </Target>
+    <Target Name="PengineListsVisualizer:Clean">
+        <MSBuild Projects="PengineListsVisualizer.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="PengineListsVisualizer:Make">
+        <MSBuild Projects="PengineListsVisualizer.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="VisualizerTestProj">
+        <MSBuild Projects="VisualizerTestProj.dproj"/>
+    </Target>
+    <Target Name="VisualizerTestProj:Clean">
+        <MSBuild Projects="VisualizerTestProj.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="VisualizerTestProj:Make">
+        <MSBuild Projects="VisualizerTestProj.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="PengineListsVisualizer;VisualizerTestProj"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="PengineListsVisualizer:Clean;VisualizerTestProj:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="PengineListsVisualizer:Make;VisualizerTestProj:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

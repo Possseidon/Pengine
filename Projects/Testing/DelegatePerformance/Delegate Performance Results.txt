@@ -1,0 +1,62 @@
+100.000.000 empty calls
+
+Debug:
+
+  Call(Sender: TMyClass; X, Y: Integer)
+
+    32bit:
+      no inline: 1.90 sec
+      if empty:  1.64 sec
+      inline:    1.20 sec
+      inline if: 0.82 sec
+
+    64bit:
+      no inline: 1.04 sec
+      if empty:  0.35 sec
+      inline:    0.91 sec
+      inline if: 0.24 sec
+      
+  Call(Sender: TMyClass; Data: array [1 .. 512] of Integer)
+
+    32bit:
+      no inline: 6.00 sec
+      if empty:  5.77 sec
+      inline:    1.22 sec
+      inline if: 0,86 sec
+
+    64bit:
+      no inline: 5,03 sec
+      if empty   4,49 sec
+      inline:    0,96 sec
+      inline if: 0,25 sec
+      
+Release:
+
+  Call(Sender: TMyClass; X, Y: Integer)
+
+    32bit:
+      no inline: 1,95 sec
+      if empty:  1,61 sec
+      inline:    1,21 sec
+      inline if: 0,87 sec
+
+    64bit:
+      no inline: 1,18 sec
+      if empty:  0,37 sec
+      inline:    0,93 sec
+      inline if: 0,24 sec
+      
+  Call(Sender: TMyClass; Data: array [1 .. 512] of Integer)
+
+    32bit:
+      no inline: 4,98 sec
+      if empty:  4,73 sec
+      inline:    1,24 sec
+      inline if: 0,86 sec
+
+    64bit:
+      no inline: 3,95 sec
+      if empty   3,34 sec
+      inline:    0,90 sec
+      inline if: 0,23 sec
+      

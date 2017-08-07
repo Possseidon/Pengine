@@ -3,144 +3,172 @@ unit VAOManager;
 interface
 
 uses
-  dglOpenGL, GLEnums, SysUtils, Shaders, Matrix, VectorGeometry;
+  dglOpenGL, GLEnums, SysUtils, Shaders, Matrix, VectorGeometry, GLObjectBase, Camera;
 
 type
 
   { EVBOFull }
 
-  EVBOFull = class (Exception)
+  EVBOFull = class(Exception)
   public
     constructor Create;
   end;
 
   { EVBONotEnoughSpace }
 
-  EVBONotEnoughSpace = class (Exception)
+  EVBONotEnoughSpace = class(Exception)
   public
     constructor Create(AMissing: Cardinal);
   end;
 
   { EVBOOutOfRange }
 
-  EVBOOutOfRange = class (Exception)
+  EVBOOutOfRange = class(Exception)
   public
     constructor Create(AIndex, AMax: Cardinal);
   end;
 
   { EVBOAttribOutOfRange }
 
-  EVBOAttribOutOfRange = class (Exception)
+  EVBOAttribOutOfRange = class(Exception)
   public
     constructor Create(AIndex, AMax: Cardinal);
   end;
 
   { EVBONotMapped }
 
-  EVBONotMapped = class (Exception)
+  EVBONotMapped = class(Exception)
   public
     constructor Create;
   end;
 
   { EVBOUnmappable }
 
-  EVBOUnmappable = class (Exception)
+  EVBOUnmappable = class(Exception)
   public
     constructor Create;
   end;
 
+  EVBOBindLock = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  { TVBO }
+
+  TVBO = class(TGLObject)
+  private
+    FMappedData: PByte;
+    FMappedOffset: Integer;
+
+    FStride: Integer;
+    FSize: Integer;
+    FMaxSize: Integer;
+
+    class var
+      BoundVBO: TVBO;
+      BindLock: Boolean;
+
+  protected
+    function GetObjectType: TGLObjectType; override;
+    procedure GenObject(var AGLName: Cardinal); override;
+    procedure DeleteObject(var AGLName: Cardinal); override;
+
+  public
+    constructor Create(AStride: Integer);
+
+    procedure Bind; override;
+    class procedure Unbind; override;
+
+    procedure Generate(AMaxSize: Integer; AUsage: TGLBufferUsage); overload;
+    procedure Generate(const AData; ADataSize: Integer; AUsage: TGLBufferUsage); overload;
+
+    property MaxSize: Integer read FMaxSize;
+    property Size: Integer read FSize;
+
+     // Mapped Access
+    procedure Map(AAccess: TGLBufferAccess);
+    procedure Unmap;
+
+    procedure AddVertex(const AData);
+    procedure AddVertices(const AData; ACount: Integer);
+
+    // Direct Access
+    procedure SubVertex(const AData; AIndex: Integer);
+  end;
+
   { TVAO }
 
-  TVAO = class
+  TVAO = class(TGLObject, IRenderable)
   private
-    type
-
-      { TAttribute }
-
-      TAttribute = record
-        Location: Integer;      // Shader Location
-        DataCount: Cardinal;    // DataCount per Vertex
-        DataType: TGLDataType;  // float, int, ...
-        DataSize: Cardinal;     // DataCount * Size of DataType
-        Offset: Cardinal;       // Offset in Data
-      end;
-
-  private
-    FVAOID, FVBOID: Cardinal; // IDs for VAO and VBO
-
-    FPVBO: PByte; // Start Pointer of Mapped Data
-    FVBOPos: Cardinal; // Offset to Start Pointer for Vertex add Procedures
+    FVBO: TVBO;
     FBeginMode: TGLBeginMode;
-
-    FSize, FMaxSize: Cardinal; // size for rendering, full size
-
-    FStride: Cardinal; // size per one vertex set
-
-    FAttribs: array of TAttribute;
 
     FShader: TShader;
 
     FVisible: Boolean;
 
     class var
-      BoundVAO: TVAO; // remember the last bound VAO for more performance
+      BoundVAO: TVAO;
 
     procedure GenAttributes;
-    function GetAttribCount: Cardinal;
+    function GetMaxSize: Integer; inline;
+    function GetSize: Integer; inline;
+
+    function GetVisible: Boolean;
+    procedure SetVisible(const Value: Boolean);
 
   protected
-    function GetModelMatrix: TMatrix4; virtual;
-    function GetBounds: TGBounds3; virtual;
 
     procedure BeforeRender; virtual;
     procedure AfterRender; virtual;
+
+    procedure GenObject(var AGLName: Cardinal); override;
+    procedure DeleteObject(var AGLName: Cardinal); override;
+    function GetObjectType: TGLObjectType; override;
+    procedure SetGLLabel(const Value: AnsiString); override;
+
   public
     constructor Create(AShader: TShader; ABeginMode: TGLBeginMode = rmTriangles);
     destructor Destroy; override;
 
-    // VBO Functions
-    procedure Generate(AMaxSize: Cardinal; AUsage: TGLBufferUsage); overload;
-    procedure Generate(const AData; ADataSize: Cardinal; AUsage: TGLBufferUsage = buStaticDraw); overload;
-
-    procedure Map(AAccess: TGLBufferAccess);
-    procedure Unmap;
-
-    procedure Clear; // Resets Size
-    procedure AddSize(ACount: Cardinal);
-    procedure SetSize(ASize: Cardinal);
-    function GetSize: Cardinal;
-
-    procedure AddVertex(const AData);
-    procedure AddVertices(const AData; Count: Cardinal);
-    procedure SetVertex(const AData; AIndex: Cardinal);
-    procedure SetAttribute(const AData; Index, AAttrib: Cardinal);
-
-    procedure SubVertex(const AData; AIndex: Cardinal);
-    procedure SubAttribute(const AData; AIndex, AAttrib: Cardinal);
-
-    // VAO Functions
-    property AttribCount: Cardinal read GetAttribCount;
-
-    procedure Bind;
-    procedure Unbind;
+    procedure Bind; override;
+    class procedure Unbind; override;
 
     procedure Render; virtual;
-    procedure RenderTo(ACount: Cardinal); virtual;
-    procedure RenderFrom(AFirst: Cardinal); virtual;
-    procedure RenderFromTo(AFirst, ACount: Cardinal); virtual;
+    procedure RenderTo(ACount: Integer); virtual;
+    procedure RenderFrom(AFirst: Integer); virtual;
+    procedure RenderFromTo(AFirst, ACount: Integer); virtual;
 
-    property Visible: Boolean read FVisible write FVisible;
-    property ModelMatrix: TMatrix4 read GetModelMatrix;
-    property Bounds: TGBounds3 read GetBounds;
+    property Visible: Boolean read GetVisible write SetVisible;
+    function ModelMatrix: TMatrix4; virtual;
+    function Bounds: TBounds3; virtual;
     function HasBounds: Boolean; virtual;
 
     property Shader: TShader read FShader;
+
+    // --- VBO ---
+    procedure Generate(AMaxSize: Integer; AUsage: TGLBufferUsage); overload; inline;
+    procedure Generate(const AData; ADataSize: Integer; AUsage: TGLBufferUsage); overload; inline;
+
+    property MaxSize: Integer read GetMaxSize;
+    property Size: Integer read GetSize;
+
+    // Mapped Access
+    procedure Map(AAccess: TGLBufferAccess); inline;
+    procedure Unmap; inline;
+
+    procedure AddVertex(const AData); inline;
+    procedure AddVertices(const AData; ACount: Integer); inline;
+
+    // Direct Access
+    procedure SubVertex(const AData; AIndex: Integer); inline;
 
   end;
 
   { TAutoUpdateVAO }
   // Automatically calls BuildVAO if NotifyChanges got called or CheckForChanges returns true
-  TAutoUpdateVAO = class abstract (TVAO)
+  TAutoUpdateVAO = class abstract(TVAO)
   private
     FChanged: Boolean;
     procedure Build;
@@ -151,9 +179,9 @@ type
     procedure NotifyChanges;
 
     procedure Render; override;
-    procedure RenderTo(ACount: Cardinal); override;
-    procedure RenderFrom(AFirst: Cardinal); override;
-    procedure RenderFromTo(AFirst, ACount: Cardinal); override;
+    procedure RenderTo(ACount: Integer); override;
+    procedure RenderFrom(AFirst: Integer); override;
+    procedure RenderFromTo(AFirst, ACount: Integer); override;
   end;
 
 implementation
@@ -184,19 +212,19 @@ begin
   inherited Render;
 end;
 
-procedure TAutoUpdateVAO.RenderTo(ACount: Cardinal);
+procedure TAutoUpdateVAO.RenderTo(ACount: Integer);
 begin
   Build;
   inherited RenderTo(ACount);
 end;
 
-procedure TAutoUpdateVAO.RenderFrom(AFirst: Cardinal);
+procedure TAutoUpdateVAO.RenderFrom(AFirst: Integer);
 begin
   Build;
   inherited RenderFrom(AFirst);
 end;
 
-procedure TAutoUpdateVAO.RenderFromTo(AFirst, ACount: Cardinal);
+procedure TAutoUpdateVAO.RenderFromTo(AFirst, ACount: Integer);
 begin
   Build;
   inherited RenderFromTo(AFirst, ACount);
@@ -246,42 +274,33 @@ end;
 
 { TVAO }
 
-procedure TVAO.AddVertex(const AData);
-begin
-  if FPVBO = nil then
-    raise EVBONotMapped.Create;
-  if FSize >= FMaxSize then
-    raise EVBOFull.Create;
-
-  Move(AData, (FPVBO + FVBOPos)^, FStride);
-  Inc(FVBOPos, FStride);
-  Inc(FSize);
-end;
-
-procedure TVAO.AddVertices(const AData; Count: Cardinal);
-begin
-  if FPVBO = nil then
-    raise EVBONotMapped.Create;
-  if FSize + Count > FMaxSize then
-    raise EVBONotEnoughSpace.Create(FSize + Count - FMaxSize);
-
-  Move(AData, (FPVBO + FVBOPos)^, FStride * Count);
-  Inc(FVBOPos, FStride * Count);
-  Inc(FSize, Count);
-end;
-
 procedure TVAO.Bind;
 begin
-  if Pointer(BoundVAO) <> Pointer(Self) then
+  if BoundVAO <> Self then
   begin
-    glBindVertexArray(FVAOID);
+    glBindVertexArray(GLName);
     BoundVAO := Self;
   end;
+end;
+
+function TVAO.Bounds: TBounds3;
+begin
+  Result := 0;
 end;
 
 procedure TVAO.BeforeRender;
 begin
   FShader.Enable;
+end;
+
+procedure TVAO.AddVertex(const AData);
+begin
+  FVBO.AddVertex(AData);
+end;
+
+procedure TVAO.AddVertices(const AData; ACount: Integer);
+begin
+  FVBO.AddVertices(AData, ACount);
 end;
 
 procedure TVAO.AfterRender;
@@ -290,89 +309,81 @@ begin
 end;
 
 constructor TVAO.Create(AShader: TShader; ABeginMode: TGLBeginMode);
-var
-  A: TShader.TAttribute;
-  I: Integer;
 begin
+  inherited Create;
   FShader := AShader;
-  glGenVertexArrays(1, @FVAOID);
-  glGenBuffers(1, @FVBOID);
-  glBindBuffer(Ord(btArrayBuffer), FVBOID);
   FBeginMode := ABeginMode;
-
-  SetLength(FAttribs, FShader.AttributeCount);
-  for I := 0 to FShader.AttributeCount - 1 do
-  begin
-    A := FShader.Attributes[I];
-    with FAttribs[I] do
-    begin
-      Location := FShader.AttribLocation[PAnsiChar(A.Name)];
-      DataCount := A.Count;
-      DataType := A.DataType;
-      DataSize := A.Count * GetDataSize(A.DataType);
-      Offset := FStride;
-      FStride := FStride + DataSize;
-    end;
-  end;
+  FVBO := TVBO.Create(FShader.AttributeStride);
   GenAttributes;
-
   FVisible := True;
+end;
+
+procedure TVAO.DeleteObject(var AGLName: Cardinal);
+begin
+  glDeleteVertexArrays(1, @AGLName);
 end;
 
 destructor TVAO.Destroy;
 begin
-  glDeleteVertexArrays(1, @FVAOID);
-  glDeleteBuffers(1, @FVBOID);
+  FVBO.Free;
   inherited;
 end;
 
-procedure TVAO.Generate(AMaxSize: Cardinal; AUsage: TGLBufferUsage);
+procedure TVAO.GenObject(var AGLName: Cardinal);
 begin
-  FMaxSize := AMaxSize;
-  if FMaxSize = 0 then
-    Exit;
-  glBindBuffer(Ord(btArrayBuffer), FVBOID);
-  glBufferData(Ord(btArrayBuffer), AMaxSize * FStride, nil, Ord(AUsage));
-end;
-
-procedure TVAO.Generate(const AData; ADataSize: Cardinal; AUsage: TGLBufferUsage);
-begin
-  FSize := ADataSize;
-  if FMaxSize = 0 then
-    Exit;
-  glBindBuffer(Ord(btArrayBuffer), FVBOID);
-  glBufferData(Ord(btArrayBuffer), ADataSize * FStride, @AData, Ord(AUsage));
+  glGenVertexArrays(1, @AGLName);
 end;
 
 procedure TVAO.GenAttributes;
 var
-  I: Integer;
+  Attribute: TShader.TAttribute;
 begin
   Bind;
-  for I := 0 to AttribCount - 1 do
+  FVBO.Bind;
+  for Attribute in Shader.Attributes do
   begin
-    if FAttribs[I].Location = -1 then
-      Continue;
-    glEnableVertexAttribArray(FAttribs[I].Location);
-    glVertexAttribPointer(
-      FAttribs[I].Location,
-      FAttribs[I].DataCount,
-      Ord(FAttribs[I].DataType),
-      ByteBool(Ord(blTrue)),
-      FStride,
- {%H-}Pointer(FAttribs[I].Offset));
+    if Attribute.Location <> -1 then
+    begin
+      glEnableVertexAttribArray(Attribute.Location);
+      glVertexAttribPointer(
+        Attribute.Location,
+        Attribute.BaseCount,
+        Ord(Attribute.BaseDataType),
+        True,
+        Shader.AttributeStride,
+        Pointer(Attribute.Offset));
+    end;
   end;
-  Unbind;
 end;
 
-function TVAO.GetAttribCount: Cardinal;
+procedure TVAO.Generate(const AData; ADataSize: Integer; AUsage: TGLBufferUsage);
 begin
-  Result := FShader.AttributeCount;
+  FVBO.Generate(AData, ADataSize, AUsage);
 end;
 
-function TVAO.GetModelMatrix: TMatrix4;
+procedure TVAO.Generate(AMaxSize: Integer; AUsage: TGLBufferUsage);
 begin
-  Result.LoadIdentity;
+  FVBO.Generate(AMaxSize, AUsage);
+end;
+
+function TVAO.GetMaxSize: Integer;
+begin
+  Result := FVBO.MaxSize;
+end;
+
+function TVAO.GetObjectType: TGLObjectType;
+begin
+  Result := otVertexArray;
+end;
+
+function TVAO.GetSize: Integer;
+begin
+  Result := FVBO.Size;
+end;
+
+function TVAO.GetVisible: Boolean;
+begin
+  Result := FVisible;
 end;
 
 function TVAO.HasBounds: Boolean;
@@ -380,104 +391,81 @@ begin
   Result := False;
 end;
 
-function TVAO.GetBounds: TGBounds3;
-begin
-  Result := TGBounds3.Create(Origin, Origin);
-end;
-
 procedure TVAO.Map(AAccess: TGLBufferAccess);
 begin
-  if AAccess = baWriteOnly then
-    FSize := 0;
-  if FMaxSize = 0 then
-    Exit;
-  glBindBuffer(Ord(btArrayBuffer), FVBOID);
-  FPVBO := glMapBuffer(Ord(btArrayBuffer), Ord(AAccess));
-  if FPVBO = nil then
-    raise EVBOUnmappable.Create;
-  FVBOPos := 0;
+  FVBO.Map(AAccess);
+end;
+
+function TVAO.ModelMatrix: TMatrix4;
+begin
+  Result.LoadIdentity;
 end;
 
 procedure TVAO.Render;
 begin
-  if (FSize = 0) or not Visible then
+  if (FVBO.Size = 0) or not Visible then
     Exit;
   BeforeRender;
   Bind;
-  glDrawArrays(Ord(FBeginMode), 0, FSize);
+  glDrawArrays(Ord(FBeginMode), 0, FVBO.Size);
   AfterRender;
 end;
 
-procedure TVAO.RenderFrom(AFirst: Cardinal);
+procedure TVAO.RenderFrom(AFirst: Integer);
 begin
-  if (FSize = 0) or (Visible = False) then
+  if (FVBO.Size = 0) or (Visible = False) then
     Exit;
-  if AFirst >= FSize then
-    raise EVBOOutOfRange.Create(AFirst, FMaxSize);
+  if AFirst >= FVBO.Size then
+    raise EVBOOutOfRange.Create(AFirst, FVBO.MaxSize);
   BeforeRender;
   Bind;
-  glDrawArrays(Ord(FBeginMode), AFirst, FSize);
+  glDrawArrays(Ord(FBeginMode), AFirst, FVBO.Size);
   AfterRender;
 end;
 
-procedure TVAO.RenderFromTo(AFirst, ACount: Cardinal);
+procedure TVAO.RenderFromTo(AFirst, ACount: Integer);
 begin
-  if (FSize = 0) or (Visible = False) then
+  if (FVBO.Size = 0) or (Visible = False) then
     Exit;
-  if AFirst >= FMaxSize then
-    raise EVBOOutOfRange.Create(AFirst, FMaxSize);
-  if AFirst + ACount > FMaxSize then
-    raise EVBOOutOfRange.Create(AFirst + ACount, FMaxSize);
+  if AFirst >= FVBO.MaxSize then
+    raise EVBOOutOfRange.Create(AFirst, FVBO.MaxSize);
+  if AFirst + ACount > FVBO.MaxSize then
+    raise EVBOOutOfRange.Create(AFirst + ACount, FVBO.MaxSize);
   BeforeRender;
   Bind;
   glDrawArrays(Ord(FBeginMode), AFirst, ACount);
   AfterRender;
 end;
 
-procedure TVAO.RenderTo(ACount: Cardinal);
+procedure TVAO.RenderTo(ACount: Integer);
 begin
-  if (FSize = 0) or (Visible = False) then
+  if (FVBO.Size = 0) or (Visible = False) then
     Exit;
-  if ACount >= FSize then
-    raise EVBOOutOfRange.Create(ACount, FMaxSize);
+  if ACount >= FVBO.Size then
+    raise EVBOOutOfRange.Create(ACount, FVBO.MaxSize);
   BeforeRender;
   Bind;
   glDrawArrays(Ord(FBeginMode), 0, ACount);
   AfterRender;
 end;
 
-procedure TVAO.SetAttribute(const AData; Index, AAttrib: Cardinal);
+procedure TVAO.SetGLLabel(const Value: AnsiString);
 begin
-  if FPVBO = nil then
-    raise EVBONotMapped.Create;
-  if Index >= FMaxSize then
-    raise EVBOOutOfRange.Create(Index, FMaxSize);
-  if AAttrib >= AttribCount then
-    raise EVBOAttribOutOfRange.Create(AAttrib, AttribCount);
-
-  Move(AData, (FPVBO + Index * FStride + FAttribs[AAttrib].Offset)^, FAttribs[AAttrib].DataSize);
+  inherited;
+  FVBO.GLLabel := Value + ' [VBO]';
 end;
 
-procedure TVAO.SubVertex(const AData; AIndex: Cardinal);
+procedure TVAO.SetVisible(const Value: Boolean);
 begin
-  glBufferSubData(Ord(btArrayBuffer), AIndex * FStride, FStride, @AData);
+  FVisible := Value;
 end;
 
-procedure TVAO.SubAttribute(const AData; AIndex, AAttrib: Cardinal);
+procedure TVAO.SubVertex(const AData; AIndex: Integer);
 begin
-  glBufferSubData(Ord(btArrayBuffer), AIndex * FStride + FAttribs[AAttrib].Offset, FAttribs[AAttrib].DataSize, @AData);
+  FVBO.SubVertex(AData, AIndex);
 end;
 
-procedure TVAO.SetVertex(const AData; AIndex: Cardinal);
-begin
-  if FPVBO = nil then
-    raise EVBONotMapped.Create;
-  if AIndex >= FMaxSize then
-    raise EVBOOutOfRange.Create(AIndex, FMaxSize);
-  Move(AData, (FPVBO + AIndex * FStride)^, FStride);
-end;
-
-procedure TVAO.Unbind;
+class procedure TVAO.Unbind;
 begin
   glBindVertexArray(0);
   BoundVAO := nil;
@@ -485,36 +473,127 @@ end;
 
 procedure TVAO.Unmap;
 begin
-  if FMaxSize = 0 then
-    Exit;
-  glUnmapBuffer(Ord(btArrayBuffer));
-  glBindBuffer(Ord(btArrayBuffer), 0);
-  FPVBO := nil;
+  FVBO.Unmap;
 end;
 
-procedure TVAO.Clear;
+{ TVBO }
+
+procedure TVBO.AddVertex(const AData);
 begin
-  FSize := 0;
+  if FMappedData = nil then
+    raise EVBONotMapped.Create;
+  if FSize >= FMaxSize then
+    raise EVBOFull.Create;
+
+  Move(AData, (FMappedData + FMappedOffset)^, FStride);
+  Inc(FMappedOffset, FStride);
+  Inc(FSize);
 end;
 
-procedure TVAO.AddSize(ACount: Cardinal);
+procedure TVBO.AddVertices(const AData; ACount: Integer);
 begin
+  if FMappedData = nil then
+    raise EVBONotMapped.Create;
   if FSize + ACount > FMaxSize then
     raise EVBONotEnoughSpace.Create(FSize + ACount - FMaxSize);
-  Inc(FVBOPos, FStride * ACount);
+
+  Move(AData, (FMappedData + FMappedOffset)^, FStride * ACount);
+  Inc(FMappedData, FStride * ACount);
   Inc(FSize, ACount);
 end;
 
-procedure TVAO.SetSize(ASize: Cardinal);
+procedure TVBO.Bind;
 begin
-  if ASize > FMaxSize then
-    raise EVBONotEnoughSpace.Create(ASize - FMaxSize);
-  FSize := ASize;
+  if Self <> BoundVBO then
+  begin
+    if BindLock then
+      raise EVBOBindLock.Create;
+    glBindBuffer(Ord(btArrayBuffer), GLName);
+    BoundVBO := Self;
+  end;
 end;
 
-function TVAO.GetSize: Cardinal;
+constructor TVBO.Create(AStride: Integer);
 begin
-  Result := FSize;
+  inherited Create;
+  FStride := AStride;
+end;
+
+procedure TVBO.DeleteObject(var AGLName: Cardinal);
+begin
+  glDeleteBuffers(1, @AGLName);
+end;
+
+procedure TVBO.Generate(const AData; ADataSize: Integer; AUsage: TGLBufferUsage);
+begin
+  FMaxSize := ADataSize;
+  FSize := ADataSize;
+  if FMaxSize = 0 then
+    Exit;
+  Bind;
+  glBufferData(Ord(btArrayBuffer), ADataSize * FStride, @AData, Ord(AUsage));
+end;
+
+procedure TVBO.Generate(AMaxSize: Integer; AUsage: TGLBufferUsage);
+begin
+  FMaxSize := AMaxSize;
+  FSize := 0;
+  if FMaxSize = 0 then
+    Exit;
+  Bind;
+  glBufferData(Ord(btArrayBuffer), AMaxSize * FStride, nil, Ord(AUsage));
+end;
+
+procedure TVBO.GenObject(var AGLName: Cardinal);
+begin
+  glGenBuffers(1, @AGLName);
+end;
+
+function TVBO.GetObjectType: TGLObjectType;
+begin
+  Result := otBuffer;
+end;
+
+procedure TVBO.Map(AAccess: TGLBufferAccess);
+begin
+  if AAccess = baWriteOnly then
+    FSize := 0;
+  if FMaxSize = 0 then
+    Exit;
+  Bind;
+  BindLock := True;
+  FMappedData := glMapBuffer(Ord(btArrayBuffer), Ord(AAccess));
+  if FMappedData = nil then
+    raise EVBOUnmappable.Create;
+  FMappedOffset := 0;
+end;
+
+procedure TVBO.SubVertex(const AData; AIndex: Integer);
+begin
+  Bind;
+  glBufferSubData(Ord(btArrayBuffer), AIndex * FStride, FStride, @AData);
+end;
+
+class procedure TVBO.Unbind;
+begin
+  BoundVBO := nil;
+  glBindBuffer(Ord(btArrayBuffer), 0);
+end;
+
+procedure TVBO.Unmap;
+begin
+  if FMaxSize = 0 then
+    Exit;
+  glUnmapBuffer(Ord(btArrayBuffer));
+  FMappedData := nil;
+  BindLock := False;
+end;
+
+{ EVBOBindLock }
+
+constructor EVBOBindLock.Create;
+begin
+  inherited Create('A VBO must stay bound as long as it is mapped');
 end;
 
 end.

@@ -58,7 +58,7 @@ type
     FButtons, FNotifyUp, FNotifyDown: TBitfield;
     FScrolledUp, FScrolledDown: Boolean;
     FWidth, FHeight: Integer;
-    FPos: TGVector2;
+    FPos: TVector2;
     FPosNotify: Boolean;
     FOnScreen: Boolean;
     FOnScreenNotify: Boolean;
@@ -81,7 +81,7 @@ type
     procedure PressButton(AButton: TMouseButton);
     procedure ReleaseButton(AButton: TMouseButton);
     procedure ReleaseAllButtons;
-    procedure SetPosition(APos: TGVector2);
+    procedure SetPosition(APos: TVector2);
     procedure ScrollUp;
     procedure ScrollDown;
     procedure Leave;
@@ -95,7 +95,7 @@ type
     function ButtonUp(AButton: TMouseButton): Boolean;
     function ButtonReleased(AButton: TMouseButton): Boolean;
     function AnyButtonDown: Boolean;
-    function MousePos: TGVector2;
+    function MousePos: TVector2;
     function MouseMoved: Boolean;
     function ScrolledUp: Boolean;
     function ScrolledDown: Boolean;
@@ -147,7 +147,7 @@ type
 
     function AnyButtonDown: Boolean; inline;
 
-    function MousePos: TGVector2; inline;
+    function MousePos: TVector2; inline;
     function MouseMoved: Boolean; inline;
 
     function ScrolledUp: Boolean; inline;
@@ -233,7 +233,7 @@ end;
 
 procedure TInputHandler.OnMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
 begin
-  FMouse.SetPosition(TGVector2.Create(X, Y));
+  FMouse.SetPosition(TVector2.Create(X, Y));
   if Assigned(FOldMouseMove) then
     FOldMouseMove(Sender, Shift, X, Y);
 end;
@@ -319,7 +319,7 @@ begin
   Result := FMouse.ButtonReleased(AButton);
 end;
 
-function TInputHandler.MousePos: TGVector2;
+function TInputHandler.MousePos: TVector2;
 begin
   Result := FMouse.MousePos;
 end;
@@ -569,7 +569,7 @@ begin
   FNotifyUp.Fill;
 end;
 
-procedure TMouseInput.SetPosition(APos: TGVector2);
+procedure TMouseInput.SetPosition(APos: TVector2);
 begin
   FPos.X := (APos.X * 2 - FWidth) / FHeight; // -aspect <-> +aspect
   FPos.Y := 1 - APos.Y / FHeight * 2;       // -1      <-> +1
@@ -631,7 +631,7 @@ begin
   Result := FButtons.Ones > 0;
 end;
 
-function TMouseInput.MousePos: TGVector2;
+function TMouseInput.MousePos: TVector2;
 begin
   Result := FPos;
 end;
