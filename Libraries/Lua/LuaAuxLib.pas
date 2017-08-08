@@ -3,7 +3,7 @@ unit LuaAuxLib;
 interface
 
 uses
-  LuaConf, LuaHeader, SysUtils, Windows;
+  LuaConf, LuaHeader, Windows, SysUtils, StrUtils;
 
 const
 
@@ -207,7 +207,7 @@ end;
 function pushglobalfuncname(L: Plua_State; ar: Plua_Debug): LongBool;
 var
   top: Integer;
-  name: AnsiString;
+  name: ansistring;
 begin
   top := lua_gettop(L);
   lua_getinfo(L, 'f', ar);
@@ -215,7 +215,7 @@ begin
   if findfield(L, top + 1, 2) then
   begin
     name := lua_tostring(L, -1);
-    if name.StartsWith('_G.') then
+    if AnsiStartsStr(name, '_G.') then
     begin
       lua_pushstring(L, @name[1]);
       lua_remove(L, -2);
@@ -366,7 +366,7 @@ function errfile(L: Plua_State; what: PAnsiChar; fnameindex: Integer): Integer;
 var
   serr, filename: PAnsiChar;
 begin
-  serr := @AnsiString(SysErrorMessage(GetLastOSError))[1];
+  serr := @AnsiString(SysErrorMessage({$IFDEF FPC}GetLastOSError{$ELSE}GetLastError{$ENDIF}))[1];
   filename := lua_tostring(L, fnameindex) + 1;
   lua_pushfstring(L, 'cannot %s %s: %s', what, filename, serr);
   lua_remove(L, fnameindex);
@@ -376,13 +376,13 @@ end;
 function skipBOM(lf: PLoadF): Integer;
 var
   p: PAnsiChar;
-  c: Integer;
+  c: AnsiChar;
 begin
   p := #239#187#191;
   lf^.n := 0;
   repeat
-    c := getc(lf^.f);
-    if (AnsiChar(c) = ^Z) or (AnsiChar(c) <> p^) then
+    Read(lf^.f^, c);
+    if (c = ^Z) or (c <> p^) then
       Exit(c);
     Inc(p);
     lf^.buff[lf^.n] := c;

@@ -197,7 +197,7 @@ type
   lua_KFunction = function(L: Plua_State; status: Integer; ctx: lua_KContext): Integer;
 
   // Type for functions that read/write blocks when loading/dumping Lua chunks
-  lua_Reader = function(L: Plua_State; ud: Pointer; sz: NativeUInt): PAnsiChar;
+  lua_Reader = function(L: Plua_State; ud: Pointer; sz: PNativeUInt): PAnsiChar;
   lua_Writer = function(L: Plua_State; p: Pointer; sz: NativeUInt; ud: Pointer): Integer;
 
   // Type for memory-allocation functions
