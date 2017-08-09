@@ -8,32 +8,20 @@ uses
   System.SysUtils, LuaHeader;
 
 var
-  L: Plua_State;
-  Err, I: Integer;
-  isnum: LongBool;
-
-function LuaAlloc(ud, ptr: Pointer; osize, nsize: NativeUInt): Pointer;
-begin
-  if nsize = 0 then
-  begin
-    FreeMem(ptr);
-    Exit(nil);
-  end;
-  Result := ReallocMemory(ptr, nsize);
-end;
-
-function DataReader(L: Plua_State; ud: Pointer; sz: PNativeUInt): PAnsiChar;
-begin
-
-end;
-
+  L: TLuaState;
+  Params: array of Variant;
 begin
   ReportMemoryLeaksOnShutdown := True;
 
   try
-    L := lua_newstate(LuaAlloc, nil);
-    luaL_openlibs(L);
-    lua_close(L);
+
+    L := NewLuaState;
+    L.pushstring('blub');
+    L.pushfstring('%s: %s', [L.typenameat(L.top), L.tostring(L.top)]);
+    Writeln(L.tostring(L.top));
+    L.concat(2);
+    Writeln(L.tostring(L.top));
+    L.close;
   except
     on E: Exception do
       Writeln(E.ClassName, ': ', E.Message);

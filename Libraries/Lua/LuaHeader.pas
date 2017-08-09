@@ -102,14 +102,15 @@ const
 
 type
 
-  lua_Number = LuaConf.LUA_NUMBER;
-  lua_Integer = LuaConf.LUA_INTEGER;
-  lua_Unsigned = LuaConf.LUA_UNSIGNED;
-  lua_KContext = LuaConf.LUA_KCONTEXT;
+  lua_Number = LuaConf.lua_Number;
+  lua_Integer = LuaConf.lua_Integer;
+  lua_Unsigned = LuaConf.lua_Unsigned;
+  lua_KContext = LuaConf.lua_KContext;
 
   TLuaState = ^TLuaStateRec;
 
   Plua_Debug = ^lua_Debug;
+
   lua_Debug = record
   public
     event: Integer;
@@ -126,7 +127,7 @@ type
     istailcall: ByteBool; // (t)
     short_src: array [0 .. LUA_IDSIZE - 1] of Char; // (S)
   private
-    {%H-}i_ci: Pointer;  // active function
+    {%H-}i_ci: Pointer; // active function
   end;
 
   lua_Hook = procedure(L: TLuaState; ar: Plua_Debug);
@@ -175,7 +176,7 @@ type
     function iscfunction(index: Integer): LongBool; inline;
     function isinteger(index: Integer): LongBool; inline;
     function isuserdata(index: Integer): LongBool; inline;
-    function &type(index: Integer): Integer; inline;
+    function typeat(index: Integer): Integer; inline;
     function typename(tp: Integer): PAnsiChar; inline;
 
     function tonumberx(index: Integer; isnum: PInteger): lua_Number; inline;
@@ -199,6 +200,8 @@ type
     procedure pushnumber(n: lua_Number); inline;
     procedure pushinteger(n: lua_Integer); inline;
     function pushlstring(s: PAnsiChar; len: NativeUInt): PAnsiChar; inline;
+    function pushvfstring(fmt, argp: PAnsiChar): PAnsiChar; inline;
+    function pushfstring(fmt: PAnsiChar; args: array of const): PAnsiChar;
     function pushstring(s: PAnsiChar): PAnsiChar; inline;
     procedure pushcclosure(fn: lua_CFunction; n: Integer); inline;
     procedure pushboolean(b: LongBool); inline;
@@ -309,6 +312,12 @@ type
     function gethookmask: Integer; inline;
     function gethookcount: Integer; inline;
 
+
+    // --- Custom Functions ---
+
+    property top: Integer read gettop write settop;
+    function typenameat(index: Integer): PAnsiChar; inline;
+
   end;
 
 function LuaDefaultAlloc({%H-}ud, ptr: Pointer; {%H-}osize, nsize: NativeUInt): Pointer;
@@ -367,8 +376,7 @@ procedure lua_pushnumber(L: TLuaState; n: lua_Number); external LuaDLL;
 procedure lua_pushinteger(L: TLuaState; n: lua_Integer); external LuaDLL;
 function lua_pushlstring(L: TLuaState; s: PAnsiChar; len: NativeUInt): PAnsiChar; external LuaDLL;
 function lua_pushstring(L: TLuaState; s: PAnsiChar): PAnsiChar; external LuaDLL;
-// not usable
-// function lua_pushvfstring(L: TLuaState; fmt, argp: PAnsichar): PAnsiChar; external LuaDLL;
+function lua_pushvfstring(L: TLuaState; fmt, argp: PAnsiChar): PAnsiChar; external LuaDLL;
 function lua_pushfstring(L: TLuaState; fmt: PAnsiChar): PAnsiChar; varargs; cdecl; external LuaDLL;
 procedure lua_pushcclosure(L: TLuaState; fn: lua_CFunction; n: Integer); external LuaDLL;
 procedure lua_pushboolean(L: TLuaState; b: LongBool); external LuaDLL;
@@ -403,9 +411,11 @@ procedure lua_setuservalue(L: TLuaState; index: Integer); external LuaDLL;
 // 'load' and 'call' functions (load and run Lua code)
 procedure lua_callk(L: TLuaState; nargs, nresults: Integer; ctx: lua_KContext; k: lua_KFunction); external LuaDLL;
 // [ lua_call ]
-function lua_pcallk(L: TLuaState; nargs, nresults, msgh: Integer; ctx: lua_KContext; k: lua_KFunction): Integer; external LuaDLL;
+function lua_pcallk(L: TLuaState; nargs, nresults, msgh: Integer; ctx: lua_KContext; k: lua_KFunction): Integer;
+  external LuaDLL;
 // [ lua_pcall ]
-function lua_load(L: TLuaState; reader: lua_Reader; data: Pointer; chunkname, mode: PAnsiChar): Integer; external LuaDLL;
+function lua_load(L: TLuaState; reader: lua_Reader; data: Pointer; chunkname, mode: PAnsiChar): Integer;
+  external LuaDLL;
 function lua_dump(L: TLuaState; writer: lua_Writer; data: Pointer; strip: Integer): Integer; external LuaDLL;
 
 // coroutine functions
@@ -721,7 +731,7 @@ begin
   Result := lua_isuserdata(@Self, index);
 end;
 
-function TLuaStateRec.&type(index: Integer): Integer;
+function TLuaStateRec.typeat(index: Integer): Integer;
 begin
   Result := lua_type(@Self, index);
 end;
@@ -729,6 +739,11 @@ end;
 function TLuaStateRec.typename(tp: Integer): PAnsiChar;
 begin
   Result := lua_typename(@Self, tp);
+end;
+
+function TLuaStateRec.typenameat(index: Integer): PAnsiChar;
+begin
+  Result := typename(typeat(index));
 end;
 
 function TLuaStateRec.tonumberx(index: Integer; isnum: PInteger): lua_Number;
@@ -809,6 +824,11 @@ end;
 function TLuaStateRec.pushlstring(s: PAnsiChar; len: NativeUInt): PAnsiChar;
 begin
   Result := lua_pushlstring(@Self, s, len);
+end;
+
+function TLuaStateRec.pushvfstring(fmt, argp: PAnsiChar): PAnsiChar;
+begin
+  Result := lua_pushvfstring(@Self, fmt, argp);
 end;
 
 function TLuaStateRec.pushstring(s: PAnsiChar): PAnsiChar;
@@ -1064,6 +1084,41 @@ end;
 procedure TLuaStateRec.pushcfunction(f: lua_CFunction);
 begin
   lua_pushcfunction(@Self, f);
+end;
+
+function TLuaStateRec.pushfstring(fmt: PAnsiChar; args: array of const): PAnsiChar;
+var
+  list: array of PAnsiChar;
+  i: Integer;
+  X: AnsiString;
+begin
+  SetLength(list, Length(args));
+  for i := 0 to Length(args) - 1 do
+  begin
+    case args[i].VType of
+      vtInteger: list[i] := PAnsiChar(args[i].VInteger);
+      // vtBoolean: if args[i].VBoolean then list[i] := 'TRUE' else list[i] := 'FALSE';
+      vtChar: list[i] := PAnsiChar(args[i].VChar);
+      vtExtended: list[i] := PAnsiChar(args[i].VExtended^);
+      vtString: list[i] := @AnsiString(args[i].VString^)[1];
+      vtPointer: list[i] := PAnsiChar(args[i].VPointer);
+      vtPChar: list[i] := args[i].VPChar;
+      // vtObject: list[i] := PAnsiChar(args[i].VObject);
+      // vtClass: list[i] := PAnsiChar(args[i].VClass);
+      vtWideChar: list[i] := PAnsiChar(args[i].VWideChar);
+      vtPWideChar: list[i] := @AnsiString(WideString(args[i].VPWideChar))[1];
+      vtAnsiString: list[i] := args[i].VAnsiString;
+      // vtCurrency: list[i] := PAnsiChar(args[i].VCurrency);
+      // vtVariant: list[i] := PAnsiChar(args[i].VVariant);
+      // vtInterface: list[i] := PAnsiChar(args[i].VInterface);
+      vtWideString: list[i] := @AnsiString(WideString(args[i].VWideString))[1];
+      vtInt64: list[i] := PAnsiChar(args[i].VInt64^);
+      vtUnicodeString: list[i] := @AnsiString(UnicodeString(args[i].VUnicodeString))[1];
+    else
+      raise ENotSupportedException.CreateFmt('Unsupported Formatting VariantType: %d', [args[I].VType]);
+    end;
+  end;
+  Result := pushvfstring(fmt, @list[0]);
 end;
 
 function TLuaStateRec.isfunction(index: Integer): LongBool;
