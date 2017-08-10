@@ -10,7 +10,7 @@ const
   LuaDLL = 'lua53.dll';
 
   // mark for precompiled code ('<esc>Lua')
-  LUA_SIGNATURE = #27'Lua';
+  LUA_SIGNATURE = #26'Lua';
 
   // option for multiple returns in 'lua_pcall' and 'lua_call'
   LUA_MULTRET = -1;
@@ -146,177 +146,305 @@ type
 
   lua_Ident = PAnsiChar;
 
+  TLuaStatus = (
+    lstOk = LUA_OK,
+    lstYield,
+    lstErrorRun,
+    lstErrorSyntax,
+    lstErrorMemory,
+    lstErrorGCMM,
+    lstErrorError
+    );
+
+  TLuaLoadError = (
+    lleOK = LUA_OK,
+    lleErrorSyntax = LUA_ERRSYNTAX,
+    lleErrorMemory = LUA_ERRMEM,
+    lleErrorGCMM = LUA_ERRGCMM
+    );
+
+  TLuaPCallError = (
+    lceOK = LUA_OK,
+    lceErrorRun = LUA_ERRRUN,
+    lceErrorMemory = LUA_ERRMEM,
+    lceErrorGCMM = LUA_ERRGCMM,
+    lceErrorError = LUA_ERRERR
+    );
+
+  TLuaBasicTypes = (
+    lbtNone = LUA_TNONE,
+    lbtBoolean,
+    lbtLightUserdata,
+    lbtNumber,
+    lbtString,
+    lbtTable,
+    lbtFunction,
+    lbtUserdata,
+    lbtThread,
+    lbtNumTags
+    );
+
+  TLuaArithOp = (
+    laoAdd = LUA_OPADD,
+    laoSub,
+    laoMul,
+    laoMod,
+    laoPow,
+    laoDiv,
+    laoIDiv,
+    laoBAnd,
+    laoBOr,
+    laoBXor,
+    laoShl,
+    laoShr,
+    laoUnMinus,
+    laoBNot
+    );
+
+  TLuaCompareOp = (
+    lcoEqual = LUA_OPEQ,
+    lcoLessThan,
+    lcoLessEqual
+    );
+
+  TLuaGCOption = (
+    lgcStop = LUA_GCSTOP,
+    lgcRestart,
+    lgcCollect,
+    lgcCount,
+    lgcCountB,
+    lgcStep,
+    lgcSetPause,
+    lgcSetStepMul,
+    lgcIsRunning = LUA_GCISRUNNING
+    );
+
+  TLuaType = (
+    ltNone = LUA_TNONE,
+    ltNil,
+    ltBoolean,
+    ltLightUserdata,
+    ltNumber,
+    ltString,
+    ltTable,
+    ltFunction,
+    ltUserdata,
+    ltThread
+    );
+
+  TLuaNumber = lua_Number;
+  TLuaString = AnsiString;
+  PLuaString = PAnsiChar;
+  TLuaInteger = lua_Integer;
+  TLuaCFunction = lua_CFunction;
+
+  TLuaAlloc = lua_Alloc;
+
+  TLuaReader = lua_Reader;
+  TLuaWriter = lua_Writer;
+
+  TLuaKContext = lua_KContext;
+  TLuaKFunction = lua_KFunction;
+
+  TLuaDebug = lua_Debug;
+  TLuaHook = lua_Hook;
+
   { TLuaStateRec }
 
-  // TODO: Add _ut to untyped things like "TLuaStateRec.type" and add a typed one
-
   TLuaStateRec = record
+  private type
+    PReaderRec = ^TReaderRec;
+    TReaderRec = record
+      Done: Boolean;
+      Data: PAnsiChar;
+    end;
+
+  private
+    class function Reader(L: TLuaState; ud: Pointer; size: PNativeUInt): PAnsiChar; static;
+
+  public
     // state manipulation
-    procedure close; inline;
-    function newthread: TLuaState; inline;
+    procedure Close; inline;
+    function NewThread: TLuaState; inline;
 
-    function atpanic(panicf: lua_CFunction): lua_CFunction; inline;
+    function AtPanic(panicf: lua_CFunction): lua_CFunction; inline;
 
-    function version: Plua_Number; inline;
+    function Version: Plua_Number; inline;
 
     // basic stack manipulation
-    function absindex(idx: Integer): Integer; inline;
-    function gettop: Integer; inline;
-    procedure settop(index: Integer); inline;
-    procedure pushvalue(index: Integer); inline;
-    procedure rotate(idx, n: Integer); inline;
-    procedure copy(fromidx, toidx: Integer); inline;
-    function checkstack(n: Integer): LongBool; inline;
+    function AbsIndex(idx: Integer): Integer; inline;
+    function GetTop: Integer; inline;
+    procedure SetTop(index: Integer); inline;
+    procedure PushValue(index: Integer = -1); inline;
+    procedure Rotate(idx, n: Integer); inline;
+    procedure Copy(fromidx, toidx: Integer); inline;
+    function CheckStack(n: Integer): LongBool; inline;
 
-    procedure xmove(&to: TLuaState; n: Integer); inline;
+    procedure XMove(&to: TLuaState; n: Integer); inline;
 
     // access functions (stack -> C (Delphi))
-    function isnumber(index: Integer): LongBool; inline;
-    function isstring(index: Integer): LongBool; inline;
-    function iscfunction(index: Integer): LongBool; inline;
-    function isinteger(index: Integer): LongBool; inline;
-    function isuserdata(index: Integer): LongBool; inline;
-    function typeat(index: Integer): Integer; inline;
-    function typename(tp: Integer): PAnsiChar; inline;
+    function IsNumber(index: Integer = -1): LongBool; inline;
+    function IsString(index: Integer = -1): LongBool; inline;
+    function IsCFunction(index: Integer = -1): LongBool; inline;
+    function IsInteger(index: Integer = -1): LongBool; inline;
+    function IsUserdata(index: Integer = -1): LongBool; inline;
+    function TypeAt_X(index: Integer = -1): Integer; inline;
+    function TypeAt(index: Integer = -1): TLuaType; inline;
+    function TypeName_X(tp: Integer = -1): PAnsiChar; inline;
+    function TypeName(tp: TLuaType): PAnsiChar; inline;
 
-    function tonumberx(index: Integer; isnum: PInteger): lua_Number; inline;
-    function tointegerx(index: Integer; isnum: PInteger): lua_Integer; inline;
-    function toboolean(index: Integer): LongBool; inline;
-    function tolstring(index: Integer; len: PNativeUInt): PAnsiChar; inline;
-    function rawlen(index: Integer): NativeUInt; inline;
-    function tocfunction(index: Integer): lua_CFunction; inline;
-    function touserdata(index: Integer): Pointer; inline;
-    function tothread(index: Integer): TLuaState; inline;
-    function topointer(index: Integer): Pointer; inline;
+    function ToNumberX(isnum: PInteger; index: Integer = -1): lua_Number; inline;
+    function ToIntegerX(isnum: PInteger; index: Integer = -1): lua_Integer; inline;
+    function ToBoolean(index: Integer = -1): LongBool; inline;
+    function ToLString(len: PNativeUInt; index: Integer = -1): PAnsiChar; inline;
+    function RawLen(index: Integer = -1): NativeUInt; inline;
+    function ToCFunction(index: Integer = -1): lua_CFunction; inline;
+    function ToUserdata(index: Integer = -1): Pointer; inline;
+    function ToThread(index: Integer = -1): TLuaState; inline;
+    function ToPointer(index: Integer = -1): Pointer; inline;
 
     // Comparison and arithmetic functions
-    procedure arith(op: Integer); inline;
+    procedure Arith(op: Integer); inline;
 
-    function rawequal(index1, index2: Integer): LongBool; inline;
-    function compare(index1, index2, op: Integer): LongBool; inline;
+    function RawEqual(index1, index2: Integer): LongBool; inline;
+    function Compare(index1, index2, op: Integer): LongBool; inline;
 
     // push functions (C (Delphi) -> stack)
-    procedure pushnil; inline;
-    procedure pushnumber(n: lua_Number); inline;
-    procedure pushinteger(n: lua_Integer); inline;
-    function pushlstring(s: PAnsiChar; len: NativeUInt): PAnsiChar; inline;
-    function pushvfstring(fmt, argp: PAnsiChar): PAnsiChar; inline;
-    function pushfstring(fmt: PAnsiChar; args: array of const): PAnsiChar;
-    function pushstring(s: PAnsiChar): PAnsiChar; inline;
-    procedure pushcclosure(fn: lua_CFunction; n: Integer); inline;
-    procedure pushboolean(b: LongBool); inline;
-    procedure pushlightuserdata(p: Pointer); inline;
-    function pushthread: LongBool; inline;
+    procedure PushNil; inline;
+    procedure PushNumber(n: lua_Number); inline;
+    procedure PushInteger(n: lua_Integer); inline;
+    function PushLString(s: PAnsiChar; len: NativeUInt): PAnsiChar; inline;
+    function PushVFString(fmt, argp: PAnsiChar): PAnsiChar; inline;
+    function PushFString(fmt: PAnsiChar; args: array of const): PAnsiChar;
+    function PushString(s: PAnsiChar): PAnsiChar; inline;
+    procedure PushCClosure(fn: lua_CFunction; n: Integer); inline;
+    procedure PushBoolean(b: LongBool); inline;
+    procedure PushLightuserdata(p: Pointer); inline;
+    function PushThread: LongBool; inline;
 
     // get functions (Lua -> stack)
-    function getglobal(name: PAnsiChar): Integer; inline;
-    function gettable(index: Integer): Integer; inline;
-    function getfield(index: Integer; k: PAnsiChar): Integer; inline;
-    function geti(index: Integer; i: lua_Integer): Integer; inline;
-    function rawget(index: Integer): Integer; inline;
-    function rawgeti(index: Integer; i: lua_Integer): Integer; inline;
-    function rawgetp(index: Integer; p: Pointer): Integer; inline;
+    function GetGlobal(name: PAnsiChar): Integer; inline;
+    function GetTable(index: Integer = -1): Integer; inline;
+    function GetField(k: PAnsiChar; index: Integer = -1): Integer; inline;
+    function GetI(i: lua_Integer; index: Integer = -1): Integer; inline;
+    function RawGet(index: Integer = -1): Integer; inline;
+    function RawGetI(i: lua_Integer; index: Integer = -1): Integer; inline;
+    function RawGetP(p: Pointer; index: Integer = -1): Integer; inline;
 
-    procedure createtable(narr, nrec: Integer); inline;
-    function newuserdata(size: NativeUInt): Pointer; inline;
-    function getmetatable(index: Integer): LongBool; inline;
-    function getuservalue(index: Integer): Integer; inline;
+    procedure CreateTable(narr, nrec: Integer); inline;
+    function NewUserdata(size: NativeUInt): Pointer; inline;
+    function GetMetatable(index: Integer = -1): LongBool; inline;
+    function GetUservalue(index: Integer = -1): Integer; inline;
 
     // set functions (stack -> Lua)
-    procedure setglobal(name: PAnsiChar); inline;
-    procedure settable(index: Integer); inline;
-    procedure setfield(index: Integer; k: PAnsiChar); inline;
-    procedure seti(index: Integer; i: lua_Integer); inline;
-    procedure rawset(index: Integer); inline;
-    procedure rawseti(index: Integer; i: lua_Integer); inline;
-    procedure rawsetp(index: Integer; p: Pointer); inline;
-    procedure setmetatable(index: Integer); inline;
-    procedure setuservalue(index: Integer); inline;
+    procedure SetGlobal(name: PAnsiChar); inline;
+    procedure SetTable(index: Integer); inline;
+    procedure SetField(k: PAnsiChar; index: Integer); inline;
+    procedure SetI(i: lua_Integer; index: Integer); inline;
+    procedure RawSet(index: Integer); inline;
+    procedure RawSetI(i: lua_Integer; index: Integer); inline;
+    procedure RawSetP(p: Pointer; index: Integer); inline;
+    procedure SetMetatable(index: Integer); inline;
+    procedure SetUservalue(index: Integer); inline;
 
     // 'load' and 'call' functions (load and run Lua code)
-    procedure callk(nargs, nresults: Integer; ctx: lua_KContext; k: lua_KFunction); inline;
-    procedure call(nargs, nresults: Integer); inline;
-    function pcallk(nargs, nresults, msgh: Integer; ctx: lua_KContext; k: lua_KFunction): Integer; inline;
-    function pcall(nargs, nresults, msgh: Integer): Integer; inline;
-    function load(reader: lua_Reader; data: Pointer; chunkname, mode: PAnsiChar): Integer; inline;
-    function dump(writer: lua_Writer; data: Pointer; strip: Integer): Integer; inline;
+    procedure CallK(nargs, nresults: Integer; ctx: lua_KContext; k: lua_KFunction); inline;
+    procedure Call(nargs, nresults: Integer); inline;
+    function PCallK_X(nargs, nresults, msgh: Integer; ctx: lua_KContext; k: lua_KFunction): Integer; inline;
+    function PCallK(nargs, nresults, msgh: Integer; ctx: lua_KContext; k: lua_KFunction): TLuaPCallError; inline;
+    function PCall_X(nargs, nresults, msgh: Integer): Integer; inline;
+    function PCall(nargs, nresults, msgh: Integer): TLuaPCallError; inline;
+    function Load_X(reader: lua_Reader; data: Pointer; chunkname, mode: PAnsiChar): Integer; inline;
+    function Load(reader: TLuaReader; data: Pointer; chunkname, mode: PAnsiChar): TLuaLoadError; inline;
+    function Dump(writer: lua_Writer; data: Pointer; strip: Integer): Integer; inline;
 
     // coroutine functions
-    function yieldk(nresults: Integer; ctx: lua_KContext; k: lua_KFunction): Integer; inline;
-    function resume(from: TLuaState; nargs: Integer): Integer; inline;
-    function status: Integer; inline;
-    function isyieldable: LongBool; inline;
-    function yield(nresults: Integer): Integer; inline;
+    function YieldK(nresults: Integer; ctx: lua_KContext; k: lua_KFunction): Integer; inline;
+    function Resume(from: TLuaState; nargs: Integer): Integer; inline;
+    function Status: Integer; inline;
+    function IsYieldable: LongBool; inline;
+    function Yield(nresults: Integer): Integer; inline;
 
     // garbage-collection function
-    function gc(what, data: Integer): Integer; inline;
+    function GC(what, data: Integer): Integer; inline;
 
     // miscellaneous functions
-    function error: Integer; inline;
-    function next(index: Integer): LongBool; inline;
-    procedure concat(n: Integer); inline;
-    procedure len(index: Integer); inline;
-    function stringtonumber(s: PAnsiChar): NativeUInt; inline;
+    function Error_X: Integer; inline;
+    function Next(index: Integer): LongBool; inline;
+    procedure Concat(n: Integer); inline;
+    procedure Len(index: Integer); inline;
+    function StringToNumber(s: PAnsiChar): NativeUInt; inline;
 
-    function getallocf(ud: PPointer): lua_Alloc; inline;
-    procedure setallocf(f: lua_Alloc; ud: Pointer); inline;
+    function GetAllocF(ud: PPointer): lua_Alloc; inline;
+    procedure SetAllocF(f: lua_Alloc; ud: Pointer); inline;
 
     // some useful macros
-    function getextraspace: Pointer; inline;
-    function tonumber(index: Integer): lua_Number; inline;
-    function tointeger(index: Integer): lua_Integer; inline;
+    function GetExtraSpace: Pointer; inline;
+    function ToNumber(index: Integer = -1): lua_Number; inline;
+    function ToInteger(index: Integer = -1): lua_Integer; inline;
 
-    procedure pop(n: Integer); inline;
+    procedure Pop(n: Integer = 1); inline;
 
-    procedure newtable; inline;
+    procedure NewTable; inline;
 
-    procedure &register(name: PAnsiChar; f: lua_CFunction); inline;
+    procedure &Register(name: PAnsiChar; f: lua_CFunction); inline;
 
-    procedure pushcfunction(f: lua_CFunction); inline;
+    procedure PushCFunction(f: lua_CFunction); inline;
 
-    function isfunction(index: Integer): LongBool; inline;
-    function istable(index: Integer): LongBool; inline;
-    function islightuserdata(index: Integer): LongBool; inline;
-    function isnil(index: Integer): LongBool; inline;
-    function isboolean(index: Integer): LongBool; inline;
-    function isthread(index: Integer): LongBool; inline;
-    function isnone(index: Integer): LongBool; inline;
-    function isnoneornil(index: Integer): LongBool; inline;
+    function IsFunction(index: Integer = -1): LongBool; inline;
+    function IsTable(index: Integer = -1): LongBool; inline;
+    function IsLightuserdata(index: Integer = -1): LongBool; inline;
+    function IsNil(index: Integer = -1): LongBool; inline;
+    function IsBoolean(index: Integer = -1): LongBool; inline;
+    function IsThread(index: Integer = -1): LongBool; inline;
+    function IsNone(index: Integer = -1): LongBool; inline;
+    function IsNoneOrNil(index: Integer = -1): LongBool; inline;
 
-    function pushliteral(s: PAnsiChar): PAnsiChar; inline;
+    function PushLiteral(s: PAnsiChar): PAnsiChar; inline;
 
-    procedure pushglobaltable; inline;
+    procedure PushGlobalTable; inline;
 
-    function tostring(index: Integer): PAnsiChar; inline;
+    function ToString_X(index: Integer = -1): PAnsiChar; inline;
+    function ToString(index: Integer = -1): PAnsiChar;
 
-    procedure insert(index: Integer); inline;
+    procedure Insert(index: Integer); inline;
 
-    procedure remove(index: Integer); inline;
+    procedure Remove(index: Integer); inline;
 
-    procedure replace(index: Integer); inline;
+    procedure Replace(index: Integer); inline;
 
     // Debug API
 
-    function getstack(level: Integer; ar: Plua_Debug): LongBool; inline;
-    function getinfo(what: PAnsiChar; ar: Plua_Debug): LongBool; inline;
-    function getlocal(ar: Plua_Debug; n: Integer): PAnsiChar; inline;
-    function setlocal(ar: Plua_Debug; n: Integer): PAnsiChar; inline;
-    function getupvalue(funcindex, n: Integer): PAnsiChar; inline;
-    function setupvalue(funcindex, n: Integer): PAnsiChar; inline;
+    function GetStack(level: Integer; ar: Plua_Debug): LongBool; inline;
+    function GetInfo(what: PAnsiChar; ar: Plua_Debug): LongBool; inline;
+    function GetLocal(ar: Plua_Debug; n: Integer): PAnsiChar; inline;
+    function SetLocal(ar: Plua_Debug; n: Integer): PAnsiChar; inline;
+    function GetUpvalue(funcindex, n: Integer): PAnsiChar; inline;
+    function SetUpvalue(funcindex, n: Integer): PAnsiChar; inline;
 
-    function upvalueid(funcindex, n: Integer): Pointer; inline;
-    procedure upvaluejoin(funcindex1, n1, funcindex2, n2: Integer); inline;
+    function UpvalueID(funcindex, n: Integer): Pointer; inline;
+    procedure UpvalueJoin(funcindex1, n1, funcindex2, n2: Integer); inline;
 
-    procedure sethook(f: lua_Hook; mask, count: Integer); inline;
-    function gethook: lua_Hook; inline;
-    function gethookmask: Integer; inline;
-    function gethookcount: Integer; inline;
-
+    procedure SetHook(f: lua_Hook; mask, count: Integer); inline;
+    function GetHook: lua_Hook; inline;
+    function GetHookMask: Integer; inline;
+    function GetHookCount: Integer; inline;
 
     // --- Custom Functions ---
 
-    property top: Integer read gettop write settop;
-    function typenameat(index: Integer): PAnsiChar; inline;
+    property Top: Integer read GetTop write SetTop;
+    function TypeNameAt(index: Integer): AnsiString; inline;
+
+    function LoadString(AString: AnsiString): TLuaLoadError;
+
+    procedure Where(ALevel: Integer);
+
+    function Error(AMessage: AnsiString; ALevel: Integer = 1): Integer;
+    function ErrorFmt(AFmt: AnsiString; AArgs: array of const; ALevel: Integer = 1): Integer;
+
+    function FormatStack: AnsiString;
+
+    procedure CheckType(AIndex: Integer; AType: TLuaType);
 
   end;
 
@@ -549,7 +677,7 @@ end;
 procedure lua_register(L: TLuaState; name: PAnsiChar; f: lua_CFunction);
 begin
   lua_pushcfunction(L, f);
-  lua_setglobal(L, name)
+  lua_setglobal(L, name);
 end;
 
 procedure lua_pushcfunction(L: TLuaState; f: lua_CFunction);
@@ -646,607 +774,757 @@ begin
   Result := lua_newstate(LuaDefaultAlloc, nil);
 end;
 
-procedure TLuaStateRec.close;
+class function TLuaStateRec.Reader(L: TLuaState; ud: Pointer; size: PNativeUInt
+  ): PAnsiChar;
+var
+  R: PReaderRec;
+begin
+  R := PReaderRec(ud);
+  if R.Done then
+    Exit(nil);
+  R.Done := True;
+  size^ := Length(R.Data);
+  Result := R.Data;
+end;
+
+procedure TLuaStateRec.Close;
 begin
   lua_close(@Self);
 end;
 
-function TLuaStateRec.newthread: TLuaState;
+function TLuaStateRec.NewThread: TLuaState;
 begin
   Result := lua_newthread(@Self);
 end;
 
-function TLuaStateRec.atpanic(panicf: lua_CFunction): lua_CFunction;
+function TLuaStateRec.AtPanic(panicf: lua_CFunction): lua_CFunction;
 begin
   Result := lua_atpanic(@Self, panicf);
 end;
 
-function TLuaStateRec.version: Plua_Number;
+function TLuaStateRec.Version: Plua_Number;
 begin
   Result := lua_version(@Self);
 end;
 
-function TLuaStateRec.absindex(idx: Integer): Integer;
+function TLuaStateRec.AbsIndex(idx: Integer): Integer;
 begin
   Result := lua_absindex(@Self, idx);
 end;
 
-function TLuaStateRec.gettop: Integer;
+function TLuaStateRec.GetTop: Integer;
 begin
   Result := lua_gettop(@Self);
 end;
 
-procedure TLuaStateRec.settop(index: Integer);
+procedure TLuaStateRec.SetTop(index: Integer);
 begin
   lua_settop(@Self, index);
 end;
 
-procedure TLuaStateRec.pushvalue(index: Integer);
+procedure TLuaStateRec.PushValue(index: Integer);
 begin
   lua_pushvalue(@Self, index);
 end;
 
-procedure TLuaStateRec.rotate(idx, n: Integer);
+procedure TLuaStateRec.Rotate(idx, n: Integer);
 begin
   lua_rotate(@Self, idx, n);
 end;
 
-procedure TLuaStateRec.copy(fromidx, toidx: Integer);
+procedure TLuaStateRec.Copy(fromidx, toidx: Integer);
 begin
   lua_copy(@Self, fromidx, toidx);
 end;
 
-function TLuaStateRec.checkstack(n: Integer): LongBool;
+function TLuaStateRec.CheckStack(n: Integer): LongBool;
 begin
   Result := lua_checkstack(@Self, n);
 end;
 
-procedure TLuaStateRec.xmove(&to: TLuaState; n: Integer);
+procedure TLuaStateRec.XMove(&to: TLuaState; n: Integer);
 begin
   lua_xmove(@Self, &to, n);
 end;
 
-function TLuaStateRec.isnumber(index: Integer): LongBool;
+function TLuaStateRec.IsNumber(index: Integer): LongBool;
 begin
   Result := lua_isnumber(@Self, index);
 end;
 
-function TLuaStateRec.isstring(index: Integer): LongBool;
+function TLuaStateRec.IsString(index: Integer): LongBool;
 begin
   Result := lua_isstring(@Self, index);
 end;
 
-function TLuaStateRec.iscfunction(index: Integer): LongBool;
+function TLuaStateRec.IsCFunction(index: Integer): LongBool;
 begin
   Result := lua_iscfunction(@Self, index);
 end;
 
-function TLuaStateRec.isinteger(index: Integer): LongBool;
+function TLuaStateRec.IsInteger(index: Integer): LongBool;
 begin
   Result := lua_isinteger(@Self, index);
 end;
 
-function TLuaStateRec.isuserdata(index: Integer): LongBool;
+function TLuaStateRec.IsUserdata(index: Integer): LongBool;
 begin
   Result := lua_isuserdata(@Self, index);
 end;
 
-function TLuaStateRec.typeat(index: Integer): Integer;
+function TLuaStateRec.TypeAt_X(index: Integer): Integer;
 begin
   Result := lua_type(@Self, index);
 end;
 
-function TLuaStateRec.typename(tp: Integer): PAnsiChar;
+function TLuaStateRec.TypeAt(index: Integer): TLuaType;
+begin
+  Result := TLuaType(TypeAt_X(index));
+end;
+
+function TLuaStateRec.TypeName_X(tp: Integer): PAnsiChar;
 begin
   Result := lua_typename(@Self, tp);
 end;
 
-function TLuaStateRec.typenameat(index: Integer): PAnsiChar;
+function TLuaStateRec.TypeName(tp: TLuaType): PAnsiChar;
 begin
-  Result := typename(typeat(index));
+  Result := TypeName_X(Ord(tp));
 end;
 
-function TLuaStateRec.tonumberx(index: Integer; isnum: PInteger): lua_Number;
+function TLuaStateRec.TypeNameAt(index: Integer): AnsiString;
+begin
+  Result := TypeName_X(TypeAt_X(index));
+end;
+
+function TLuaStateRec.LoadString(AString: AnsiString): TLuaLoadError;
+var
+  R: TReaderRec;
+begin
+  R.Done := False;
+  R.Data := @AString[1];
+  Result := Load(Reader, @R, nil, nil);
+end;
+
+procedure TLuaStateRec.Where(ALevel: Integer);
+var
+  ActRec: lua_Debug;
+begin
+  if GetStack(ALevel, @ActRec) then
+  begin
+    GetInfo('Sl', @ActRec);
+    if ActRec.currentline > 0 then
+    begin
+      PushFString('%s:%d: ', [ActRec.short_src, ActRec.currentline]);
+      Exit;
+    end;
+  end;
+  PushFString('', []);
+end;
+
+function TLuaStateRec.Error(AMessage: AnsiString; ALevel: Integer): Integer;
+begin
+  Where(ALevel);
+  PushString(@AMessage[1]);
+  Concat(2);
+  Result := Error_X;
+end;
+
+function TLuaStateRec.ErrorFmt(AFmt: AnsiString; AArgs: array of const; ALevel: Integer): Integer;
+begin
+  Error(Format(AFmt, AArgs), ALevel);
+end;
+
+function TLuaStateRec.FormatStack: AnsiString;
+var
+  I: Integer;
+begin
+  Result := '';
+  for I := Top downto 1 do
+  begin
+    PushValue;
+    Result := Result + Format('[%d] %s', [I, ToString(I)]) + #10;
+    Pop;
+  end;
+end;
+
+procedure TLuaStateRec.CheckType(AIndex: Integer; AType: TLuaType);
+var
+  T: TLuaType;
+begin
+  T := TypeAt(AIndex);
+  if T <> AType then
+    ErrorFmt('%s expected, got %s', [TypeName(AType), TypeNameAt(AIndex)]);
+end;
+
+function TLuaStateRec.ToNumberX(isnum: PInteger; index: Integer): lua_Number;
 begin
   Result := lua_tonumberx(@Self, index, isnum);
 end;
 
-function TLuaStateRec.tointegerx(index: Integer; isnum: PInteger): lua_Integer;
+function TLuaStateRec.ToIntegerX(isnum: PInteger; index: Integer): lua_Integer;
 begin
   Result := lua_tointegerx(@Self, index, isnum);
 end;
 
-function TLuaStateRec.toboolean(index: Integer): LongBool;
+function TLuaStateRec.ToBoolean(index: Integer): LongBool;
 begin
   Result := lua_toboolean(@Self, index);
 end;
 
-function TLuaStateRec.tolstring(index: Integer; len: PNativeUInt): PAnsiChar;
+function TLuaStateRec.ToLString(len: PNativeUInt; index: Integer): PAnsiChar;
 begin
   Result := lua_tolstring(@Self, index, len);
 end;
 
-function TLuaStateRec.rawlen(index: Integer): NativeUInt;
+function TLuaStateRec.RawLen(index: Integer): NativeUInt;
 begin
   Result := lua_rawlen(@Self, index);
 end;
 
-function TLuaStateRec.tocfunction(index: Integer): lua_CFunction;
+function TLuaStateRec.ToCFunction(index: Integer): lua_CFunction;
 begin
   Result := lua_tocfunction(@Self, index);
 end;
 
-function TLuaStateRec.touserdata(index: Integer): Pointer;
+function TLuaStateRec.ToUserdata(index: Integer): Pointer;
 begin
   Result := lua_touserdata(@Self, index);
 end;
 
-function TLuaStateRec.tothread(index: Integer): TLuaState;
+function TLuaStateRec.ToThread(index: Integer): TLuaState;
 begin
   Result := lua_tothread(@Self, index);
 end;
 
-function TLuaStateRec.topointer(index: Integer): Pointer;
+function TLuaStateRec.ToPointer(index: Integer): Pointer;
 begin
   Result := lua_topointer(@Self, index);
 end;
 
-procedure TLuaStateRec.arith(op: Integer);
+procedure TLuaStateRec.Arith(op: Integer);
 begin
   lua_arith(@Self, op);
 end;
 
-function TLuaStateRec.rawequal(index1, index2: Integer): LongBool;
+function TLuaStateRec.RawEqual(index1, index2: Integer): LongBool;
 begin
   Result := lua_rawequal(@Self, index1, index2);
 end;
 
-function TLuaStateRec.compare(index1, index2, op: Integer): LongBool;
+function TLuaStateRec.Compare(index1, index2, op: Integer): LongBool;
 begin
   Result := lua_compare(@Self, index1, index2, op);
 end;
 
-procedure TLuaStateRec.pushnil;
+procedure TLuaStateRec.PushNil;
 begin
   lua_pushnil(@Self);
 end;
 
-procedure TLuaStateRec.pushnumber(n: lua_Number);
+procedure TLuaStateRec.PushNumber(n: lua_Number);
 begin
   lua_pushnumber(@Self, n);
 end;
 
-procedure TLuaStateRec.pushinteger(n: lua_Integer);
+procedure TLuaStateRec.PushInteger(n: lua_Integer);
 begin
   lua_pushinteger(@Self, n);
 end;
 
-function TLuaStateRec.pushlstring(s: PAnsiChar; len: NativeUInt): PAnsiChar;
+function TLuaStateRec.PushLString(s: PAnsiChar; len: NativeUInt): PAnsiChar;
 begin
   Result := lua_pushlstring(@Self, s, len);
 end;
 
-function TLuaStateRec.pushvfstring(fmt, argp: PAnsiChar): PAnsiChar;
+function TLuaStateRec.PushVFString(fmt, argp: PAnsiChar): PAnsiChar;
 begin
   Result := lua_pushvfstring(@Self, fmt, argp);
 end;
 
-function TLuaStateRec.pushstring(s: PAnsiChar): PAnsiChar;
+function TLuaStateRec.PushString(s: PAnsiChar): PAnsiChar;
 begin
   Result := lua_pushstring(@Self, s);
 end;
 
-procedure TLuaStateRec.pushcclosure(fn: lua_CFunction; n: Integer);
+procedure TLuaStateRec.PushCClosure(fn: lua_CFunction; n: Integer);
 begin
   lua_pushcclosure(@Self, fn, n);
 end;
 
-procedure TLuaStateRec.pushboolean(b: LongBool);
+procedure TLuaStateRec.PushBoolean(b: LongBool);
 begin
   lua_pushboolean(@Self, b);
 end;
 
-procedure TLuaStateRec.pushlightuserdata(p: Pointer);
+procedure TLuaStateRec.PushLightuserdata(p: Pointer);
 begin
   lua_pushlightuserdata(@Self, p);
 end;
 
-function TLuaStateRec.pushthread: LongBool;
+function TLuaStateRec.PushThread: LongBool;
 begin
   Result := lua_pushthread(@Self);
 end;
 
-function TLuaStateRec.getglobal(name: PAnsiChar): Integer;
+function TLuaStateRec.GetGlobal(name: PAnsiChar): Integer;
 begin
   Result := lua_getglobal(@Self, name);
 end;
 
-function TLuaStateRec.gettable(index: Integer): Integer;
+function TLuaStateRec.GetTable(index: Integer): Integer;
 begin
   Result := lua_gettable(@Self, index);
 end;
 
-function TLuaStateRec.getfield(index: Integer; k: PAnsiChar): Integer;
+function TLuaStateRec.GetField(k: PAnsiChar; index: Integer): Integer;
 begin
   Result := lua_getfield(@Self, index, k);
 end;
 
-function TLuaStateRec.geti(index: Integer; i: lua_Integer): Integer;
+function TLuaStateRec.GetI(i: lua_Integer; index: Integer): Integer;
 begin
   Result := lua_geti(@Self, index, i);
 end;
 
-function TLuaStateRec.rawget(index: Integer): Integer;
+function TLuaStateRec.RawGet(index: Integer): Integer;
 begin
   Result := lua_rawget(@Self, index);
 end;
 
-function TLuaStateRec.rawgeti(index: Integer; i: lua_Integer): Integer;
+function TLuaStateRec.RawGetI(i: lua_Integer; index: Integer): Integer;
 begin
   Result := lua_rawgeti(@Self, index, i);
 end;
 
-function TLuaStateRec.rawgetp(index: Integer; p: Pointer): Integer;
+function TLuaStateRec.RawGetP(p: Pointer; index: Integer): Integer;
 begin
   Result := lua_rawgetp(@Self, index, p);
 end;
 
-procedure TLuaStateRec.createtable(narr, nrec: Integer);
+procedure TLuaStateRec.CreateTable(narr, nrec: Integer);
 begin
   lua_createtable(@Self, narr, nrec);
 end;
 
-function TLuaStateRec.newuserdata(size: NativeUInt): Pointer;
+function TLuaStateRec.NewUserdata(size: NativeUInt): Pointer;
 begin
   Result := lua_newuserdata(@Self, size);
 end;
 
-function TLuaStateRec.getmetatable(index: Integer): LongBool;
+function TLuaStateRec.GetMetatable(index: Integer): LongBool;
 begin
   Result := lua_getmetatable(@Self, index);
 end;
 
-function TLuaStateRec.getuservalue(index: Integer): Integer;
+function TLuaStateRec.GetUservalue(index: Integer): Integer;
 begin
   Result := lua_getuservalue(@Self, index);
 end;
 
-procedure TLuaStateRec.setglobal(name: PAnsiChar);
+procedure TLuaStateRec.SetGlobal(name: PAnsiChar);
 begin
   lua_setglobal(@Self, name);
 end;
 
-procedure TLuaStateRec.settable(index: Integer);
+procedure TLuaStateRec.SetTable(index: Integer);
 begin
   lua_settable(@Self, index);
 end;
 
-procedure TLuaStateRec.setfield(index: Integer; k: PAnsiChar);
+procedure TLuaStateRec.SetField(k: PAnsiChar; index: Integer);
 begin
   lua_setfield(@Self, index, k);
 end;
 
-procedure TLuaStateRec.seti(index: Integer; i: lua_Integer);
+procedure TLuaStateRec.SetI(i: lua_Integer; index: Integer);
 begin
   lua_seti(@Self, index, i);
 end;
 
-procedure TLuaStateRec.rawset(index: Integer);
+procedure TLuaStateRec.RawSet(index: Integer);
 begin
   lua_rawset(@Self, index);
 end;
 
-procedure TLuaStateRec.rawseti(index: Integer; i: lua_Integer);
+procedure TLuaStateRec.RawSetI(i: lua_Integer; index: Integer);
 begin
   lua_rawseti(@Self, index, i);
 end;
 
-procedure TLuaStateRec.rawsetp(index: Integer; p: Pointer);
+procedure TLuaStateRec.RawSetP(p: Pointer; index: Integer);
 begin
   lua_rawsetp(@Self, index, p);
 end;
 
-procedure TLuaStateRec.setmetatable(index: Integer);
+procedure TLuaStateRec.SetMetatable(index: Integer);
 begin
   lua_setmetatable(@Self, index);
 end;
 
-procedure TLuaStateRec.setuservalue(index: Integer);
+procedure TLuaStateRec.SetUservalue(index: Integer);
 begin
   lua_setuservalue(@Self, index);
 end;
 
-procedure TLuaStateRec.callk(nargs, nresults: Integer; ctx: lua_KContext; k: lua_KFunction);
+procedure TLuaStateRec.CallK(nargs, nresults: Integer; ctx: lua_KContext;
+  k: lua_KFunction);
 begin
   lua_callk(@Self, nargs, nresults, ctx, k);
 end;
 
-procedure TLuaStateRec.call(nargs, nresults: Integer);
+procedure TLuaStateRec.Call(nargs, nresults: Integer);
 begin
   lua_call(@Self, nargs, nresults);
 end;
 
-function TLuaStateRec.pcallk(nargs, nresults, msgh: Integer; ctx: lua_KContext; k: lua_KFunction): Integer;
+function TLuaStateRec.PCallK_X(nargs, nresults, msgh: Integer; ctx: lua_KContext;
+  k: lua_KFunction): Integer;
 begin
   Result := lua_pcallk(@Self, nargs, nresults, msgh, ctx, k);
 end;
 
-function TLuaStateRec.pcall(nargs, nresults, msgh: Integer): Integer;
+function TLuaStateRec.PCallK(nargs, nresults, msgh: Integer; ctx: lua_KContext; k: lua_KFunction): TLuaPCallError;
+begin
+  Result := TLuaPCallError(PCallK_X(nargs, nresults, msgh, ctx, k));
+end;
+
+function TLuaStateRec.PCall_X(nargs, nresults, msgh: Integer): Integer;
 begin
   Result := lua_pcall(@Self, nargs, nresults, msgh);
 end;
 
-function TLuaStateRec.load(reader: lua_Reader; data: Pointer; chunkname, mode: PAnsiChar): Integer;
+function TLuaStateRec.PCall(nargs, nresults, msgh: Integer): TLuaPCallError;
+begin
+  Result := TLuaPCallError(PCall_X(nargs, nresults, msgh));
+end;
+
+function TLuaStateRec.Load_X(reader: lua_Reader; data: Pointer; chunkname, mode: PAnsiChar): Integer;
 begin
   Result := lua_load(@Self, reader, data, chunkname, mode);
 end;
 
-function TLuaStateRec.dump(writer: lua_Writer; data: Pointer; strip: Integer): Integer;
+function TLuaStateRec.Load(reader: TLuaReader; data: Pointer; chunkname, mode: PAnsiChar): TLuaLoadError;
+begin
+  Result := TLuaLoadError(Load_X(reader, data, chunkname, mode));
+end;
+
+function TLuaStateRec.Dump(writer: lua_Writer; data: Pointer; strip: Integer): Integer;
 begin
   Result := lua_dump(@Self, writer, data, strip);
 end;
 
-function TLuaStateRec.yieldk(nresults: Integer; ctx: lua_KContext; k: lua_KFunction): Integer;
+function TLuaStateRec.YieldK(nresults: Integer; ctx: lua_KContext; k: lua_KFunction): Integer;
 begin
   Result := lua_yieldk(@Self, nresults, ctx, k);
 end;
 
-function TLuaStateRec.resume(from: TLuaState; nargs: Integer): Integer;
+function TLuaStateRec.Resume(from: TLuaState; nargs: Integer): Integer;
 begin
   Result := lua_resume(@Self, from, nargs);
 end;
 
-function TLuaStateRec.status: Integer;
+function TLuaStateRec.Status: Integer;
 begin
   Result := lua_status(@Self);
 end;
 
-function TLuaStateRec.isyieldable: LongBool;
+function TLuaStateRec.IsYieldable: LongBool;
 begin
   Result := lua_isyieldable(@Self);
 end;
 
-function TLuaStateRec.yield(nresults: Integer): Integer;
+function TLuaStateRec.Yield(nresults: Integer): Integer;
 begin
   Result := lua_yield(@Self, nresults);
 end;
 
-function TLuaStateRec.gc(what, data: Integer): Integer;
+function TLuaStateRec.GC(what, data: Integer): Integer;
 begin
   Result := lua_gc(@Self, what, data);
 end;
 
-function TLuaStateRec.error: Integer;
+function TLuaStateRec.Error_X: Integer;
 begin
   Result := lua_error(@Self);
 end;
 
-function TLuaStateRec.next(index: Integer): LongBool;
+function TLuaStateRec.Next(index: Integer): LongBool;
 begin
   Result := lua_next(@Self, index);
 end;
 
-procedure TLuaStateRec.concat(n: Integer);
+procedure TLuaStateRec.Concat(n: Integer);
 begin
   lua_concat(@Self, n);
 end;
 
-procedure TLuaStateRec.len(index: Integer);
+procedure TLuaStateRec.Len(index: Integer);
 begin
   lua_len(@Self, index);
 end;
 
-function TLuaStateRec.stringtonumber(s: PAnsiChar): NativeUInt;
+function TLuaStateRec.StringToNumber(s: PAnsiChar): NativeUInt;
 begin
   Result := lua_stringtonumber(@Self, s);
 end;
 
-function TLuaStateRec.getallocf(ud: PPointer): lua_Alloc;
+function TLuaStateRec.GetAllocF(ud: PPointer): lua_Alloc;
 begin
   Result := lua_getallocf(@Self, ud);
 end;
 
-procedure TLuaStateRec.setallocf(f: lua_Alloc; ud: Pointer);
+procedure TLuaStateRec.SetAllocF(f: lua_Alloc; ud: Pointer);
 begin
   lua_setallocf(@Self, f, ud);
 end;
 
-function TLuaStateRec.getextraspace: Pointer;
+function TLuaStateRec.GetExtraSpace: Pointer;
 begin
   Result := lua_getextraspace(@Self);
 end;
 
-function TLuaStateRec.tonumber(index: Integer): lua_Number;
+function TLuaStateRec.ToNumber(index: Integer): lua_Number;
 begin
   Result := lua_tonumber(@Self, index);
 end;
 
-function TLuaStateRec.tointeger(index: Integer): lua_Integer;
+function TLuaStateRec.ToInteger(index: Integer): lua_Integer;
 begin
   Result := lua_tointeger(@Self, index);
 end;
 
-procedure TLuaStateRec.pop(n: Integer);
+procedure TLuaStateRec.Pop(n: Integer);
 begin
   lua_pop(@Self, n);
 end;
 
-procedure TLuaStateRec.newtable;
+procedure TLuaStateRec.NewTable;
 begin
   lua_newtable(@Self);
 end;
 
-procedure TLuaStateRec.&register(name: PAnsiChar; f: lua_CFunction);
+procedure TLuaStateRec.&Register(name: PAnsiChar; f: lua_CFunction);
 begin
   lua_register(@Self, name, f);
 end;
 
-procedure TLuaStateRec.pushcfunction(f: lua_CFunction);
+procedure TLuaStateRec.PushCFunction(f: lua_CFunction);
 begin
   lua_pushcfunction(@Self, f);
 end;
 
-function TLuaStateRec.pushfstring(fmt: PAnsiChar; args: array of const): PAnsiChar;
+function TLuaStateRec.PushFString(fmt: PAnsiChar;
+  args: array of const): PAnsiChar;
 var
   list: array of PAnsiChar;
-  i: Integer;
+  i, L: Integer;
   X: AnsiString;
 begin
-  SetLength(list, Length(args));
-  for i := 0 to Length(args) - 1 do
+  L := Length(args);
+  if L > 0 then
   begin
-    case args[i].VType of
-      vtInteger: list[i] := PAnsiChar(args[i].VInteger);
-      // vtBoolean: if args[i].VBoolean then list[i] := 'TRUE' else list[i] := 'FALSE';
-      vtChar: list[i] := PAnsiChar(args[i].VChar);
-      vtExtended: list[i] := PAnsiChar(args[i].VExtended^);
-      vtString: list[i] := @AnsiString(args[i].VString^)[1];
-      vtPointer: list[i] := PAnsiChar(args[i].VPointer);
-      vtPChar: list[i] := args[i].VPChar;
-      // vtObject: list[i] := PAnsiChar(args[i].VObject);
-      // vtClass: list[i] := PAnsiChar(args[i].VClass);
-      vtWideChar: list[i] := PAnsiChar(args[i].VWideChar);
-      vtPWideChar: list[i] := @AnsiString(WideString(args[i].VPWideChar))[1];
-      vtAnsiString: list[i] := args[i].VAnsiString;
-      // vtCurrency: list[i] := PAnsiChar(args[i].VCurrency);
-      // vtVariant: list[i] := PAnsiChar(args[i].VVariant);
-      // vtInterface: list[i] := PAnsiChar(args[i].VInterface);
-      vtWideString: list[i] := @AnsiString(WideString(args[i].VWideString))[1];
-      vtInt64: list[i] := PAnsiChar(args[i].VInt64^);
-      vtUnicodeString: list[i] := @AnsiString(UnicodeString(args[i].VUnicodeString))[1];
-    else
-      raise ENotSupportedException.CreateFmt('Unsupported Formatting VariantType: %d', [args[I].VType]);
+    SetLength(list, L);
+    for i := 0 to L - 1 do
+    begin
+      case args[i].VType of
+        vtInteger: list[i] := PAnsiChar(args[i].VInteger);
+        // vtBoolean: if args[i].VBoolean then list[i] := 'TRUE' else list[i] := 'FALSE';
+        vtChar: list[i] := PAnsiChar(args[i].VChar);
+        // vtExtended: list[i] := PAnsiChar(args[i].VExtended^);
+        vtString: list[i] := @AnsiString(args[i].VString^)[1];
+        vtPointer: list[i] := PAnsiChar(args[i].VPointer);
+        vtPChar: list[i] := args[i].VPChar;
+        // vtObject: list[i] := PAnsiChar(args[i].VObject);
+        // vtClass: list[i] := PAnsiChar(args[i].VClass);
+        vtWideChar: list[i] := PAnsiChar(args[i].VWideChar);
+        vtPWideChar: list[i] := @AnsiString(WideString(args[i].VPWideChar))[1];
+        vtAnsiString: list[i] := args[i].VAnsiString;
+        // vtCurrency: list[i] := PAnsiChar(args[i].VCurrency);
+        // vtVariant: list[i] := PAnsiChar(args[i].VVariant);
+        // vtInterface: list[i] := PAnsiChar(args[i].VInterface);
+        vtWideString: list[i] := @AnsiString(WideString(args[i].VWideString))[1];
+        vtInt64: list[i] := PAnsiChar(args[i].VInt64^);
+        vtUnicodeString: list[i] := @AnsiString(UnicodeString(args[i].VUnicodeString))[1];
+      else
+        raise ENotSupportedException.CreateFmt('Unsupported Formatting VariantType: %d', [args[I].VType]);
+      end;
     end;
-  end;
-  Result := pushvfstring(fmt, @list[0]);
+    Result := pushvfstring(fmt, @list[0]);
+  end
+  else
+    Result := pushvfstring(fmt, nil);
 end;
 
-function TLuaStateRec.isfunction(index: Integer): LongBool;
+function TLuaStateRec.IsFunction(index: Integer): LongBool;
 begin
   Result := lua_isfunction(@Self, index);
 end;
 
-function TLuaStateRec.istable(index: Integer): LongBool;
+function TLuaStateRec.IsTable(index: Integer): LongBool;
 begin
   Result := lua_istable(@Self, index);
 end;
 
-function TLuaStateRec.islightuserdata(index: Integer): LongBool;
+function TLuaStateRec.IsLightuserdata(index: Integer): LongBool;
 begin
   Result := lua_islightuserdata(@Self, index);
 end;
 
-function TLuaStateRec.isnil(index: Integer): LongBool;
+function TLuaStateRec.IsNil(index: Integer): LongBool;
 begin
   Result := lua_isnil(@Self, index);
 end;
 
-function TLuaStateRec.isboolean(index: Integer): LongBool;
+function TLuaStateRec.IsBoolean(index: Integer): LongBool;
 begin
   Result := lua_isboolean(@Self, index);
 end;
 
-function TLuaStateRec.isthread(index: Integer): LongBool;
+function TLuaStateRec.IsThread(index: Integer): LongBool;
 begin
   Result := lua_isthread(@Self, index);
 end;
 
-function TLuaStateRec.isnone(index: Integer): LongBool;
+function TLuaStateRec.IsNone(index: Integer): LongBool;
 begin
   Result := lua_isnone(@Self, index);
 end;
 
-function TLuaStateRec.isnoneornil(index: Integer): LongBool;
+function TLuaStateRec.IsNoneOrNil(index: Integer): LongBool;
 begin
   Result := lua_isnoneornil(@Self, index);
 end;
 
-function TLuaStateRec.pushliteral(s: PAnsiChar): PAnsiChar;
+function TLuaStateRec.PushLiteral(s: PAnsiChar): PAnsiChar;
 begin
   Result := lua_pushliteral(@Self, s);
 end;
 
-procedure TLuaStateRec.pushglobaltable;
+procedure TLuaStateRec.PushGlobalTable;
 begin
   lua_pushglobaltable(@Self);
 end;
 
-function TLuaStateRec.tostring(index: Integer): PAnsiChar;
+function TLuaStateRec.ToString_X(index: Integer): PAnsiChar;
 begin
   Result := lua_tostring(@Self, index);
 end;
 
-procedure TLuaStateRec.insert(index: Integer);
+function TLuaStateRec.ToString(index: Integer): PAnsiChar;
+begin
+  case TypeAt(index) of
+    ltNone: Result := 'none';
+    ltNil: Result := 'nil';
+    ltBoolean: if ToBoolean(index) then Result := 'true' else Result := 'false';
+    ltLightUserdata:
+      begin
+        PushFString('lightuserdata: %p', [ToPointer(index)]);
+        Result := ToString_X;
+        Remove(-2);
+      end;
+    // ltNumber: ; // default
+    // ltString: ; // default
+    ltTable:
+      begin
+        PushFString('table: %p', [ToPointer(index)]);
+        Result := ToString_X;
+        Remove(-2);
+      end;
+    ltFunction:
+      begin
+        PushFString('function: %p', [ToPointer(index)]);
+        Result := ToString_X;
+        Remove(-2);
+      end;
+    ltUserdata:
+      begin
+        PushFString('userdata: %p', [ToPointer(index)]);
+        Result := ToString_X;
+        Remove(-2);
+      end;
+    ltThread:
+      begin
+        PushFString('thread: %p', [ToPointer(index)]);
+        Result := ToString_X;
+        Remove(-2);
+      end;
+  else
+    Result := ToString_X(index);
+  end;
+end;
+
+procedure TLuaStateRec.Insert(index: Integer);
 begin
   lua_insert(@Self, index);
 end;
 
-procedure TLuaStateRec.remove(index: Integer);
+procedure TLuaStateRec.Remove(index: Integer);
 begin
   lua_remove(@Self, index);
 end;
 
-procedure TLuaStateRec.replace(index: Integer);
+procedure TLuaStateRec.Replace(index: Integer);
 begin
   lua_replace(@Self, index);
 end;
 
-function TLuaStateRec.getstack(level: Integer; ar: Plua_Debug): LongBool;
+function TLuaStateRec.GetStack(level: Integer; ar: Plua_Debug): LongBool;
 begin
   Result := lua_getstack(@Self, level, ar);
 end;
 
-function TLuaStateRec.getinfo(what: PAnsiChar; ar: Plua_Debug): LongBool;
+function TLuaStateRec.GetInfo(what: PAnsiChar; ar: Plua_Debug): LongBool;
 begin
   Result := lua_getinfo(@Self, what, ar);
 end;
 
-function TLuaStateRec.getlocal(ar: Plua_Debug; n: Integer): PAnsiChar;
+function TLuaStateRec.GetLocal(ar: Plua_Debug; n: Integer): PAnsiChar;
 begin
   Result := lua_getlocal(@Self, ar, n);
 end;
 
-function TLuaStateRec.setlocal(ar: Plua_Debug; n: Integer): PAnsiChar;
+function TLuaStateRec.SetLocal(ar: Plua_Debug; n: Integer): PAnsiChar;
 begin
   Result := lua_setlocal(@Self, ar, n);
 end;
 
-function TLuaStateRec.getupvalue(funcindex, n: Integer): PAnsiChar;
+function TLuaStateRec.GetUpvalue(funcindex, n: Integer): PAnsiChar;
 begin
   Result := lua_getupvalue(@Self, funcindex, n);
 end;
 
-function TLuaStateRec.setupvalue(funcindex, n: Integer): PAnsiChar;
+function TLuaStateRec.SetUpvalue(funcindex, n: Integer): PAnsiChar;
 begin
   Result := lua_setupvalue(@Self, funcindex, n);
 end;
 
-function TLuaStateRec.upvalueid(funcindex, n: Integer): Pointer;
+function TLuaStateRec.UpvalueID(funcindex, n: Integer): Pointer;
 begin
   Result := lua_upvalueid(@Self, funcindex, n);
 end;
 
-procedure TLuaStateRec.upvaluejoin(funcindex1, n1, funcindex2, n2: Integer);
+procedure TLuaStateRec.UpvalueJoin(funcindex1, n1, funcindex2, n2: Integer);
 begin
   lua_upvaluejoin(@Self, funcindex1, n1, funcindex2, n2);
 end;
 
-procedure TLuaStateRec.sethook(f: lua_Hook; mask, count: Integer);
+procedure TLuaStateRec.SetHook(f: lua_Hook; mask, count: Integer);
 begin
   lua_sethook(@Self, f, mask, count);
 end;
 
-function TLuaStateRec.gethook: lua_Hook;
+function TLuaStateRec.GetHook: lua_Hook;
 begin
   Result := lua_gethook(@Self);
 end;
 
-function TLuaStateRec.gethookmask: Integer;
+function TLuaStateRec.GetHookMask: Integer;
 begin
   Result := lua_gethookmask(@Self);
 end;
 
-function TLuaStateRec.gethookcount: Integer;
+function TLuaStateRec.GetHookCount: Integer;
 begin
   Result := lua_gethookcount(@Self);
 end;
