@@ -3,19 +3,9 @@ unit Lua;
 interface
 
 uses
-  LuaState, LuaHeader;
+  LuaHeader;
 
 type
-
-  { TLuaList }
-
-  TLuaList = record
-  private
-
-  public
-    procedure Read(L: Plua_State);
-    procedure Push(L: Plua_State);
-  end;
 
   { TLua }
 

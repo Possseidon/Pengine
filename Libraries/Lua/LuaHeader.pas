@@ -232,6 +232,10 @@ type
     ltThread
     );
 
+  TLuaTypeNoNone = ltNil .. ltThread;
+
+  TLuaTypes = set of TLuaTypeNoNone;
+
   TLuaNumber = lua_Number;
   TLuaString = AnsiString;
   PLuaString = PAnsiChar;
@@ -325,8 +329,10 @@ type
     // get functions (Lua -> stack)
     function GetGlobal(name: PAnsiChar): Integer; inline;
     function GetTable(index: Integer = -1): Integer; inline;
-    function GetField(k: PAnsiChar; index: Integer = -1): Integer; inline;
-    function GetI(i: lua_Integer; index: Integer = -1): Integer; inline;
+    function GetField_X(k: PAnsiChar; index: Integer = -1): Integer; inline;
+    function GetField(k: PAnsiChar; index: Integer = -1): TLuaType; inline;
+    function GetI_X(i: lua_Integer; index: Integer = -1): Integer; inline;
+    function GetI(i: lua_Integer; index: Integer = -1): TLuaType; inline;
     function RawGet(index: Integer = -1): Integer; inline;
     function RawGetI(i: lua_Integer; index: Integer = -1): Integer; inline;
     function RawGetP(p: Pointer; index: Integer = -1): Integer; inline;
@@ -435,7 +441,7 @@ type
     property Top: Integer read GetTop write SetTop;
     function TypeNameAt(index: Integer): AnsiString; inline;
 
-    function LoadString(AString: AnsiString): TLuaLoadError;
+    function LoadString(AString: AnsiString; AChunkName: AnsiString = ''): TLuaLoadError;
 
     procedure Where(ALevel: Integer);
 
@@ -444,7 +450,17 @@ type
 
     function FormatStack: AnsiString;
 
-    procedure CheckType(AIndex: Integer; AType: TLuaType);
+    function FormatTypes(ATypes: TLuaTypes; ANone: Boolean = False): AnsiString;
+
+    procedure CheckType(AIndex: Integer; AType: TLuaType); overload;
+    procedure CheckType(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean = False); overload;
+    function CheckAny(AIndex: Integer): TLuaType; overload;
+    procedure CheckEnd(AIndex: Integer); inline; overload;
+
+    function CheckOrDefault(AIndex: Integer; ADefault: TLuaInteger): TLuaInteger; overload;
+    function CheckOrDefault(AIndex: Integer; ADefault: TLuaNumber): TLuaNumber; overload;
+    function CheckOrDefault(AIndex: Integer; ADefault: TLuaString): TLuaString; overload;
+    function CheckOrDefault(AIndex: Integer; ADefault: Boolean): Boolean; overload;
 
   end;
 
@@ -897,13 +913,13 @@ begin
   Result := TypeName_X(TypeAt_X(index));
 end;
 
-function TLuaStateRec.LoadString(AString: AnsiString): TLuaLoadError;
+function TLuaStateRec.LoadString(AString: AnsiString; AChunkName: AnsiString): TLuaLoadError;
 var
   R: TReaderRec;
 begin
   R.Done := False;
-  R.Data := @AString[1];
-  Result := Load(Reader, @R, nil, nil);
+  R.Data := PPAnsiChar(@AString)^;
+  Result := Load(Reader, @R, PPAnsiChar(@AChunkName)^, 't');
 end;
 
 procedure TLuaStateRec.Where(ALevel: Integer);
@@ -925,7 +941,7 @@ end;
 function TLuaStateRec.Error(AMessage: AnsiString; ALevel: Integer): Integer;
 begin
   Where(ALevel);
-  PushString(@AMessage[1]);
+  PushString(PPAnsiChar(@AMessage)^);
   Concat(2);
   Result := Error_X;
 end;
@@ -948,13 +964,90 @@ begin
   end;
 end;
 
+function TLuaStateRec.FormatTypes(ATypes: TLuaTypes; ANone: Boolean): AnsiString;
+var
+  T: TLuaTypeNoNone;
+  First: Boolean;
+begin
+  First := not ANone;
+  if ANone then
+    Result := TypeName(ltNone);
+  for T in ATypes do
+  begin
+    if First then
+    begin
+      Result := Typename(T);
+      First := False;
+      Continue;
+    end;
+    Result := Result + ' or ' + TypeName(T);
+  end;
+end;
+
 procedure TLuaStateRec.CheckType(AIndex: Integer; AType: TLuaType);
 var
   T: TLuaType;
 begin
   T := TypeAt(AIndex);
   if T <> AType then
-    ErrorFmt('%s expected, got %s', [TypeName(AType), TypeNameAt(AIndex)]);
+    ErrorFmt('arg #%d: %s expected, got %s', [AIndex, TypeName(AType), TypeNameAt(AIndex)]);
+end;
+
+procedure TLuaStateRec.CheckType(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean);
+var
+  T: TLuaType;
+begin
+  T := TypeAt(AIndex);
+  if (T = ltNone) and not ANone or (T <> ltNone) and not (T in ATypes) then
+    ErrorFmt('arg #%d: %s expected, got %s', [AIndex, FormatTypes(ATypes, ANone), TypeName(T)]);
+end;
+
+function TLuaStateRec.CheckAny(AIndex: Integer): TLuaType;
+begin
+  Result := TypeAt(AIndex);
+  if Result = ltNone then
+    ErrorFmt('arg #%d: argument expected, got %s', [AIndex, TypeName(Result)]);
+end;
+
+procedure TLuaStateRec.CheckEnd(AIndex: Integer);
+begin
+  CheckType(AIndex, ltNone);
+end;
+
+function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: TLuaInteger): TLuaInteger;
+var
+  IsNum: LongBool;
+begin
+  CheckType(AIndex, [ltNil, ltNumber], True);
+  if IsNoneOrNil(AIndex) then
+    Exit(ADefault);
+  Result := ToIntegerX(@IsNum, AIndex);
+  if not IsNum then
+    ErrorFmt('arg #%d: number must be an integer', [AIndex]);
+end;
+
+function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: TLuaNumber): TLuaNumber;
+begin
+  CheckType(AIndex, [ltNil, ltNumber], True);
+  if IsNoneOrNil(AIndex) then
+    Exit(ADefault);
+  Result := ToNumber(AIndex);
+end;
+
+function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: TLuaString): TLuaString;
+begin
+  CheckType(AIndex, [ltNil, ltString], True);
+  if IsNoneOrNil(AIndex) then
+    Exit(ADefault);
+  Result := ToString_X(AIndex);
+end;
+
+function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: Boolean): Boolean;
+begin
+  CheckType(AIndex, [ltNil, ltBoolean], True);
+  if IsNoneOrNil(AIndex) then
+    Exit(ADefault);
+  Result := ToBoolean(AIndex);
 end;
 
 function TLuaStateRec.ToNumberX(isnum: PInteger; index: Integer): lua_Number;
@@ -1077,14 +1170,24 @@ begin
   Result := lua_gettable(@Self, index);
 end;
 
-function TLuaStateRec.GetField(k: PAnsiChar; index: Integer): Integer;
+function TLuaStateRec.GetField_X(k: PAnsiChar; index: Integer): Integer;
 begin
   Result := lua_getfield(@Self, index, k);
 end;
 
-function TLuaStateRec.GetI(i: lua_Integer; index: Integer): Integer;
+function TLuaStateRec.GetField(k: PAnsiChar; index: Integer): TLuaType;
+begin
+  Result := TLuaType(GetField_X(k, index));
+end;
+
+function TLuaStateRec.GetI_X(i: lua_Integer; index: Integer): Integer;
 begin
   Result := lua_geti(@Self, index, i);
+end;
+
+function TLuaStateRec.GetI(i: lua_Integer; index: Integer): TLuaType;
+begin
+  Result := TLuaType(GetI_X(i, index));
 end;
 
 function TLuaStateRec.RawGet(index: Integer): Integer;
@@ -1319,7 +1422,7 @@ function TLuaStateRec.PushFString(fmt: PAnsiChar;
 var
   list: array of PAnsiChar;
   i, L: Integer;
-  X: AnsiString;
+  S: AnsiString;
 begin
   L := Length(args);
   if L > 0 then
@@ -1332,20 +1435,36 @@ begin
         // vtBoolean: if args[i].VBoolean then list[i] := 'TRUE' else list[i] := 'FALSE';
         vtChar: list[i] := PAnsiChar(args[i].VChar);
         // vtExtended: list[i] := PAnsiChar(args[i].VExtended^);
-        vtString: list[i] := @AnsiString(args[i].VString^)[1];
+        vtString:
+          begin
+            S := args[i].VString^;
+            list[i] := PPAnsiChar(@S)^;
+          end;
         vtPointer: list[i] := PAnsiChar(args[i].VPointer);
         vtPChar: list[i] := args[i].VPChar;
         // vtObject: list[i] := PAnsiChar(args[i].VObject);
         // vtClass: list[i] := PAnsiChar(args[i].VClass);
         vtWideChar: list[i] := PAnsiChar(args[i].VWideChar);
-        vtPWideChar: list[i] := @AnsiString(WideString(args[i].VPWideChar))[1];
+        vtPWideChar:
+          begin
+            S := AnsiString(WideString(args[i].VPWideChar));
+            list[i] := PPAnsiChar(@S)^;
+          end;
         vtAnsiString: list[i] := args[i].VAnsiString;
         // vtCurrency: list[i] := PAnsiChar(args[i].VCurrency);
         // vtVariant: list[i] := PAnsiChar(args[i].VVariant);
         // vtInterface: list[i] := PAnsiChar(args[i].VInterface);
-        vtWideString: list[i] := @AnsiString(WideString(args[i].VWideString))[1];
+        vtWideString:
+          begin
+            S := AnsiString(WideString(args[i].VWideString));
+            list[i] := PPAnsiChar(@S)^;
+          end;
         vtInt64: list[i] := PAnsiChar(args[i].VInt64^);
-        vtUnicodeString: list[i] := @AnsiString(UnicodeString(args[i].VUnicodeString))[1];
+        vtUnicodeString:
+          begin
+            S := AnsiString(UnicodeString(args[i].VUnicodeString));
+            list[i] := PPAnsiChar(@S)^;
+          end;
       else
         raise ENotSupportedException.CreateFmt('Unsupported Formatting VariantType: %d', [args[I].VType]);
       end;
@@ -1412,42 +1531,27 @@ begin
 end;
 
 function TLuaStateRec.ToString(index: Integer): PAnsiChar;
+var
+  T: TLuaType;
 begin
-  case TypeAt(index) of
+  T := TypeAt(index);
+  case T of
     ltNone: Result := 'none';
     ltNil: Result := 'nil';
     ltBoolean: if ToBoolean(index) then Result := 'true' else Result := 'false';
     ltLightUserdata:
       begin
         PushFString('lightuserdata: %p', [ToPointer(index)]);
-        Result := ToString_X;
-        Remove(-2);
+        Replace(index);
+        Result := ToString_X(index);
       end;
     // ltNumber: ; // default
     // ltString: ; // default
-    ltTable:
+    ltTable .. ltThread:
       begin
-        PushFString('table: %p', [ToPointer(index)]);
-        Result := ToString_X;
-        Remove(-2);
-      end;
-    ltFunction:
-      begin
-        PushFString('function: %p', [ToPointer(index)]);
-        Result := ToString_X;
-        Remove(-2);
-      end;
-    ltUserdata:
-      begin
-        PushFString('userdata: %p', [ToPointer(index)]);
-        Result := ToString_X;
-        Remove(-2);
-      end;
-    ltThread:
-      begin
-        PushFString('thread: %p', [ToPointer(index)]);
-        Result := ToString_X;
-        Remove(-2);
+        PushFString('%s: %p', [TypeName(T), ToPointer(index)]);
+        Replace(index);
+        Result := ToString_X(index);
       end;
   else
     Result := ToString_X(index);
