@@ -4,7 +4,7 @@ interface
 
 uses
   Classes, SysUtils, Lists, TextureManager, VAOManager, Shaders, GLEnums, VectorGeometry, Color, Camera, OpenGLContext,
-  InterfaceBase, Matrix;
+  IntfBase, Matrix;
 
 type
 
@@ -89,7 +89,7 @@ type
     FParticles: array [TParticleMode] of TObjectArray<TBasicParticle>;
     FParticleGenerators: TObjectArray<TBasicParticleGen>;
 
-    function GetParticleCount: Cardinal;
+    function GetParticleCount: Integer;
 
     procedure BuildVAOs;
   public
@@ -109,7 +109,7 @@ type
     function Bounds: TBounds3;
     function ModelMatrix: TMatrix4;
 
-    property ParticleCount: Cardinal read GetParticleCount;
+    property ParticleCount: Integer read GetParticleCount;
 
     procedure Render;
 
@@ -291,7 +291,7 @@ begin
   FOpenGL.PopState;
 end;
 
-function TParticleSystem.GetParticleCount: Cardinal;
+function TParticleSystem.GetParticleCount: Integer;
 var
   M: TParticleMode;
 begin

@@ -336,7 +336,7 @@ end;
 
 procedure TVAO.GenAttributes;
 var
-  Attribute: TShader.TAttribute;
+  Attribute: TShaderAttribute;
 begin
   Bind;
   FVBO.Bind;

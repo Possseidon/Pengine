@@ -1,6 +1,6 @@
 program Physics3D;
 
-{$R *.dres}
+
 
 uses
   Vcl.Forms,

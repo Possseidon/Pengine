@@ -3,7 +3,7 @@ unit GLObjectBase;
 interface
 
 uses
-  dglOpenGL, InterfaceBase;
+  dglOpenGL, IntfBase;
 
 type
 

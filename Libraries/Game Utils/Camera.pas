@@ -41,8 +41,8 @@ type
 
     TUniform = class abstract
     public type
-      TUniformList = TRefArray<TShader.TUniform<TMatrix4>>;
-      TRotationUniformList = TRefArray<TShader.TUniform<TMatrix3>>;
+      TUniformList = TRefArray<TShaderUniform<TMatrix4>>;
+      TRotationUniformList = TRefArray<TShaderUniform<TMatrix3>>;
 
     private
       FCalculatesTo: TUniform;
@@ -66,11 +66,11 @@ type
       procedure SendAllMatrices;
       procedure Invalidate;
 
-      procedure AddUniform(AUniform: TShader.TUniform<TMatrix4>); overload;
-      procedure DelUniform(AUniform: TShader.TUniform<TMatrix4>); overload;
+      procedure AddUniform(AUniform: TShaderUniform<TMatrix4>); overload;
+      procedure DelUniform(AUniform: TShaderUniform<TMatrix4>); overload;
 
-      procedure AddUniform(AUniform: TShader.TUniform<TMatrix3>); overload;
-      procedure DelUniform(AUniform: TShader.TUniform<TMatrix3>); overload;
+      procedure AddUniform(AUniform: TShaderUniform<TMatrix3>); overload;
+      procedure DelUniform(AUniform: TShaderUniform<TMatrix3>); overload;
 
       property Data: TMatrix4 read GetData;
 
@@ -197,20 +197,20 @@ type
     /// <remarks>Inactive Uniforms get ignored automatically</remarks>
     /// <remarks>Inactive Uniforms get ignored automatically</remarks>
     /// <remarks>Inactive Uniforms get ignored automatically</remarks>
-    procedure AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>); overload;
+    procedure AddUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix4>); overload;
     /// <summary>Registers a specific RotationMatrix-Uniform-Connection</summary>
     /// <param name="AType">Which Matrix Type to bind the Uniform to</param>
     /// <param name="AUniform">The Uniform, getting bound</param>
-    procedure AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>); overload;
+    procedure AddUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix3>); overload;
 
     /// <summary>Unregisters a specific Matrix-Uniform-Connection</summary>
     /// <param name="AType">Which Matrix Type to unbind the Uniform from</param>
     /// <param name="AUniform">The Uniform, getting unbound</param>
-    procedure DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>); overload;
+    procedure DelUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix4>); overload;
     /// <summary>Unregisters a specific RotationMatrix-Uniform-Connection</summary>
     /// <param name="AType">Which Matrix Type to unbind the Uniform from</param>
     /// <param name="AUniform">The Uniform, getting unbound</param>
-    procedure DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>); overload;
+    procedure DelUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix3>); overload;
 
     // VAOs to render with given Model Matrix
     procedure AddRenderObject(ARenderObject: IRenderable);
@@ -358,13 +358,13 @@ begin
   Result := FLocation.Matrix;
 end;
 
-procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>);
+procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix4>);
 begin
   if AUniform.Active then
     FMat[AType].AddUniform(AUniform);
 end;
 
-procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>);
+procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix3>);
 begin
   if AUniform.Active then
     FMat[AType].AddUniform(AUniform);
@@ -386,13 +386,13 @@ begin
   FRenderObjects.Add(ARenderObject);
 end;
 
-procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>);
+procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix4>);
 begin
   if AUniform.Active then
     FMat[AType].DelUniform(AUniform);
 end;
 
-procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>);
+procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix3>);
 begin
   if AUniform.Active then
     FMat[AType].DelUniform(AUniform);
@@ -562,12 +562,12 @@ end;
 
 { TCamera.TUniform }
 
-procedure TCamera.TUniform.AddUniform(AUniform: TShader.TUniform<TMatrix3>);
+procedure TCamera.TUniform.AddUniform(AUniform: TShaderUniform<TMatrix3>);
 begin
   FRotationUniforms.Add(AUniform);
 end;
 
-procedure TCamera.TUniform.AddUniform(AUniform: TShader.TUniform<TMatrix4>);
+procedure TCamera.TUniform.AddUniform(AUniform: TShaderUniform<TMatrix4>);
 begin
   FUniforms.Add(AUniform);
 end;
@@ -578,12 +578,12 @@ begin
   FRotationUniforms := TRotationUniformList.Create;
 end;
 
-procedure TCamera.TUniform.DelUniform(AUniform: TShader.TUniform<TMatrix3>);
+procedure TCamera.TUniform.DelUniform(AUniform: TShaderUniform<TMatrix3>);
 begin
   FRotationUniforms.Del(AUniform);
 end;
 
-procedure TCamera.TUniform.DelUniform(AUniform: TShader.TUniform<TMatrix4>);
+procedure TCamera.TUniform.DelUniform(AUniform: TShaderUniform<TMatrix4>);
 begin
   FUniforms.Del(AUniform);
 end;
@@ -612,8 +612,8 @@ end;
 
 procedure TCamera.TUniform.SendToUniforms;
 var
-  Uniform: TShader.TUniform<TMatrix4>;
-  RotationUniform: TShader.TUniform<TMatrix3>;
+  Uniform: TShaderUniform<TMatrix4>;
+  RotationUniform: TShaderUniform<TMatrix3>;
 begin
   for Uniform in FUniforms do
     Uniform.Value := Data;

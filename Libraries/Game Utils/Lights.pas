@@ -283,7 +283,7 @@ type
 
     FAmbient: TColorRGB;
 
-    FDepthOnlyUniform: TShader.TUniform<Boolean>;
+    FDepthOnlyUniform: TShaderUniform<Boolean>;
 
     FDirectionalLights: TRefArray<TDirectionalLight>;
     FPointLights: TRefArray<TPointLight>;

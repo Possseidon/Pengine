@@ -90,6 +90,12 @@ type
     class procedure Init;
     class destructor Destroy;
 
+  protected
+    procedure GenObject(var AGLName: Cardinal); override;
+    procedure DeleteObject(var AGLName: Cardinal); override;
+    function GetObjectType: TGLObjectType; override;
+
+
   public
     constructor Create;
     destructor Destroy; override;
@@ -102,7 +108,7 @@ type
     procedure Activate;
     procedure Deactivate;
 
-    procedure Uniform(AUniform: TShader.TUniformSampler);
+    procedure Uniform(AUniform: TShaderUniformSampler);
 
     property UnitID: Integer read FUnitID;
 
@@ -319,7 +325,7 @@ type
     property SizeChanged: Boolean read FSizeChanged;
     procedure NotifySizeChange;
 
-    procedure Uniform(AUniform: TShader.TUniformSampler; ATextureType: TTextureType);
+    procedure Uniform(AUniform: TShaderUniformSampler; ATextureType: TTextureType);
     procedure UniformDefaults(AShader: TShader);
   end;
 
@@ -607,14 +613,23 @@ begin
 
   FUnitID := -1;
 
-  glGenTextures(1, @FID);
+  inherited;
 end;
 
 destructor TTexture.Destroy;
 begin
   Deactivate;
-  glDeleteTextures(1, @FID);
   inherited Destroy;
+end;
+
+procedure TTexture.GenObject(var AGLName: Cardinal);
+begin
+  glGenTextures(1, @AGLName);
+end;
+
+function TTexture.GetObjectType: TGLObjectType;
+begin
+  Result := otTexture;
 end;
 
 procedure TTexture.Bind;
@@ -623,7 +638,7 @@ begin
   begin
     BoundTexture := Self;
     Activate;
-    glBindTexture(TargetType, FID);
+    glBindTexture(TargetType, GLName);
   end;
 end;
 
@@ -653,7 +668,18 @@ begin
   UsedUnits[FUnitID] := False;
 end;
 
-procedure TTexture.Uniform(AUniform: TShader.TUniformSampler);
+procedure TTexture.DeleteObject(var AGLName: Cardinal);
+begin
+  glDeleteTextures(1, @AGLName);
+end;
+
+class procedure TTexture.Unbind;
+begin
+  inherited;
+
+end;
+
+procedure TTexture.Uniform(AUniform: TShaderUniformSampler);
 begin
   AUniform.Value := FUnitID;
 end;
@@ -932,7 +958,7 @@ begin
   FSizeChanged := False;
 end;
 
-procedure TTexturePage.Uniform(AUniform: TShader.TUniformSampler; ATextureType: TTextureType);
+procedure TTexturePage.Uniform(AUniform: TShaderUniformSampler; ATextureType: TTextureType);
 begin
   if ATextureType = ttMain then
     inherited Uniform(AUniform)

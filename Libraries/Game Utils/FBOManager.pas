@@ -117,7 +117,7 @@ begin
   FOutputs[AType] := TEmptyTexture2D.Create(FWidth, FHeight, APixelFormat);
 
   Bind;
-  glFramebufferTexture2D(GL_FRAMEBUFFER, Ord(AType), GL_TEXTURE_2D, Textures[AType].ID, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, Ord(AType), GL_TEXTURE_2D, Textures[AType].GLName, 0);
 end;
 
 procedure TFBO.EnableTexture2D(AType: TGLFBOAttachment; ATexture: TTexture2D);
@@ -129,7 +129,7 @@ begin
   FReferenced[AType] := True;
 
   Bind;
-  glFramebufferTexture2D(GL_FRAMEBUFFER, Ord(AType), ATexture.TargetType, Textures[AType].ID, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, Ord(AType), ATexture.TargetType, Textures[AType].GLName, 0);
 end;
 
 procedure TFBO.EnableTexture2DLayer(AType: TGLFBOAttachment; ATexture: TTexture2DArray; ALayer: Cardinal);
@@ -141,7 +141,7 @@ begin
   FReferenced[AType] := True;
 
   Bind;
-  glFramebufferTextureLayer(GL_FRAMEBUFFER, Ord(AType), Textures[AType].ID, 0, ALayer);
+  glFramebufferTextureLayer(GL_FRAMEBUFFER, Ord(AType), Textures[AType].GLName, 0, ALayer);
 end;
 
 procedure TFBO.EnableTextureCubeMapLayer(AType: TGLFBOAttachment; ATexture: TTextureCubeMapArray; ALayer: Cardinal;
@@ -154,7 +154,7 @@ begin
   FReferenced[AType] := True;
 
   Bind;
-  glFramebufferTextureLayer(GL_FRAMEBUFFER, Ord(AType), Textures[AType].ID, 0, ALayer * 6 + Ord(ASide) - Ord(cmsPosX));
+  glFramebufferTextureLayer(GL_FRAMEBUFFER, Ord(AType), Textures[AType].GLName, 0, ALayer * 6 + Ord(ASide) - Ord(cmsPosX));
 end;
 
 procedure TFBO.EnableTexture2DMS(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
@@ -165,7 +165,7 @@ begin
   FOutputs[AType] := TEmptyTexture2DMS.Create(FWidth, FHeight, APixelFormat, ASamples);
 
   Bind;
-  glFramebufferTexture2D(GL_FRAMEBUFFER, Ord(AType), GL_TEXTURE_2D_MULTISAMPLE, Textures[AType].ID, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, Ord(AType), GL_TEXTURE_2D_MULTISAMPLE, Textures[AType].GLName, 0);
 end;
 
 procedure TFBO.EnableRenderBuffer(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat);
