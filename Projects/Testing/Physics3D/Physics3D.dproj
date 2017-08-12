@@ -5,7 +5,7 @@
         <FrameworkType>VCL</FrameworkType>
         <MainSource>Physics3D.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Config Condition="'$(Config)'==''">Release</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Application</AppType>
@@ -153,8 +153,8 @@
             </Delphi.Personality>
             <Deployment Version="3">
                 <DeployFile LocalName="Win32\Debug\Physics3D.exe" Configuration="Debug" Class="ProjectOutput"/>
-                <DeployFile LocalName="Win64\Debug\Physics3D.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Data\test.vs" Configuration="Debug" Class="ProjectFile"/>
+                <DeployFile LocalName="Win64\Debug\Physics3D.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Data\test.fs" Configuration="Debug" Class="ProjectFile"/>
                 <DeployClass Name="AdditionalDebugSymbols">
                     <Platform Name="iOSSimulator">

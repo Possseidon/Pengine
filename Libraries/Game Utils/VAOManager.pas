@@ -166,6 +166,27 @@ type
 
   end;
 
+  { TVAOProxy }
+
+  TVAOProxy = class(TInterfacedObject, IRenderable)
+  private
+    FSourceVAO: TVAO;
+    FLocation: TLocation;
+
+  public
+    constructor Create(ASourceVAO: TVAO);
+    destructor Destroy; override;
+
+    function GetVisible: Boolean;
+    function Bounds: TBounds3;
+    function HasBounds: Boolean;
+    function ModelMatrix: TMatrix4;
+    procedure Render;
+
+    property Location: TLocation read FLocation;
+
+  end;
+
   { TAutoUpdateVAO }
   // Automatically calls BuildVAO if NotifyChanges got called or CheckForChanges returns true
   TAutoUpdateVAO = class abstract(TVAO)
@@ -594,6 +615,45 @@ end;
 constructor EVBOBindLock.Create;
 begin
   inherited Create('A VBO must stay bound as long as it is mapped');
+end;
+
+{ TVAOProxy }
+
+function TVAOProxy.Bounds: TBounds3;
+begin
+  Result := 0;
+end;
+
+constructor TVAOProxy.Create(ASourceVAO: TVAO);
+begin
+  FSourceVAO := ASourceVAO;
+  FLocation := TLocation.Create;
+end;
+
+destructor TVAOProxy.Destroy;
+begin
+  FLocation.Free;
+  inherited;
+end;
+
+function TVAOProxy.GetVisible: Boolean;
+begin
+  Result := True;
+end;
+
+function TVAOProxy.HasBounds: Boolean;
+begin
+  Result := False;
+end;
+
+function TVAOProxy.ModelMatrix: TMatrix4;
+begin
+  Result := Location.Matrix;
+end;
+
+procedure TVAOProxy.Render;
+begin
+  FSourceVAO.Render;
 end;
 
 end.
