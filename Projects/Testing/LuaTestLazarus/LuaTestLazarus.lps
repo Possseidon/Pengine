@@ -4,23 +4,22 @@
     <PathDelim Value="\"/>
     <Version Value="10"/>
     <BuildModes Active="Debug"/>
-    <Units Count="11">
+    <Units Count="12">
       <Unit0>
         <Filename Value="LuaTestLazarus.pas"/>
         <IsPartOfProject Value="True"/>
         <IsVisibleTab Value="True"/>
-        <CursorPos X="37" Y="6"/>
-        <UsageCount Value="79"/>
+        <CursorPos X="19" Y="20"/>
+        <UsageCount Value="82"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit0>
       <Unit1>
         <Filename Value="..\Pengine\Libraries\Lua\lua.pas"/>
         <UnitName Value="Lua"/>
-        <EditorIndex Value="1"/>
+        <EditorIndex Value="-1"/>
         <CursorPos X="5" Y="8"/>
         <UsageCount Value="11"/>
-        <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit1>
       <Unit2>
@@ -40,11 +39,10 @@
       </Unit3>
       <Unit4>
         <Filename Value="..\Pengine\Libraries\Lua\LuaHeader.pas"/>
-        <EditorIndex Value="2"/>
+        <EditorIndex Value="-1"/>
         <TopLine Value="1587"/>
         <CursorPos X="15" Y="1544"/>
         <UsageCount Value="40"/>
-        <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit4>
       <Unit5>
@@ -92,128 +90,117 @@
         <CursorPos X="3" Y="2300"/>
         <UsageCount Value="6"/>
       </Unit10>
+      <Unit11>
+        <Filename Value="..\..\..\Libraries\Lua\LuaHeader.pas"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="254"/>
+        <CursorPos X="15" Y="271"/>
+        <UsageCount Value="11"/>
+        <Loaded Value="True"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit11>
     </Units>
-    <JumpHistory Count="30" HistoryIndex="29">
+    <JumpHistory Count="25" HistoryIndex="24">
       <Position1>
-        <Filename Value="..\Pengine\Libraries\Lua\LuaHeader.pas"/>
-        <Caret Line="1021" Column="12" TopLine="1008"/>
+        <Filename Value="LuaTestLazarus.pas"/>
+        <Caret Line="44" Column="14" TopLine="28"/>
       </Position1>
       <Position2>
-        <Filename Value="..\Pengine\Libraries\Lua\LuaHeader.pas"/>
-        <Caret Line="1497" Column="3" TopLine="1495"/>
+        <Filename Value="LuaTestLazarus.pas"/>
+        <Caret Line="64" Column="19" TopLine="49"/>
       </Position2>
       <Position3>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="44" Column="14" TopLine="28"/>
+        <Caret Line="11" Column="18"/>
       </Position3>
       <Position4>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="64" Column="19" TopLine="49"/>
+        <Caret Line="96" Column="60" TopLine="76"/>
       </Position4>
       <Position5>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="11" Column="18"/>
+        <Caret Line="96" Column="60" TopLine="76"/>
       </Position5>
       <Position6>
-        <Filename Value="..\Pengine\Libraries\Lua\LuaHeader.pas"/>
-        <Caret Line="920" Column="62" TopLine="908"/>
+        <Filename Value="LuaTestLazarus.pas"/>
+        <Caret Line="91" Column="18" TopLine="87"/>
       </Position6>
       <Position7>
-        <Filename Value="..\Pengine\Libraries\Lua\LuaHeader.pas"/>
-        <Caret Line="1300" Column="3" TopLine="1292"/>
+        <Filename Value="LuaTestLazarus.pas"/>
+        <Caret Line="88" Column="45" TopLine="72"/>
       </Position7>
       <Position8>
-        <Filename Value="..\Pengine\Libraries\Lua\LuaHeader.pas"/>
-        <Caret Line="1295" Column="3" TopLine="1293"/>
+        <Filename Value="LuaTestLazarus.pas"/>
+        <Caret Line="89" Column="16" TopLine="69"/>
       </Position8>
       <Position9>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="96" Column="60" TopLine="76"/>
+        <Caret Line="44" Column="21" TopLine="22"/>
       </Position9>
       <Position10>
-        <Filename Value="..\Pengine\Libraries\Lua\LuaHeader.pas"/>
-        <Caret Line="333" Column="67" TopLine="317"/>
+        <Filename Value="LuaTestLazarus.pas"/>
+        <Caret Line="48" Column="36" TopLine="28"/>
       </Position10>
       <Position11>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="96" Column="60" TopLine="76"/>
+        <Caret Line="43" TopLine="28"/>
       </Position11>
       <Position12>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="91" Column="18" TopLine="87"/>
+        <Caret Line="44" TopLine="28"/>
       </Position12>
       <Position13>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="88" Column="45" TopLine="72"/>
+        <Caret Line="47" Column="37" TopLine="28"/>
       </Position13>
       <Position14>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="89" Column="16" TopLine="69"/>
+        <Caret Line="103" Column="9" TopLine="72"/>
       </Position14>
       <Position15>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="44" Column="21" TopLine="22"/>
+        <Caret Line="161" Column="53" TopLine="141"/>
       </Position15>
       <Position16>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="48" Column="36" TopLine="28"/>
+        <Caret Line="111" Column="27" TopLine="91"/>
       </Position16>
       <Position17>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="43" TopLine="28"/>
+        <Caret Line="107" Column="39" TopLine="94"/>
       </Position17>
       <Position18>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="44" TopLine="28"/>
+        <Caret Line="115" Column="65" TopLine="100"/>
       </Position18>
       <Position19>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="47" Column="37" TopLine="28"/>
+        <Caret Line="117" Column="58" TopLine="100"/>
       </Position19>
       <Position20>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="103" Column="9" TopLine="72"/>
+        <Caret Line="116" Column="80" TopLine="101"/>
       </Position20>
       <Position21>
-        <Filename Value="..\Pengine\Libraries\Lua\LuaHeader.pas"/>
-        <Caret Line="335" Column="65" TopLine="335"/>
+        <Filename Value="LuaTestLazarus.pas"/>
+        <Caret Line="108" Column="41" TopLine="97"/>
       </Position21>
       <Position22>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="161" Column="53" TopLine="141"/>
+        <Caret Line="207" Column="30" TopLine="182"/>
       </Position22>
       <Position23>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="111" Column="27" TopLine="91"/>
+        <Caret Line="6" Column="42"/>
       </Position23>
       <Position24>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="107" Column="39" TopLine="94"/>
+        <Caret Line="22" Column="46"/>
       </Position24>
       <Position25>
         <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="115" Column="65" TopLine="100"/>
+        <Caret Line="140" Column="8" TopLine="133"/>
       </Position25>
-      <Position26>
-        <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="117" Column="58" TopLine="100"/>
-      </Position26>
-      <Position27>
-        <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="116" Column="80" TopLine="101"/>
-      </Position27>
-      <Position28>
-        <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="108" Column="41" TopLine="97"/>
-      </Position28>
-      <Position29>
-        <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="207" Column="30" TopLine="182"/>
-      </Position29>
-      <Position30>
-        <Filename Value="LuaTestLazarus.pas"/>
-        <Caret Line="6" Column="42"/>
-      </Position30>
     </JumpHistory>
   </ProjectSession>
 </CONFIG>

@@ -455,7 +455,7 @@ type
     procedure CheckType(AIndex: Integer; AType: TLuaType); overload;
     procedure CheckType(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean = False); overload;
     function CheckAny(AIndex: Integer): TLuaType; overload;
-    procedure CheckEnd(AIndex: Integer); inline; overload;
+    procedure CheckEnd(AIndex: Integer); overload; inline;
 
     function CheckOrDefault(AIndex: Integer; ADefault: TLuaInteger): TLuaInteger; overload;
     function CheckOrDefault(AIndex: Integer; ADefault: TLuaNumber): TLuaNumber; overload;
