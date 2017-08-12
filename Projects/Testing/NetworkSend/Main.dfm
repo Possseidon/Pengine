@@ -51,8 +51,6 @@ object frmMain: TfrmMain
     TabOrder = 2
     OnKeyDown = edtInputKeyDown
     OnKeyPress = edtInputKeyPress
-    ExplicitTop = 262
-    ExplicitWidth = 257
   end
   object btnSend: TButton
     Left = 261
@@ -62,8 +60,6 @@ object frmMain: TfrmMain
     Action = actSend
     Anchors = [akRight, akBottom]
     TabOrder = 3
-    ExplicitLeft = 271
-    ExplicitTop = 262
   end
   object btnConnect: TButton
     Left = 153

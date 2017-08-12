@@ -182,12 +182,12 @@ end;
 
 procedure TfrmMain.socServerClientConnect(Sender: TObject; Socket: TCustomWinSocket);
 begin
-  ServerSendAll(Format('Client %d connected', [socServer.Socket.ActiveConnections]));
+  ServerSendAll('Client connected');
 end;
 
 procedure TfrmMain.socServerClientDisconnect(Sender: TObject; Socket: TCustomWinSocket);
 begin
-  ServerSendAll(Format('Client %d disconnected', [socServer.Socket.ActiveConnections]));
+  ServerSendAll('Client disconnected');
 end;
 
 procedure TfrmMain.socServerClientRead(Sender: TObject; Socket: TCustomWinSocket);
