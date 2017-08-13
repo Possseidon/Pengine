@@ -88,6 +88,8 @@ type
 
     procedure Update(ADeltaTime: Single); override;
     procedure UpdateLua(); override;
+
+
   end;
 
 implementation
@@ -209,6 +211,7 @@ procedure TLuaEntity.UpdateLua;
 var
   Err: TLuaPCallError;
 begin
+  inherited;
   if FLuaValid then
   begin
     FLua.GetGlobal('update');
@@ -259,6 +262,7 @@ end;
 
 procedure TBotModule.Update(ADeltaTime: Single);
 begin
+  inherited;
   if FParent <> nil then
   begin
     Location.Assign(FParent.Location);
@@ -283,6 +287,7 @@ procedure TBotCore.Update(ADeltaTime: Single);
 var
   Module: TBotModule;
 begin
+  inherited;
   // Update Core
 
 
@@ -298,6 +303,7 @@ end;
 
 procedure TBotCore.UpdateLua;
 begin
+  inherited;
 
 end;
 
