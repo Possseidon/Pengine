@@ -1,4 +1,4 @@
-unit Entity;
+unit EntityDefine;
 
 interface
 
@@ -11,6 +11,7 @@ type
 
   TEntity = class(TVAOProxy)
   private
+    FDead: Boolean;
     FHealth, FMaxHealth: Single;
 
     procedure SetHealth(Value: Single);
@@ -25,6 +26,8 @@ type
 
     property Health: Single read FHealth write SetHealth;
     property MaxHealth: Single read FMaxHealth write SetMaxHealth;
+    
+    property Dead: Boolean read FDead;
   end;
 
   { TLuaEntity }
