@@ -3,13 +3,13 @@ unit EntityDefine;
 interface
 
 uses
-  VAOManager, LuaHeader, Math, LuaConf, VectorGeometry, DebugConsoleDefine, IntegerMaths;
+  VAOManager, LuaHeader, Math, LuaConf, VectorGeometry, DebugConsoleDefine, IntegerMaths, SysUtils;
 
 type
 
   { TEntity }
 
-  TEntity = class(TVAOProxy)
+  TEntity = class abstract(TVAOProxy)
   private
     FDead: Boolean;
     FHealth, FMaxHealth: Single;
@@ -19,9 +19,10 @@ type
     procedure SetHealth(Value: Single);
     procedure SetMaxHealth(Value: Single);
   protected
-
+    class function GetSourceVAO: TVAO; virtual; abstract;
+    class function GetInitialHealth: Single; virtual; abstract;
   public
-    constructor Create(ASourceVAO: TVAO; AHealth: Single);
+    constructor Create;
     destructor Destroy; override;
 
     procedure Update(ADeltaTime: Single); virtual;
@@ -36,7 +37,7 @@ type
 
   { TLuaEntity }
 
-  TLuaEntity = class(TEntity)
+  TLuaEntity = class abstract(TEntity)
   private
     FLua: TLuaState;
     FLuaValid: Boolean;
@@ -49,7 +50,7 @@ type
   protected
 
   public
-    constructor Create(ASourceVAO: TVAO; AHealth: Single);
+    constructor Create;
     destructor Destroy; override;
 
     procedure Update(ADeltaTime: Single); override;
@@ -58,38 +59,44 @@ type
     procedure SetUpdateFunction(const AFunction: AnsiString);
   end;
 
-  TBotCore = class;
-
   { TBotModule }
 
-  TBotModule = class(TEntity)
+  TBotCore = class;
+
+  TBotModule = class abstract(TEntity)
   private
     FParent: TBotCore;
     FSide: TBasicDir3;
   protected
 
   public
-    constructor Create(ASourceVAO: TVAO; AHealth: Single; AParent: TBotCore; ASide: TBasicDir3);
+    constructor Create(AParent: TBotCore; ASide: TBasicDir3); virtual;
     destructor Destroy; override;
 
     procedure Update(ADeltaTime: Single); override;
   end;
+
+  TBotModuleClass = class of TBotModule;
 
   { TBotCore }
 
   TBotCore = class(TLuaEntity)
   private
     FModules: array [TBasicDir3] of TBotModule;
-  protected
 
+    function GetModule(ASide: TBasicDir3): TBotModule;
+  protected
+    class function GetSourceVAO: TVAO; override;
+    class function GetInitialHealth: Single; override;
   public
-    constructor Create(ASourceVAO: TVAO);
+    constructor Create;
     destructor Destroy; override;
 
     procedure Update(ADeltaTime: Single); override;
     procedure UpdateLua(); override;
 
-
+    procedure AddModule(ASide: TBasicDir3; AModuleClass: TBotModuleClass);
+    property Modules[ASide: TBasicDir3]: TBotModule read GetModule;
   end;
 
 implementation
@@ -115,11 +122,11 @@ begin
   Health := Min(Health, FMaxHealth);
 end;
 
-constructor TEntity.Create(ASourceVAO: TVAO; AHealth: Single);
+constructor TEntity.Create();
 begin
-  inherited Create(ASourceVAO);
-  FHealth := AHealth;
-  FMaxHealth := AHealth;
+  inherited Create(GetSourceVAO);
+  FHealth := GetInitialHealth;
+  FMaxHealth := GetInitialHealth;
   FName := 'Unnamed';
   Location.Offset := Vec3(-0.5, 0, -0.5);
 end;
@@ -182,9 +189,9 @@ begin
   Result := 0;
 end;
 
-constructor TLuaEntity.Create(ASourceVAO: TVAO; AHealth: Single);
+constructor TLuaEntity.Create;
 begin
-  inherited Create(ASourceVAO, AHealth);
+  inherited Create;
 
   // Lua Init
   FLua := NewLuaState;
@@ -248,9 +255,9 @@ end;
 
 { TBotModule }
 
-constructor TBotModule.Create(ASourceVAO: TVAO; AHealth: Single; AParent: TBotCore; ASide: TBasicDir3);
+constructor TBotModule.Create(AParent: TBotCore; ASide: TBasicDir3);
 begin
-  inherited Create(ASourceVAO, AHealth);
+  inherited Create;
   FParent := AParent;
   FSide := ASide;
 end;
@@ -272,10 +279,24 @@ end;
 
 { TBotCore }
 
-// Needs to be without a VAO in Parameters
-constructor TBotCore.Create(ASourceVAO: TVAO);
+function TBotCore.GetModule(ASide: TBasicDir3): TBotModule;
 begin
-  inherited Create(ASourceVAO, 100);
+  Result := FModules[ASide];
+end;
+
+class function TBotCore.GetSourceVAO: TVAO;
+begin
+  Result := Bacon;
+end;
+
+class function TBotCore.GetInitialHealth: Single;
+begin
+  Result := 100;
+end;
+
+constructor TBotCore.Create;
+begin
+  inherited Create;
 end;
 
 destructor TBotCore.Destroy;
@@ -305,6 +326,13 @@ procedure TBotCore.UpdateLua;
 begin
   inherited;
 
+end;
+
+procedure TBotCore.AddModule(ASide: TBasicDir3; AModuleClass: TBotModuleClass);
+begin
+  if FModules[ASide] = nil then
+    raise Exception.Create('Only one Module can be attached on a single side!');
+  FModules[ASide] := AModuleClass.Create(Self, ASide);
 end;
 
 end.

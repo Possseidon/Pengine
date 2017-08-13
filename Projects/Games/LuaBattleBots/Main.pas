@@ -261,7 +261,7 @@ var
 begin
   FGame := TGame.Create(FCamera);
 
-  TestBot := TLuaEntity.Create(FCubeVAO, 100);
+  TestBot := TLuaEntity.Create;
 
   try
     Code := TStringList.Create;
