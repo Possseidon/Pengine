@@ -1,9 +1,9 @@
-unit Entity;
+unit EntityDefine;
 
 interface
 
 uses
-  VAOManager, LuaHeader;
+  VAOManager, LuaHeader, Lists;
 
 type
 
@@ -11,6 +11,7 @@ type
 
   TEntity = class(TVAOProxy)
   private
+    FDead: Boolean;
     FHealth, FMaxHealth: Single;
   protected
 
@@ -19,6 +20,8 @@ type
     destructor Destroy; override;
 
     procedure Update(ADeltaTime: Single); virtual;
+
+    property Dead: Boolean read FDead;
   end;
 
   { TLuaEntity }

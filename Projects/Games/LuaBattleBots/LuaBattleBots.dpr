@@ -1,8 +1,11 @@
 program LuaBattleBots;
 
+{$APPTYPE CONSOLE}
+
 uses
   Vcl.Forms,
-  Main in 'Main.pas' {Form1};
+  Main in 'Main.pas' {Form1},
+  Game in 'Game.pas';
 
 {$R *.res}
 

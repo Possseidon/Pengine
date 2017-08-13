@@ -1,69 +1,28 @@
 ﻿[Closed Files]
-File_0=TSourceModule,'C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\Lights.pas',0,1,1,1,1,0,0,,
-File_1=TSourceModule,'C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Projects\Testing\Physics3D\Main.pas',0,1,97,32,102,0,0,,
+File_0=TSourceModule,'C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\OpenGLContext.pas',0,1,465,35,467,0,0,,
+File_1=TSourceModule,'C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\FontManager.pas',0,1,47,41,65,0,0,,
+File_2=TSourceModule,'C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\Camera.pas',0,1,7,43,23,0,0,,
+File_3=TSourceModule,'C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\VAOManager.pas',0,1,615,20,625,0,0,,
+File_4=TSourceModule,'C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Utility\IntfBase.pas',0,1,1,1,17,0,0,,
+File_5=TSourceModule,'c:\program files (x86)\embarcadero\studio\19.0\SOURCE\RTL\SYS\System.pas',0,1,1025,1,1030,0,0,,
+File_6=TSourceModule,'C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Maths\Matrix.pas',0,1,46,1,1,0,0,,
+File_7=TSourceModule,'C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Maths\VectorGeometry.pas',0,1,31,1,1,0,0,{{72,4}
+File_8=TSourceModule,'C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Utility\Lists.pas',0,1,37,3,55,0,0,{{113,4}
+File_9=TSourceModule,'C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\Lights.pas',0,1,1,1,1,0,0,,
+File_10=TSourceModule,'C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Projects\Testing\Physics3D\Main.pas',0,1,97,32,102,0,0,,
 
 [Modules]
 Module0=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Projects\Games\LuaBattleBots\Main.pas
-Module1=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Utility\Lists.pas
-Module2=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\VAOManager.pas
-Module3=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Maths\VectorGeometry.pas
-Module4=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Maths\Matrix.pas
-Module5=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Projects\Games\LuaBattleBots\LuaBattleBots.dproj
-Module6=c:\program files (x86)\embarcadero\studio\19.0\SOURCE\RTL\SYS\System.pas
-Module7=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Utility\IntfBase.pas
-Module8=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\Camera.pas
-Module9=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\OpenGLContext.pas
-Module10=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\FontManager.pas
-Count=11
+Count=1
 EditWindowCount=1
 
 [C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Projects\Games\LuaBattleBots\Main.pas]
 ModuleType=TSourceModule
 
-[C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Utility\Lists.pas]
-ModuleType=TSourceModule
-
-[C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\VAOManager.pas]
-ModuleType=TSourceModule
-
-[C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Maths\VectorGeometry.pas]
-ModuleType=TSourceModule
-
-[C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Maths\Matrix.pas]
-ModuleType=TSourceModule
-
-[C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Projects\Games\LuaBattleBots\LuaBattleBots.dproj]
-ModuleType=TBaseProject
-
-[c:\program files (x86)\embarcadero\studio\19.0\SOURCE\RTL\SYS\System.pas]
-ModuleType=TSourceModule
-
-[C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Utility\IntfBase.pas]
-ModuleType=TSourceModule
-
-[C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\Camera.pas]
-ModuleType=TSourceModule
-
-[C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\OpenGLContext.pas]
-ModuleType=TSourceModule
-
-[C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\FontManager.pas]
-ModuleType=TSourceModule
-
 [EditWindow0]
-ViewCount=11
+ViewCount=1
 CurrentEditView=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Projects\Games\LuaBattleBots\Main.pas
 View0=0
-View1=1
-View2=2
-View3=3
-View4=4
-View5=5
-View6=6
-View7=7
-View8=8
-View9=9
-View10=10
 PercentageSizes=1
 Create=1
 Visible=1
@@ -82,137 +41,27 @@ BorlandEditorCodeExplorer=BorlandEditorCodeExplorer@EditWindow0
 TopPanelSize=0
 LeftPanelSize=1896
 LeftPanelClients=PropertyInspector,DockSite3
-LeftPanelData=00000800010100000000031000000000000001680700000000000001000000005C0E000009000000446F636B53697465330100000000771C00001100000050726F7065727479496E73706563746F72FFFFFFFF
+LeftPanelData=00000800010100000000781300000000000001680700000000000001000000005C0E000009000000446F636B536974653301000000009D2200001100000050726F7065727479496E73706563746F72FFFFFFFF
 RightPanelSize=2000
 RightPanelClients=DockSite2,DockSite4
-RightPanelData=00000800010100000000031000000000000001D00700000000000001000000004412000009000000446F636B53697465320100000000771C000009000000446F636B5369746534FFFFFFFF
-BottomPanelSize=1519
+RightPanelData=00000800010100000000781300000000000001D00700000000000001000000004412000009000000446F636B536974653201000000009D22000009000000446F636B5369746534FFFFFFFF
+BottomPanelSize=0
 BottomPanelClients=DockSite1,MessageView
-BottomPanelData=0000080001020100000009000000446F636B5369746531724500000000000002EF050000000000000100000000724500000F0000004D65737361676556696577466F726DFFFFFFFF
+BottomPanelData=0000080001020200000009000000446F636B53697465310F0000004D65737361676556696577466F726D1534000000000000022606000000000000FFFFFFFF
 BottomMiddlePanelSize=0
 BottomMiddlePanelClients=DockSite0,GraphDrawingModel
-BottomMiddelPanelData=0000080001020200000009000000446F636B536974653010000000477261706844726177696E6756696577F5290000000000000226060000000000000100000000F529000009000000446F636B5369746530FFFFFFFF
+BottomMiddelPanelData=0000080001020200000009000000446F636B536974653010000000477261706844726177696E67566965779F1D00000000000002F206000000000000FFFFFFFF
 
 [View0]
 CustomEditViewType=TEditView
 Module=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Projects\Games\LuaBattleBots\Main.pas
-CursorX=45
-CursorY=26
-TopLine=7
+CursorX=51
+CursorY=71
+TopLine=52
 LeftCol=1
 Elisions=
 Bookmarks=
 EditViewName=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Projects\Games\LuaBattleBots\Main.pas
-
-[View1]
-CustomEditViewType=TEditView
-Module=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Utility\Lists.pas
-CursorX=3
-CursorY=55
-TopLine=37
-LeftCol=1
-Elisions={{113,4},{139,15},{'Find Functions'}}{{505,4},{531,15},{'Find Functions'}}
-Bookmarks=
-EditViewName=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Utility\Lists.pas
-
-[View2]
-CustomEditViewType=TEditView
-Module=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Maths\VectorGeometry.pas
-CursorX=1
-CursorY=1
-TopLine=31
-LeftCol=1
-Elisions={{72,4},{79,15},{'All versions of rearrangement TVector2'}}{{176,4},{188,15},{'All versions of rearrangement TIntVector2'}}{{189,4},{219,15},{'All versions of rearrangement TIntVector3'}}{{1311,0},{1337,11},{'All versions of rearrangement TVector2'}}{{1558,0},{1614,11},{'All versions of rearrangement TIntVector2'}}{{1615,0},{1806,11},{'All versions of rearrangement TIntVector3'}}
-Bookmarks=
-EditViewName=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Maths\VectorGeometry.pas
-
-[View3]
-CustomEditViewType=TEditView
-Module=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Maths\Matrix.pas
-CursorX=1
-CursorY=1
-TopLine=46
-LeftCol=1
-Elisions=
-Bookmarks=
-EditViewName=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Maths\Matrix.pas
-
-[View4]
-CustomEditViewType=TEditView
-Module=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Projects\Games\LuaBattleBots\LuaBattleBots.dpr
-CursorX=39
-CursorY=10
-TopLine=1
-LeftCol=1
-Elisions=
-Bookmarks=
-EditViewName=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Projects\Games\LuaBattleBots\LuaBattleBots.dpr
-
-[View5]
-CustomEditViewType=TEditView
-Module=c:\program files (x86)\embarcadero\studio\19.0\SOURCE\RTL\SYS\System.pas
-CursorX=1
-CursorY=1030
-TopLine=1025
-LeftCol=1
-Elisions=
-Bookmarks=
-EditViewName=c:\program files (x86)\embarcadero\studio\19.0\SOURCE\RTL\SYS\System.pas
-
-[View6]
-CustomEditViewType=TEditView
-Module=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Utility\IntfBase.pas
-CursorX=1
-CursorY=17
-TopLine=1
-LeftCol=1
-Elisions=
-Bookmarks=
-EditViewName=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Utility\IntfBase.pas
-
-[View7]
-CustomEditViewType=TEditView
-Module=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\VAOManager.pas
-CursorX=20
-CursorY=625
-TopLine=615
-LeftCol=1
-Elisions=
-Bookmarks=
-EditViewName=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\VAOManager.pas
-
-[View8]
-CustomEditViewType=TEditView
-Module=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\Camera.pas
-CursorX=43
-CursorY=23
-TopLine=7
-LeftCol=1
-Elisions=
-Bookmarks=
-EditViewName=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\Camera.pas
-
-[View9]
-CustomEditViewType=TEditView
-Module=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\FontManager.pas
-CursorX=41
-CursorY=65
-TopLine=47
-LeftCol=1
-Elisions=
-Bookmarks=
-EditViewName=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\FontManager.pas
-
-[View10]
-CustomEditViewType=TEditView
-Module=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\OpenGLContext.pas
-CursorX=35
-CursorY=467
-TopLine=465
-LeftCol=1
-Elisions=
-Bookmarks=
-EditViewName=C:\Users\Dominik\Documents\Programmieren\GitHub\Pengine\Libraries\Game Utils\OpenGLContext.pas
 
 [UndockedDesigner]
 Count=0
@@ -292,18 +141,18 @@ StayOnTop=0
 [MessageView]
 PercentageSizes=1
 Create=1
-Visible=1
+Visible=0
 Docked=1
 State=0
 Left=0
-Top=18
-Width=10000
-Height=1404
+Top=0
+Width=2771
+Height=1423
 MaxLeft=-1
 MaxTop=-1
-ClientWidth=10000
-ClientHeight=1404
-TBDockHeight=1404
+ClientWidth=2771
+ClientHeight=1423
+TBDockHeight=1423
 LRDockWidth=2771
 Dockable=1
 StayOnTop=0
@@ -317,11 +166,11 @@ State=0
 Left=0
 Top=0
 Width=2000
-Height=2538
+Height=4173
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=2000
-ClientHeight=2538
+ClientHeight=4173
 TBDockHeight=7154
 LRDockWidth=2000
 Dockable=1
@@ -374,21 +223,16 @@ State=0
 Left=0
 Top=415
 Width=1896
-Height=3577
+Height=5212
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=1896
-ClientHeight=3577
-TBDockHeight=6981
+ClientHeight=5212
+TBDockHeight=7394
 LRDockWidth=1896
 Dockable=1
 StayOnTop=0
 SplitPos=111
-
-[PropInspDesignerSelection]
-ArrangeBy=Name
-SelectedItem=Action,
-ExpandedItems=Anchors=0,BorderIcons=0,Constraints=0
 
 [frmDesignPreview]
 PercentageSizes=1
@@ -399,11 +243,11 @@ State=0
 Left=0
 Top=0
 Width=2000
-Height=6740
+Height=7154
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=2000
-ClientHeight=6740
+ClientHeight=7154
 TBDockHeight=5962
 LRDockWidth=2510
 Dockable=1
@@ -415,8 +259,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=-1419
-Top=-14
+Left=-1351
+Top=-137
 Width=2844
 Height=6202
 MaxLeft=-1
@@ -434,8 +278,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=-1728
-Top=268
+Left=-1543
+Top=-137
 Width=276
 Height=365
 MaxLeft=-1
@@ -558,11 +402,11 @@ State=0
 Left=0
 Top=0
 Width=2339
-Height=1000
+Height=1240
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=2339
-ClientHeight=1000
+ClientHeight=1240
 TBDockHeight=2317
 LRDockWidth=2823
 Dockable=1
@@ -576,12 +420,12 @@ Docked=1
 State=0
 Left=0
 Top=0
-Width=6042
-Height=1221
+Width=2339
+Height=1240
 MaxLeft=-1
 MaxTop=-1
-ClientWidth=6042
-ClientHeight=1221
+ClientWidth=2339
+ClientHeight=1240
 TBDockHeight=3212
 LRDockWidth=2823
 Dockable=1
@@ -623,11 +467,11 @@ State=0
 Left=0
 Top=0
 Width=2000
-Height=6740
+Height=7154
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=2000
-ClientHeight=6740
+ClientHeight=7154
 TBDockHeight=4885
 LRDockWidth=7151
 Dockable=1
@@ -639,8 +483,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=370
-Top=827
+Left=0
+Top=0
 Width=2854
 Height=3212
 MaxLeft=-1
@@ -658,8 +502,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=-182
-Top=-101
+Left=-218
+Top=-137
 Width=1849
 Height=3144
 MaxLeft=-1
@@ -763,11 +607,11 @@ State=0
 Left=0
 Top=0
 Width=2000
-Height=6740
+Height=7154
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=2000
-ClientHeight=6740
+ClientHeight=7154
 TBDockHeight=4885
 LRDockWidth=5307
 Dockable=1
@@ -804,14 +648,14 @@ Visible=0
 Docked=1
 State=0
 Left=0
-Top=18
-Width=6042
-Height=1462
+Top=0
+Width=2339
+Height=1481
 MaxLeft=-1
 MaxTop=-1
-ClientWidth=6042
-ClientHeight=1462
-TBDockHeight=1462
+ClientWidth=2339
+ClientHeight=1481
+TBDockHeight=1481
 LRDockWidth=2339
 Dockable=1
 StayOnTop=0
@@ -828,7 +672,7 @@ Visible=0
 Docked=1
 State=0
 Left=0
-Top=18
+Top=0
 Width=3823
 Height=1423
 MaxLeft=-1
@@ -859,7 +703,7 @@ MaxLeft=-1
 MaxTop=-1
 ClientWidth=2000
 ClientHeight=4644
-TBDockHeight=6981
+TBDockHeight=7394
 LRDockWidth=2000
 Dockable=1
 StayOnTop=0
@@ -883,7 +727,7 @@ MaxLeft=-1
 MaxTop=-1
 ClientWidth=1896
 ClientHeight=3606
-TBDockHeight=6981
+TBDockHeight=7394
 LRDockWidth=1896
 Dockable=1
 StayOnTop=0
@@ -902,12 +746,12 @@ State=0
 Left=0
 Top=523
 Width=2000
-Height=2538
+Height=4173
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=2000
-ClientHeight=2538
-TBDockHeight=6981
+ClientHeight=4173
+TBDockHeight=7394
 LRDockWidth=2000
 Dockable=1
 StayOnTop=0
