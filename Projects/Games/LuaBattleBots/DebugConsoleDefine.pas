@@ -4,14 +4,23 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls;
 
 type
   TDebugConsole = class(TForm)
     memConsole: TMemo;
+    Panel1: TPanel;
+    cbPaused: TCheckBox;
+  private
+    FBuffer: string;
+
+    procedure ScrollToEnd;
+
   public
     procedure WriteLine(AMessage: string = '');
     procedure Write(AMessage: string);
+
+    procedure Update;
   end;
 
 var
@@ -23,14 +32,29 @@ implementation
 
 { TDebugConsole }
 
+procedure TDebugConsole.ScrollToEnd;
+begin
+  SendMessage(memConsole.Handle, EM_LINESCROLL, 0, memConsole.Lines.Count);
+end;
+
+procedure TDebugConsole.Update;
+begin
+  if not cbPaused.Checked and not FBuffer.IsEmpty then
+  begin
+    memConsole.Text := memConsole.Text + FBuffer;
+    FBuffer := '';
+    ScrollToEnd;
+  end;
+end;
+
 procedure TDebugConsole.Write(AMessage: string);
 begin
-  memConsole.Text := memConsole.Text + AMessage;
+  FBuffer := FBuffer + AMessage;
 end;
 
 procedure TDebugConsole.WriteLine(AMessage: string);
 begin
-  memConsole.Text := memConsole.Text + AMessage + sLineBreak;
+  FBuffer := FBuffer + AMessage + sLineBreak;
 end;
 
 end.

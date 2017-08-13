@@ -53,7 +53,7 @@ type
     destructor Destroy; override;
 
     procedure Update(ADeltaTime: Single); override;
-    procedure UpdateLua(); virtual;
+    procedure UpdateLua; virtual;
 
     procedure SetUpdateFunction(const AFunction: AnsiString);
   end;
@@ -172,7 +172,7 @@ begin
   DebugConsole.Write(Self.Name + ': ');
   for I := 1 to L.Top do
   begin
-    DebugConsole.Write(L.ToString(I));
+    DebugConsole.Write(string(L.ToString(I)));
     if I < L.Top then
       DebugConsole.Write(' ');
   end;
@@ -206,18 +206,41 @@ begin
 end;
 
 procedure TLuaEntity.UpdateLua;
+var
+  Err: TLuaPCallError;
 begin
   if FLuaValid then
   begin
     FLua.GetGlobal('update');
-    FLua.Call(0, 0);
+    Err := FLua.PCall(0, 0, 0);
+    case Err of
+      lceErrorRun:
+        DebugConsole.WriteLine(string(FLua.ToString));
+      lceErrorMemory:
+        DebugConsole.WriteLine('Lua Memory Error');
+      lceErrorGCMM:
+        DebugConsole.WriteLine('Lua GarbageCollector Error');
+      lceErrorError:
+        DebugConsole.WriteLine('Lua Error-Function Error');
+    end;
   end;
 end;
 
 procedure TLuaEntity.SetUpdateFunction(const AFunction: AnsiString);
+var
+  Err: TLuaLoadError;
 begin
-  FLua.LoadString(AFunction);
+  Err := FLua.LoadString(AFunction);
+  case Err of
+    lleErrorSyntax:
+      DebugConsole.WriteLine(string(FLua.ToString));
+    lleErrorMemory:
+      DebugConsole.WriteLine('Lua Memory Error');
+    lleErrorGCMM:
+      DebugConsole.WriteLine('Lua Garbage Collector Error');
+  end;
   FLua.SetGlobal('update');
+  FLuaValid := Err = lleOK;
 end;
 
 { TBotModule }

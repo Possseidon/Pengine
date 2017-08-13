@@ -66,8 +66,8 @@ begin
   for Entity in FEntities do
   begin
     Entity.Update(ADeltaTime);
-    if Entity is TLuaEntity then
-      // TODO: TLuaEntity(Entity).UpdateLua;
+    if UpdateLua and (Entity is TLuaEntity) then
+      TLuaEntity(Entity).UpdateLua;
   end;      
 end;
 

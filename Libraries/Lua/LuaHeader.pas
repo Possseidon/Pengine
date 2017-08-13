@@ -1165,7 +1165,7 @@ end;
 
 function TLuaStateRec.GetGlobal(name: PAnsiChar): TLuaType;
 begin
-  Result := TLuaType(GetGlobal(name));
+  Result := TLuaType(GetGlobal_X(name));
 end;
 
 function TLuaStateRec.GetGlobal_X(name: PAnsiChar): Integer;

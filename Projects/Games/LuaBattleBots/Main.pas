@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, OpenGLContext, Camera, Shaders, VAOManager, VectorGeometry, IntfBase,
   Matrix, Lists, TextureManager, Lights, ControlledCamera, GLEnums, IntegerMaths, Color, SkyDome, LuaHeader,
-  Game, EntityDefine, DebugConsoleDefine;
+  Game, EntityDefine, DebugConsoleDefine, InputHandler;
 
 type
 
@@ -255,9 +255,27 @@ begin
 end;
 
 procedure TfrmMain.InitGame;
+var
+  TestBot: TLuaEntity;
+  Code: TStrings;
 begin
   FGame := TGame.Create(FCamera);
-  FGame.AddEntity(TLuaEntity.Create(FCubeVAO, 100));
+
+  TestBot := TLuaEntity.Create(FCubeVAO, 100);
+
+  try
+    Code := TStringList.Create;
+    try
+      Code.LoadFromFile('Data/TestCode.lua');
+      TestBot.SetUpdateFunction(AnsiString(Code.Text));
+    finally
+      Code.Free;
+    end;
+  except
+    DebugConsole.WriteLine('Error while trying to load TestCode!');
+  end;
+
+  FGame.AddEntity(TestBot);
 end;
 
 procedure TfrmMain.ResizeFunc;
@@ -280,6 +298,8 @@ begin
 
   if Input.KeyPressed(VK_F10) then
     DebugConsole.Visible := not DebugConsole.Visible;
+
+  DebugConsole.Update;
 end;
 
 end.
