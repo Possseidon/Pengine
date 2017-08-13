@@ -14,6 +14,8 @@ type
     FDead: Boolean;
     FHealth, FMaxHealth: Single;
 
+    FName: string;
+    
     procedure SetHealth(Value: Single);
     procedure SetMaxHealth(Value: Single);
   protected
@@ -28,6 +30,8 @@ type
     property MaxHealth: Single read FMaxHealth write SetMaxHealth;
     
     property Dead: Boolean read FDead;
+
+    property Name: string read FName;
   end;
 
   { TLuaEntity }
@@ -40,6 +44,7 @@ type
 
     class function LuaGetHealth(L: TLuaState): Integer; static; cdecl;
     class function LuaGetMaxHealth(L: TLuaState): Integer; static; cdecl;
+    class function LuaPrint(L: TLuaState): Integer; static; cdecl;
   protected
 
   public
@@ -59,7 +64,7 @@ begin
   if Value = FHealth then
     Exit;
   FHealth := Value;
-  if FHealth = 0 then
+  if Health <= 0 then
     FDead := True;
 end;
 
@@ -77,6 +82,7 @@ begin
   inherited Create(ASourceVAO);
   FHealth := AHealth;
   FMaxHealth := AHealth;
+  FName := 'unnamed';
 end;
 
 destructor TEntity.Destroy;
@@ -120,6 +126,22 @@ begin
   Result := 1;
 end;
 
+class function TLuaEntity.LuaPrint(L: TLuaState): Integer;
+var
+  I: Integer;
+  Self: TLuaEntity;
+begin
+  Self := GetSelf(L);
+  Write(Self.Name + ': ');
+  for I := 1 to L.Top do
+  begin
+    Write(L.ToString(I));
+    if I < L.Top then
+      Write(' ');
+  end;
+  Writeln;  
+end;
+
 constructor TLuaEntity.Create(ASourceVAO: TVAO; AHealth: Single);
 begin
   inherited Create(ASourceVAO, AHealth);
@@ -131,6 +153,7 @@ begin
   // Base Lua Functions
   FLua.Register('getHealth', LuaGetHealth);
   FLua.Register('getMaxHealth', LuaGetMaxHealth);
+  FLua.Register('print', LuaPrint);
 end;
 
 destructor TLuaEntity.Destroy;
