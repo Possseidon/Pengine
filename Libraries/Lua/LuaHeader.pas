@@ -327,7 +327,8 @@ type
     function PushThread: LongBool; inline;
 
     // get functions (Lua -> stack)
-    function GetGlobal(name: PAnsiChar): Integer; inline;
+    function GetGlobal_X(name: PAnsiChar): Integer; inline;
+    function GetGlobal(name: PAnsiChar): TLuaType; inline;
     function GetTable(index: Integer = -1): Integer; inline;
     function GetField_X(k: PAnsiChar; index: Integer = -1): Integer; inline;
     function GetField(k: PAnsiChar; index: Integer = -1): TLuaType; inline;
@@ -1162,7 +1163,12 @@ begin
   Result := lua_pushthread(@Self);
 end;
 
-function TLuaStateRec.GetGlobal(name: PAnsiChar): Integer;
+function TLuaStateRec.GetGlobal(name: PAnsiChar): TLuaType;
+begin
+  Result := TLuaType(GetGlobal(name));
+end;
+
+function TLuaStateRec.GetGlobal_X(name: PAnsiChar): Integer;
 begin
   Result := lua_getglobal(@Self, name);
 end;

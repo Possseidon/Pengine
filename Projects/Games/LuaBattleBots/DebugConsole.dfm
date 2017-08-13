@@ -1,9 +1,9 @@
-object frmMain: TfrmMain
+object frmConsole: TfrmConsole
   Left = 0
   Top = 0
-  Caption = 'Lua Battle Bots'
-  ClientHeight = 527
-  ClientWidth = 932
+  Caption = 'Debug Console'
+  ClientHeight = 303
+  ClientWidth = 561
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -11,7 +11,6 @@ object frmMain: TfrmMain
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
-  Position = poDesktopCenter
   PixelsPerInch = 96
   TextHeight = 13
 end

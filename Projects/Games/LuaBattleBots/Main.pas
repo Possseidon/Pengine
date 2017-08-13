@@ -5,7 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, OpenGLContext, Camera, Shaders, VAOManager, VectorGeometry, IntfBase,
-  Matrix, Lists, TextureManager, Lights, ControlledCamera, GLEnums, IntegerMaths, Color, SkyDome, LuaHeader;
+  Matrix, Lists, TextureManager, Lights, ControlledCamera, GLEnums, IntegerMaths, Color, SkyDome, LuaHeader,
+  Game, EntityDefine, DebugConsoleDefine;
 
 type
 
@@ -16,18 +17,19 @@ type
     Tangent: TVector3;
     Bitangent: TVector3;
     Border: TBounds2;
-  end;  
+  end;
 
   { TForm1 }
 
-  TForm1 = class(TGLForm)
+  TfrmMain = class(TGLForm)
   private
+    FGame: TGame;
+
     FShader: TShader;
     FCamera: TControlledCamera;
     FTexturePage: TTexturePage;
     FFloorVAO: TVAO;
     FCubeVAO: TVAO;
-    FCubes: TObjectArray<TVAOProxy>;
 
     FLightSystem: TLightSystem;
     FSun: TDirectionalLightShaded;
@@ -41,9 +43,9 @@ type
     procedure InitTexturePage;
     procedure InitFloorVAO;
     procedure InitCubeVAO;
-    procedure InitCubes;
     procedure InitLightSystem;
     procedure InitSkyDome;
+    procedure InitGame;
 
   public
     procedure Init; override;
@@ -56,7 +58,7 @@ type
   end;
 
 var
-  Form1: TForm1;
+  frmMain: TfrmMain;
 
 implementation
 
@@ -64,13 +66,13 @@ implementation
 
 { TForm1 }
 
-procedure TForm1.Finalize;
+procedure TfrmMain.Finalize;
 begin
+  FGame.Free;
   FSkyDome.Free;
   FSkyDomeShader.Free;
   FSun.Free;
   FLightSystem.Free;
-  FCubes.Free;
   FCubeVAO.Free;
   FFloorVAO.Free;
   FTexturePage.Free;
@@ -78,8 +80,11 @@ begin
   FShader.Free;
 end;
 
-procedure TForm1.Init;
+procedure TfrmMain.Init;
 begin
+  DebugConsole := TDebugConsole.Create(Self);
+  DebugConsole.Show;
+
   State.DebugOutput := False;
   VSync := True;
   // FPSLimit := 300;
@@ -88,20 +93,19 @@ begin
 
   InitShader;
   InitSkyDomeShader;
-  
+
   InitSkyDome;
-  
+
   InitTexturePage;
 
   InitFloorVAO;
   InitCubeVAO;
-  InitCubes;
-
-  InitLightSystem;
   
+  InitLightSystem;
+  InitGame;
 end;
 
-procedure TForm1.InitCamera;
+procedure TfrmMain.InitCamera;
 begin
   FCamera := TControlledCamera.Create(60, Aspect, 0.05, 420, Input);
   FCamera.Location.OffsetZ := 3;
@@ -111,29 +115,41 @@ begin
   FCamera.PosLowerLimitY := 0.1;
 end;
 
-procedure TForm1.InitCubes;
+procedure TfrmMain.InitCubeVAO;
 var
-  Cube: TVAOProxy;
-begin
-  FCubes := TObjectArray<TVAOProxy>.Create;
-
-  FCamera.AddRenderObject(FFloorVAO);
-  for Cube in FCubes do
-    FCamera.AddRenderObject(Cube);
-end;
-
-procedure TForm1.InitCubeVAO;
+  P: TPlane3;
+  Data: TData;
+  T: TTexCoord2;
 begin
   FCubeVAO := TVAO.Create(FShader);
+  FCubeVAO.Generate(6 * 6, buStaticDraw);
+  FCubeVAO.Map(baWriteOnly);
+
+  for P in CubePlanes do
+  begin
+    Data.Border := FTexturePage.GetTexBounds('stone_bricks', FRange2(0, 1));
+    Data.Normal := P.Normal;
+    Data.Tangent := P.DVS;
+    Data.Bitangent := P.DVT;
+    for T in QuadTexCoords do
+    begin
+      Data.Pos := P[T];
+      Data.TexCoord := Data.Border[T];
+      FCubeVAO.AddVertex(Data);
+    end;
+    Data.Border := FTexturePage.HalfPixelInset(Data.Border);
+  end;
+
+  FCubeVAO.Unmap;
 end;
 
-procedure TForm1.InitFloorVAO;
+procedure TfrmMain.InitFloorVAO;
 const
   Plane: TPlane3 = (
     SV: (X: 0; Y: 0; Z: 0);
     DVS: (X: 0; Y: 0; Z: 1);
-    DVT: (X: 1; Y: 0; Z: 0);
-  );
+    DVT: (X: 1; Y: 0; Z: 0)
+    );
 var
   Data: TData;
   T: TVector2;
@@ -141,7 +157,7 @@ var
   Grid: TIntBounds2;
 begin
   Grid.Create(-20, 20);
-  
+
   FFloorVAO := TVAO.Create(FShader);
   FFloorVAO.Generate(6 * Grid.Area, buStaticDraw);
 
@@ -150,8 +166,8 @@ begin
   Data.Normal := Vec3(0, 1, 0);
   Data.Tangent := Vec3(1, 0, 0);
   Data.Bitangent := Vec3(0, 0, 1);
-  Data.Border := FTexturePage.GetTexBounds('Data/grass_top.png', FRange2(0, 1));
-  
+  Data.Border := FTexturePage.GetTexBounds('grass_top', FRange2(0, 1));
+
   for GridPos in Grid do
   begin
     for T in QuadTexCoords do
@@ -159,18 +175,18 @@ begin
       Data.Pos := Plane[T];
       Data.Pos.XZ := Data.Pos.XZ + GridPos;
       Data.TexCoord := Data.Border[T];
-      FFloorVAO.AddVertex(Data);  
-    end; 
-  end;   
+      FFloorVAO.AddVertex(Data);
+    end;
+  end;
 
   Data.Border := FTexturePage.HalfPixelInset(Data.Border);
 
   FFloorVAO.Unmap;
-  
+
   FCamera.AddRenderObject(FFloorVAO);
 end;
 
-procedure TForm1.InitLightSystem;
+procedure TfrmMain.InitLightSystem;
 begin
   FLightSystem := TLightSystem.Create(Self);
   FLightSystem.Ambient := TColorRGB.Gray(0.2);
@@ -183,7 +199,7 @@ begin
   FSun.AddOccluder(FFloorVAO);
 end;
 
-procedure TForm1.InitShader;
+procedure TfrmMain.InitShader;
 const
   Attributes: array [0 .. 6] of AnsiString = (
     'vpos',
@@ -199,21 +215,21 @@ begin
   FShader.LoadFromFile('Data/model');
   FShader.SetAttributeOrder(Attributes);
   FShader.Uniform<Boolean>('depthonly').Value := False;
-  
+
   FCamera.AddUniforms(FShader);
 end;
 
-procedure TForm1.InitSkyDome;
+procedure TfrmMain.InitSkyDome;
 begin
- FSkyDome := TSkyDome.Create(Self, FCamera, FSkyDomeShader);
- FSkyDome.AddStripe(TColorRGB.Create(0.7, 1.0, 0.9), -90);
- FSkyDome.AddStripe(TColorRGB.Create(0.4, 0.6, 0.9), 0);
- FSkyDome.AddStripe(TColorRGB.Create(0.1, 0.2, 0.9), +90);
+  FSkyDome := TSkyDome.Create(Self, FCamera, FSkyDomeShader);
+  FSkyDome.AddStripe(TColorRGB.Create(0.7, 1.0, 0.9), -90);
+  FSkyDome.AddStripe(TColorRGB.Create(0.4, 0.6, 0.9), 0);
+  FSkyDome.AddStripe(TColorRGB.Create(0.1, 0.2, 0.9), +90);
 
- FCamera.AddRenderObject(FSkyDome); 
+  FCamera.AddRenderObject(FSkyDome);
 end;
 
-procedure TForm1.InitSkyDomeShader;
+procedure TfrmMain.InitSkyDomeShader;
 begin
   FSkyDomeShader := TShader.Create;
   FSkyDomeShader.LoadFromFile('Data/skydome');
@@ -222,37 +238,48 @@ begin
   FCamera.AddUniforms(FSkyDomeShader);
 end;
 
-procedure TForm1.InitTexturePage;
+procedure TfrmMain.InitTexturePage;
 begin
   FTexturePage := TTexturePage.Create;
   FTexturePage.UniformDefaults(FShader);
-  FTexturePage.AddTextureFromFile('Data/stone_bricks.png');
-  FTexturePage.AddTextureFromFile('Data/grass_top.png');
-  FTexturePage.AddTextureFromFile('Data/log_side.png');
+  FTexturePage.AddTextureFromFile('Data/stone_bricks.png', 'stone_bricks');
+  FTexturePage.AddTextureFromFile('Data/grass_top.png', 'grass_top');
+  FTexturePage.AddTextureFromFile('Data/log_side.png', 'log_side');
   FTexturePage.BuildPage(32);
 end;
 
-procedure TForm1.RenderFunc;
+procedure TfrmMain.RenderFunc;
 begin
   FLightSystem.RenderShadows;
   FCamera.Render;
 end;
 
-procedure TForm1.ResizeFunc;
+procedure TfrmMain.InitGame;
+begin
+  FGame := TGame.Create(FCamera);
+  FGame.AddEntity(TLuaEntity.Create(FCubeVAO, 100));
+end;
+
+procedure TfrmMain.ResizeFunc;
 begin
   FCamera.Aspect := Aspect;
 end;
 
-procedure TForm1.UpdateFunc;
+procedure TfrmMain.UpdateFunc;
 begin
   if MustUpdateFPS then
     Caption := Format('LuaBattleBots - FPS: %d', [FPSInt]);
 
   // if Input.ButtonPressed(mbMiddle) then
-  //   FSun.Position := FCamera.Location.RealPosition;
+  // FSun.Position := FCamera.Location.RealPosition;
   // FSun.Direction := FSun.Direction.Rotate(Vec3(1, 1, 0).Normalize, 30 * DeltaTime);
-    
+
   FCamera.Update;
+
+  FGame.Update(DeltaTime);
+
+  if Input.KeyPressed(VK_F10) then
+    DebugConsole.Visible := not DebugConsole.Visible;
 end;
 
 end.

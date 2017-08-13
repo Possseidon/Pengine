@@ -3,7 +3,7 @@ unit EntityDefine;
 interface
 
 uses
-  VAOManager, LuaHeader, Math, LuaConf, VectorGeometry, IntegerMaths;
+  VAOManager, LuaHeader, Math, LuaConf, VectorGeometry, DebugConsoleDefine, IntegerMaths;
 
 type
 
@@ -118,7 +118,8 @@ begin
   inherited Create(ASourceVAO);
   FHealth := AHealth;
   FMaxHealth := AHealth;
-  FName := 'unnamed';
+  FName := 'Unnamed';
+  Location.Offset := Vec3(-0.5, 0, -0.5);
 end;
 
 destructor TEntity.Destroy;
@@ -128,7 +129,7 @@ end;
 
 procedure TEntity.Update(ADeltaTime: Single);
 begin
-
+  // nothing by default
 end;
 
 { TLuaEntity }
@@ -168,14 +169,14 @@ var
   Self: TLuaEntity;
 begin
   Self := GetSelf(L);
-  Write(Self.Name + ': ');
+  DebugConsole.Write(Self.Name + ': ');
   for I := 1 to L.Top do
   begin
-    Write(L.ToString(I));
+    DebugConsole.Write(L.ToString(I));
     if I < L.Top then
-      Write(' ');
+      DebugConsole.Write(' ');
   end;
-  Writeln;
+  DebugConsole.WriteLine;
   Result := 0;
 end;
 
@@ -195,8 +196,7 @@ end;
 
 destructor TLuaEntity.Destroy;
 begin
-  FLua.Close;
-
+  FLua.Close; 
   inherited;
 end;
 

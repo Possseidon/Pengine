@@ -3,7 +3,7 @@ unit VAOManager;
 interface
 
 uses
-  dglOpenGL, GLEnums, SysUtils, Shaders, Matrix, VectorGeometry, GLObjectBase, Camera;
+  dglOpenGL, GLEnums, SysUtils, Shaders, Matrix, VectorGeometry, GLObjectBase, Camera, IntfBase;
 
 type
 
@@ -168,7 +168,7 @@ type
 
   { TVAOProxy }
 
-  TVAOProxy = class(TInterfacedObject, IRenderable)
+  TVAOProxy = class(TInterfaceBase, IRenderable)
   private
     FSourceVAO: TVAO;
     FLocation: TLocation;
