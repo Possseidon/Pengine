@@ -3,33 +3,14 @@ unit EntityDefine;
 interface
 
 uses
-  VAOManager, LuaHeader, Math, LuaConf, Lists;
+  VAOManager, LuaHeader, Math, LuaConf;
 
 type
-
-  TEntity = class;
-
-  { TEntityList }
-
-  TEntityList = class
-  private
-    FEntities: TRefArray<TEntity>;
-    
-  public
-    constructor Create;
-    destructor Destroy; override;
-
-    procedure AddEntity(AEntity: TEntity);
-    procedure DelEntity(AEntity: TEntity);
-
-  end;
 
   { TEntity }
 
   TEntity = class(TVAOProxy)
   private
-    FEntityList: TEntityList;
-    
     FDead: Boolean;
     FHealth, FMaxHealth: Single;
 
@@ -38,7 +19,7 @@ type
   protected
 
   public
-    constructor Create(AEntityList: TEntityList; ASourceVAO: TVAO; AHealth: Single);
+    constructor Create(ASourceVAO: TVAO; AHealth: Single);
     destructor Destroy; override;
 
     procedure Update(ADeltaTime: Single); virtual;
@@ -62,7 +43,7 @@ type
   protected
 
   public
-    constructor Create(AEntityList: TEntityList; ASourceVAO: TVAO; AHealth: Single);
+    constructor Create(ASourceVAO: TVAO; AHealth: Single);
     destructor Destroy; override;
 
     procedure Update(ADeltaTime: Single); override;
@@ -91,7 +72,7 @@ begin
   Health := Min(Health, FMaxHealth);
 end;
 
-constructor TEntity.Create(AEntityList: TEntityList; ASourceVAO: TVAO; AHealth: Single);
+constructor TEntity.Create(ASourceVAO: TVAO; AHealth: Single);
 begin
   inherited Create(ASourceVAO);
   FHealth := AHealth;
@@ -100,7 +81,6 @@ end;
 
 destructor TEntity.Destroy;
 begin
-  FEntityList.DelEntity(Self);
   inherited;
 end;
 
@@ -140,9 +120,9 @@ begin
   Result := 1;
 end;
 
-constructor TLuaEntity.Create(AEntityList: TEntityList; ASourceVAO: TVAO; AHealth: Single);
+constructor TLuaEntity.Create(ASourceVAO: TVAO; AHealth: Single);
 begin
-  inherited Create(AEntityList, ASourceVAO, AHealth);
+  inherited Create(ASourceVAO, AHealth);
 
   // Lua Init
   FLua := NewLuaState;
@@ -163,42 +143,6 @@ end;
 procedure TLuaEntity.Update(ADeltaTime: Single);
 begin
   inherited;
-end;
-
-{ TEntityList }
-                               
-
-constructor TEntityList.Create;
-begin
-  FEntities := TObjectArray<TEntity>.Create;
-end;
-
-procedure TEntityList.DelEntity(AEntity: TEntity);
-begin
-  FEntities.Del(AEntity);
-
-             
-                      
-                                        
-
-                       
-                                           
-                                                 
-end;
-
-destructor TEntityList.Destroy;
-var
-  Entity: TEntity;
-begin
-  for Entity in FEntities do
-    Entity.Free;
-  FEntities.Free;
-  inherited;
-end;
-
-procedure TEntityList.AddEntity(AEntity: TEntity);
-begin
-  FEntities.Add(AEntity);
 end;
 
 end.
