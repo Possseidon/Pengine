@@ -78,6 +78,8 @@ begin
   if Value = FHealth then
     Exit;
   FHealth := Value;
+  if FHealth = 0 then
+    FDead := True;
 end;
 
 procedure TEntity.SetMaxHealth(Value: Single);
