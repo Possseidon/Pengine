@@ -42,7 +42,6 @@ type
     procedure InitSkyDomeShader;
     procedure InitTexturePage;
     procedure InitFloorVAO;
-    procedure InitCubeVAO;
     procedure InitLightSystem;
     procedure InitSkyDome;
     procedure InitGame;
@@ -98,8 +97,9 @@ begin
 
   InitTexturePage;
 
+  TResourceManager.Init(FShader, FTexturePage);
+
   InitFloorVAO;
-  InitCubeVAO;
   
   InitLightSystem;
   InitGame;
@@ -113,34 +113,6 @@ begin
   FCamera.Location.TurnAngle := -30;
   FCamera.PitchUpperLimit := -4.2;
   FCamera.PosLowerLimitY := 0.1;
-end;
-
-procedure TfrmMain.InitCubeVAO;
-var
-  P: TPlane3;
-  Data: TData;
-  T: TTexCoord2;
-begin
-  FCubeVAO := TVAO.Create(FShader);
-  FCubeVAO.Generate(6 * 6, buStaticDraw);
-  FCubeVAO.Map(baWriteOnly);
-
-  for P in CubePlanes do
-  begin
-    Data.Border := FTexturePage.GetTexBounds('stone_bricks', FRange2(0, 1));
-    Data.Normal := P.Normal;
-    Data.Tangent := P.DVS;
-    Data.Bitangent := P.DVT;
-    for T in QuadTexCoords do
-    begin
-      Data.Pos := P[T];
-      Data.TexCoord := Data.Border[T];
-      FCubeVAO.AddVertex(Data);
-    end;
-    Data.Border := FTexturePage.HalfPixelInset(Data.Border);
-  end;
-
-  FCubeVAO.Unmap;
 end;
 
 procedure TfrmMain.InitFloorVAO;

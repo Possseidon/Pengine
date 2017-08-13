@@ -3,7 +3,7 @@ unit ResourceManager;
 interface
 
 uses
-  OpenGLContext, Shaders, TextureManager, VAOManager, GLEnums, VectorGeometry;
+  OpenGLContext, Shaders, TextureManager, VAOManager, GLEnums, VectorGeometry, Lists, SysUtils;
 
 type
   TBaseVAOType = (vtCube, vtPlane);
@@ -19,30 +19,36 @@ type
 
   TResourceManager = class
   private
-    FShader: TShader;
-    FTexturePage: TTexturePage;
+    class procedure LoadVAO(AName: string; AType: TBaseVAOType); overload;
 
+    class var
+      FVAOs: TStringObjectMap<TVAO>;
 
+      FShader: TShader;
+      FTexturePage: TTexturePage;
   public
-    procedure Init;
+    class procedure Init(AShader: TShader; ATexturePage: TTexturePage);
 
-    procedure LoadVAO(AName: string; AFilePath: string); overload;
-    procedure LoadVAO(AName: string; AType: TBaseVAOType); overload;
+    class procedure LoadVAO(AName: string; AFilePath: string); overload;
+    class function GetVAO(AName: string): TVAO;
   end;
 
 implementation
 
-procedure TResourceManager.Init;
+class procedure TResourceManager.Init(AShader: TShader; ATexturePage: TTexturePage);
 begin
+  FShader := AShader;
+  FTexturePage := ATexturePage;
 
+  LoadVAO('cube', vtCube);
+  //LoadVAO('plane', vtPlane);
 end;
 
-procedure TResourceManager.LoadVAO(AName: string; AFilePath: string);
+class procedure TResourceManager.LoadVAO(AName: string; AFilePath: string);
 begin
-
 end;
 
-procedure TResourceManager.LoadVAO(AName: string; AType: TBaseVAOType);
+class procedure TResourceManager.LoadVAO(AName: string; AType: TBaseVAOType);
 var
   VAO: TVAO;
   P: TPlane3;
@@ -70,13 +76,22 @@ begin
       end;
       Data.Border := FTexturePage.HalfPixelInset(Data.Border);
     end;
+
+    VAO.Unmap;
   end;
   if AType = vtPlane then
   begin
 
   end;
 
-  VAO.Unmap;
+  FVAOs[AName] := VAO;
+end;
+
+class function TResourceManager.GetVAO(AName: string): TVAO;
+begin
+  if Not(FVAOs.HasKey(AName)) then
+    raise Exception.Create('Model ' + AName + ' is not found!');
+  Result := FVAOs.Data[AName];
 end;
 
 end.

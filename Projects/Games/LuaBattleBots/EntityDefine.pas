@@ -3,7 +3,7 @@ unit EntityDefine;
 interface
 
 uses
-  VAOManager, LuaHeader, Math, LuaConf, VectorGeometry, DebugConsoleDefine, IntegerMaths, SysUtils;
+  VAOManager, LuaHeader, Math, LuaConf, VectorGeometry, DebugConsoleDefine, IntegerMaths, SysUtils, ResourceManager;
 
 type
 
@@ -293,7 +293,7 @@ end;
 
 class function TBotCore.GetSourceVAO: TVAO;
 begin
-  Result := nil;
+  Result := TResourceManager.GetVAO('cube');
 end;
 
 class function TBotCore.GetInitialHealth: Single;
