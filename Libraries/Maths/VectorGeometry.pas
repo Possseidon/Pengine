@@ -38,6 +38,15 @@ type
   { TVector2 }
   /// <summary>A two Component Vector of Type Single</summary>
   TVector2 = record
+  private
+    function GetXX: TVector2;
+    function GetXY: TVector2;
+    function GetYX: TVector2;
+    function GetYY: TVector2;
+
+    procedure SetXY(const Value: TVector2);
+    procedure SetYX(const Value: TVector2);
+
   public
     /// <summary>The X-Component of the Vector</summary>
     X: Single;
@@ -71,10 +80,10 @@ type
 
     {$REGION 'All versions of rearrangement TVector2'}
 
-    function XX: TVector2;
-    function XY: TVector2;
-    function YX: TVector2;
-    function YY: TVector2;
+    property XX: TVector2 read GetXX;
+    property XY: TVector2 read GetXY write SetXY;
+    property YX: TVector2 read GetYX write SetYX;
+    property YY: TVector2 read GetYY;
 
     {$ENDREGION}
 
@@ -142,6 +151,59 @@ type
   { TVector3 }
   /// <summary>A three Component Vector of Type Single</summary>
   TVector3 = record
+  private
+    function GetXX: TVector2;
+    function GetXY: TVector2;
+    function GetXZ: TVector2;
+    function GetYX: TVector2;
+    function GetYY: TVector2;
+    function GetYZ: TVector2;
+    function GetZX: TVector2;
+    function GetZY: TVector2;
+    function GetZZ: TVector2;
+
+    function GetXXX: TVector3;
+    function GetXXY: TVector3;
+    function GetXXZ: TVector3;
+    function GetXYX: TVector3;
+    function GetXYY: TVector3;
+    function GetXYZ: TVector3;
+    function GetXZX: TVector3;
+    function GetXZY: TVector3;
+    function GetXZZ: TVector3;
+    function GetYXX: TVector3;
+    function GetYXY: TVector3;
+    function GetYXZ: TVector3;
+    function GetYYX: TVector3;
+    function GetYYY: TVector3;
+    function GetYYZ: TVector3;
+    function GetYZX: TVector3;
+    function GetYZY: TVector3;
+    function GetYZZ: TVector3;
+    function GetZXX: TVector3;
+    function GetZXY: TVector3;
+    function GetZXZ: TVector3;
+    function GetZYX: TVector3;
+    function GetZYY: TVector3;
+    function GetZYZ: TVector3;
+    function GetZZX: TVector3;
+    function GetZZY: TVector3;
+    function GetZZZ: TVector3;
+
+    procedure SetXY(const Value: TVector2);
+    procedure SetXZ(const Value: TVector2);
+    procedure SetYX(const Value: TVector2);
+    procedure SetYZ(const Value: TVector2);
+    procedure SetZX(const Value: TVector2);
+    procedure SetZY(const Value: TVector2);
+
+    procedure SetXYZ(const Value: TVector3);
+    procedure SetXZY(const Value: TVector3);
+    procedure SetYXZ(const Value: TVector3);
+    procedure SetYZX(const Value: TVector3);
+    procedure SetZXY(const Value: TVector3);
+    procedure SetZYX(const Value: TVector3);
+
   public
     /// <summary>The X-Component of the Vector</summary>
     X: Single;
@@ -175,46 +237,46 @@ type
 
     {$REGION 'All versions of rearrangement TIntVector2'}
 
-    function XX: TVector2;
-    function XY: TVector2;
-    function XZ: TVector2;
-    function YX: TVector2;
-    function YY: TVector2;
-    function YZ: TVector2;
-    function ZX: TVector2;
-    function ZY: TVector2;
-    function ZZ: TVector2;
+    property XX: TVector2 read GetXX;
+    property XY: TVector2 read GetXY write SetXY;
+    property XZ: TVector2 read GetXZ write SetXZ;
+    property YX: TVector2 read GetYX write SetYX;
+    property YY: TVector2 read GetYY;
+    property YZ: TVector2 read GetYZ write SetYZ;
+    property ZX: TVector2 read GetZX write SetZX;
+    property ZY: TVector2 read GetZY write SetZY;
+    property ZZ: TVector2 read GetZZ;
 
     {$ENDREGION}
     {$REGION 'All versions of rearrangement TIntVector3'}
 
-    function XXX: TVector3;
-    function XXY: TVector3;
-    function XXZ: TVector3;
-    function XYX: TVector3;
-    function XYY: TVector3;
-    function XYZ: TVector3;
-    function XZX: TVector3;
-    function XZY: TVector3;
-    function XZZ: TVector3;
-    function YXX: TVector3;
-    function YXY: TVector3;
-    function YXZ: TVector3;
-    function YYX: TVector3;
-    function YYY: TVector3;
-    function YYZ: TVector3;
-    function YZX: TVector3;
-    function YZY: TVector3;
-    function YZZ: TVector3;
-    function ZXX: TVector3;
-    function ZXY: TVector3;
-    function ZXZ: TVector3;
-    function ZYX: TVector3;
-    function ZYY: TVector3;
-    function ZYZ: TVector3;
-    function ZZX: TVector3;
-    function ZZY: TVector3;
-    function ZZZ: TVector3;
+    property XXX: TVector3 read GetXXX;
+    property XXY: TVector3 read GetXXY;
+    property XXZ: TVector3 read GetXXZ;
+    property XYX: TVector3 read GetXYX;
+    property XYY: TVector3 read GetXYY;
+    property XYZ: TVector3 read GetXYZ write SetXYZ;
+    property XZX: TVector3 read GetXZX;
+    property XZY: TVector3 read GetXZY write SetXZY;
+    property XZZ: TVector3 read GetXZZ;
+    property YXX: TVector3 read GetYXX;
+    property YXY: TVector3 read GetYXY;
+    property YXZ: TVector3 read GetYXZ write SetYXZ;
+    property YYX: TVector3 read GetYYX;
+    property YYY: TVector3 read GetYYY;
+    property YYZ: TVector3 read GetYYZ;
+    property YZX: TVector3 read GetYZX write SetYZX;
+    property YZY: TVector3 read GetYZY;
+    property YZZ: TVector3 read GetYZZ;
+    property ZXX: TVector3 read GetZXX;
+    property ZXY: TVector3 read GetZXY write SetZXY;
+    property ZXZ: TVector3 read GetZXZ;
+    property ZYX: TVector3 read GetZYX write SetZYX;
+    property ZYY: TVector3 read GetZYY;
+    property ZYZ: TVector3 read GetZYZ;
+    property ZZX: TVector3 read GetZZX;
+    property ZZY: TVector3 read GetZZY;
+    property ZZZ: TVector3 read GetZZZ;
 
     {$ENDREGION}
 
@@ -1265,6 +1327,46 @@ const
 
 { TVector2 }
 
+{$REGION 'All versions of rearrangement TVector2'}
+
+function TVector2.GetXX: TVector2;
+begin
+  Result.X := X;
+  Result.Y := X;
+end;
+
+function TVector2.GetXY: TVector2;
+begin
+  Result.X := X;
+  Result.Y := Y;
+end;
+
+function TVector2.GetYX: TVector2;
+begin
+  Result.X := Y;
+  Result.Y := X;
+end;
+
+function TVector2.GetYY: TVector2;
+begin
+  Result.X := Y;
+  Result.Y := Y;
+end;
+
+procedure TVector2.SetXY(const Value: TVector2);
+begin
+  X := Value.X;
+  Y := Value.Y;
+end;
+
+procedure TVector2.SetYX(const Value: TVector2);
+begin
+  Y := Value.X;
+  X := Value.Y;
+end;
+
+{$ENDREGION}
+
 constructor TVector2.Create(X, Y: Single);
 begin
   Self.X := X;
@@ -1307,34 +1409,6 @@ begin
   Result.X := A.X;
   Result.Y := A.Y;
 end;
-
-{$REGION 'All versions of rearrangement TVector2'}
-
-function TVector2.XX: TVector2;
-begin
-  Result.X := X;
-  Result.Y := X;
-end;
-
-function TVector2.XY: TVector2;
-begin
-  Result.X := X;
-  Result.Y := Y;
-end;
-
-function TVector2.YX: TVector2;
-begin
-  Result.X := Y;
-  Result.Y := X;
-end;
-
-function TVector2.YY: TVector2;
-begin
-  Result.X := Y;
-  Result.Y := Y;
-end;
-
-{$ENDREGION}
 
 class operator TVector2.Add(const A, B: TVector2): TVector2;
 begin
@@ -1504,6 +1578,334 @@ end;
 
 { TVector3 }
 
+{$REGION 'All versions of rearrangement TIntVector2'}
+
+function TVector3.GetXX: TVector2;
+begin
+  Result.X := X;
+  Result.Y := X;
+end;
+
+function TVector3.GetXY: TVector2;
+begin
+  Result.X := X;
+  Result.Y := Y;
+end;
+
+function TVector3.GetXZ: TVector2;
+begin
+  Result.X := X;
+  Result.Y := Z;
+end;
+
+function TVector3.GetYX: TVector2;
+begin
+  Result.X := Y;
+  Result.Y := X;
+end;
+
+function TVector3.GetYY: TVector2;
+begin
+  Result.X := Y;
+  Result.Y := Y;
+end;
+
+function TVector3.GetYZ: TVector2;
+begin
+  Result.X := Y;
+  Result.Y := Z;
+end;
+
+function TVector3.GetZX: TVector2;
+begin
+  Result.X := Z;
+  Result.Y := X;
+end;
+
+function TVector3.GetZY: TVector2;
+begin
+  Result.X := Z;
+  Result.Y := Y;
+end;
+
+function TVector3.GetZZ: TVector2;
+begin
+  Result.X := Z;
+  Result.Y := Z;
+end;
+
+procedure TVector3.SetXY(const Value: TVector2);
+begin
+  X := Value.X;
+  Y := Value.Y;
+end;
+
+procedure TVector3.SetXZ(const Value: TVector2);
+begin
+  X := Value.X;
+  Z := Value.Y;
+end;
+
+procedure TVector3.SetYX(const Value: TVector2);
+begin
+  Y := Value.X;
+  X := Value.Y;
+end;
+
+procedure TVector3.SetYZ(const Value: TVector2);
+begin
+  Y := Value.X;
+  Z := Value.Y;
+end;
+
+procedure TVector3.SetZX(const Value: TVector2);
+begin
+  Z := Value.X;
+  X := Value.Y;
+end;
+
+procedure TVector3.SetZY(const Value: TVector2);
+begin
+  Z := Value.X;
+  Y := Value.Y;
+end;
+
+{$ENDREGION}
+{$REGION 'All versions of rearrangement TIntVector3'}
+
+function TVector3.GetXXX: TVector3;
+begin
+  Result.X := X;
+  Result.Y := X;
+  Result.Z := X;
+end;
+
+function TVector3.GetXXY: TVector3;
+begin
+  Result.X := X;
+  Result.Y := X;
+  Result.Z := Y;
+end;
+
+function TVector3.GetXXZ: TVector3;
+begin
+  Result.X := X;
+  Result.Y := X;
+  Result.Z := Z;
+end;
+
+function TVector3.GetXYX: TVector3;
+begin
+  Result.X := X;
+  Result.Y := Y;
+  Result.Z := X;
+end;
+
+function TVector3.GetXYY: TVector3;
+begin
+  Result.X := X;
+  Result.Y := Y;
+  Result.Z := Y;
+end;
+
+function TVector3.GetXYZ: TVector3;
+begin
+  Result.X := X;
+  Result.Y := Y;
+  Result.Z := Z;
+end;
+
+function TVector3.GetXZX: TVector3;
+begin
+  Result.X := X;
+  Result.Y := Z;
+  Result.Z := X;
+end;
+
+function TVector3.GetXZY: TVector3;
+begin
+  Result.X := X;
+  Result.Y := Z;
+  Result.Z := Y;
+end;
+
+function TVector3.GetXZZ: TVector3;
+begin
+  Result.X := X;
+  Result.Y := Z;
+  Result.Z := Z;
+end;
+
+function TVector3.GetYXX: TVector3;
+begin
+  Result.X := Y;
+  Result.Y := X;
+  Result.Z := X;
+end;
+
+function TVector3.GetYXY: TVector3;
+begin
+  Result.X := Y;
+  Result.Y := X;
+  Result.Z := Y;
+end;
+
+function TVector3.GetYXZ: TVector3;
+begin
+  Result.X := Y;
+  Result.Y := X;
+  Result.Z := Z;
+end;
+
+function TVector3.GetYYX: TVector3;
+begin
+  Result.X := Y;
+  Result.Y := Y;
+  Result.Z := X;
+end;
+
+function TVector3.GetYYY: TVector3;
+begin
+  Result.X := Y;
+  Result.Y := Y;
+  Result.Z := Y;
+end;
+
+function TVector3.GetYYZ: TVector3;
+begin
+  Result.X := Y;
+  Result.Y := Y;
+  Result.Z := Z;
+end;
+
+function TVector3.GetYZX: TVector3;
+begin
+  Result.X := Y;
+  Result.Y := Z;
+  Result.Z := X;
+end;
+
+function TVector3.GetYZY: TVector3;
+begin
+  Result.X := Y;
+  Result.Y := Z;
+  Result.Z := Y;
+end;
+
+function TVector3.GetYZZ: TVector3;
+begin
+  Result.X := Y;
+  Result.Y := Z;
+  Result.Z := Z;
+end;
+
+function TVector3.GetZXX: TVector3;
+begin
+  Result.X := Z;
+  Result.Y := X;
+  Result.Z := X;
+end;
+
+function TVector3.GetZXY: TVector3;
+begin
+  Result.X := Z;
+  Result.Y := X;
+  Result.Z := Y;
+end;
+
+function TVector3.GetZXZ: TVector3;
+begin
+  Result.X := Z;
+  Result.Y := X;
+  Result.Z := Z;
+end;
+
+function TVector3.GetZYX: TVector3;
+begin
+  Result.X := Z;
+  Result.Y := Y;
+  Result.Z := X;
+end;
+
+function TVector3.GetZYY: TVector3;
+begin
+  Result.X := Z;
+  Result.Y := Y;
+  Result.Z := Y;
+end;
+
+function TVector3.GetZYZ: TVector3;
+begin
+  Result.X := Z;
+  Result.Y := Y;
+  Result.Z := Z;
+end;
+
+function TVector3.GetZZX: TVector3;
+begin
+  Result.X := Z;
+  Result.Y := Z;
+  Result.Z := X;
+end;
+
+function TVector3.GetZZY: TVector3;
+begin
+  Result.X := Z;
+  Result.Y := Z;
+  Result.Z := Y;
+end;
+
+function TVector3.GetZZZ: TVector3;
+begin
+  Result.X := Z;
+  Result.Y := Z;
+  Result.Z := Z;
+end;
+
+procedure TVector3.SetXYZ(const Value: TVector3);
+begin
+  X := Value.X;
+  Y := Value.Y;
+  Z := Value.Z;
+end;
+
+procedure TVector3.SetXZY(const Value: TVector3);
+begin
+  X := Value.X;
+  Z := Value.Y;
+  Y := Value.Z;
+end;
+
+procedure TVector3.SetYXZ(const Value: TVector3);
+begin
+  Y := Value.X;
+  X := Value.Y;
+  Z := Value.Z;
+end;
+
+procedure TVector3.SetYZX(const Value: TVector3);
+begin
+  Y := Value.X;
+  Z := Value.Y;
+  X := Value.Z;
+end;
+
+procedure TVector3.SetZXY(const Value: TVector3);
+begin
+  Z := Value.X;
+  X := Value.Y;
+  Y := Value.Z;
+end;
+
+procedure TVector3.SetZYX(const Value: TVector3);
+begin
+  Z := Value.X;
+  Y := Value.Y;
+  X := Value.Z;
+end;
+
+{$ENDREGION}
+
 constructor TVector3.Create(X, Y, Z: Single);
 begin
   Self.X := X;
@@ -1554,256 +1956,6 @@ begin
   Result.Y := A.Y;
   Result.Z := A.Z;
 end;
-
-{$REGION 'All versions of rearrangement TIntVector2'}
-
-function TVector3.XX: TVector2;
-begin
-  Result.X := X;
-  Result.Y := X;
-end;
-
-function TVector3.XY: TVector2;
-begin
-  Result.X := X;
-  Result.Y := Y;
-end;
-
-function TVector3.XZ: TVector2;
-begin
-  Result.X := X;
-  Result.Y := Z;
-end;
-
-function TVector3.YX: TVector2;
-begin
-  Result.X := Y;
-  Result.Y := X;
-end;
-
-function TVector3.YY: TVector2;
-begin
-  Result.X := Y;
-  Result.Y := Y;
-end;
-
-function TVector3.YZ: TVector2;
-begin
-  Result.X := Y;
-  Result.Y := Z;
-end;
-
-function TVector3.ZX: TVector2;
-begin
-  Result.X := Z;
-  Result.Y := X;
-end;
-
-function TVector3.ZY: TVector2;
-begin
-  Result.X := Z;
-  Result.Y := Y;
-end;
-
-function TVector3.ZZ: TVector2;
-begin
-  Result.X := Z;
-  Result.Y := Z;
-end;
-
-{$ENDREGION}
-{$REGION 'All versions of rearrangement TIntVector3'}
-
-function TVector3.XXX: TVector3;
-begin
-  Result.X := X;
-  Result.Y := X;
-  Result.Z := X;
-end;
-
-function TVector3.XXY: TVector3;
-begin
-  Result.X := X;
-  Result.Y := X;
-  Result.Z := Y;
-end;
-
-function TVector3.XXZ: TVector3;
-begin
-  Result.X := X;
-  Result.Y := X;
-  Result.Z := Z;
-end;
-
-function TVector3.XYX: TVector3;
-begin
-  Result.X := X;
-  Result.Y := Y;
-  Result.Z := X;
-end;
-
-function TVector3.XYY: TVector3;
-begin
-  Result.X := X;
-  Result.Y := Y;
-  Result.Z := Y;
-end;
-
-function TVector3.XYZ: TVector3;
-begin
-  Result.X := X;
-  Result.Y := Y;
-  Result.Z := Z;
-end;
-
-function TVector3.XZX: TVector3;
-begin
-  Result.X := X;
-  Result.Y := Z;
-  Result.Z := X;
-end;
-
-function TVector3.XZY: TVector3;
-begin
-  Result.X := X;
-  Result.Y := Z;
-  Result.Z := Y;
-end;
-
-function TVector3.XZZ: TVector3;
-begin
-  Result.X := X;
-  Result.Y := Z;
-  Result.Z := Z;
-end;
-
-function TVector3.YXX: TVector3;
-begin
-  Result.X := Y;
-  Result.Y := X;
-  Result.Z := X;
-end;
-
-function TVector3.YXY: TVector3;
-begin
-  Result.X := Y;
-  Result.Y := X;
-  Result.Z := Y;
-end;
-
-function TVector3.YXZ: TVector3;
-begin
-  Result.X := Y;
-  Result.Y := X;
-  Result.Z := Z;
-end;
-
-function TVector3.YYX: TVector3;
-begin
-  Result.X := Y;
-  Result.Y := Y;
-  Result.Z := X;
-end;
-
-function TVector3.YYY: TVector3;
-begin
-  Result.X := Y;
-  Result.Y := Y;
-  Result.Z := Y;
-end;
-
-function TVector3.YYZ: TVector3;
-begin
-  Result.X := Y;
-  Result.Y := Y;
-  Result.Z := Z;
-end;
-
-function TVector3.YZX: TVector3;
-begin
-  Result.X := Y;
-  Result.Y := Z;
-  Result.Z := X;
-end;
-
-function TVector3.YZY: TVector3;
-begin
-  Result.X := Y;
-  Result.Y := Z;
-  Result.Z := Y;
-end;
-
-function TVector3.YZZ: TVector3;
-begin
-  Result.X := Y;
-  Result.Y := Z;
-  Result.Z := Z;
-end;
-
-function TVector3.ZXX: TVector3;
-begin
-  Result.X := Z;
-  Result.Y := X;
-  Result.Z := X;
-end;
-
-function TVector3.ZXY: TVector3;
-begin
-  Result.X := Z;
-  Result.Y := X;
-  Result.Z := Y;
-end;
-
-function TVector3.ZXZ: TVector3;
-begin
-  Result.X := Z;
-  Result.Y := X;
-  Result.Z := Z;
-end;
-
-function TVector3.ZYX: TVector3;
-begin
-  Result.X := Z;
-  Result.Y := Y;
-  Result.Z := X;
-end;
-
-function TVector3.ZYY: TVector3;
-begin
-  Result.X := Z;
-  Result.Y := Y;
-  Result.Z := Y;
-end;
-
-function TVector3.ZYZ: TVector3;
-begin
-  Result.X := Z;
-  Result.Y := Y;
-  Result.Z := Z;
-end;
-
-function TVector3.ZZX: TVector3;
-begin
-  Result.X := Z;
-  Result.Y := Z;
-  Result.Z := X;
-end;
-
-function TVector3.ZZY: TVector3;
-begin
-  Result.X := Z;
-  Result.Y := Z;
-  Result.Z := Y;
-end;
-
-function TVector3.ZZZ: TVector3;
-begin
-  Result.X := Z;
-  Result.Y := Z;
-  Result.Z := Z;
-end;
-
-{$ENDREGION}
 
 class operator TVector3.Add(const A, B: TVector3): TVector3;
 begin

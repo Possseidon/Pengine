@@ -167,7 +167,7 @@ end;
 
 procedure TSkyDome.AddStripe(AColor: TColorRGB; AAngle: Single);
 begin
-  if (FStripes.Last <> nil) and (AAngle <= TStripe(FStripes.Last).Angle) then
+  if not FStripes.Empty and (AAngle <= TStripe(FStripes.Last).Angle) then
     raise Exception.Create('Angles of SkyDome Stripes must be ascending!');
   FStripes.Add(TStripe.Create(AColor, AAngle, FStripes.Count, FUBO));
   FUBO.SubData(SizeOf(TStripeData) * MaxStripes, SizeOf(Integer), FStripes.Count);

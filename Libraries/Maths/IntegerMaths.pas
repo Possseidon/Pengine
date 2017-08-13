@@ -215,8 +215,9 @@ type
     class operator Multiply(const A, B: TIntBounds1): TIntBounds1;
     class operator IntDivide(const A, B: TIntBounds1): TIntBounds1;
 
-    // The in operator is inclusive, comparing with <= and >=
+    // inclusive on both sides
     class operator in(const A, B: TIntBounds1): Boolean;
+    // inclusive on C1 and exclusive on C2
     class operator in(A: Integer; const B: TIntBounds1): Boolean;
 
     class operator Equal(const A, B: TIntBounds1): Boolean;
@@ -328,8 +329,9 @@ type
     class operator Multiply(const A, B: TIntBounds2): TIntBounds2;
     class operator IntDivide(const A, B: TIntBounds2): TIntBounds2;
 
-    // The in operator is inclusive, comparing with <= and >=
+    // inclusive on both sides
     class operator in(const A, B: TIntBounds2): Boolean;
+    // inclusive on C1 and exclusive on C2
     class operator in(A: TIntVector2; const B: TIntBounds2): Boolean;
 
     class operator Equal(const A, B: TIntBounds2): Boolean;
@@ -469,8 +471,9 @@ type
     class operator Multiply(const A, B: TIntBounds3): TIntBounds3;
     class operator IntDivide(const A, B: TIntBounds3): TIntBounds3;
 
-    // The in operator is inclusive, comparing with <= and >=
+    // inclusive on both sides
     class operator in(const A, B: TIntBounds3): Boolean;
+    // inclusive on C1 and exclusive on C2
     class operator in(A: TIntVector3; const B: TIntBounds3): Boolean;
 
     class operator Equal(const A, B: TIntBounds3): Boolean;
@@ -504,28 +507,16 @@ function IVec3(V: Integer): TIntVector3; overload; inline;
 function Range1(A, B: Integer): TIntBounds1; overload; inline;
 /// <summary>Shorthand constructor for TIntBounds1(0, A)</summary>
 function Range1(A: Integer): TIntBounds1; overload; inline;
-/// <summary>Shorthand constructor for TIntBounds1(A, B - 1)</summary>
-function Range1X(A, B: Integer): TIntBounds1; overload; inline;
-/// <summary>Shorthand constructor for TIntBounds1(0, A - 1)</summary>
-function Range1X(A: Integer): TIntBounds1; overload; inline;
 
 /// <summary>Shorthand constructor for TIntBounds2(A, B)</summary>
 function Range2(A, B: TIntVector2): TIntBounds2; overload; inline;
 /// <summary>Shorthand constructor for TIntBounds2(0, A)</summary>
 function Range2(A: TIntVector2): TIntBounds2; overload; inline;
-/// <summary>Shorthand constructor for TIntBounds2(A, B - 1)</summary>
-function Range2X(A, B: TIntVector2): TIntBounds2; overload; inline;
-/// <summary>Shorthand constructor for TIntBounds2(0, A - 1)</summary>
-function Range2X(A: TIntVector2): TIntBounds2; overload; inline;
 
 /// <summary>Shorthand constructor for TIntBounds3(A, B)</summary>
 function Range3(A, B: TIntVector3): TIntBounds3; overload; inline;
 /// <summary>Shorthand constructor for TIntBounds2(0, A)</summary>
 function Range3(A: TIntVector3): TIntBounds3; overload; inline;
-/// <summary>Shorthand constructor for TIntBounds3(A, B - 1)</summary>
-function Range3X(A, B: TIntVector3): TIntBounds3; overload; inline;
-/// <summary>Shorthand constructor for TIntBounds3(0, A - 1)</summary>
-function Range3X(A: TIntVector3): TIntBounds3; overload; inline;
 
 implementation
 
@@ -1100,7 +1091,7 @@ end;
 
 class operator TIntBounds1.in(A: Integer; const B: TIntBounds1): Boolean;
 begin
-  Result := (A >= B.C1) and (A <= B.C2);
+  Result := (A >= B.C1) and (A < B.C2);
 end;
 
 class operator TIntBounds1.Equal(const A, B: TIntBounds1): Boolean;
@@ -1158,7 +1149,7 @@ end;
 function TIntBounds1.TIterator.MoveNext: Boolean;
 begin
   Inc(FCurrent);
-  Result := FCurrent <= FEnd;
+  Result := FCurrent < FEnd;
 end;
 
 { TIntBounds2 }
@@ -1295,7 +1286,7 @@ end;
 
 class operator TIntBounds2.in(A: TIntVector2; const B: TIntBounds2): Boolean;
 begin
-  Result := (A >= B.C1) and (A <= B.C2);
+  Result := (A >= B.C1) and (A < B.C2);
 end;
 
 class operator TIntBounds2.Equal(const A, B: TIntBounds2): Boolean;
@@ -1355,12 +1346,12 @@ end;
 function TIntBounds2.TIterator.MoveNext: Boolean;
 begin
   Inc(FCurrent.X);
-  if FCurrent.X > FBounds.C2.X then
+  if FCurrent.X >= FBounds.C2.X then
   begin
     FCurrent.X := FBounds.C1.X;
     Inc(FCurrent.Y);
   end;
-  Result := FCurrent.Y <= FBounds.C2.Y;
+  Result := FCurrent.Y < FBounds.C2.Y;
 end;
 
 { TIntBounds3 }
@@ -1582,7 +1573,7 @@ end;
 
 class operator TIntBounds3.in(A: TIntVector3; const B: TIntBounds3): Boolean;
 begin
-  Result := (A >= B.C1) and (A <= B.C2);
+  Result := (A >= B.C1) and (A < B.C2);
 end;
 
 class operator TIntBounds3.Equal(const A, B: TIntBounds3): Boolean;
@@ -1642,17 +1633,17 @@ end;
 function TIntBounds3.TIterator.MoveNext: Boolean;
 begin
   Inc(FCurrent.X);
-  if FCurrent.X > FBounds.C2.X then
+  if FCurrent.X >= FBounds.C2.X then
   begin
     FCurrent.X := FBounds.C1.X;
     Inc(FCurrent.Y);
-    if FCurrent.Y > FBounds.C2.Y then
+    if FCurrent.Y >= FBounds.C2.Y then
     begin
       FCurrent.Y := FBounds.C1.Y;
       Inc(FCurrent.Z);
     end;
   end;
-  Result := FCurrent.Z <= FBounds.C2.Z;
+  Result := FCurrent.Z < FBounds.C2.Z;
 end;
 
 { Shorthand Constructors }
@@ -1687,16 +1678,6 @@ begin
   Result.Create(0, A);
 end;
 
-function Range1X(A, B: Integer): TIntBounds1;
-begin
-  Result.Create(A, B - 1);
-end;
-
-function Range1X(A: Integer): TIntBounds1;
-begin
-  Result.Create(0, A - 1);
-end;
-
 function Range2(A, B: TIntVector2): TIntBounds2;
 begin
   Result.Create(A, B);
@@ -1707,16 +1688,6 @@ begin
   Result.Create(0, A);
 end;
 
-function Range2X(A, B: TIntVector2): TIntBounds2;
-begin
-  Result.Create(A, B - 1);
-end;
-
-function Range2X(A: TIntVector2): TIntBounds2;
-begin
-  Result.Create(0, A - 1);
-end;
-
 function Range3(A, B: TIntVector3): TIntBounds3;
 begin
   Result.Create(A, B);
@@ -1725,16 +1696,6 @@ end;
 function Range3(A: TIntVector3): TIntBounds3;
 begin
   Result.Create(0, A);
-end;
-
-function Range3X(A, B: TIntVector3): TIntBounds3;
-begin
-  Result.Create(A, B - 1);
-end;
-
-function Range3X(A: TIntVector3): TIntBounds3;
-begin
-  Result.Create(0, A - 1);
 end;
 
 end.
