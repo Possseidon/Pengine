@@ -3,7 +3,7 @@ unit EntityDefine;
 interface
 
 uses
-  VAOManager, LuaHeader, Math, LuaConf;
+  VAOManager, LuaHeader, Math, LuaConf, VectorGeometry, IntegerMaths;
 
 type
 
@@ -39,6 +39,7 @@ type
   TLuaEntity = class(TEntity)
   private
     FLua: TLuaState;
+    FLuaValid: Boolean;
 
     class function GetSelf(L: TLuaState): TLuaEntity; static;
 
@@ -52,6 +53,41 @@ type
     destructor Destroy; override;
 
     procedure Update(ADeltaTime: Single); override;
+    procedure UpdateLua(); virtual;
+
+    procedure SetUpdateFunction(const AFunction: AnsiString);
+  end;
+
+  TBotCore = class;
+
+  { TBotModule }
+
+  TBotModule = class(TEntity)
+  private
+    FParent: TBotCore;
+    FSide: TBasicDir3;
+  protected
+
+  public
+    constructor Create(ASourceVAO: TVAO; AHealth: Single; AParent: TBotCore; ASide: TBasicDir3);
+    destructor Destroy; override;
+
+    procedure Update(ADeltaTime: Single); override;
+  end;
+
+  { TBotCore }
+
+  TBotCore = class(TLuaEntity)
+  private
+    FModules: array [TBasicDir3] of TBotModule;
+  protected
+
+  public
+    constructor Create(ASourceVAO: TVAO);
+    destructor Destroy; override;
+
+    procedure Update(ADeltaTime: Single); override;
+    procedure UpdateLua(); override;
   end;
 
 implementation
@@ -139,7 +175,8 @@ begin
     if I < L.Top then
       Write(' ');
   end;
-  Writeln;  
+  Writeln;
+  Result := 0;
 end;
 
 constructor TLuaEntity.Create(ASourceVAO: TVAO; AHealth: Single);
@@ -166,6 +203,79 @@ end;
 procedure TLuaEntity.Update(ADeltaTime: Single);
 begin
   inherited;
+end;
+
+procedure TLuaEntity.UpdateLua;
+begin
+  if FLuaValid then
+  begin
+    FLua.GetGlobal('update');
+    FLua.Call(0, 0);
+  end;
+end;
+
+procedure TLuaEntity.SetUpdateFunction(const AFunction: AnsiString);
+begin
+  FLua.LoadString(AFunction);
+  FLua.SetGlobal('update');
+end;
+
+{ TBotModule }
+
+constructor TBotModule.Create(ASourceVAO: TVAO; AHealth: Single; AParent: TBotCore; ASide: TBasicDir3);
+begin
+  inherited Create(ASourceVAO, AHealth);
+  FParent := AParent;
+  FSide := ASide;
+end;
+
+destructor TBotModule.Destroy;
+begin
+  inherited;
+end;
+
+procedure TBotModule.Update(ADeltaTime: Single);
+begin
+  if FParent <> nil then
+  begin
+    Location.Assign(FParent.Location);
+    Location.Offset := Location.Offset + VecDir[FSide];
+  end;
+end;
+
+{ TBotCore }
+
+// Needs to be without a VAO in Parameters
+constructor TBotCore.Create(ASourceVAO: TVAO);
+begin
+  inherited Create(ASourceVAO, 100);
+end;
+
+destructor TBotCore.Destroy;
+begin
+  inherited;
+end;
+
+procedure TBotCore.Update(ADeltaTime: Single);
+var
+  Module: TBotModule;
+begin
+  // Update Core
+
+
+
+  // Update Modules
+
+  for Module in FModules do
+  begin
+    if Module <> nil then
+      Module.Update(ADeltaTime);
+  end;
+end;
+
+procedure TBotCore.UpdateLua;
+begin
+
 end;
 
 end.
