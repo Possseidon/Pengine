@@ -28,16 +28,21 @@ type
     procedure Update(ADeltaTime: Single); virtual;
 
     property Health: Single read FHealth write SetHealth;
-    property MaxHealth: Single read FMaxHealth write SetMaxHealth;
-    
+    property MaxHealth: Single read FMaxHealth;
+
     property Dead: Boolean read FDead;
 
     property Name: string read FName;
+
+
   end;
 
   { TLuaEntity }
 
   TLuaEntity = class abstract(TEntity)
+  public const
+    LuaUpdateInterval = 0.1;
+
   private
     FLua: TLuaState;
     FLuaValid: Boolean;
@@ -68,6 +73,8 @@ type
     FParent: TBotCore;
     FSide: TBasicDir3;
   protected
+    property Parent: TBotCore read FParent;
+    property Side: TBasicDir3 read FSide;
 
   public
     constructor Create(AParent: TBotCore; ASide: TBasicDir3); virtual;
@@ -93,7 +100,7 @@ type
     destructor Destroy; override;
 
     procedure Update(ADeltaTime: Single); override;
-    procedure UpdateLua(); override;
+    procedure UpdateLua; override;
 
     procedure AddModule(ASide: TBasicDir3; AModuleClass: TBotModuleClass);
     property Modules[ASide: TBasicDir3]: TBotModule read GetModule;
@@ -105,7 +112,7 @@ implementation
 
 procedure TEntity.SetHealth(Value: Single);
 begin
-  Value := EnsureRange(Value, 0, FMaxHealth);
+  Value := EnsureRange(Value, 0, GetInitialHealth);
   if Value = FHealth then
     Exit;
   FHealth := Value;
@@ -286,7 +293,7 @@ end;
 
 class function TBotCore.GetSourceVAO: TVAO;
 begin
-  Result := Bacon;
+  Result := nil;
 end;
 
 class function TBotCore.GetInitialHealth: Single;

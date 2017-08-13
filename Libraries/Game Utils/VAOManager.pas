@@ -185,6 +185,8 @@ type
 
     property Location: TLocation read FLocation;
 
+    procedure ChangeSource(ANewSourceVAO: TVAO);
+
   end;
 
   { TAutoUpdateVAO }
@@ -622,6 +624,11 @@ end;
 function TVAOProxy.Bounds: TBounds3;
 begin
   Result := 0;
+end;
+
+procedure TVAOProxy.ChangeSource(ANewSourceVAO: TVAO);
+begin
+  FSourceVAO := ANewSourceVAO;
 end;
 
 constructor TVAOProxy.Create(ASourceVAO: TVAO);

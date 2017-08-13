@@ -256,12 +256,12 @@ end;
 
 procedure TfrmMain.InitGame;
 var
-  TestBot: TLuaEntity;
+  TestBot: TBotCore;
   Code: TStrings;
 begin
   FGame := TGame.Create(FCamera);
 
-  TestBot := TLuaEntity.Create;
+  TestBot := TBotCore.Create;
 
   try
     Code := TStringList.Create;
@@ -276,6 +276,7 @@ begin
   end;
 
   FGame.AddEntity(TestBot);
+  FSun.AddOccluder(TestBot);
 end;
 
 procedure TfrmMain.ResizeFunc;

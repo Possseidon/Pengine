@@ -8,9 +8,6 @@ uses
 type
 
   TGame = class
-  public const
-    LuaUpdateInterval = 0.1;  
-                      
   private
     FCamera: TCamera;
     FEntities: TObjectArray<TEntity>;
@@ -61,7 +58,7 @@ begin
 
   UpdateLua := FLuaUpdateTime <= 0;
   if UpdateLua then
-    FLuaUpdateTime := LuaUpdateInterval;
+    FLuaUpdateTime := TLuaEntity.LuaUpdateInterval;
   
   for Entity in FEntities do
   begin
