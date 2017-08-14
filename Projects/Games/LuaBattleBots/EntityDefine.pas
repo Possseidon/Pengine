@@ -266,7 +266,7 @@ begin
     Err := FLua.PCall(0, 0, 0);
     case Err of
       lceErrorRun:
-        DebugWriteLine(string(FLua.ToString));
+        DebugWriteLine(Name + ' Runtime Error: ' + FLua.ToString);
       lceErrorMemory:
         DebugWriteLine('Lua Memory Error');
       lceErrorGCMM:
@@ -284,7 +284,7 @@ begin
   Err := FLua.LoadString(AFunction);
   case Err of
     lleErrorSyntax:
-      DebugWriteLine(string(FLua.ToString));
+      DebugWriteLine(Name + ' Syntax Error: ' + FLua.ToString);
     lleErrorMemory:
       DebugWriteLine('Lua Memory Error');
     lleErrorGCMM:

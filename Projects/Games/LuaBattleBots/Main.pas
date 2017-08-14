@@ -183,25 +183,34 @@ procedure TfrmMain.InitGame;
 var
   TestBot: TBotCore;
   Code: TStrings;
+  P: TIntVector3;
 begin
   FGame := TGame.Create(FCamera);
 
-  TestBot := TBotCore.Create;
+  for P in Range3(-1, 2) do
+  begin
+    if TVector3(P).Length > 1 then
+      Continue;
+    
+    TestBot := TBotCore.Create;
 
-  try
-    Code := TStringList.Create;
+    TestBot.Location.Pos := P;
+
     try
-      Code.LoadFromFile('Data/TestCode.lua');
-      TestBot.SetUpdateFunction(AnsiString(Code.Text));
-    finally
-      Code.Free;
+      Code := TStringList.Create;
+      try
+        Code.LoadFromFile('Data/TestCode.lua');
+        TestBot.SetUpdateFunction(AnsiString(Code.Text));
+      finally
+        Code.Free;
+      end;
+    except
+      DebugWriteLine('Error while trying to load TestCode!');
     end;
-  except
-    DebugWriteLine('Error while trying to load TestCode!');
-  end;
 
-  FGame.AddEntity(TestBot);
-  FSun.AddOccluder(TestBot);
+    FGame.AddEntity(TestBot);
+    FSun.AddOccluder(TestBot);
+  end;
 end;
 
 procedure TfrmMain.ResizeFunc;

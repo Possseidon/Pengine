@@ -248,6 +248,7 @@ begin
   AData.AddTextureFromFile('Data/grass_top.png', 'grass_top');
   AData.AddTextureFromFile('Data/log_side.png', 'log_side');
   AData.AddTextureFromFile('Data/iron.png', 'iron');
+  AData.AddTextureFromFile('Data/holed_ironplating.png', 'holed_ironplating');
   AData.BuildPage(32);
 end;
 
@@ -277,7 +278,7 @@ begin
 
   for P in CubePlanes do
   begin
-    Data.Border := TResTexturePage.Data.GetTexBounds('iron', FRange2(0, 1));
+    Data.Border := TResTexturePage.Data.GetTexBounds('holed_ironplating', FRange2(0, 1));
     Data.Normal := P.Normal;
     Data.Tangent := P.DVS;
     Data.Bitangent := P.DVT;
