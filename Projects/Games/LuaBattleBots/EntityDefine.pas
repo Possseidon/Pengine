@@ -11,16 +11,16 @@ type
 
   TEntity = class abstract(TVAOProxy)
   private
-    FDead: Boolean;
     FHealth, FMaxHealth: Single;
+    FDead: Boolean;
 
     FName: string;
     
     procedure SetHealth(Value: Single);
-
   protected
     class function GetSourceVAO: TVAO; virtual; abstract;
     class function GetInitialHealth: Single; virtual; abstract;
+    class function GetInitialName: string; virtual; abstract;
 
     procedure SetMaxHealth(Value: Single);
 
@@ -32,12 +32,9 @@ type
 
     property Health: Single read FHealth write SetHealth;
     property MaxHealth: Single read FMaxHealth;
-
     property Dead: Boolean read FDead;
 
-    property Name: string read FName;
-
-
+    property Name: string read FName write FName;
   end;
 
   { TLuaEntity }
@@ -54,6 +51,9 @@ type
 
     class function LuaGetHealth(L: TLuaState): Integer; static; cdecl;
     class function LuaGetMaxHealth(L: TLuaState): Integer; static; cdecl;
+    class function LuaGetName(L: TLuaState): Integer; static; cdecl;
+    class function LuaSetName(L: TLuaState): Integer; static; cdecl;
+
     class function LuaPrint(L: TLuaState): Integer; static; cdecl;
   protected
 
@@ -98,6 +98,7 @@ type
   protected
     class function GetSourceVAO: TVAO; override;
     class function GetInitialHealth: Single; override;
+    class function GetInitialName: string; override;
   public
     constructor Create;
     destructor Destroy; override;
@@ -106,6 +107,7 @@ type
     procedure UpdateLua; override;
 
     procedure AddModule(ASide: TBasicDir3; AModuleClass: TBotModuleClass);
+    procedure DetachModuke(ASide: TBasicDir3);
     property Modules[ASide: TBasicDir3]: TBotModule read GetModule;
   end;
 
@@ -137,7 +139,7 @@ begin
   inherited Create(GetSourceVAO);
   FHealth := GetInitialHealth;
   FMaxHealth := GetInitialHealth;
-  FName := 'Unnamed';
+  FName := GetInitialName;
   Location.Offset := Vec3(-0.5, 0, -0.5);
 end;
 
@@ -182,6 +184,35 @@ begin
   Result := 1;
 end;
 
+class function TLuaEntity.LuaGetName(L: TLuaState): Integer;
+var
+  Self: TLuaEntity;
+begin
+  Self := GetSelf(L);
+
+  L.CheckEnd(0);
+
+  L.Top := 1;
+  //L.PushString(Self.Name);
+
+  Result := 1;
+end;
+
+class function TLuaEntity.LuaSetName(L: TLuaState): Integer;
+var
+  Self: TLuaEntity;
+begin
+  Self := GetSelf(L);
+
+  L.CheckEnd(1);
+  Self.FName := string(L.ToString);
+
+  L.Top := 0;
+
+  Result := 0;
+end;
+
+
 class function TLuaEntity.LuaPrint(L: TLuaState): Integer;
 var
   I: Integer;
@@ -210,6 +241,9 @@ begin
   // Base Lua Functions
   FLua.Register('getHealth', LuaGetHealth);
   FLua.Register('getMaxHealth', LuaGetMaxHealth);
+  //FLua.Register('getName', LuaGetName);
+  FLua.Register('setName', LuaSetName);
+
   FLua.Register('print', LuaPrint);
 end;
 
@@ -274,6 +308,7 @@ end;
 
 destructor TBotModule.Destroy;
 begin
+  FParent.DetachModuke(FSide);
   inherited;
 end;
 
@@ -302,6 +337,11 @@ end;
 class function TBotCore.GetInitialHealth: Single;
 begin
   Result := 100;
+end;
+
+class function TBotCore.GetInitialName: string;
+begin
+  Result := 'Basic Bot';
 end;
 
 constructor TBotCore.Create;
@@ -336,7 +376,6 @@ end;
 procedure TBotCore.UpdateLua;
 begin
   inherited;
-
 end;
 
 procedure TBotCore.AddModule(ASide: TBasicDir3; AModuleClass: TBotModuleClass);
@@ -344,6 +383,12 @@ begin
   if FModules[ASide] = nil then
     raise Exception.Create('Only one Module can be attached on a single side!');
   FModules[ASide] := AModuleClass.Create(Self, ASide);
+end;
+
+procedure TBotCore.DetachModuke(ASide: TBasicDir3);
+begin
+  if FModules[ASide] <> nil then
+    FModules[ASide] := nil;
 end;
 
 end.

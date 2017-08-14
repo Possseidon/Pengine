@@ -5,7 +5,8 @@ uses
   Main in 'Main.pas' {frmMain},
   Game in 'Game.pas',
   DebugConsoleDefine in 'DebugConsoleDefine.pas' {DebugConsole},
-  CustomModules in 'CustomModules.pas';
+  CustomModules in 'CustomModules.pas',
+  EntityDefine in 'EntityDefine.pas';
 
 {$R *.res}
 
