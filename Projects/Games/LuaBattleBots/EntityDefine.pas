@@ -191,7 +191,7 @@ begin
   Self := GetSelf(L);
 
   L.CheckEnd(1);
-  L.PushString(PPAnsiChar(Self.Name)^);
+  L.PushString(PPAnsiChar(@Self.Name)^);
 
   Result := 1;
 end;
@@ -216,14 +216,14 @@ var
   Self: TLuaEntity;
 begin
   Self := GetSelf(L);
-  DebugConsole.Write(Self.Name + ': ');
+  DebugWrite(Self.Name + ': ');
   for I := 1 to L.Top do
   begin
-    DebugConsole.Write(string(L.ToString(I)));
+    DebugWrite(string(L.ToString(I)));
     if I < L.Top then
-      DebugConsole.Write(' ');
+      DebugWrite(' ');
   end;
-  DebugConsole.WriteLine;
+  DebugWriteLine;
   Result := 0;
 end;
 
@@ -266,13 +266,13 @@ begin
     Err := FLua.PCall(0, 0, 0);
     case Err of
       lceErrorRun:
-        DebugConsole.WriteLine(string(FLua.ToString));
+        DebugWriteLine(string(FLua.ToString));
       lceErrorMemory:
-        DebugConsole.WriteLine('Lua Memory Error');
+        DebugWriteLine('Lua Memory Error');
       lceErrorGCMM:
-        DebugConsole.WriteLine('Lua GarbageCollector Error');
+        DebugWriteLine('Lua GarbageCollector Error');
       lceErrorError:
-        DebugConsole.WriteLine('Lua Error-Function Error');
+        DebugWriteLine('Lua Error-Function Error');
     end;
   end;
 end;
@@ -284,11 +284,11 @@ begin
   Err := FLua.LoadString(AFunction);
   case Err of
     lleErrorSyntax:
-      DebugConsole.WriteLine(string(FLua.ToString));
+      DebugWriteLine(string(FLua.ToString));
     lleErrorMemory:
-      DebugConsole.WriteLine('Lua Memory Error');
+      DebugWriteLine('Lua Memory Error');
     lleErrorGCMM:
-      DebugConsole.WriteLine('Lua Garbage Collector Error');
+      DebugWriteLine('Lua Garbage Collector Error');
   end;
   FLua.SetGlobal('update');
   FLuaValid := Err = lleOK;

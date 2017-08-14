@@ -30,7 +30,7 @@ type
     FCubeVAO: TVAO;
 
     FLightSystem: TLightSystem;
-    FSun: TDirectionalLight;
+    FSun: TDirectionalLightShaded;
 
     FSkyDomeShader: TShader;
     FSkyDome: TSkyDome;
@@ -75,12 +75,9 @@ end;
 
 procedure TfrmMain.Init;
 begin
-  DebugConsole := TDebugConsole.Create(Self);
-  DebugConsole.Show;
-
   State.DebugOutput := False;
-  VSync := True;
-  // FPSLimit := 300;
+  VSync := False;
+  FPSLimit := 300;
 
   InitCamera;
   InitSkyDomeShader;
@@ -149,11 +146,11 @@ begin
   FLightSystem.Ambient := TColorRGB.Gray(0.2);
   FLightSystem.BindToShader(TResModelShader.Data);
 
-  FSun := TDirectionalLight.Create(FLightSystem);
+  FSun := TDirectionalLightShaded.Create(FLightSystem);
   FSun.Direction := Vec3(-1, -2, -1).Normalize;
   FSun.Color := TColorRGB.Gray(0.8);
-  // FSun.Size := 60;
-  // FSun.AddOccluder(FFloorVAO);
+  FSun.Size := 60;
+  FSun.AddOccluder(FFloorVAO);
 end;
 
 procedure TfrmMain.InitSkyDome;
@@ -200,11 +197,11 @@ begin
       Code.Free;
     end;
   except
-    DebugConsole.WriteLine('Error while trying to load TestCode!');
+    DebugWriteLine('Error while trying to load TestCode!');
   end;
 
   FGame.AddEntity(TestBot);
-  // FSun.AddOccluder(TestBot);
+  FSun.AddOccluder(TestBot);
 end;
 
 procedure TfrmMain.ResizeFunc;
@@ -219,16 +216,12 @@ begin
 
   // if Input.ButtonPressed(mbMiddle) then
   // FSun.Position := FCamera.Location.RealPosition;
-  // FSun.Direction := FSun.Direction.Rotate(Vec3(1, 1, 0).Normalize, 30 * DeltaTime);
+  FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0.1).Normalize, 30 * DeltaTime);
 
   FCamera.Update;
 
   FGame.Update(DeltaTime);
 
-  if Input.KeyPressed(VK_F10) then
-    DebugConsole.Visible := not DebugConsole.Visible;
-
-  DebugConsole.UpdateConsole;
 end;
 
 end.

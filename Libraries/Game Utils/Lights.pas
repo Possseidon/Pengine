@@ -803,7 +803,7 @@ end;
 
 class function TSpotLight.MaxLights: Integer;
 begin
-  Result := 16;
+  Result := 32;
 end;
 
 class function TSpotLight.CalcMajorOffset: Integer;
@@ -872,7 +872,7 @@ end;
 
 class function TPointLight.MaxLights: Integer;
 begin
-  Result := 16;
+  Result := 32;
 end;
 
 class function TPointLight.CalcMajorOffset: Integer;
@@ -928,7 +928,7 @@ end;
 
 class function TDirectionalLight.MaxLights: Integer;
 begin
-  Result := 4;
+  Result := 8;
 end;
 
 class function TDirectionalLight.CalcMajorOffset: Integer;

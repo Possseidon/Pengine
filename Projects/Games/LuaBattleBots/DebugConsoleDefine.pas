@@ -2,78 +2,47 @@ unit DebugConsoleDefine;
 
 interface
 
-uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls;
-
-type
-  TDebugConsole = class(TForm)
-    memConsole: TMemo;
-    Panel1: TPanel;
-    cbPaused: TCheckBox;
-  private
-    FBuffer: string;
-
-    procedure ScrollToEnd;
-
-  public
-    procedure WriteLine; overload;
-    procedure WriteLine(AMessage: string); overload;
-    procedure WriteLine(AMessage: AnsiString); overload;
-    procedure Write(AMessage: string); overload;
-    procedure Write(AMessage: AnsiString); overload;
-
-    procedure UpdateConsole;
-  end;
-
-var
-  DebugConsole: TDebugConsole;
+procedure DebugWriteLine; overload; inline;
+procedure DebugWriteLine(AMessage: string); overload; inline;
+procedure DebugWriteLine(AMessage: AnsiString); overload; inline;
+procedure DebugWrite(AMessage: string); overload; inline;
+procedure DebugWrite(AMessage: AnsiString); overload; inline;
 
 implementation
 
-{$R *.dfm}
-
-{ TDebugConsole }
-
-procedure TDebugConsole.ScrollToEnd;
+procedure DebugWriteLine;
 begin
-  SendMessage(memConsole.Handle, EM_LINESCROLL, 0, memConsole.Lines.Count);
+{$IFDEF DEBUG}
+  Writeln;
+{$ENDIF}
 end;
 
-procedure TDebugConsole.UpdateConsole;
+procedure DebugWriteLine(AMessage: string);
 begin
-  if not cbPaused.Checked and not FBuffer.IsEmpty then
-  begin
-    memConsole.Text := memConsole.Text + FBuffer;
-    FBuffer := '';
-    ScrollToEnd;
-  end;
+{$IFDEF DEBUG}
+  Writeln(AMessage);
+{$ENDIF}
 end;
 
-procedure TDebugConsole.Write(AMessage: string);
+procedure DebugWriteLine(AMessage: AnsiString);
 begin
-  FBuffer := FBuffer + AMessage;
+{$IFDEF DEBUG}
+  Writeln(AMessage);
+{$ENDIF}
 end;
 
-procedure TDebugConsole.Write(AMessage: AnsiString);
+procedure DebugWrite(AMessage: string);
 begin
-  FBuffer := FBuffer + string(AMessage);
+{$IFDEF DEBUG}
+  Write(AMessage);
+{$ENDIF}
 end;
 
-procedure TDebugConsole.WriteLine;
+procedure DebugWrite(AMessage: AnsiString);
 begin
-  FBuffer := FBuffer + sLineBreak;
-end;
-
-procedure TDebugConsole.WriteLine(AMessage: string);
-begin
-  FBuffer := FBuffer + AMessage + sLineBreak;
-end;
-
-procedure TDebugConsole.WriteLine(AMessage: AnsiString);
-begin
-  FBuffer := FBuffer + string(AMessage) + sLineBreak;
+{$IFDEF DEBUG}
+  Write(AMessage);
+{$ENDIF}
 end;
 
 end.
-
