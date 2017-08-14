@@ -17,8 +17,11 @@ type
     procedure ScrollToEnd;
 
   public
-    procedure WriteLine(AMessage: string = '');
-    procedure Write(AMessage: string);
+    procedure WriteLine; overload;
+    procedure WriteLine(AMessage: string); overload;
+    procedure WriteLine(AMessage: AnsiString); overload;
+    procedure Write(AMessage: string); overload;
+    procedure Write(AMessage: AnsiString); overload;
 
     procedure UpdateConsole;
   end;
@@ -52,9 +55,24 @@ begin
   FBuffer := FBuffer + AMessage;
 end;
 
+procedure TDebugConsole.Write(AMessage: AnsiString);
+begin
+  FBuffer := FBuffer + string(AMessage);
+end;
+
+procedure TDebugConsole.WriteLine;
+begin
+  FBuffer := FBuffer + sLineBreak;
+end;
+
 procedure TDebugConsole.WriteLine(AMessage: string);
 begin
   FBuffer := FBuffer + AMessage + sLineBreak;
+end;
+
+procedure TDebugConsole.WriteLine(AMessage: AnsiString);
+begin
+  FBuffer := FBuffer + string(AMessage) + sLineBreak;
 end;
 
 end.

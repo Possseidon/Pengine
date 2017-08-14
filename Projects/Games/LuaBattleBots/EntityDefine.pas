@@ -14,13 +14,13 @@ type
     FHealth, FMaxHealth: Single;
     FDead: Boolean;
 
-    FName: string;
+    FName: AnsiString;
     
     procedure SetHealth(Value: Single);
   protected
     class function GetSourceVAO: TVAO; virtual; abstract;
     class function GetInitialHealth: Single; virtual; abstract;
-    class function GetInitialName: string; virtual; abstract;
+    class function GetInitialName: AnsiString; virtual; abstract;
 
     procedure SetMaxHealth(Value: Single);
 
@@ -34,7 +34,7 @@ type
     property MaxHealth: Single read FMaxHealth;
     property Dead: Boolean read FDead;
 
-    property Name: string read FName write FName;
+    property Name: AnsiString read FName write FName;
   end;
 
   { TLuaEntity }
@@ -98,7 +98,7 @@ type
   protected
     class function GetSourceVAO: TVAO; override;
     class function GetInitialHealth: Single; override;
-    class function GetInitialName: string; override;
+    class function GetInitialName: AnsiString; override;
   public
     constructor Create;
     destructor Destroy; override;
@@ -190,10 +190,8 @@ var
 begin
   Self := GetSelf(L);
 
-  L.CheckEnd(0);
-
-  L.Top := 1;
-  //L.PushString(Self.Name);
+  L.CheckEnd(1);
+  L.PushString(PPAnsiChar(Self.Name)^);
 
   Result := 1;
 end;
@@ -204,10 +202,9 @@ var
 begin
   Self := GetSelf(L);
 
-  L.CheckEnd(1);
-  Self.FName := string(L.ToString);
-
-  L.Top := 0;
+  L.CheckType(1, ltString);
+  L.CheckEnd(2);
+  Self.FName := AnsiString(L.ToString);
 
   Result := 0;
 end;
@@ -241,7 +238,7 @@ begin
   // Base Lua Functions
   FLua.Register('getHealth', LuaGetHealth);
   FLua.Register('getMaxHealth', LuaGetMaxHealth);
-  //FLua.Register('getName', LuaGetName);
+  FLua.Register('getName', LuaGetName);
   FLua.Register('setName', LuaSetName);
 
   FLua.Register('print', LuaPrint);
@@ -339,7 +336,7 @@ begin
   Result := 100;
 end;
 
-class function TBotCore.GetInitialName: string;
+class function TBotCore.GetInitialName: AnsiString;
 begin
   Result := 'Basic Bot';
 end;
