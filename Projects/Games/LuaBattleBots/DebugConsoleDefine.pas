@@ -20,7 +20,7 @@ type
     procedure WriteLine(AMessage: string = '');
     procedure Write(AMessage: string);
 
-    procedure Update;
+    procedure UpdateConsole;
   end;
 
 var
@@ -37,7 +37,7 @@ begin
   SendMessage(memConsole.Handle, EM_LINESCROLL, 0, memConsole.Lines.Count);
 end;
 
-procedure TDebugConsole.Update;
+procedure TDebugConsole.UpdateConsole;
 begin
   if not cbPaused.Checked and not FBuffer.IsEmpty then
   begin

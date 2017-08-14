@@ -341,11 +341,18 @@ type
 
   { TClassMap }
 
-  TClassMap<T: class> = class(TMap<TClass, T>)
+  TClassMap<T> = class(TMap<TClass, T>)
   protected
     function GetKeyHash(AKey: TClass): Cardinal; override;
     class function CantIndex(AKey: TClass): Boolean; override;
     class function KeysEqual(AKey1, AKey2: TClass): Boolean; override;
+  end;
+
+  { TClassObjectMap }
+
+  TClassObjectMap<T: class> = class(TClassMap<T>)
+  protected
+    procedure FreeData(AData: T); override;
   end;
 
   { TRefMap<TKey, TData> }
@@ -1469,6 +1476,13 @@ begin
   Result := Pointer(AKey1) = Pointer(AKey2);
 end;
 
+{ TClassObjectMap }
+
+procedure TClassObjectMap<T>.FreeData(AData: T);
+begin
+  AData.Free;
+end;
+
 { TCardinalSet }
 
 function TCardinalSet.GetKeyHash(AKey: Cardinal): Cardinal;
@@ -2233,7 +2247,7 @@ end;
 
 function TInterfaceArrayReader<T>.CopyAsInterfaceArray: TInterfaceArray<T>;
 begin                    
-  Result := TInterfaceArrayReader<T>(FGenericArray).CopyAsInterfaceArray;
+  Result := TInterfaceArray<T>(FGenericArray).CopyAsInterfaceArray;
 end;
 
 constructor TInterfaceArrayReader<T>.Create(AInterfaceArray: TInterfaceArray<T>);
@@ -2243,7 +2257,7 @@ end;
 
 function TInterfaceArrayReader<T>.Find(AData: T): Integer;
 begin                                                                    
-  Result := TInterfaceArrayReader<T>(FGenericArray).Find(AData);
+  Result := TInterfaceArray<T>(FGenericArray).Find(AData);
 end;
 
 { TRefObjectMap<TKey, TData> }

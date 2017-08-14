@@ -17,10 +17,13 @@ type
     FName: string;
     
     procedure SetHealth(Value: Single);
-    procedure SetMaxHealth(Value: Single);
+
   protected
     class function GetSourceVAO: TVAO; virtual; abstract;
     class function GetInitialHealth: Single; virtual; abstract;
+
+    procedure SetMaxHealth(Value: Single);
+
   public
     constructor Create;
     destructor Destroy; override;
@@ -293,7 +296,7 @@ end;
 
 class function TBotCore.GetSourceVAO: TVAO;
 begin
-  Result := TResourceManager.GetVAO('cube');
+  Result := TResCubeVAO.Make;
 end;
 
 class function TBotCore.GetInitialHealth: Single;
@@ -303,11 +306,12 @@ end;
 
 constructor TBotCore.Create;
 begin
-  inherited Create;
+  inherited;
 end;
 
 destructor TBotCore.Destroy;
 begin
+  SourceVAO.Free;
   inherited;
 end;
 

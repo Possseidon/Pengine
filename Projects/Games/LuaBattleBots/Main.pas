@@ -25,22 +25,18 @@ type
   private
     FGame: TGame;
 
-    FShader: TShader;
     FCamera: TControlledCamera;
-    FTexturePage: TTexturePage;
     FFloorVAO: TVAO;
     FCubeVAO: TVAO;
 
     FLightSystem: TLightSystem;
-    FSun: TDirectionalLightShaded;
+    FSun: TDirectionalLight;
 
     FSkyDomeShader: TShader;
     FSkyDome: TSkyDome;
 
     procedure InitCamera;
-    procedure InitShader;
     procedure InitSkyDomeShader;
-    procedure InitTexturePage;
     procedure InitFloorVAO;
     procedure InitLightSystem;
     procedure InitSkyDome;
@@ -74,9 +70,7 @@ begin
   FLightSystem.Free;
   FCubeVAO.Free;
   FFloorVAO.Free;
-  FTexturePage.Free;
   FCamera.Free;
-  FShader.Free;
 end;
 
 procedure TfrmMain.Init;
@@ -89,18 +83,9 @@ begin
   // FPSLimit := 300;
 
   InitCamera;
-
-  InitShader;
   InitSkyDomeShader;
-
   InitSkyDome;
-
-  InitTexturePage;
-
-  TResourceManager.Init(FShader, FTexturePage);
-
   InitFloorVAO;
-  
   InitLightSystem;
   InitGame;
 end;
@@ -130,7 +115,7 @@ var
 begin
   Grid.Create(-20, 20);
 
-  FFloorVAO := TVAO.Create(FShader);
+  FFloorVAO := TVAO.Create(TResModelShader.Data);
   FFloorVAO.Generate(6 * Grid.Area, buStaticDraw);
 
   FFloorVAO.Map(baWriteOnly);
@@ -138,7 +123,7 @@ begin
   Data.Normal := Vec3(0, 1, 0);
   Data.Tangent := Vec3(1, 0, 0);
   Data.Bitangent := Vec3(0, 0, 1);
-  Data.Border := FTexturePage.GetTexBounds('grass_top', FRange2(0, 1));
+  Data.Border := TResTexturePage.Data.GetTexBounds('grass_top', FRange2(0, 1));
 
   for GridPos in Grid do
   begin
@@ -151,7 +136,7 @@ begin
     end;
   end;
 
-  Data.Border := FTexturePage.HalfPixelInset(Data.Border);
+  Data.Border := TResTexturePage.Data.HalfPixelInset(Data.Border);
 
   FFloorVAO.Unmap;
 
@@ -162,33 +147,13 @@ procedure TfrmMain.InitLightSystem;
 begin
   FLightSystem := TLightSystem.Create(Self);
   FLightSystem.Ambient := TColorRGB.Gray(0.2);
-  FLightSystem.BindToShader(FShader);
+  FLightSystem.BindToShader(TResModelShader.Data);
 
-  FSun := TDirectionalLightShaded.Create(FLightSystem);
+  FSun := TDirectionalLight.Create(FLightSystem);
   FSun.Direction := Vec3(-1, -2, -1).Normalize;
   FSun.Color := TColorRGB.Gray(0.8);
-  FSun.Size := 60;
-  FSun.AddOccluder(FFloorVAO);
-end;
-
-procedure TfrmMain.InitShader;
-const
-  Attributes: array [0 .. 6] of AnsiString = (
-    'vpos',
-    'vtexcoord',
-    'vnormal',
-    'vtangent',
-    'vbitangent',
-    'vborderlow',
-    'vborderhigh'
-    );
-begin
-  FShader := TShader.Create;
-  FShader.LoadFromFile('Data/model');
-  FShader.SetAttributeOrder(Attributes);
-  FShader.Uniform<Boolean>('depthonly').Value := False;
-
-  FCamera.AddUniforms(FShader);
+  // FSun.Size := 60;
+  // FSun.AddOccluder(FFloorVAO);
 end;
 
 procedure TfrmMain.InitSkyDome;
@@ -207,17 +172,8 @@ begin
   FSkyDomeShader.LoadFromFile('Data/skydome');
   FSkyDomeShader.SetAttributeOrder(['vpos', 'vpitch']);
 
+  FCamera.AddUniforms(TResModelShader.Data);
   FCamera.AddUniforms(FSkyDomeShader);
-end;
-
-procedure TfrmMain.InitTexturePage;
-begin
-  FTexturePage := TTexturePage.Create;
-  FTexturePage.UniformDefaults(FShader);
-  FTexturePage.AddTextureFromFile('Data/stone_bricks.png', 'stone_bricks');
-  FTexturePage.AddTextureFromFile('Data/grass_top.png', 'grass_top');
-  FTexturePage.AddTextureFromFile('Data/log_side.png', 'log_side');
-  FTexturePage.BuildPage(32);
 end;
 
 procedure TfrmMain.RenderFunc;
@@ -248,7 +204,7 @@ begin
   end;
 
   FGame.AddEntity(TestBot);
-  FSun.AddOccluder(TestBot);
+  // FSun.AddOccluder(TestBot);
 end;
 
 procedure TfrmMain.ResizeFunc;
@@ -272,7 +228,7 @@ begin
   if Input.KeyPressed(VK_F10) then
     DebugConsole.Visible := not DebugConsole.Visible;
 
-  DebugConsole.Update;
+  DebugConsole.UpdateConsole;
 end;
 
 end.

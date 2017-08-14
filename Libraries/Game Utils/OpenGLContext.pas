@@ -4,7 +4,7 @@ interface
 
 uses
   dglOpenGL, Forms, Controls, Windows, Classes, GLEnums, Color, InputHandler, TimeManager, Lists, Graphics, FBOManager,
-  SysUtils, Dialogs, Shaders
+  SysUtils, Dialogs, Shaders, ResourceManager
   {$IFNDEF FPC}
     , Messages, UITypes
   {$ENDIF}
@@ -813,6 +813,7 @@ begin
   Color := clBlack;
 
   try
+    TResourceManager.Init;
     Init;
     GLErrorMessage;
     Start;
@@ -839,6 +840,7 @@ destructor TGLForm.Destroy;
 begin
   try
     Finalize;
+    TResourceManager.Finalize;
   except
     on E: Exception do
       ErrorBox('Finalization Error!', E.Message, [mbOK], mbOK);
