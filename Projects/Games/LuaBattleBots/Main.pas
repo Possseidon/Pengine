@@ -76,13 +76,10 @@ begin
 end;
 
 procedure TfrmMain.Init;
-var
-  I: Integer;
 begin
   State.DebugOutput := False;
   VSync := False;
   FPSLimit := 300;
-  Samples := MaxSamples;
 
   InitCamera;
   InitSkyDomeShader;
@@ -153,12 +150,12 @@ procedure TfrmMain.InitLightSystem;
 begin
   DebugWrite('Initializing Light System...');
   FLightSystem := TLightSystem.Create(Self);
-  FLightSystem.Ambient := TColorRGB.Gray(0.2);
+  FLightSystem.Ambient := TColorRGB.Gray(0.25);
   FLightSystem.BindToShader(TResModelShader.Data);
 
   FSun := TDirectionalLightShaded.Create(FLightSystem);
   FSun.Direction := Vec3(-1, -2, -1).Normalize;
-  FSun.Color := TColorRGB.Gray(0.8);
+  FSun.Color := TColorRGB.Gray(0.9);
   FSun.Size := Sqrt(Sqr(32) + Sqr(32));
   FSun.AddOccluder(FFloorVAO);
   DebugWriteLine(' Done!');
@@ -250,35 +247,35 @@ begin
 
   FGame.Update(DeltaTime);
 
-  if Input.KeyDown('A') then
-    FTestBot.Location.Slide(-DeltaTime);
-  if Input.KeyDown('D') then
-    FTestBot.Location.Slide(+DeltaTime);
-
-  if Input.KeyDown('S') then
-    FTestBot.Location.Move(-DeltaTime);
-  if Input.KeyDown('W') then
-    FTestBot.Location.Move(+DeltaTime);
-
-  if Input.KeyDown(VK_SHIFT) then
-    FTestBot.Location.Lift(-DeltaTime);
-  if Input.KeyDown(VK_SPACE) then
-    FTestBot.Location.Lift(+DeltaTime);
-
-  if Input.KeyDown(VK_LEFT) then
-    FTestBot.Location.Turn(-DeltaTime * 30);
-  if Input.KeyDown(VK_Right) then
-    FTestBot.Location.Turn(+DeltaTime * 30);
-
-  if Input.KeyDown(VK_DOWN) then
-    FTestBot.Location.Pitch(-DeltaTime * 30);
-  if Input.KeyDown(VK_UP) then
-    FTestBot.Location.Pitch(+DeltaTime * 30);
-
-  if Input.KeyDown('Q') then
-    FTestBot.Location.Roll(-DeltaTime * 30);
-  if Input.KeyDown('E') then
-    FTestBot.Location.Roll(+DeltaTime * 30);
+//  if Input.KeyDown('A') then
+//    FTestBot.Location.Slide(-DeltaTime);
+//  if Input.KeyDown('D') then
+//    FTestBot.Location.Slide(+DeltaTime);
+//
+//  if Input.KeyDown('S') then
+//    FTestBot.Location.Move(-DeltaTime);
+//  if Input.KeyDown('W') then
+//    FTestBot.Location.Move(+DeltaTime);
+//
+//  if Input.KeyDown(VK_SHIFT) then
+//    FTestBot.Location.Lift(-DeltaTime);
+//  if Input.KeyDown(VK_SPACE) then
+//    FTestBot.Location.Lift(+DeltaTime);
+//
+//  if Input.KeyDown(VK_LEFT) then
+//    FTestBot.Location.Turn(-DeltaTime * 30);
+//  if Input.KeyDown(VK_Right) then
+//    FTestBot.Location.Turn(+DeltaTime * 30);
+//
+//  if Input.KeyDown(VK_DOWN) then
+//    FTestBot.Location.Pitch(-DeltaTime * 30);
+//  if Input.KeyDown(VK_UP) then
+//    FTestBot.Location.Pitch(+DeltaTime * 30);
+//
+//  if Input.KeyDown('Q') then
+//    FTestBot.Location.Roll(-DeltaTime * 30);
+//  if Input.KeyDown('E') then
+//    FTestBot.Location.Roll(+DeltaTime * 30);
 
 end;
 

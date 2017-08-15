@@ -1296,7 +1296,7 @@ const
     (X: 0; Y: 1)
     );
 
-  BasicDirNames: array [TBasicDir] of string = (
+  BasicDirNames: array [TBasicDir] of AnsiString = (
     'none',
     'right',
     'left',
@@ -1306,7 +1306,7 @@ const
     'backwards'
     );
 
-  BasicPosNames: array [TBasicDir] of string = (
+  BasicPosNames: array [TBasicDir] of AnsiString = (
     'none',
     'right',
     'left',

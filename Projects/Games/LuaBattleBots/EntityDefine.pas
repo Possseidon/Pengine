@@ -30,6 +30,15 @@ type
     procedure SetMaxHealth(Value: Single);
     procedure SetName(Value: AnsiString);
 
+    class function LuaGetHealth(L: TLuaState): Integer; static; cdecl;
+    class function LuaGetMaxHealth(L: TLuaState): Integer; static; cdecl;
+    class function LuaGetHealthPercentage(L: TLuaState): Integer; static; cdecl;
+    class function LuaGetName(L: TLuaState): Integer; static; cdecl;
+    class function LuaSetName(L: TLuaState): Integer; static; cdecl;
+
+    class function GetSelf(L: TLuaState): TEntity; static;
+
+    procedure RegisterLuaMethod(L: TLuaState; AName: AnsiString; AFunc: TLuaCFunction);
   public
     constructor Create;
     destructor Destroy; override;
@@ -54,16 +63,9 @@ type
     FLua: TLuaState;
     FLuaValid: Boolean;
 
-    class function GetSelf(L: TLuaState): TLuaEntity; static;
-
-    class function LuaGetHealth(L: TLuaState): Integer; static; cdecl;
-    class function LuaGetMaxHealth(L: TLuaState): Integer; static; cdecl;
-    class function LuaGetName(L: TLuaState): Integer; static; cdecl;
-    class function LuaSetName(L: TLuaState): Integer; static; cdecl;
-    class function LuaGetHealthPercentage(L: TLuaState): Integer; static; cdecl;
-
     class function LuaPrint(L: TLuaState): Integer; static; cdecl;
 
+    class function GetSelf(L: TLuaState): TLuaEntity; static;
   protected
 
   public
@@ -85,11 +87,16 @@ type
   private
     FParent: TBotCore;
     FSide: TBasicDir3;
+    FLua: TLuaState;
 
   protected
     property Parent: TBotCore read FParent;
     property Side: TBasicDir3 read FSide;
 
+    property Lua: TLuaState read FLua;
+
+    procedure AttachLua; virtual;
+    procedure DetachLua; virtual;
   public
     constructor Create(AParent: TBotCore; ASide: TBasicDir3); virtual;
     destructor Destroy; override;
@@ -130,6 +137,7 @@ type
 
     function GetModule(ASide: TBasicDir3): TBotModule;
 
+    procedure registerLuaModulesTable();
   protected
     class function GetSourceVAO: TVAO; override;
     class function GetInitialHealth: Single; override;
@@ -147,12 +155,83 @@ type
     property Modules[ASide: TBasicDir3]: TBotModule read GetModule;
 
     function RenderableChildren: IIterable<IRenderable>; override;
-
   end;
 
 implementation
 
 { TEntity }
+
+class function TEntity.LuaGetHealth(L: TLuaState): Integer;
+var
+  Self: TEntity;
+begin
+  Self := GetSelf(L);
+
+  L.CheckEnd(1);
+
+  L.PushNumber(Self.Health);
+
+  Result := 1;
+end;
+
+class function TEntity.LuaGetMaxHealth(L: TLuaState): Integer;
+var
+  Self: TEntity;
+begin
+  Self := GetSelf(L);
+
+  L.CheckEnd(1);
+
+  L.PushNumber(Self.MaxHealth);
+
+  Result := 1;
+end;
+
+class function TEntity.LuaGetName(L: TLuaState): Integer;
+var
+  Self: TEntity;
+begin
+  Self := GetSelf(L);
+
+  L.CheckEnd(1);
+
+  L.PushString(PPAnsiChar(@Self.Name)^);
+
+  Result := 1;
+end;
+
+class function TEntity.LuaSetName(L: TLuaState): Integer;
+var
+  Self: TEntity;
+begin
+  Self := GetSelf(L);
+
+  L.CheckType(1, ltString);
+  L.CheckEnd(2);
+
+  Self.Name := AnsiString(L.ToString);
+
+  Result := 0;
+end;
+
+class function TEntity.GetSelf(L: TLuaState): TEntity;
+begin
+  Result := TEntity(L.ToUserdata(L.UpvalueIndex(1)));
+end;
+
+class function TEntity.LuaGetHealthPercentage(L: TLuaState): Integer;
+var
+  Self: TEntity;
+begin
+  Self := TEntity(L.ToUserdata(1));
+  L.Remove(1);
+
+  L.CheckEnd(1);
+
+  L.PushNumber(Self.Health / Self.MaxHealth * 100);
+
+  Result := 1;
+end;
 
 procedure TEntity.SetHealth(Value: Single);
 begin
@@ -180,6 +259,13 @@ begin
   FName := Value;
 end;
 
+procedure TEntity.RegisterLuaMethod(L: TLuaState; AName: AnsiString; AFunc: TLuaCFunction);
+begin
+  L.PushLightuserdata(Self);
+  L.PushCClosure(AFunc, 1);
+  L.SetField(PPAnsiChar(@AName)^, -2);
+end;
+
 constructor TEntity.Create();
 begin
   inherited Create(GetSourceVAO);
@@ -201,83 +287,13 @@ end;
 
 { TLuaEntity }
 
-class function TLuaEntity.GetSelf(L: TLuaState): TLuaEntity;
-begin
-  Result := TLuaEntity(PPointer(L.GetExtraSpace)^);
-end;
-
-class function TLuaEntity.LuaGetHealth(L: TLuaState): Integer;
-var
-  Self: TLuaEntity;
-begin
-  Self := GetSelf(L);
-
-  L.CheckEnd(1);
-
-  L.PushNumber(Self.Health);
-
-  Result := 1;
-end;
-
-class function TLuaEntity.LuaGetMaxHealth(L: TLuaState): Integer;
-var
-  Self: TLuaEntity;
-begin
-  Self := GetSelf(L);
-
-  L.CheckEnd(1);
-
-  L.PushNumber(Self.MaxHealth);
-
-  Result := 1;
-end;
-
-class function TLuaEntity.LuaGetName(L: TLuaState): Integer;
-var
-  Self: TLuaEntity;
-begin
-  Self := GetSelf(L);
-
-  L.CheckEnd(1);
-
-  L.PushString(PPAnsiChar(@Self.Name)^);
-
-  Result := 1;
-end;
-
-class function TLuaEntity.LuaSetName(L: TLuaState): Integer;
-var
-  Self: TLuaEntity;
-begin
-  Self := GetSelf(L);
-
-  L.CheckType(1, ltString);
-  L.CheckEnd(2);
-
-  Self.Name := AnsiString(L.ToString);
-
-  Result := 0;
-end;
-
-class function TLuaEntity.LuaGetHealthPercentage(L: TLuaState): Integer;
-var
-  Self: TLuaEntity;
-begin
-  Self := GetSelf(L);
-
-  L.CheckEnd(1);
-
-  L.PushNumber(Self.Health / Self.MaxHealth * 100);
-
-  Result := 1;
-end;
-
 class function TLuaEntity.LuaPrint(L: TLuaState): Integer;
 var
   I: Integer;
   Self: TLuaEntity;
 begin
   Self := GetSelf(L);
+
   DebugWriteBuf(Self.Name + ': ');
   for I := 1 to L.Top do
   begin
@@ -289,6 +305,11 @@ begin
   Result := 0;
 end;
 
+class function TLuaEntity.GetSelf(L: TLuaState): TLuaEntity;
+begin
+  Result := TLuaEntity(TEntity.GetSelf(L));
+end;
+
 constructor TLuaEntity.Create;
 begin
   inherited Create;
@@ -298,12 +319,16 @@ begin
   PPointer(FLua.GetExtraSpace)^ := Self;
 
   // Base Lua Functions
-  FLua.Register('print', LuaPrint);
-  FLua.Register('getHealth', LuaGetHealth);
-  FLua.Register('getMaxHealth', LuaGetMaxHealth);
-  FLua.Register('getName', LuaGetName);
-  FLua.Register('setName', LuaSetName);
-  FLua.Register('getHealthPercentage', LuaGetHealthPercentage);
+  FLua.PushGlobalTable;
+
+  RegisterLuaMethod(FLua, 'print', LuaPrint);
+  RegisterLuaMethod(FLua, 'getHealth', LuaGetHealth);
+  RegisterLuaMethod(FLua, 'getMaxHealth', LuaGetMaxHealth);
+  RegisterLuaMethod(FLua, 'getName', LuaGetName);
+  RegisterLuaMethod(FLua, 'setName', LuaSetName);
+  RegisterLuaMethod(FLua, 'getHealthPercentage', LuaGetHealthPercentage);
+
+  FLua.Top := 0;
 end;
 
 destructor TLuaEntity.Destroy;
@@ -358,17 +383,55 @@ end;
 
 { TBotModule }
 
+procedure TBotModule.AttachLua;
+begin
+  RegisterLuaMethod(FLua, 'getHealth', LuaGetHealth);
+  RegisterLuaMethod(FLua, 'getMaxHealth', LuaGetMaxHealth);
+  RegisterLuaMethod(FLua, 'getName', LuaGetName);
+  RegisterLuaMethod(FLua, 'setName', LuaSetName);
+  RegisterLuaMethod(FLua, 'getHealthPercentage', LuaGetHealthPercentage);
+end;
+
+procedure TBotModule.DetachLua;
+begin
+  FLua.PushNil;
+  FLua.SetField('getHealth', -2);
+  FLua.PushNil;
+  FLua.SetField('getMaxHealth', -2);
+  FLua.PushNil;
+  FLua.SetField('getName', -2);
+  FLua.PushNil;
+  FLua.SetField('setName', -2);
+  FLua.PushNil;
+  FLua.SetField('getHealthPercentage', -2);
+end;
+
 constructor TBotModule.Create(AParent: TBotCore; ASide: TBasicDir3);
 begin
   inherited Create;
+  FLua := AParent.FLua;
   FParent := AParent;
   FSide := ASide;
   Location.Parent := FParent.Location;
   Location.Pos := VecDir[ASide];
+
+  FLua.GetGlobal('modules');
+  FLua.GetField(PPAnsiChar(@BasicPosNames[FSide])^, 1);
+
+  AttachLua;
+
+  FLua.Top := 0;
 end;
 
 destructor TBotModule.Destroy;
 begin
+  FLua.GetGlobal('modules');
+  FLua.GetField(PPAnsiChar(@BasicPosNames[FSide])^, 1);
+
+  DetachLua;
+
+  FLua.Top := 0;
+
   inherited;
 end;
 
@@ -419,6 +482,21 @@ begin
   Result := FModules[ASide];
 end;
 
+procedure TBotCore.registerLuaModulesTable();
+var
+  Name: AnsiString;
+begin
+  FLua.CreateTable(0, 6);
+
+  for Name in BasicPosNames do
+  begin
+    FLua.NewTable;
+    FLua.SetField(PPAnsiChar(@Name)^, 1);
+  end;
+
+  FLua.SetGlobal('modules');
+end;
+
 class function TBotCore.GetSourceVAO: TVAO;
 begin
   Result := TResCubeVAO.Make;
@@ -436,7 +514,9 @@ end;
 
 constructor TBotCore.Create;
 begin
-  inherited;
+  inherited Create;
+
+  registerLuaModulesTable;
 end;
 
 destructor TBotCore.Destroy;

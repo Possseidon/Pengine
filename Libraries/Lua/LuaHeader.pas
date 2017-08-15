@@ -437,6 +437,8 @@ type
     function GetHookMask: Integer; inline;
     function GetHookCount: Integer; inline;
 
+    class function UpvalueIndex(i: Integer): Integer; static; inline;
+
     // --- Custom Functions ---
 
     property Top: Integer read GetTop write SetTop;
@@ -956,13 +958,13 @@ end;
 
 function TLuaStateRec.FormatStack: AnsiString;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := '';
-  for i := Top downto 1 do
+  for I := Top downto 1 do
   begin
     PushValue;
-    Result := Result + AnsiStrings.Format('[%d] %s', [i, ToString(i)]) + #10;
+    Result := Result + AnsiStrings.Format('[%d/-%d] %s', [I, Top - I, ToString]) + #10;
     Pop;
   end;
 end;
@@ -1652,6 +1654,11 @@ end;
 function TLuaStateRec.GetHookCount: Integer;
 begin
   Result := lua_gethookcount(@Self);
+end;
+
+class function TLuaStateRec.UpvalueIndex(i: Integer): Integer;
+begin
+  Result := lua_upvalueindex(i);
 end;
 
 end.

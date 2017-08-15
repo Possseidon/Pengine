@@ -127,7 +127,7 @@ float getDepthValue(float n, float f, vec3 d)
 void main()
 {
   ctexcoord = clamp(ftexcoord, fborderlow, fborderhigh);
-  outcolor = vec4(/*ambient */ texture(diffusemap, ctexcoord).rgb, texture(diffusemap, ctexcoord).a);
+  outcolor = vec4(ambient * texture(diffusemap, ctexcoord).rgb, texture(diffusemap, ctexcoord).a);
  
   if (outcolor.a == 0)
   {
