@@ -25,10 +25,18 @@ end;
 begin
 {$IFDEF DEBUG}
   ExitProcessProc := OnExit;
-{$ENDIF}
   ReportMemoryLeaksOnShutdown := True;
+{$ENDIF}
+
+  DebugWriteLine('--- Initializing everything...');
+
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TfrmMain, frmMain);
+
+  DebugWriteLine('--- Everything initialized!');
+
   Application.Run;
+
+  DebugWriteLine('--- Application stopped');
 end.

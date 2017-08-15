@@ -278,14 +278,14 @@ var
   Self: TLuaEntity;
 begin
   Self := GetSelf(L);
-  DebugWrite(Self.Name + ': ');
+  DebugWriteBuf(Self.Name + ': ');
   for I := 1 to L.Top do
   begin
-    DebugWrite(string(L.ToString(I)));
+    DebugWriteBuf(string(L.ToString(I)));
     if I < L.Top then
-      DebugWrite(' ');
+      DebugWriteBuf(' ');
   end;
-  DebugWriteLine;
+  DebugFlushBuf(True);
   Result := 0;
 end;
 

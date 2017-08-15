@@ -76,6 +76,8 @@ begin
 end;
 
 procedure TfrmMain.Init;
+var
+  I: Integer;
 begin
   State.DebugOutput := False;
   VSync := False;
@@ -92,12 +94,14 @@ end;
 
 procedure TfrmMain.InitCamera;
 begin
+  DebugWrite('Initializing Camera...');
   FCamera := TControlledCamera.Create(60, Aspect, 0.05, 420, Input);
   FCamera.Location.OffsetZ := 3;
   FCamera.Location.PitchAngle := -20;
   FCamera.Location.TurnAngle := -30;
   FCamera.PitchUpperLimit := -4.2;
   FCamera.PosLowerLimitY := 0.1;
+  DebugWriteLine(' Done!');
 end;
 
 procedure TfrmMain.InitFloorVAO;
@@ -113,6 +117,7 @@ var
   GridPos: TIntVector2;
   Grid: TIntBounds2;
 begin
+  DebugWrite('Initializing Floor...');
   Grid.Create(-16, 16);
 
   FFloorVAO := TVAO.Create(TResModelShader.Data);
@@ -141,10 +146,12 @@ begin
   FFloorVAO.Unmap;
 
   FCamera.AddRenderObject(FFloorVAO);
+  DebugWriteLine(' Done!');
 end;
 
 procedure TfrmMain.InitLightSystem;
 begin
+  DebugWrite('Initializing Light System...');
   FLightSystem := TLightSystem.Create(Self);
   FLightSystem.Ambient := TColorRGB.Gray(0.2);
   FLightSystem.BindToShader(TResModelShader.Data);
@@ -154,26 +161,32 @@ begin
   FSun.Color := TColorRGB.Gray(0.8);
   FSun.Size := Sqrt(Sqr(32) + Sqr(32));
   FSun.AddOccluder(FFloorVAO);
+  DebugWriteLine(' Done!');
 end;
 
 procedure TfrmMain.InitSkyDome;
 begin
+  DebugWrite('Initializing SkyDome...');
   FSkyDome := TSkyDome.Create(Self, FCamera, FSkyDomeShader);
   FSkyDome.AddStripe(TColorRGB.Create(0.7, 1.0, 0.9), -90);
   FSkyDome.AddStripe(TColorRGB.Create(0.4, 0.6, 0.9), 0);
   FSkyDome.AddStripe(TColorRGB.Create(0.1, 0.2, 0.9), +90);
 
   FCamera.AddRenderObject(FSkyDome);
+  DebugWriteLine(' Done!');
 end;
 
 procedure TfrmMain.InitSkyDomeShader;
 begin
+  DebugWrite('Initializing SkyDome Shader...');
+  // TODO: Resource
   FSkyDomeShader := TShader.Create;
   FSkyDomeShader.LoadFromFile('Data/skydome');
   FSkyDomeShader.SetAttributeOrder(['vpos', 'vpitch']);
 
   FCamera.AddUniforms(TResModelShader.Data);
   FCamera.AddUniforms(FSkyDomeShader);
+  DebugWriteLine(' Done!');
 end;
 
 procedure TfrmMain.RenderFunc;
@@ -186,6 +199,7 @@ procedure TfrmMain.InitGame;
 var
   Code: TStrings;
 begin
+  DebugWrite('Initializing Game...');
   FGame := TGame.Create(FCamera);
 
   FTestBot := TBotCore.Create;
@@ -215,7 +229,7 @@ begin
   FGame.AddEntity(FTestBot);
 
   FSun.AddOccluder(FTestBot);
-
+  DebugWriteLine(' Done!');
 end;
 
 procedure TfrmMain.ResizeFunc;
