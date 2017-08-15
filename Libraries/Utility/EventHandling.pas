@@ -38,10 +38,14 @@ type
     TStaticHandler = procedure;
 
   private
+    FDisableCounter: Integer;
     FHandlers: array of THandler;
                   
     function Find(AHandler: THandler): Integer; inline;     
-    
+
+    function GetDisabled: Boolean;
+    function GetEnabled: Boolean;
+
   public
     procedure Add(AHandler: THandler); overload;
     procedure Add(AHandler: TStaticHandler); overload;
@@ -49,6 +53,22 @@ type
     procedure Del(AHandler: TStaticHandler); overload;
 
     procedure Execute; inline;
+
+    /// <summary>Disable the execution of all event Handlers</summary>
+    /// <remarks>
+    /// Calling disable multiple times, prevent the execution until
+    /// Enable has been called as often as Disable. This allows nesting.
+    /// </remarks>
+    procedure Disable;
+    /// <summary>Re-enable the execution of all event Handlers</summary>
+    /// <remarks>
+    /// Enabled by default. If Disable got called multiple times,
+    /// enable must be called the same amount of times, until it is enabled again
+    /// </remarks>
+    procedure Enable;
+
+    property Disabled: Boolean read GetDisabled;
+    property Enabled: Boolean read GetEnabled;
 
   end;
 
@@ -58,17 +78,37 @@ type
     TStaticHandler = procedure (AInfo: T);
 
   private
+    FDisableCounter: Integer;
     FHandlers: array of THandler;
 
     function Find(AHandler: THandler): Integer; inline; 
-    
+
+    function GetDisabled: Boolean;
+    function GetEnabled: Boolean;
+
   public
     procedure Add(AHandler: THandler); overload;
     procedure Add(AHandler: TStaticHandler); overload;
     procedure Del(AHandler: THandler); overload;
     procedure Del(AHandler: TStaticHandler); overload;
 
-    procedure Execute(AInfo: T; AFreeInfo: Boolean = True); overload; inline; 
+    procedure Execute(AInfo: T; AFreeInfo: Boolean = True); overload; inline;
+
+    /// <summary>Disable the execution of all event Handlers</summary>
+    /// <remarks>
+    /// Calling disable multiple times, prevent the execution until
+    /// Enable has been called as often as Disable. This allows nesting.
+    /// </remarks>
+    procedure Disable;
+    /// <summary>Re-enable the execution of all event Handlers</summary>
+    /// <remarks>
+    /// Enabled by default. If Disable got called multiple times,
+    /// enable must be called the same amount of times, until it is enabled again
+    /// </remarks>
+    procedure Enable;
+
+    property Disabled: Boolean read GetDisabled;
+    property Enabled: Boolean read GetEnabled;
     
   end;
 
@@ -112,21 +152,22 @@ begin
     SetLength(FHandlers, Length(FHandlers) - 1);
   end
   else
-    raise EHandlerNotFound.Create;        
+    raise EHandlerNotFound.Create;
 end;
 
 procedure TObservableEvent<T>.Execute(AInfo: T; AFreeInfo: Boolean = True);
 var
   Handler: THandler;
 begin
-  if FHandlers = nil then
-    Exit;
-  for Handler in FHandlers do
+  if (FHandlers <> nil) and Enabled then
   begin
-    if TMethod(Handler).Data = nil then
-      TStaticHandler(TMethod(Handler).Code)(AInfo)
-    else
-      Handler(AInfo);
+    for Handler in FHandlers do
+    begin
+      if TMethod(Handler).Data = nil then
+        TStaticHandler(TMethod(Handler).Code)(AInfo)
+      else
+        Handler(AInfo);
+    end;
   end;
   if AFreeInfo then
     AInfo.Free;
@@ -138,6 +179,26 @@ begin
     if @FHandlers[Result] = @AHandler then
       Exit;
   Result := -1;
+end;
+
+function TObservableEvent<T>.GetDisabled: Boolean;
+begin
+  Result := FDisableCounter > 0;
+end;
+
+function TObservableEvent<T>.GetEnabled: Boolean;
+begin
+  Result := FDisableCounter <= 0;
+end;
+
+procedure TObservableEvent<T>.Enable;
+begin
+  Dec(FDisableCounter);
+end;
+
+procedure TObservableEvent<T>.Disable;
+begin
+  Inc(FDisableCounter);
 end;
 
 { TObservableEvent }
@@ -185,7 +246,7 @@ procedure TObservableEvent.Execute;
 var
   Handler: THandler;
 begin
-  if FHandlers = nil then
+  if (FHandlers = nil) or Disabled then
     Exit;
   for Handler in FHandlers do
   begin
@@ -202,6 +263,26 @@ begin
     if @FHandlers[Result] = @AHandler then
       Exit;
   Result := -1;
+end;
+
+function TObservableEvent.GetDisabled: Boolean;
+begin
+  Result := FDisableCounter > 0;
+end;
+
+function TObservableEvent.GetEnabled: Boolean;
+begin
+  Result := FDisableCounter <= 0;
+end;
+
+procedure TObservableEvent.Enable;
+begin
+  Dec(FDisableCounter);
+end;
+
+procedure TObservableEvent.Disable;
+begin
+  Inc(FDisableCounter);
 end;
 
 { EHandlerNotFound }

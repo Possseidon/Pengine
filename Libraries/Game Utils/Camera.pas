@@ -17,11 +17,19 @@ type
 
     property Visible: Boolean read GetVisible;
 
-    function HasBounds: Boolean;
-    function Bounds: TBounds3;
+    /// <remarks>
+    /// Make sure, you don't pass a local variable!
+    /// Can return nil to disable bounds and always render
+    /// </remarks>
+    function Bounds: PBounds3;
 
-    function ModelMatrix: TMatrix4;
+    /// <remarks>Can return nil to use an identity matrix as model matrix</remarks>
+    function Location: TLocation;
+
     procedure Render;
+
+    /// <remarks>Can return nil, if there won't ever be any children</remarks>
+    function RenderableChildren: IIterable<IRenderable>;
   end;
 
   { TCamera }
@@ -115,7 +123,7 @@ type
     FMat: array [TMatrixType] of TUniform;
     // FRotMat: array [TRotationMatrixType] of TUniformMatrix3;
 
-    FModelMatrix: TMatrix4;
+    FModelLocation: TLocation;
 
     function GetHorizontalFOV: Single;
 
@@ -132,6 +140,8 @@ type
     procedure SetOrthoFactor(const Value: Single);
     function GetMatrix(AMatrixType: TMatrixType): TMatrix4;
     function GetRotMatrix(AMatrixType: TMatrixType): TMatrix3;
+
+    procedure LocationChanged(AInfo: TLocation.TChangeEventInfo);
 
   protected
     function GetLocation: TLocation; virtual;
@@ -264,6 +274,7 @@ begin
   FFarClip := FarClip;
 
   FLocation := TLocation.Create(True);
+  FLocation.OnChanged.Add(LocationChanged);
 
   FMat[mtModel] := TUniformBasic.Create(GetModelMatrix);
   FMat[mtView] := TUniformBasic.Create(GetViewMatrix);
@@ -433,24 +444,30 @@ end;
 
 procedure TCamera.Render;
 var
-  RenderObject: IRenderable;
   Frustum: TGHexahedron;
-begin
-  Frustum := GetViewHexahedron;
-  if Location.Changed then
+
+  procedure RenderList(AList: IIterable<IRenderable>);
+  var
+    RenderObject: IRenderable;
   begin
-    FMat[mtView].Invalidate;
-    Location.NotifyChanges;
+    for RenderObject in AList do
+    begin
+      if RenderObject.Visible and RenderObjectVisible(Frustum, RenderObject) then
+      begin
+        FModelLocation := RenderObject.Location;
+        FMat[mtModel].Invalidate;
+        FMat[mtMVP].SendAllMatrices;
+        RenderObject.Render;
+        if RenderObject.RenderableChildren <> nil then
+          RenderList(RenderObject.RenderableChildren);
+      end;
+    end;
   end;
 
-  for RenderObject in FRenderObjects do
-    if RenderObject.Visible and RenderObjectVisible(Frustum, RenderObject) then
-    begin
-      FModelMatrix := RenderObject.ModelMatrix;
-      FMat[mtModel].Invalidate;
-      FMat[mtMVP].SendAllMatrices;
-      RenderObject.Render;
-    end;
+begin
+  Frustum := GetViewHexahedron;
+
+  RenderList(FRenderObjects);
 end;
 
 procedure TCamera.TurnPitch(AAngles: TVector2);
@@ -511,12 +528,12 @@ var
   I: Integer;
   Points: TBounds3.TCorners;
 begin
-  if not ARenderObject.HasBounds then
+  if ARenderObject.Bounds = nil then
     Exit(True);
 
   Points := ARenderObject.Bounds.GetCorners;
   for I := 0 to 7 do
-    Points[I] := ARenderObject.ModelMatrix * Points[I];
+    Points[I] := ARenderObject.Location.Matrix * Points[I];
 
   Result := not AFrustum.AllOutside(Points);
 end;
@@ -528,7 +545,10 @@ end;
 
 function TCamera.GetModelMatrix: TMatrix4;
 begin
-  Result := FModelMatrix;
+  if FModelLocation <> nil then
+    Result := FModelLocation.Matrix
+  else
+    Result.LoadIdentity;
 end;
 
 function TCamera.GetProjectionMatrix: TMatrix4;
@@ -558,6 +578,11 @@ end;
 function TCamera.GetRotMatrix(AMatrixType: TMatrixType): TMatrix3;
 begin
   Result := FMat[AMatrixType].Data.Minor[3, 3];
+end;
+
+procedure TCamera.LocationChanged(AInfo: TLocation.TChangeEventInfo);
+begin
+  FMat[mtView].Invalidate;
 end;
 
 { TCamera.TUniform }

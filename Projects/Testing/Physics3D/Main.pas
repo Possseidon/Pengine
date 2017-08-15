@@ -135,7 +135,7 @@ end;
 
 procedure TfrmMain.Init;
 begin
-  VSync := True;
+  VSync := False;
   // State.DebugOutput := True;
   // State.DebugOutputSynced := True;
   InitShader;
@@ -257,7 +257,7 @@ begin
   FVAO.Generate(6 * 6 * 21 * 21 * 21, buStaticDraw);
   FVAO.Map(baWriteOnly);
                      
-  for Pos in Range3(-10, +10) do
+  for Pos in Range3(-10, +11) do
   begin       
     if not InRange(TVector3(Pos - Vec3(0, 3, 0)).Length, 13, 14) then
       Continue;    

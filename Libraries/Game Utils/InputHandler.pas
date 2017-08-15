@@ -55,7 +55,7 @@ type
 
   TMouseInput = class
   private
-    FButtons, FNotifyUp, FNotifyDown: TBitfield;
+    FButtons, FNotifyUp, FNotifyDown: TBitField;
     FScrolledUp, FScrolledDown: Boolean;
     FWidth, FHeight: Integer;
     FPos: TVector2;

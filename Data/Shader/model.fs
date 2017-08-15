@@ -2,11 +2,9 @@
 
 #define PI 3.1415926535
 
-#define MAXLIGHTS_DIRECTIONAL 8
-#define MAXLIGHTS_POINT 32
-#define MAXLIGHTS_SPOT 32
-
-uniform mat4 p;
+#define MAXLIGHTS_DIRECTIONAL 4
+#define MAXLIGHTS_POINT 16
+#define MAXLIGHTS_SPOT 16
 
 uniform sampler2D diffusemap;
 uniform sampler2D specularmap;

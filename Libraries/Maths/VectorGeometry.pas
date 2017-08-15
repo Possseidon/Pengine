@@ -16,7 +16,7 @@ interface
 }
 
 uses
-  Matrix, SysUtils, Math, MathUtils, IntegerMaths;
+  Matrix, SysUtils, Math, MathUtils, IntegerMaths, EventHandling;
 
 type
 
@@ -973,24 +973,40 @@ type
 
   end;
 
-  TLocationChange = (
-    lcPosition,
-    lcOffset,
-    lcScale,
-    lcTurn,
-    lcPitch,
-    lcRoll,
-    lcFreeTranslation,
-    lcFreeScale,
-    lcFreeRotation,
-    lcFreeMirror);
-  TLocationChanges = set of TLocationChange;
-
-  TChangeProcedure = procedure(AChanges: TLocationChanges) of object;
-
   { TLocation }
 
   TLocation = class
+  public type
+
+    TChangeType = (
+      ctPosition,
+      ctOffset,
+      ctScale,
+      ctTurn,
+      ctPitch,
+      ctRoll,
+      ctFreeTranslation,
+      ctFreeScale,
+      ctFreeRotation,
+      ctFreeMirror,
+      ctParent
+      );
+
+    TChanges = set of TChangeType;
+
+    TChangeEventInfo = class(TEventInfo, IEventSender<TLocation>)
+    private
+      FSender: TLocation;
+      FChanges: TChanges;
+    public
+      constructor Create(ASender: TLocation; AChanges: TChanges);
+
+      function Sender: TLocation;
+      property Changes: TChanges read FChanges;
+    end;
+
+    TOnChangeEvent = TObservableEvent<TChangeEventInfo>;
+
   private
 
     FPos: TVector3;
@@ -1016,10 +1032,10 @@ type
 
     FChanged: Boolean;
 
-    FOnChange: TChangeProcedure;
+    FParent: TLocation;
 
     procedure SetLook(AValue: TVector3);
-    procedure TriggerChanges(AChanges: TLocationChanges);
+    procedure TriggerChanges(AChanges: TChanges);
 
     function GetMatrix: TMatrix4;
     function GetInvMatrix: TMatrix4;
@@ -1054,6 +1070,9 @@ type
     procedure SetRoll(AValue: Single);
     procedure SetTurn(AValue: Single);
 
+    procedure ParentChanged(AInfo: TChangeEventInfo);
+    procedure SetParent(const Value: TLocation);
+
   public
     constructor Create(AInverted: Boolean = False);
 
@@ -1062,6 +1081,8 @@ type
 
     property RotMatrix: TMatrix3 read GetRotMatrix;
     property InvRotMatrix: TMatrix3 read GetInvRotMatrix;
+
+    property Parent: TLocation read FParent write SetParent;
 
     property Pos: TVector3 read FPos write SetPos;
     property PosX: Single read FPos.X write SetPosX;
@@ -1085,8 +1106,6 @@ type
     property TurnAngle: Single read FTurn write SetTurn;
     property PitchAngle: Single read FPitch write SetPitch;
     property RollAngle: Single read FRoll write SetRoll;
-
-    property OnChange: TChangeProcedure write FOnChange;
 
     property Right: TVector3 read GetRight;
     property Up: TVector3 read GetUp;
@@ -1115,8 +1134,8 @@ type
     procedure Assign(ALocation: TLocation);
     procedure Swap(ALocation: TLocation);
 
-    property Changed: Boolean read FChanged;
-    procedure NotifyChanges;
+    // TODO: remove property Changed: Boolean read FChanged;
+    // TODO: remove procedure NotifyChanges;
 
     // Those will directly change the current Matrix and thus not trigger the rebuild
     // FTurn/FPitch/FRoll/FPos/FOffset won't be correct anymore
@@ -1131,6 +1150,10 @@ type
 
     procedure FromMatrix(AMatrix: TMatrix4);
     procedure FromRotMatrix(AMatrix: TMatrix3);
+
+  public // Events
+
+    OnChanged: TOnChangeEvent;
 
   end;
 
@@ -1218,6 +1241,10 @@ type
     class operator in(AValue: TVector3; AHexahedron: TGHexahedron): Boolean;
   end;
 
+  PBounds1 = ^TBounds1;
+  PBounds2 = ^TBounds2;
+  PBounds3 = ^TBounds3;
+
   PVector3 = ^TVector3;
   PVector2 = ^TVector2;
   PVectorDir = ^TVectorDir;
@@ -1275,6 +1302,16 @@ const
     'left',
     'up',
     'down',
+    'forward',
+    'backwards'
+    );
+
+  BasicPosNames: array [TBasicDir] of string = (
+    'none',
+    'right',
+    'left',
+    'top',
+    'bottom',
     'front',
     'back'
     );
@@ -3224,15 +3261,27 @@ begin
   Result := NormalX.AngleTo(A.NormalX);
 end;
 
+{ TLocation.TChangeEventInfo }
+
+constructor TLocation.TChangeEventInfo.Create(ASender: TLocation; AChanges: TChanges);
+begin
+  FSender := ASender;
+  FChanges := AChanges;
+end;
+
+function TLocation.TChangeEventInfo.Sender: TLocation;
+begin
+  Result := FSender;
+end;
+
 { TLocation }
 
-procedure TLocation.TriggerChanges(AChanges: TLocationChanges);
+procedure TLocation.TriggerChanges(AChanges: TChanges);
 begin
   FChanged := True;
-  if AChanges - [lcFreeScale, lcFreeTranslation, lcFreeRotation] = AChanges then // free changes matrix > no notify
+  if AChanges - [ctFreeScale, ctFreeTranslation, ctFreeRotation] = AChanges then // free changes matrix > no notify
     FMatrixChanged := True;
-  if Assigned(FOnChange) then
-    FOnChange(AChanges);
+  OnChanged.Execute(TChangeEventInfo.Create(Self, AChanges));
 end;
 
 procedure TLocation.SetLook(AValue: TVector3);
@@ -3267,7 +3316,7 @@ begin
   if FScale = AValue then
     Exit;
   FScale := AValue;
-  TriggerChanges([lcScale]);
+  TriggerChanges([ctScale]);
 end;
 
 procedure TLocation.SetScaleX(AValue: Single);
@@ -3275,7 +3324,7 @@ begin
   if FScale.X = AValue then
     Exit;
   FScale.X := AValue;
-  TriggerChanges([lcScale]);
+  TriggerChanges([ctScale]);
 end;
 
 procedure TLocation.SetScaleY(AValue: Single);
@@ -3283,7 +3332,7 @@ begin
   if FScale.Y = AValue then
     Exit;
   FScale.Y := AValue;
-  TriggerChanges([lcScale]);
+  TriggerChanges([ctScale]);
 end;
 
 procedure TLocation.SetScaleZ(AValue: Single);
@@ -3291,18 +3340,29 @@ begin
   if FScale.Z = AValue then
     Exit;
   FScale.Z := AValue;
-  TriggerChanges([lcScale]);
+  TriggerChanges([ctScale]);
 end;
 
 function TLocation.GetLook: TVector3;
 begin
   if FMatrixChanged then
     BuildMatrix;
-  Result := TVector3.Create(
-    -FMatrix[0, 2],
-    -FMatrix[1, 2],
-    -FMatrix[2, 2]
+  if FInverted then
+  begin
+    Result := TVector3.Create(
+      -FMatrix[0, 2],
+      -FMatrix[1, 2],
+      -FMatrix[2, 2]
+      );
+  end
+  else
+  begin
+    Result := TVector3.Create(
+      -FMatrix[2, 0],
+      -FMatrix[2, 1],
+      -FMatrix[2, 2]
     );
+  end;
 end;
 
 function TLocation.GetMatrix: TMatrix4;
@@ -3330,11 +3390,22 @@ function TLocation.GetRight: TVector3;
 begin
   if FMatrixChanged then
     BuildMatrix;
-  Result := TVector3.Create(
-    FMatrix[0, 0],
-    FMatrix[1, 0],
-    FMatrix[2, 0]
-    );
+  if FInverted then
+  begin
+    Result := TVector3.Create(
+      FMatrix[0, 0],
+      FMatrix[1, 0],
+      FMatrix[2, 0]
+      );
+  end
+  else
+  begin
+    Result := TVector3.Create(
+      FMatrix[0, 0],
+      FMatrix[0, 1],
+      FMatrix[0, 2]
+      );
+  end;
 end;
 
 function TLocation.GetRotMatrix: TMatrix3;
@@ -3350,20 +3421,31 @@ function TLocation.GetUp: TVector3;
 begin
   if FMatrixChanged then
     BuildMatrix;
-  Result := TVector3.Create(
-    FMatrix[0, 1],
-    FMatrix[1, 1],
-    FMatrix[2, 1]
-    );
+  if FInverted then
+  begin
+    Result := TVector3.Create(
+      FMatrix[0, 1],
+      FMatrix[1, 1],
+      FMatrix[2, 1]
+      );
+  end
+  else
+  begin
+    Result := TVector3.Create(
+      FMatrix[1, 0],
+      FMatrix[1, 1],
+      FMatrix[1, 2]
+      );
+  end;
 end;
 
 procedure TLocation.BuildMatrix;
-var
-  OnChangeSave: TChangeProcedure;
 begin
-  OnChangeSave := FOnChange;
-  FOnChange := nil;
-  FMatrix.LoadIdentity;
+  OnChanged.Disable;
+  if Parent <> nil then
+    FMatrix := Parent.Matrix
+  else
+    FMatrix.LoadIdentity;
   if FInverted then
   begin
     FreeTranslate(-FOffset);
@@ -3385,7 +3467,7 @@ begin
   FMatrixChanged := False;
   FFreeChanged := False;
   FChanged := True;
-  FOnChange := OnChangeSave;
+  OnChanged.Enable;
 end;
 
 procedure TLocation.SetOffset(AValue: TVector3);
@@ -3393,7 +3475,7 @@ begin
   if FOffset = AValue then
     Exit;
   FOffset := AValue;
-  TriggerChanges([lcOffset]);
+  TriggerChanges([ctOffset]);
 end;
 
 procedure TLocation.SetOffsetX(AValue: Single);
@@ -3401,7 +3483,7 @@ begin
   if FOffset.X = AValue then
     Exit;
   FOffset.X := AValue;
-  TriggerChanges([lcOffset]);
+  TriggerChanges([ctOffset]);
 end;
 
 procedure TLocation.SetOffsetY(AValue: Single);
@@ -3409,7 +3491,7 @@ begin
   if FOffset.Y = AValue then
     Exit;
   FOffset.Y := AValue;
-  TriggerChanges([lcOffset]);
+  TriggerChanges([ctOffset]);
 end;
 
 procedure TLocation.SetOffsetZ(AValue: Single);
@@ -3417,7 +3499,7 @@ begin
   if FOffset.Z = AValue then
     Exit;
   FOffset.Z := AValue;
-  TriggerChanges([lcOffset]);
+  TriggerChanges([ctOffset]);
 end;
 
 procedure TLocation.SetPitch(AValue: Single);
@@ -3426,7 +3508,7 @@ begin
   if FPitch = AValue then
     Exit;
   FPitch := AValue;
-  TriggerChanges([lcPitch]);
+  TriggerChanges([ctPitch]);
 end;
 
 procedure TLocation.SetPos(AValue: TVector3);
@@ -3434,7 +3516,7 @@ begin
   if FPos = AValue then
     Exit;
   FPos := AValue;
-  TriggerChanges([lcPosition]);
+  TriggerChanges([ctPosition]);
 end;
 
 procedure TLocation.SetPosX(AValue: Single);
@@ -3442,7 +3524,7 @@ begin
   if FPos.X = AValue then
     Exit;
   FPos.X := AValue;
-  TriggerChanges([lcPosition]);
+  TriggerChanges([ctPosition]);
 end;
 
 procedure TLocation.SetPosY(AValue: Single);
@@ -3450,7 +3532,7 @@ begin
   if FPos.Y = AValue then
     Exit;
   FPos.Y := AValue;
-  TriggerChanges([lcPosition]);
+  TriggerChanges([ctPosition]);
 end;
 
 procedure TLocation.SetPosZ(AValue: Single);
@@ -3458,7 +3540,7 @@ begin
   if FPos.Z = AValue then
     Exit;
   FPos.Z := AValue;
-  TriggerChanges([lcPosition]);
+  TriggerChanges([ctPosition]);
 end;
 
 procedure TLocation.SetRoll(AValue: Single);
@@ -3467,7 +3549,7 @@ begin
   if FRoll = AValue then
     Exit;
   FRoll := AValue;
-  TriggerChanges([lcRoll]);
+  TriggerChanges([ctRoll]);
 end;
 
 procedure TLocation.SetTurn(AValue: Single);
@@ -3476,7 +3558,24 @@ begin
   if FTurn = AValue then
     Exit;
   FTurn := AValue;
-  TriggerChanges([lcTurn]);
+  TriggerChanges([ctTurn]);
+end;
+
+procedure TLocation.ParentChanged(AInfo: TChangeEventInfo);
+begin
+  TriggerChanges([ctParent]);
+end;
+
+procedure TLocation.SetParent(const Value: TLocation);
+begin
+  if FParent = Value then
+    Exit;
+  if FParent <> nil then
+    FParent.OnChanged.Del(ParentChanged);
+  FParent := Value;
+  if FParent <> nil then
+    FParent.OnChanged.Add(ParentChanged);
+  TriggerChanges([ctParent]);
 end;
 
 constructor TLocation.Create(AInverted: Boolean);
@@ -3524,8 +3623,13 @@ begin
   FRoll := 0;
   FMatrix.LoadIdentity;
   FChanged := True;
-  if Assigned(FOnChange) then
-    FOnChange([lcPosition, lcOffset, lcScale, lcTurn, lcPitch, lcRoll]);
+  OnChanged.Execute(TChangeEventInfo.Create(Self, [
+    ctPosition,
+    ctOffset,
+    ctScale,
+    ctTurn,
+    ctPitch,
+    ctRoll]));
 end;
 
 procedure TLocation.ResetRotation;
@@ -3535,7 +3639,7 @@ begin
   FTurn := 0;
   FPitch := 0;
   FRoll := 0;
-  TriggerChanges([lcTurn, lcPitch, lcRoll]);
+  TriggerChanges([ctTurn, ctPitch, ctRoll]);
 end;
 
 procedure TLocation.ResetTranslation;
@@ -3543,7 +3647,7 @@ begin
   if Pos = 0 then
     Exit;
   Pos := 0;
-  TriggerChanges([lcPosition]);
+  TriggerChanges([ctPosition]);
 end;
 
 procedure TLocation.ResetOffset;
@@ -3551,7 +3655,7 @@ begin
   if Offset = 0 then
     Exit;
   Offset := 0;
-  TriggerChanges([lcOffset]);
+  TriggerChanges([ctOffset]);
 end;
 
 procedure TLocation.ResetScale;
@@ -3559,7 +3663,7 @@ begin
   if Scale = 0 then
     Exit;
   Scale := 0;
-  TriggerChanges([lcScale]);
+  TriggerChanges([ctScale]);
 end;
 
 procedure TLocation.Turn(const ATurn: Single);
@@ -3589,7 +3693,7 @@ begin
   M[2, 2] := Cos(ATurn);
   FMatrix := FMatrix * M;
   FFreeChanged := True;
-  TriggerChanges([lcFreeRotation]);
+  TriggerChanges([ctFreeRotation]);
 end;
 
 procedure TLocation.FreePitch(APitch: Single);
@@ -3604,7 +3708,7 @@ begin
   M[2, 2] := Cos(APitch);
   FMatrix := FMatrix * M;
   FFreeChanged := True;
-  TriggerChanges([lcFreeRotation]);
+  TriggerChanges([ctFreeRotation]);
 end;
 
 procedure TLocation.FreeRoll(ARoll: Single);
@@ -3614,12 +3718,12 @@ begin
   ARoll := ARoll * Pi / 180;
   M.LoadIdentity;
   M[0, 0] := Cos(ARoll);
-  M[1, 0] := -Sin(ARoll);
-  M[0, 1] := Sin(ARoll);
+  M[1, 0] := Sin(ARoll);
+  M[0, 1] := -Sin(ARoll);
   M[1, 1] := Cos(ARoll);
   FMatrix := FMatrix * M;
   FFreeChanged := True;
-  TriggerChanges([lcFreeRotation]);
+  TriggerChanges([ctFreeRotation]);
 end;
 
 procedure TLocation.FreeTranslate(const AVector: TVector3);
@@ -3632,7 +3736,7 @@ begin
   M[3, 2] := AVector.Z;
   FMatrix := FMatrix * M;
   FFreeChanged := True;
-  TriggerChanges([lcFreeTranslation]);
+  TriggerChanges([ctFreeTranslation]);
 end;
 
 procedure TLocation.FreeScale(const AScale: TVector3);
@@ -3646,7 +3750,7 @@ begin
   M[3, 3] := 1;
   FMatrix := FMatrix * M;
   FFreeChanged := True;
-  TriggerChanges([lcFreeScale]);
+  TriggerChanges([ctFreeScale]);
 end;
 
 procedure TLocation.FreeMirror(ANormal: TLine3);
@@ -3675,33 +3779,33 @@ begin
   FMatrix[3, 2] := P.Z;
 
   FFreeChanged := True;
-  TriggerChanges([lcFreeMirror]);
+  TriggerChanges([ctFreeMirror]);
 end;
 
 procedure TLocation.FromMatrix(AMatrix: TMatrix4);
 begin
   FMatrix := AMatrix;
   FFreeChanged := True;
-  TriggerChanges([lcFreeRotation, lcFreeScale, lcFreeTranslation]);
+  TriggerChanges([ctFreeRotation, ctFreeScale, ctFreeTranslation]);
 end;
 
 procedure TLocation.FromRotMatrix(AMatrix: TMatrix3);
 begin
   FMatrix.Minor[3, 3] := AMatrix;
   FFreeChanged := True;
-  TriggerChanges([lcFreeRotation, lcFreeScale]);
+  TriggerChanges([ctFreeRotation, ctFreeScale]);
 end;
 
 procedure TLocation.Translate(const AVector: TVector3);
 begin
   FPos := FPos + AVector;
-  TriggerChanges([lcPosition]);
+  TriggerChanges([ctPosition]);
 end;
 
 procedure TLocation.MoveOffset(const AVector: TVector3);
 begin
   FOffset := FOffset + AVector;
-  TriggerChanges([lcOffset]);
+  TriggerChanges([ctOffset]);
 end;
 
 procedure TLocation.ScaleBy(const AScale: TVector3);
@@ -3755,10 +3859,13 @@ begin
   Tmp.Free;
 end;
 
+// TODO: REMOVE
+{
 procedure TLocation.NotifyChanges;
 begin
   FChanged := False;
 end;
+}
 
 procedure TLocation.FreeRotate(AVector: TVector3; const AAngle: Single);
 var
@@ -3789,7 +3896,7 @@ begin
 
   FMatrix := FMatrix * M;
 
-  TriggerChanges([lcFreeRotation]);
+  TriggerChanges([ctFreeRotation]);
 end;
 
 { TBlockRotation }

@@ -3,9 +3,39 @@ unit Lists;
 interface
 
 uses
-  Classes, SysUtils, IntegerMaths, Math;
+  Classes, SysUtils, IntegerMaths, Math, IntfBase;
 
 type
+
+  { IIterator<T> }
+
+  IIterator<T> = interface
+  ['{01FA5E8D-FB71-4D60-B113-429284B8B8F7}']
+    function MoveNext: Boolean;
+    function GetCurrent: T;
+
+    property Current: T read GetCurrent;
+  end;
+
+  TIterator<T> = class(TInterfacedObject, IIterator<T>)
+  public
+    function MoveNext: Boolean; virtual; abstract;
+    function GetCurrent: T; virtual; abstract;
+
+    property Current: T read GetCurrent;
+  end;
+
+  { IIterable<T> }
+
+  IIterable<T> = interface
+  ['{86380564-F207-4B73-A40D-F10AD12B5B98}']
+    function GetEnumerator: IIterator<T>;
+  end;
+
+  TRefCountedIterable<T> = class(TInterfacedObject, IIterable<T>)
+  public
+    function GetEnumerator: IIterator<T>; virtual; abstract;
+  end;
 
   EGenericArrayEmpty = class(Exception)
   public
@@ -52,7 +82,7 @@ type
 
   TIntArray = class;
 
-  TGenericArray<T> = class
+  TGenericArray<T> = class(TInterfaceBase, IIterable<T>)
   private
     FItems: array of T;
     FSizeSteps: Integer;
@@ -65,22 +95,20 @@ type
 
     { TIterator }
 
-    TIterator = class
+    TIterator = class(TIterator<T>)
     private
       FList: TGenericArray<T>;
 
       FCurrent: Integer;
       FReversed: Boolean;
-      FAutoFree: Boolean;
 
       FRemoveFlag: Boolean;
 
-      function GetCurrent: T;
     public
-      constructor Create(AList: TGenericArray<T>; AReversed, AAutoFree: Boolean);
+      constructor Create(AList: TGenericArray<T>; AReversed: Boolean);
 
-      function MoveNext: Boolean;
-      property Current: T read GetCurrent;
+      function MoveNext: Boolean; override;
+      function GetCurrent: T; override;
 
       procedure RemoveCurrent; inline;
     end;
@@ -153,7 +181,7 @@ type
 
     function DataPointer: Pointer; inline;
 
-    function GetEnumerator(AAutoFree: Boolean = False): TIterator; inline;
+    function GetEnumerator: IIterator<T>;
     function IterReversed: TReverseWrapper; inline;
 
     procedure RangeCheckException(AIndex: Integer); inline;
@@ -498,7 +526,7 @@ type
 
   { TGenericArrayReader<T> }
 
-  TGenericArrayReader<T> = class
+  TGenericArrayReader<T> = class(TInterfaceBase, IIterable<T>)
   private
     function GetCount: Integer;
     function GetItem(I: Integer): T;
@@ -547,7 +575,7 @@ type
     function First: T; inline;
     function Last: T; inline;
 
-    function GetEnumerator(AAutoFree: Boolean = False): TGenericArray<T>.TIterator; inline;
+    function GetEnumerator: IIterator<T>; inline;
     function IterReversed: TGenericArray<T>.TReverseWrapper; inline;
 
     procedure RangeCheckException(AIndex: Integer); inline;
@@ -1438,9 +1466,9 @@ begin
   Result := FItems;
 end;
 
-function TGenericArray<T>.GetEnumerator(AAutoFree: Boolean): TIterator;
+function TGenericArray<T>.GetEnumerator: IIterator<T>;
 begin
-  Result := TIterator.Create(Self, False, AAutoFree);
+  Result := TIterator.Create(Self, False);
 end;
 
 function TGenericArray<T>.IterReversed: TReverseWrapper;
@@ -1903,11 +1931,10 @@ end;
 
 { TArrayList<T>.TIterator }
 
-constructor TGenericArray<T>.TIterator.Create(AList: TGenericArray<T>; AReversed, AAutoFree: Boolean);
+constructor TGenericArray<T>.TIterator.Create(AList: TGenericArray<T>; AReversed: Boolean);
 begin
   FList := AList;
   FReversed := AReversed;
-  FAutoFree := AAutoFree;
   if FReversed then
     FCurrent := FList.Count
   else
@@ -1936,9 +1963,6 @@ begin
   end
   else
     Result := FCurrent <> FList.Count;
-
-  if not Result and FAutoFree then
-    Free;
 end;
 
 procedure TGenericArray<T>.TIterator.RemoveCurrent;
@@ -1976,7 +2000,7 @@ end;
 
 function TGenericArray<T>.TReverseWrapper.GetEnumerator(AAutoFree: Boolean): TIterator;
 begin
-  Result := TGenericArray<T>.TIterator.Create(FGenericArray, True, AAutoFree);
+  Result := TGenericArray<T>.TIterator.Create(FGenericArray, True);
 end;
 
 { TObjectArray<T> }
@@ -2144,14 +2168,14 @@ begin
   Result := FGenericArray.Count;
 end;
 
-function TGenericArrayReader<T>.GetEnumerator(AAutoFree: Boolean): TGenericArray<T>.TIterator;
-begin
-  Result := FGenericArray.GetEnumerator(AAutoFree);
-end;
-
 function TGenericArrayReader<T>.GetItem(I: Integer): T;
 begin
   Result := FGenericArray.Items[I];
+end;
+
+function TGenericArrayReader<T>.GetEnumerator: IIterator<T>;
+begin
+  Result := FGenericArray.GetEnumerator;
 end;
 
 function TGenericArrayReader<T>.IterReversed: TGenericArray<T>.TReverseWrapper;

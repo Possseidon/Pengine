@@ -2,8 +2,8 @@ object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'Lua Battle Bots'
-  ClientHeight = 527
-  ClientWidth = 932
+  ClientHeight = 257
+  ClientWidth = 446
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

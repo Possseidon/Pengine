@@ -2,46 +2,55 @@ unit DebugConsoleDefine;
 
 interface
 
-procedure DebugWriteLine; overload; inline;
-procedure DebugWriteLine(AMessage: string); overload; inline;
-procedure DebugWriteLine(AMessage: AnsiString); overload; inline;
-procedure DebugWrite(AMessage: string); overload; inline;
-procedure DebugWrite(AMessage: AnsiString); overload; inline;
+uses
+  Classes;
+
+procedure DebugWriteLine(AMessage: string); overload;
+procedure DebugWriteLine(AMessage: AnsiString); overload;
+procedure DebugWriteLine; overload;
+procedure DebugWrite(AMessage: string); overload;
+procedure DebugWrite(AMessage: AnsiString); overload;
 
 implementation
 
-procedure DebugWriteLine;
-begin
-{$IFDEF DEBUG}
-  Writeln;
-{$ENDIF}
-end;
+var
+  FBuffer: string;
 
 procedure DebugWriteLine(AMessage: string);
 begin
 {$IFDEF DEBUG}
-  Writeln(AMessage);
+  DebugWrite(AMessage);
+  DebugWriteLine;
 {$ENDIF}
 end;
 
 procedure DebugWriteLine(AMessage: AnsiString);
 begin
 {$IFDEF DEBUG}
-  Writeln(AMessage);
+  DebugWrite(AMessage);
+  DebugWriteLine;
+{$ENDIF}
+end;
+
+procedure DebugWriteLine;
+begin
+{$IFDEF DEBUG}
+  Writeln(FBuffer);
+  FBuffer := '';
 {$ENDIF}
 end;
 
 procedure DebugWrite(AMessage: string);
 begin
 {$IFDEF DEBUG}
-  Write(AMessage);
+  FBuffer := FBuffer + AMessage;
 {$ENDIF}
 end;
 
 procedure DebugWrite(AMessage: AnsiString);
 begin
 {$IFDEF DEBUG}
-  Write(AMessage);
+  FBuffer := FBuffer + string(AMessage);
 {$ENDIF}
 end;
 

@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, OpenGLContext, Camera, Shaders, VAOManager, VectorGeometry, IntfBase,
   Matrix, Lists, TextureManager, Lights, ControlledCamera, GLEnums, IntegerMaths, Color, SkyDome, LuaHeader,
-  Game, EntityDefine, DebugConsoleDefine, InputHandler, ResourceManager;
+  Game, EntityDefine, DebugConsoleDefine, InputHandler, ResourceManager, CustomModules;
 
 type
 
@@ -34,6 +34,8 @@ type
 
     FSkyDomeShader: TShader;
     FSkyDome: TSkyDome;
+
+    FTestBot: TBotCore;
 
     procedure InitCamera;
     procedure InitSkyDomeShader;
@@ -78,6 +80,7 @@ begin
   State.DebugOutput := False;
   VSync := False;
   FPSLimit := 300;
+  Samples := MaxSamples;
 
   InitCamera;
   InitSkyDomeShader;
@@ -110,7 +113,7 @@ var
   GridPos: TIntVector2;
   Grid: TIntBounds2;
 begin
-  Grid.Create(-20, 20);
+  Grid.Create(-16, 16);
 
   FFloorVAO := TVAO.Create(TResModelShader.Data);
   FFloorVAO.Generate(6 * Grid.Area, buStaticDraw);
@@ -149,7 +152,7 @@ begin
   FSun := TDirectionalLightShaded.Create(FLightSystem);
   FSun.Direction := Vec3(-1, -2, -1).Normalize;
   FSun.Color := TColorRGB.Gray(0.8);
-  FSun.Size := 60;
+  FSun.Size := Sqrt(Sqr(32) + Sqr(32));
   FSun.AddOccluder(FFloorVAO);
 end;
 
@@ -181,36 +184,38 @@ end;
 
 procedure TfrmMain.InitGame;
 var
-  TestBot: TBotCore;
   Code: TStrings;
-  P: TIntVector3;
 begin
   FGame := TGame.Create(FCamera);
 
-  for P in Range3(-1, 2) do
-  begin
-    if TVector3(P).Length > 1 then
-      Continue;
-    
-    TestBot := TBotCore.Create;
+  FTestBot := TBotCore.Create;
 
-    TestBot.Location.Pos := P;
+  FTestBot.Location.TurnAngle := 0;
+  FTestBot.Location.PitchAngle := 0;
+  FTestBot.Location.RollAngle := 0;
 
+  FTestBot.AttachModule(sdUp, TWheelModule);
+  FTestBot.AttachModule(sdLeft, TWheelModule);
+  FTestBot.AttachModule(sdRight, TWheelModule);
+  FTestBot.AttachModule(sdFront, TWheelModule);
+  FTestBot.AttachModule(sdBack, TWheelModule);
+
+  try
+    Code := TStringList.Create;
     try
-      Code := TStringList.Create;
-      try
-        Code.LoadFromFile('Data/TestCode.lua');
-        TestBot.SetUpdateFunction(AnsiString(Code.Text));
-      finally
-        Code.Free;
-      end;
-    except
-      DebugWriteLine('Error while trying to load TestCode!');
+      Code.LoadFromFile('Data/TestCode.lua');
+      FTestBot.SetUpdateFunction(AnsiString(Code.Text));
+    finally
+      Code.Free;
     end;
-
-    FGame.AddEntity(TestBot);
-    FSun.AddOccluder(TestBot);
+  except
+    DebugWriteLine('Error while trying to load TestCode!');
   end;
+
+  FGame.AddEntity(FTestBot);
+
+  FSun.AddOccluder(FTestBot);
+
 end;
 
 procedure TfrmMain.ResizeFunc;
@@ -225,11 +230,41 @@ begin
 
   // if Input.ButtonPressed(mbMiddle) then
   // FSun.Position := FCamera.Location.RealPosition;
-  FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0.1).Normalize, 30 * DeltaTime);
+  FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0.2).Normalize, DeltaTime);
 
   FCamera.Update;
 
   FGame.Update(DeltaTime);
+
+  if Input.KeyDown('A') then
+    FTestBot.Location.Slide(-DeltaTime);
+  if Input.KeyDown('D') then
+    FTestBot.Location.Slide(+DeltaTime);
+
+  if Input.KeyDown('S') then
+    FTestBot.Location.Move(-DeltaTime);
+  if Input.KeyDown('W') then
+    FTestBot.Location.Move(+DeltaTime);
+
+  if Input.KeyDown(VK_SHIFT) then
+    FTestBot.Location.Lift(-DeltaTime);
+  if Input.KeyDown(VK_SPACE) then
+    FTestBot.Location.Lift(+DeltaTime);
+
+  if Input.KeyDown(VK_LEFT) then
+    FTestBot.Location.Turn(-DeltaTime * 30);
+  if Input.KeyDown(VK_Right) then
+    FTestBot.Location.Turn(+DeltaTime * 30);
+
+  if Input.KeyDown(VK_DOWN) then
+    FTestBot.Location.Pitch(-DeltaTime * 30);
+  if Input.KeyDown(VK_UP) then
+    FTestBot.Location.Pitch(+DeltaTime * 30);
+
+  if Input.KeyDown('Q') then
+    FTestBot.Location.Roll(-DeltaTime * 30);
+  if Input.KeyDown('E') then
+    FTestBot.Location.Roll(+DeltaTime * 30);
 
 end;
 

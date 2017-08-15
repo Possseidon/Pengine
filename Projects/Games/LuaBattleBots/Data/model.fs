@@ -127,7 +127,7 @@ float getDepthValue(float n, float f, vec3 d)
 void main()
 {
   ctexcoord = clamp(ftexcoord, fborderlow, fborderhigh);
-  outcolor = vec4(ambient * texture(diffusemap, ctexcoord).rgb, texture(diffusemap, ctexcoord).a);
+  outcolor = vec4(/*ambient */ texture(diffusemap, ctexcoord).rgb, texture(diffusemap, ctexcoord).a);
  
   if (outcolor.a == 0)
   {
@@ -142,6 +142,7 @@ void main()
   vec3 texnormal = texture(normalmap, ctexcoord).xyz * 2 - 1;  
   vec3 normal = normalize(ftangent * texnormal.x + fbitangent * texnormal.y + fnormal * texnormal.z);
   vec3 offsetpos = fpos + fnormal * 0.1;
+  
   
   // directional lights
   for (int i = 0; i < dLightCount; i++)

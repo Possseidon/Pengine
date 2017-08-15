@@ -3,7 +3,8 @@ unit VAOManager;
 interface
 
 uses
-  dglOpenGL, GLEnums, SysUtils, Shaders, Matrix, VectorGeometry, GLObjectBase, Camera, IntfBase;
+  dglOpenGL, GLEnums, SysUtils, Shaders, Matrix, VectorGeometry, GLObjectBase, Camera, IntfBase,
+  Lists;
 
 type
 
@@ -141,9 +142,9 @@ type
     procedure RenderFromTo(AFirst, ACount: Integer); virtual;
 
     property Visible: Boolean read GetVisible write SetVisible;
-    function ModelMatrix: TMatrix4; virtual;
-    function Bounds: TBounds3; virtual;
-    function HasBounds: Boolean; virtual;
+    function Location: TLocation; virtual;
+    function Bounds: PBounds3; virtual;
+    function RenderableChildren: IIterable<IRenderable>; virtual;
 
     property Shader: TShader read FShader;
 
@@ -170,20 +171,25 @@ type
 
   TVAOProxy = class(TInterfaceBase, IRenderable)
   private
+    FVisible: Boolean;
     FSourceVAO: TVAO;
     FLocation: TLocation;
+
+    function GetVisible: Boolean;
+    procedure SetVisible(const Value: Boolean);
 
   public
     constructor Create(ASourceVAO: TVAO);
     destructor Destroy; override;
 
-    function GetVisible: Boolean;
-    function Bounds: TBounds3;
-    function HasBounds: Boolean;
-    function ModelMatrix: TMatrix4;
-    procedure Render;
+    property Visible: Boolean read GetVisible write SetVisible;
 
-    property Location: TLocation read FLocation;
+    function Bounds: PBounds3;
+    function Location: TLocation;
+
+    function RenderableChildren: IIterable<IRenderable>; virtual;
+
+    procedure Render;
 
     property SourceVAO: TVAO read FSourceVAO write FSourceVAO;
 
@@ -306,9 +312,14 @@ begin
   end;
 end;
 
-function TVAO.Bounds: TBounds3;
+function TVAO.Bounds: PBounds3;
 begin
-  Result := 0;
+  Result := nil;
+end;
+
+function TVAO.RenderableChildren: IIterable<IRenderable>;
+begin
+  Result := nil;
 end;
 
 procedure TVAO.BeforeRender;
@@ -409,19 +420,14 @@ begin
   Result := FVisible;
 end;
 
-function TVAO.HasBounds: Boolean;
-begin
-  Result := False;
-end;
-
 procedure TVAO.Map(AAccess: TGLBufferAccess);
 begin
   FVBO.Map(AAccess);
 end;
 
-function TVAO.ModelMatrix: TMatrix4;
+function TVAO.Location: TLocation;
 begin
-  Result.LoadIdentity;
+  Result := nil;
 end;
 
 procedure TVAO.Render;
@@ -621,13 +627,24 @@ end;
 
 { TVAOProxy }
 
-function TVAOProxy.Bounds: TBounds3;
+function TVAOProxy.Bounds: PBounds3;
 begin
-  Result := 0;
+  Result := FSourceVAO.Bounds;
+end;
+
+function TVAOProxy.Location: TLocation;
+begin
+  Result := FLocation;
+end;
+
+function TVAOProxy.RenderableChildren: IIterable<IRenderable>;
+begin
+  Result := nil;
 end;
 
 constructor TVAOProxy.Create(ASourceVAO: TVAO);
 begin
+  FVisible := True;
   FSourceVAO := ASourceVAO;
   FLocation := TLocation.Create;
 end;
@@ -638,19 +655,16 @@ begin
   inherited;
 end;
 
+procedure TVAOProxy.SetVisible(const Value: Boolean);
+begin
+  if Value = FVisible then
+    Exit;
+  FVisible := Value;
+end;
+
 function TVAOProxy.GetVisible: Boolean;
 begin
-  Result := True;
-end;
-
-function TVAOProxy.HasBounds: Boolean;
-begin
-  Result := False;
-end;
-
-function TVAOProxy.ModelMatrix: TMatrix4;
-begin
-  Result := Location.Matrix;
+  Result := FVisible;
 end;
 
 procedure TVAOProxy.Render;
