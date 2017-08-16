@@ -3,26 +3,23 @@ unit ResourceManager;
 interface
 
 uses
-  Shaders, TextureManager, VAOManager, GLEnums, VectorGeometry, Lists, SysUtils;
+  Shaders, TextureManager, VAOManager, GLEnums, VectorGeometry, Lists, SysUtils, DebugConsoleDefine;
 
 type
-  TBaseVAOType = (vtCube, vtPlane);
-
-  TData = record
-    Pos: TVector3;
-    TexCoord: TTexCoord2;
-    Normal: TVector3;
-    Tangent: TVector3;
-    Bitangent: TVector3;
-    Border: TBounds2;
-  end;
 
   { TResourceBase }
 
   TResourceBase = class abstract
-  private
+  private class var
+    FData: TClassRefMap<TObject>;
+
     class procedure Load; virtual; abstract;
     class procedure Unload; virtual; abstract;
+
+  public
+    class constructor Create;
+    class destructor Destroy;
+
   end;
 
   TResourceClass = class of TResourceBase;
@@ -30,19 +27,18 @@ type
   { TResource }
 
   TResource<T: class> = class abstract(TResourceBase)
-  private class var
-    FData: T;
-
+  private
     class procedure Load; override;
     class procedure Unload; override;
 
   protected
-    class procedure CreateData(var AData: T); virtual; abstract;
+    class function CreateData: T; virtual; abstract;
 
     /// <summary>Call this in the class constructor of each non-abstract sub-class</summary>
     class procedure AddToResourceManager;
 
   public
+
     /// <summary>Query the Data behind the Resource</summary>
     class function Data: T;
 
@@ -51,8 +47,25 @@ type
   { TResourceParameter }
 
   TResourceParameter = class abstract
+  protected
+    function EqualTo(AOther: TResourceParameter): Boolean; virtual; abstract;
+    function GetHash(ARange: Integer): Integer; virtual; abstract;
+
   public
     constructor Create; virtual;
+
+  end;
+
+  TResourceParameterRefMap<T> = class(TMap<TResourceParameter, T>)
+  protected
+    function GetKeyHash(AKey: TResourceParameter): Integer; override;
+    class function CantIndex(AKey: TResourceParameter): Boolean; override;
+    class function KeysEqual(AKey1, AKey2: TResourceParameter): Boolean; override;
+  end;
+
+  TResourceParameterMap<T> = class(TResourceParameterRefMap<T>)
+  protected
+    procedure FreeKey(AKey: TResourceParameter); override;
   end;
 
   { TParamResoruce<T> }
@@ -66,15 +79,26 @@ type
   /// Create a new Resource of this type, using Make and Free it after use.
   /// </summary>
   TParamResource<T: class; P: TResourceParameter> = class abstract
+  private class var
+    FData: TResourceParameterMap<T>;
+    FRefCounts: TResourceParameterRefMap<Integer>;
+
   protected
     class procedure CreateData(var AData: T; AParam: P); virtual; abstract;
+
   public
-    /// <summary>Create a new parametrized resource</summary>
-    /// <remarks>In contrary to static Resources, this has to get freed after use</remarks>
+    class constructor Create;
+    class destructor Destroy;
+
+    /// <summary>Get a reference to a parametrized resource</summary>
     class function Make(AParams: P): T; overload;
-    /// <summary>Create a new resource with default parameters</summary>
-    /// <remarks>In contrary to static Resources, this has to get freed after use</remarks>
+    /// <summary>Get a reference to a default parametrized resource</summary>
     class function Make: T; overload;
+
+    /// <summary>Release the with make obtained reference to a resource</summary>
+    class procedure Release(AParams: P); overload;
+    /// <summary>Release the with make obtained reference to a resource</summary>
+    class procedure Release; overload;
   end;
 
   { TResourceManager }
@@ -85,6 +109,7 @@ type
 
   private class var
     FResourceClasses: TGenericArray<TResourceClass>;
+    FUnloadResourceClasses: TGenericArray<TResourceClass>;
 
   public
     class constructor Create;
@@ -95,41 +120,29 @@ type
 
   end;
 
-  // TODO: put this in different units, then they also won't see soem private stuff they don't need
+  { TShaderResource }
 
-  TResModelShader = class(TResource<TShader>)
+  TShaderResource = class(TResource<TShader>)
   protected
-    class procedure CreateData(var AData: TShader); override;
+    class function GetShaderSource: string; virtual; abstract;
+    class function GetAttributeOrder: TShaderAttributeOrder; virtual; abstract;
 
-  public
-    class constructor Create;
-
-  end;
-
-  TResTexturePage = class(TResource<TTexturePage>)
-  protected
-    class procedure CreateData(var AData: TTexturePage); override;
-
-  public
-    class constructor Create;
-  end;
-
-  TResCubeVAOParams = class(TResourceParameter)
-  private
-    FSize: Single;
-  public
-    constructor Create; override;
-
-    property Size: Single read FSize write FSize;
-    // TODO: Texture
-  end;
-
-  TResCubeVAO = class(TParamResource<TVAO, TResCubeVAOParams>)
-  protected
-    class procedure CreateData(var AData: TVAO; AParams: TResCubeVAOParams); override;
+    class function CreateData: TShader; override;
   end;
 
 implementation
+
+{ TResourceBase }
+
+class constructor TResourceBase.Create;
+begin
+  FData := TClassRefMap<TObject>.Create;
+end;
+
+class destructor TResourceBase.Destroy;
+begin
+  FData.Free;
+end;
 
 { TResource<T> }
 
@@ -140,7 +153,7 @@ end;
 
 class procedure TResource<T>.Unload;
 begin
-  FData.Free;
+  Data.Free;
 end;
 
 class procedure TResource<T>.AddToResourceManager;
@@ -150,9 +163,13 @@ end;
 
 class function TResource<T>.Data: T;
 begin
-  if FData = nil then
-    CreateData(FData);
-  Result := FData;
+  Result := T(FData.GetOrNil(Self));
+  if Result = nil then
+  begin
+    TResourceManager.FUnloadResourceClasses.Add(Self);
+    Result := CreateData;
+    FData[Self] := Result;
+  end;
 end;
 
 { TResourceParameter }
@@ -162,21 +179,85 @@ begin
   // nothing by default
 end;
 
+{ TResourceParameterRefMap }
+
+function TResourceParameterRefMap<T>.GetKeyHash(AKey: TResourceParameter): Integer;
+begin
+  Result := AKey.GetHash(InternalSize);
+end;
+
+class function TResourceParameterRefMap<T>.CantIndex(AKey: TResourceParameter): Boolean;
+begin
+  Result := AKey = nil;
+end;
+
+class function TResourceParameterRefMap<T>.KeysEqual(AKey1, AKey2: TResourceParameter): Boolean;
+begin
+  Result := AKey1.EqualTo(AKey2);
+end;
+
+{ TResourceParameterMap }
+
+procedure TResourceParameterMap<T>.FreeKey(AKey: TResourceParameter);
+begin
+  AKey.Free;
+end;
+
 { TParamResource<T, P> }
 
-class function TParamResource<T, P>.Make(AParams: P): T;
+class constructor TParamResource<T, P>.Create;
 begin
-  CreateData(Result, AParams);
-  AParams.Free;
+  FData := TResourceParameterMap<T>.Create;
+  FRefCounts := TResourceParameterRefMap<Integer>.Create;
+end;
+
+class destructor TParamResource<T, P>.Destroy;
+begin
+  FRefCounts.Free;
+  FData.Free;
+end;
+
+class function TParamResource<T, P>.Make(var AParams: P): T;
+begin
+  if not FData.Get(AParams, Result) then
+  begin
+    CreateData(Result, AParams);
+    FData[AParams] := Result;
+    FRefCounts[AParams] := 1;
+  end
+  else
+  begin
+    FRefCounts[AParams] := FRefCounts[AParams] + 1;
+    AParams.Free;
+    AParams :=
+    // add function to get the pointer to the actual key object and use that to do stuff..
+  end;
 end;
 
 class function TParamResource<T, P>.Make: T;
-var
-  Params: P;
 begin
-  Params := P.Create;
-  CreateData(Result, Params);
-  Params.Free;
+  Result := Make(P.Create);
+end;
+
+class procedure TParamResource<T, P>.Release(AParams: P);
+var
+  RefCount: Integer;
+begin
+  RefCount := FRefCounts[AParams] - 1;
+  if RefCount = 0 then
+  begin
+    FData[AParams].Free;
+    FData.Del(AParams);
+    FRefCounts.Del(AParams);
+  end
+  else
+    FRefCounts[AParams] := RefCount;
+  AParams.Free;
+end;
+
+class procedure TParamResource<T, P>.Release;
+begin
+  Release(P.Create);
 end;
 
 { TResourceManager }
@@ -188,22 +269,24 @@ end;
 
 class destructor TResourceManager.Destroy;
 begin
-  FResourceClasses.Free;
+  FUnloadResourceClasses.Free;
 end;
 
 class procedure TResourceManager.Init;
 var
   ResourceClass: TResourceClass;
 begin
+  FUnloadResourceClasses := TGenericArray<TResourceClass>.Create;
   for ResourceClass in FResourceClasses do
     ResourceClass.Load;
+  FResourceClasses.Free;
 end;
 
 class procedure TResourceManager.Finalize;
 var
   ResourceClass: TResourceClass;
 begin
-  for ResourceClass in FResourceClasses do
+  for ResourceClass in FUnloadResourceClasses do
     ResourceClass.Unload;
 end;
 
@@ -212,86 +295,13 @@ begin
   FResourceClasses.Add(AResourceClass);
 end;
 
-// TODO: put this in different unit
+{ TShaderResource }
 
-{ TResModelShader }
-
-class procedure TResModelShader.CreateData(var AData: TShader);
-const
-  Attributes: array [0 .. 6] of AnsiString = (
-    'vpos',
-    'vtexcoord',
-    'vnormal',
-    'vtangent',
-    'vbitangent',
-    'vborderlow',
-    'vborderhigh'
-    );
+class function TShaderResource.CreateData: TShader;
 begin
-  AData := TShader.Create;
-  AData.LoadFromFile('Data/model');
-  AData.SetAttributeOrder(Attributes);
-end;
-
-class constructor TResModelShader.Create;
-begin
-  AddToResourceManager;
-end;
-
-{ TResTexturePage }
-
-class procedure TResTexturePage.CreateData(var AData: TTexturePage);
-begin
-  AData := TTexturePage.Create;
-  AData.UniformDefaults(TResModelShader.Data);
-  AData.AddTextureFromFile('Data/stone_bricks.png', 'stone_bricks');
-  AData.AddTextureFromFile('Data/grass_top.png', 'grass_top');
-  AData.AddTextureFromFile('Data/log_side.png', 'log_side');
-  AData.AddTextureFromFile('Data/iron.png', 'iron');
-  AData.AddTextureFromFile('Data/holed_ironplating.png', 'holed_ironplating');
-  AData.BuildPage(32);
-end;
-
-class constructor TResTexturePage.Create;
-begin
-  AddToResourceManager;
-end;
-
-{ TResCubeVAOParams }
-
-constructor TResCubeVAOParams.Create;
-begin
-  Size := 1;
-end;
-
-{ TResCubeVAO }
-
-class procedure TResCubeVAO.CreateData(var AData: TVAO; AParams: TResCubeVAOParams);
-var
-  Data: TData;
-  P: TPlane3;
-  T: TTexCoord2;
-begin
-  AData := TVAO.Create(TResModelShader.Data);
-  AData.Generate(6 * 6, buStaticDraw);
-  AData.Map(baWriteOnly);
-
-  for P in CubePlanes do
-  begin
-    Data.Border := TResTexturePage.Data.GetTexBounds('holed_ironplating', FRange2(0, 1));
-    Data.Normal := P.Normal;
-    Data.Tangent := P.DVS;
-    Data.Bitangent := P.DVT;
-    for T in QuadTexCoords do
-    begin
-      Data.Pos := P[T] * AParams.Size;
-      Data.TexCoord := Data.Border[T];
-      AData.AddVertex(Data);
-    end;
-    Data.Border := TResTexturePage.Data.HalfPixelInset(Data.Border);
-  end;
-
-  AData.Unmap;
+  Result := TShader.Create;
+  Result.LoadFromFile(GetShaderSource);
+  Result.SetAttributeOrder(GetAttributeOrder);
 end;
 
 end.

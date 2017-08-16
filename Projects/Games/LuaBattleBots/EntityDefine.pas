@@ -3,7 +3,7 @@ unit EntityDefine;
 interface
 
 uses
-  VAOManager, LuaHeader, Math, LuaConf, VectorGeometry, DebugConsoleDefine, IntegerMaths, SysUtils, ResourceManager,
+  VAOManager, LuaHeader, Math, LuaConf, VectorGeometry, DebugConsoleDefine, IntegerMaths, SysUtils, Resources,
   Lists, Camera;
 
 type
@@ -24,6 +24,7 @@ type
 
   protected
     class function GetSourceVAO: TVAO; virtual; abstract;
+    class procedure FreeSourceVAO; virtual; abstract;
     class function GetInitialHealth: Single; virtual; abstract;
     class function GetInitialName: AnsiString; virtual; abstract;
 
@@ -137,9 +138,11 @@ type
 
     function GetModule(ASide: TBasicDir3): TBotModule;
 
-    procedure registerLuaModulesTable();
+    procedure RegisterLuaModulesTable;
+
   protected
     class function GetSourceVAO: TVAO; override;
+    class procedure FreeSourceVAO; override;
     class function GetInitialHealth: Single; override;
     class function GetInitialName: AnsiString; override;
 
@@ -482,7 +485,7 @@ begin
   Result := FModules[ASide];
 end;
 
-procedure TBotCore.registerLuaModulesTable();
+procedure TBotCore.RegisterLuaModulesTable;
 var
   Name: AnsiString;
 begin
@@ -499,7 +502,14 @@ end;
 
 class function TBotCore.GetSourceVAO: TVAO;
 begin
-  Result := TResCubeVAO.Make;
+  FModelParams := TResCubeVAOParams.Create;
+  FModelParams.Texture := 'holed_ironplating';
+  Result := TResCubeVAO.Make(FModelParams);
+end;
+
+class procedure TBotCore.FreeSourceVAO;
+begin
+  Result := TResCubeVAO.Release(FModelParams);
 end;
 
 class function TBotCore.GetInitialHealth: Single;
@@ -522,11 +532,17 @@ end;
 destructor TBotCore.Destroy;
 var
   Side: TBasicDir3;
+  Params: TResCubeVAOParams;
 begin
+
   for Side := Low(TBasicDir3) to High(TBasicDir3) do
     if Modules[Side] <> nil then
       DetachModule(Side);
-  SourceVAO.Free;
+
+  Params := TResCubeVAOParams.Create;
+  Params.Texture := 'holed_ironplating';
+  TResCubeVAO.Release(Params);
+
   inherited;
 end;
 

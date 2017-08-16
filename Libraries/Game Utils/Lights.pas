@@ -1030,18 +1030,27 @@ begin
 end;
 
 procedure TLightSystem.SendDirectionalLightCount;
+var
+  LightCount: Integer;
 begin
-  UBO.SubData(TDirectionalLight.MajorOffset + SizeOf(Single) * 3, SizeOf(Integer), FDirectionalLights.Count);
+  LightCount := FDirectionalLights.Count;
+  UBO.SubData(TDirectionalLight.MajorOffset + SizeOf(Single) * 3, SizeOf(Integer), LightCount);
 end;
 
 procedure TLightSystem.SendPointLightCount;
+var
+  LightCount: Integer;
 begin
-  UBO.SubData(TPointLight.MajorOffset, SizeOf(Integer), FPointLights.Count);
+  LightCount := FPointLights.Count;
+  UBO.SubData(TPointLight.MajorOffset, SizeOf(Integer), LightCount);
 end;
 
 procedure TLightSystem.SendSpotLightCount;
+var
+  LightCount: Integer;
 begin
-  UBO.SubData(TSpotLight.MajorOffset, SizeOf(Integer), FSpotLights.Count);
+  LightCount := FSpotLights.Count;
+  UBO.SubData(TSpotLight.MajorOffset, SizeOf(Integer), LightCount);
 end;
 
 constructor TLightSystem.Create(AGLForm: TGLForm);

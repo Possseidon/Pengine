@@ -6,18 +6,9 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, OpenGLContext, Camera, Shaders, VAOManager, VectorGeometry, IntfBase,
   Matrix, Lists, TextureManager, Lights, ControlledCamera, GLEnums, IntegerMaths, Color, SkyDome, LuaHeader,
-  Game, EntityDefine, DebugConsoleDefine, InputHandler, ResourceManager, CustomModules;
+  Game, EntityDefine, DebugConsoleDefine, InputHandler, Resources, CustomModules, System.Win.ScktComp;
 
 type
-
-  TData = record
-    Pos: TVector3;
-    TexCoord: TTexCoord2;
-    Normal: TVector3;
-    Tangent: TVector3;
-    Bitangent: TVector3;
-    Border: TBounds2;
-  end;
 
   { TForm1 }
 
@@ -32,13 +23,11 @@ type
     FLightSystem: TLightSystem;
     FSun: TDirectionalLightShaded;
 
-    FSkyDomeShader: TShader;
     FSkyDome: TSkyDome;
 
     FTestBot: TBotCore;
 
     procedure InitCamera;
-    procedure InitSkyDomeShader;
     procedure InitFloorVAO;
     procedure InitLightSystem;
     procedure InitSkyDome;
@@ -67,7 +56,6 @@ procedure TfrmMain.Finalize;
 begin
   FGame.Free;
   FSkyDome.Free;
-  FSkyDomeShader.Free;
   FSun.Free;
   FLightSystem.Free;
   FCubeVAO.Free;
@@ -82,7 +70,6 @@ begin
   FPSLimit := 300;
 
   InitCamera;
-  InitSkyDomeShader;
   InitSkyDome;
   InitFloorVAO;
   InitLightSystem;
@@ -98,6 +85,9 @@ begin
   FCamera.Location.TurnAngle := -30;
   FCamera.PitchUpperLimit := -4.2;
   FCamera.PosLowerLimitY := 0.1;
+
+  FCamera.AddUniforms(TResModelShader.Data);
+  FCamera.AddUniforms(TResSkyDomeShader.Data);
   DebugWriteLine(' Done!');
 end;
 
@@ -109,7 +99,7 @@ const
     DVT: (X: 1; Y: 0; Z: 0)
     );
 var
-  Data: TData;
+  Data: TResModelShader.TData;
   T: TVector2;
   GridPos: TIntVector2;
   Grid: TIntBounds2;
@@ -164,25 +154,14 @@ end;
 procedure TfrmMain.InitSkyDome;
 begin
   DebugWrite('Initializing SkyDome...');
-  FSkyDome := TSkyDome.Create(Self, FCamera, FSkyDomeShader);
+
+  FSkyDome := TSkyDome.Create(Self, FCamera, TResSkyDomeShader);
+
   FSkyDome.AddStripe(TColorRGB.Create(0.7, 1.0, 0.9), -90);
   FSkyDome.AddStripe(TColorRGB.Create(0.4, 0.6, 0.9), 0);
   FSkyDome.AddStripe(TColorRGB.Create(0.1, 0.2, 0.9), +90);
 
   FCamera.AddRenderObject(FSkyDome);
-  DebugWriteLine(' Done!');
-end;
-
-procedure TfrmMain.InitSkyDomeShader;
-begin
-  DebugWrite('Initializing SkyDome Shader...');
-  // TODO: Resource
-  FSkyDomeShader := TShader.Create;
-  FSkyDomeShader.LoadFromFile('Data/skydome');
-  FSkyDomeShader.SetAttributeOrder(['vpos', 'vpitch']);
-
-  FCamera.AddUniforms(TResModelShader.Data);
-  FCamera.AddUniforms(FSkyDomeShader);
   DebugWriteLine(' Done!');
 end;
 
@@ -247,35 +226,35 @@ begin
 
   FGame.Update(DeltaTime);
 
-//  if Input.KeyDown('A') then
-//    FTestBot.Location.Slide(-DeltaTime);
-//  if Input.KeyDown('D') then
-//    FTestBot.Location.Slide(+DeltaTime);
-//
-//  if Input.KeyDown('S') then
-//    FTestBot.Location.Move(-DeltaTime);
-//  if Input.KeyDown('W') then
-//    FTestBot.Location.Move(+DeltaTime);
-//
-//  if Input.KeyDown(VK_SHIFT) then
-//    FTestBot.Location.Lift(-DeltaTime);
-//  if Input.KeyDown(VK_SPACE) then
-//    FTestBot.Location.Lift(+DeltaTime);
-//
-//  if Input.KeyDown(VK_LEFT) then
-//    FTestBot.Location.Turn(-DeltaTime * 30);
-//  if Input.KeyDown(VK_Right) then
-//    FTestBot.Location.Turn(+DeltaTime * 30);
-//
-//  if Input.KeyDown(VK_DOWN) then
-//    FTestBot.Location.Pitch(-DeltaTime * 30);
-//  if Input.KeyDown(VK_UP) then
-//    FTestBot.Location.Pitch(+DeltaTime * 30);
-//
-//  if Input.KeyDown('Q') then
-//    FTestBot.Location.Roll(-DeltaTime * 30);
-//  if Input.KeyDown('E') then
-//    FTestBot.Location.Roll(+DeltaTime * 30);
+  if Input.KeyDown('A') then
+    FTestBot.Location.Slide(-DeltaTime);
+  if Input.KeyDown('D') then
+    FTestBot.Location.Slide(+DeltaTime);
+
+  if Input.KeyDown('S') then
+    FTestBot.Location.Move(-DeltaTime);
+  if Input.KeyDown('W') then
+    FTestBot.Location.Move(+DeltaTime);
+
+  if Input.KeyDown(VK_SHIFT) then
+    FTestBot.Location.Lift(-DeltaTime);
+  if Input.KeyDown(VK_SPACE) then
+    FTestBot.Location.Lift(+DeltaTime);
+
+  if Input.KeyDown(VK_LEFT) then
+    FTestBot.Location.Turn(-DeltaTime * 30);
+  if Input.KeyDown(VK_Right) then
+    FTestBot.Location.Turn(+DeltaTime * 30);
+
+  if Input.KeyDown(VK_DOWN) then
+    FTestBot.Location.Pitch(-DeltaTime * 30);
+  if Input.KeyDown(VK_UP) then
+    FTestBot.Location.Pitch(+DeltaTime * 30);
+
+  if Input.KeyDown('Q') then
+    FTestBot.Location.Roll(-DeltaTime * 30);
+  if Input.KeyDown('E') then
+    FTestBot.Location.Roll(+DeltaTime * 30);
 
 end;
 

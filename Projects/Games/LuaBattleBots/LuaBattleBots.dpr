@@ -5,12 +5,14 @@ program LuaBattleBots;
 {$ENDIF}
 
 uses
-  Vcl.Forms, Windows,
+  Vcl.Forms,
+  Windows,
   Main in 'Main.pas' {frmMain},
   Game in 'Game.pas',
   CustomModules in 'CustomModules.pas',
   EntityDefine in 'EntityDefine.pas',
-  DebugConsoleDefine in 'DebugConsoleDefine.pas';
+  DebugConsoleDefine in 'DebugConsoleDefine.pas',
+  Resources in 'Resources.pas';
 
 {$R *.res}
 
@@ -33,7 +35,6 @@ begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TfrmMain, frmMain);
-
   DebugWriteLine('--- Everything initialized!');
 
   Application.Run;

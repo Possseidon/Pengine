@@ -187,6 +187,8 @@ type
     stCompute
     );
 
+  TShaderAttributeOrder = array of AnsiString;
+
   { TShader }
 
   TShader = class
@@ -220,7 +222,7 @@ type
 
     procedure Link;
 
-    procedure SetAttributeOrder(AAttributes: array of AnsiString);
+    procedure SetAttributeOrder(AAttributes: TShaderAttributeOrder);
 
     property Attributes: TShaderAttributesReader read FAttributesReader;
     property AttributeStride: Integer read FAttributeStride;
@@ -534,7 +536,7 @@ begin
   end;
 end;
 
-procedure TShader.SetAttributeOrder(AAttributes: array of AnsiString);
+procedure TShader.SetAttributeOrder(AAttributes: TShaderAttributeOrder);
 var
   Attribute: AnsiString;
   InterfaceVar: TShaderVariable;

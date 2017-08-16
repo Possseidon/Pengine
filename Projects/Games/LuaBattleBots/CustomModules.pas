@@ -3,12 +3,13 @@ unit CustomModules;
 interface
 
 uses
-  EntityDefine, VectorGeometry, VAOManager, ResourceManager;
+  EntityDefine, VectorGeometry, VAOManager, Resources;
 
 type
 
   TWheelModule = class(TBotModule)
   private
+    FModelParams: TResCubeVAOParams;
 
   protected
     class function GetSourceVAO: TVAO; override;
@@ -26,12 +27,11 @@ implementation
 { TWheelModule }
 
 class function TWheelModule.GetSourceVAO: TVAO;
-var
-  Params: TResCubeVAOParams;
 begin
-  Params := TResCubeVAOParams.Create;
-  Params.Size := 0.75;
-  Result := TResCubeVAO.Make(Params);
+  FModelParams := TResCubeVAOParams.Create;
+  FModelParams.Size := 0.75;
+  FModelParams.Texture := 'holed_ironplating';
+  Result := TResCubeVAO.Make(FModelParams);
 end;
 
 class function TWheelModule.GetInitialHealth: Single;
@@ -46,7 +46,7 @@ end;
 
 destructor TWheelModule.Destroy;
 begin
-  SourceVAO.Free;
+  TResCubeVAO.Release(FModelParams);
   inherited;
 end;
 
