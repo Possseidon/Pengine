@@ -30,11 +30,16 @@ type
   IIterable<T> = interface
   ['{86380564-F207-4B73-A40D-F10AD12B5B98}']
     function GetEnumerator: IIterator<T>;
+
+    function Count: Integer;
   end;
 
   TRefCountedIterable<T> = class(TInterfacedObject, IIterable<T>)
   public
     function GetEnumerator: IIterator<T>; virtual; abstract;
+
+    /// <remarks>WARNING! This function should DEFINITLY be overwritten!</remarks>
+    function Count: Integer; virtual;
   end;
 
   EGenericArrayEmpty = class(Exception)
@@ -171,7 +176,7 @@ type
 
     function Copy: TGenericArray<T>; virtual;
 
-    property Count: Integer read FCount;
+    function Count: Integer;
     function Empty: Boolean; inline;
 
     property Items[I: Integer]: T read GetItem write SetItem; default;
@@ -186,6 +191,8 @@ type
 
     procedure RangeCheckException(AIndex: Integer); inline;
     function RangeCheck(AIndex: Integer): Boolean; inline;
+
+    procedure Append(AItems: IIterable<T>);
 
   end;
 
@@ -273,15 +280,16 @@ type
 
   THashBase<TKey> = class abstract
   protected
-    FCount: Cardinal;
-    FInternalSize: Cardinal;
+    FCount: Integer;
+    FInternalSize: Integer;
 
-    function GetKeyHash(AKey: TKey): Cardinal; virtual; abstract;
+    function GetKeyHash(AKey: TKey): Integer; virtual; abstract;
     class function CantIndex({%H-}AKey: TKey): Boolean; virtual;
     class function KeysEqual(AKey1, AKey2: TKey): Boolean; virtual; abstract;
+    class function CopyKey(AKey: TKey): TKey; virtual;
 
   public
-    constructor Create(AInternalSize: Cardinal);
+    constructor Create(AInternalSize: Integer);
   end;
 
   { TMap }
@@ -322,15 +330,16 @@ type
     FData: array of THashEntry;
 
   protected
-    property InternalSize: Cardinal read FInternalSize;
+    property InternalSize: Integer read FInternalSize;
 
     function GetEntry(AKey: TKey): TData;
     procedure SetEntry(AKey: TKey; AValue: TData); virtual;
 
-    procedure FreeData({%H-}AData: TData); virtual;
+    procedure FreeKey(AKey: TKey); virtual;
+    procedure FreeData(AData: TData); virtual;
 
   public
-    constructor Create(AInternalSize: Cardinal = 193);
+    constructor Create(AInternalSize: Integer = 193);
     destructor Destroy; override;
 
     function Get(AKey: TKey; out AData: TData): Boolean;
@@ -363,7 +372,7 @@ type
     procedure DelAll;
 
     function GetEnumerator: TIterator;
-    property Count: Cardinal read FCount;
+    property Count: Integer read FCount;
 
   end;
 
@@ -371,14 +380,21 @@ type
 
   TClassMap<T> = class(TMap<TClass, T>)
   protected
-    function GetKeyHash(AKey: TClass): Cardinal; override;
+    function GetKeyHash(AKey: TClass): Integer; override;
     class function CantIndex(AKey: TClass): Boolean; override;
     class function KeysEqual(AKey1, AKey2: TClass): Boolean; override;
   end;
 
+  { TClassRefMap }
+
+  TClassRefMap<T: class> = class(TClassMap<T>)
+  public
+    function GetOrNil(AKey: TClass): T;
+  end;
+
   { TClassObjectMap }
 
-  TClassObjectMap<T: class> = class(TClassMap<T>)
+  TClassObjectMap<T: class> = class(TClassRefMap<T>)
   protected
     procedure FreeData(AData: T); override;
   end;
@@ -387,14 +403,45 @@ type
 
   TRefMap<TKey: class; TData> = class(TMap<TKey, TData>)
   protected
-    function GetKeyHash(AKey: TKey): Cardinal; override;
+    function GetKeyHash(AKey: TKey): Integer; override;
     class function CantIndex(AKey: TKey): Boolean; override;
     class function KeysEqual(AKey1, AKey2: TKey): Boolean; override;
+
+    function GetActualKey(AKey: TKey; out AActualKey: TKey): Boolean;
+    function ActualKey(AKey: TKey): TKey;
+  end;
+
+  { TRefRefMap<TKey, TData> }
+
+  TRefRefMap<TKey, TData: class> = class(TRefMap<TKey, TData>)
+  public
+    function GetOrNil(AKey: TKey): TData;
   end;
 
   { TRefObjectMap<TKey, TData> }
 
-  TRefObjectMap<TKey, TData: class> = class(TRefMap<TKey, TData>)
+  TRefObjectMap<TKey, TData: class> = class(TRefRefMap<TKey, TData>)
+  protected
+    procedure FreeData(AData: TData); override;
+  end;
+
+  { TObjectMap }
+
+  TObjectMap<TKey: class; TData> = class(TRefMap<TKey,TData>)
+  protected
+    procedure FreeKey(AKey: TKey); override;
+  end;
+
+  { TObjectRefMap }
+
+  TObjectRefMap<TKey, TData: class> = class(TObjectMap<TKey,TData>)
+  protected
+    function GetOrNil(AKey: TKey): TData;
+  end;
+
+  { TObjectObjectMap }
+
+  TObjectObjectMap<TKey, TData: class> = class(TObjectRefMap<TKey,TData>)
   protected
     procedure FreeData(AData: TData); override;
   end;
@@ -403,7 +450,7 @@ type
 
   TStringMap<TData> = class(TMap<string, TData>)
   protected
-    function GetKeyHash(AKey: string): Cardinal; override;
+    function GetKeyHash(AKey: string): Integer; override;
     class function CantIndex(AKey: string): Boolean; override;
     class function KeysEqual(AKey1, AKey2: string): Boolean; override;
   end;
@@ -412,7 +459,7 @@ type
 
   TAnsiStringMap<TData> = class(TMap<AnsiString, TData>)
   protected
-    function GetKeyHash(AKey: AnsiString): Cardinal; override;
+    function GetKeyHash(AKey: AnsiString): Integer; override;
     class function CantIndex(AKey: AnsiString): Boolean; override;
     class function KeysEqual(AKey1, AKey2: AnsiString): Boolean; override;
   end;
@@ -461,7 +508,7 @@ type
 
   private
     FTags: array of TEntry;
-    FCount: Cardinal;
+    FCount: Integer;
 
   protected
     function GetElement(S: T): Boolean; virtual;
@@ -470,14 +517,14 @@ type
     procedure FreeData(const {%H-}AData: T); virtual;
 
   public
-    constructor Create(AInternalSize: Cardinal = 193);
+    constructor Create(AInternalSize: Integer = 193);
     destructor Destroy; override;
 
     property Elements[S: T]: Boolean read GetElement write SetElement; default;
     procedure Add(S: T);
     procedure Del(S: T);
 
-    property Count: Cardinal read FCount;
+    property Count: Integer read FCount;
 
     procedure Clear;
 
@@ -490,7 +537,7 @@ type
 
   TRefSet<T: class> = class(TSet<T>)
   protected
-    function GetKeyHash(AKey: T): Cardinal; override;
+    function GetKeyHash(AKey: T): Integer; override;
     class function CantIndex(AKey: T): Boolean; override;
     class function KeysEqual(AKey1, AKey2: T): Boolean; override;
   end;
@@ -506,7 +553,7 @@ type
 
   TTags = class(TSet<string>)
   protected
-    function GetKeyHash(AKey: string): Cardinal; override;
+    function GetKeyHash(AKey: string): Integer; override;
     class function CantIndex(AKey: string): Boolean; override;
     class function KeysEqual(AKey1, AKey2: string): Boolean; override;
   end;
@@ -515,7 +562,7 @@ type
 
   TCardinalSet = class(TSet<Cardinal>)
   protected
-    function GetKeyHash(AKey: Cardinal): Cardinal; override;
+    function GetKeyHash(AKey: Cardinal): Integer; override;
     class function CantIndex({%H-}AKey: Cardinal): Boolean; override;
     class function KeysEqual(AKey1, AKey2: Cardinal): Boolean; override;
   end;
@@ -528,7 +575,6 @@ type
 
   TGenericArrayReader<T> = class(TInterfaceBase, IIterable<T>)
   private
-    function GetCount: Integer;
     function GetItem(I: Integer): T;
 
   protected
@@ -567,7 +613,7 @@ type
 
     function Copy: TGenericArray<T>; inline;
 
-    property Count: Integer read GetCount;
+    function Count: Integer;
     function Empty: Boolean; inline;
 
     property Items[I: Integer]: T read GetItem; default;
@@ -624,36 +670,57 @@ type
     function CopyAsInterfaceArray: TInterfaceArray<T>;
   end;
 
-function GetHash(AObject: TObject; ARange: Cardinal): Cardinal; overload; inline;
-function GetHash(AString: WideString; ARange: Cardinal): Cardinal; overload; inline;
-function GetHash(AString: AnsiString; ARange: Cardinal): Cardinal; overload; inline;
+function GetHash(AObject: TObject; ARange: Integer): Integer; overload; inline;
+function GetHash(AString: WideString; ARange: Integer): Integer; overload; inline;
+function GetHash(AString: AnsiString; ARange: Integer): Integer; overload; inline;
+function GetHash(ASingle: Single; ARange: Integer): Integer; overload; inline;
 
 implementation
 
-function GetHash(AObject: TObject; ARange: Cardinal): Cardinal;
+function GetHash(AObject: TObject; ARange: Integer): Integer;
 var
-  I: NativeUInt;
+  I: Integer;
 begin
-  I := NativeUInt(Pointer(AObject));
-  Result := (I xor Cardinal(I shl 3) xor (I shr 7)) mod ARange;
+{$IFDEF CPUX64}
+  I := Integer(Pointer(AObject)) xor Integer(NativeUInt(Pointer(AObject)) shr 32);
+{$ELSE}
+  I := Integer(Pointer(AObject));
+{$ENDIF}
+  Result := (I xor Integer(I shl 3) xor (I shr 7)) mod ARange;
 end;
 
-function GetHash(AString: WideString; ARange: Cardinal): Cardinal;
+function GetHash(AString: WideString; ARange: Integer): Integer;
 begin
   if AString = '' then
     Exit(0);
-  Result := Cardinal(Length(AString) *
+  Result := Integer(Length(AString) *
     (Byte(AString[1]) or Byte(AString[(Length(AString) + 1) div 2]) shl 8 or Byte(AString[Length(AString)]) shl 16));
   Result := Result mod ARange;
 end;
 
-function GetHash(AString: AnsiString; ARange: Cardinal): Cardinal;
+function GetHash(AString: AnsiString; ARange: Integer): Integer;
 begin
   if AString = '' then
     Exit(0);
-  Result := Cardinal(Length(AString) *
+  Result := Integer(Length(AString) *
     (Byte(AString[1]) or Byte(AString[(Length(AString) + 1) div 2]) shl 8 or Byte(AString[Length(AString)]) shl 16));
   Result := Result mod ARange;
+end;
+
+function GetHash(ASingle: Single; ARange: Integer): Integer;
+begin
+  Result := PInteger(@ASingle)^ mod ARange;
+end;
+
+{ TRefCountedIterable<T> }
+
+function TRefCountedIterable<T>.Count: Integer;
+var
+  Element: T;
+begin
+  Result := 0;
+  for Element in Self do
+    Inc(Result);
 end;
 
 { TObjectStack<T>.TItem }
@@ -683,7 +750,7 @@ end;
 procedure TMap<TKey, TData>.SetEntry(AKey: TKey; AValue: TData);
 var
   Entry: THashEntry;
-  Hash: Cardinal;
+  Hash: Integer;
 begin
   if CantIndex(AKey) then
     raise Exception.Create('Invalid HashTable-Index');
@@ -693,7 +760,7 @@ begin
   begin
     // create new base entry
     FData[Hash] := THashEntry.Create;
-    FData[Hash].Key := AKey;
+    FData[Hash].Key := CopyKey(AKey);
     FData[Hash].Data := AValue;
     Inc(FCount);
     Exit;
@@ -706,7 +773,7 @@ begin
     if Entry.Next = nil then // not found > add entry
     begin
       Entry.Next := THashEntry.Create;
-      Entry.Next.Key := AKey;
+      Entry.Next.Key := CopyKey(AKey);
       Entry.Next.Data := AValue;
       Inc(FCount);
       Exit;
@@ -719,12 +786,17 @@ begin
   Entry.Data := AValue;
 end;
 
+procedure TMap<TKey, TData>.FreeKey(AKey: TKey);
+begin
+  // nothing by default
+end;
+
 procedure TMap<TKey, TData>.FreeData(AData: TData);
 begin
   // nothing by default
 end;
 
-constructor TMap<TKey, TData>.Create(AInternalSize: Cardinal);
+constructor TMap<TKey, TData>.Create(AInternalSize: Integer);
 begin
   inherited Create(AInternalSize);
   SetLength(FData, FInternalSize);
@@ -739,7 +811,7 @@ end;
 function TMap<TKey, TData>.Get(AKey: TKey; out AData: TData): Boolean;
 var
   Entry: THashEntry;
-  Hash: Cardinal;
+  Hash: Integer;
 begin
   if CantIndex(AKey) then
     raise Exception.Create('Invalid HashTable-Index');
@@ -769,7 +841,7 @@ end;
 
 procedure TMap<TKey, TData>.Del(AKey: TKey);
 var
-  Hash: Cardinal;
+  Hash: Integer;
   Entry, PrevEntry: THashEntry;
 begin
   Hash := GetKeyHash(AKey);
@@ -787,6 +859,7 @@ begin
     Entry := Entry.Next;
   end;
 
+  FreeKey(Entry.Key);
   FreeData(Entry.Data);
 
   if PrevEntry <> nil then
@@ -800,7 +873,7 @@ end;
 
 function TMap<TKey, TData>.NextKeyCheck(AKey: TKey; out AOut: TKey): Boolean;
 var
-  Hash: Cardinal;
+  Hash: Integer;
   Current: THashEntry;
 begin
   Hash := GetKeyHash(AKey);
@@ -830,7 +903,7 @@ end;
 
 function TMap<TKey, TData>.PrevKeyCheck(AKey: TKey; out AOut: TKey): Boolean;
 var
-  Hash: Cardinal;
+  Hash: Integer;
   Current: THashEntry;
 begin
   Hash := GetKeyHash(AKey);
@@ -941,7 +1014,7 @@ end;
 
 function TMap<TKey, TData>.LastKeyCheck(out AOut: TKey): Boolean;
 var
-  I: Cardinal;
+  I: Integer;
   Current: THashEntry;
 begin
   if Count = 0 then
@@ -980,6 +1053,7 @@ begin
     while FData[I] <> nil do
     begin
       Next := FData[I].Next;
+      FreeKey(FData[I].Key);
       FreeData(FData[I].Data);
       FData[I].Free;
       FData[I] := Next;
@@ -1014,7 +1088,7 @@ begin
     // Move to next list
     repeat
       FIndex := FIndex + 1;
-      if Cardinal(FIndex) = FList.FInternalSize then
+      if Integer(FIndex) = FList.FInternalSize then
         Exit(False);
       FEntry := FList.FData[FIndex];
     until (FEntry <> nil);
@@ -1028,7 +1102,7 @@ end;
 
 { TStringHashTable<TData> }
 
-function TStringMap<TData>.GetKeyHash(AKey: string): Cardinal;
+function TStringMap<TData>.GetKeyHash(AKey: string): Integer;
 begin
   Result := GetHash(AKey, InternalSize);
 end;
@@ -1052,7 +1126,7 @@ end;
 
 { THashBase<TKey> }
 
-constructor THashBase<TKey>.Create(AInternalSize: Cardinal);
+constructor THashBase<TKey>.Create(AInternalSize: Integer);
 begin
   if AInternalSize = 0 then
     raise Exception.Create('Internal Size for HashTable must be at least 1');
@@ -1064,11 +1138,46 @@ begin
   Result := False;
 end;
 
+class function THashBase<TKey>.CopyKey(AKey: TKey): TKey;
+begin
+  Result := AKey;
+end;
+
 { TRefMap<TKey, TData> }
 
-function TRefMap<TKey, TData>.GetKeyHash(AKey: TKey): Cardinal;
+function TRefMap<TKey, TData>.GetActualKey(AKey: TKey; out AActualKey: TKey): Boolean;
+var
+  Entry: THashEntry;
+  Hash: Integer;
+begin
+  if CantIndex(AKey) then
+    raise Exception.Create('Invalid HashTable-Index');
+
+  Hash := GetKeyHash(AKey);
+  if FData[Hash] = nil then // base entry doesn't exist > not found
+    Exit(False);
+
+  Entry := FData[Hash];
+  while not KeysEqual(Entry.Key, AKey) do
+  begin
+    if Entry.Next = nil then // end reached > not found
+      Exit(False);
+    Entry := Entry.Next;
+  end;
+  // found
+  AActualKey := Entry.Key;
+  Result := True;
+end;
+
+function TRefMap<TKey, TData>.GetKeyHash(AKey: TKey): Integer;
 begin
   Result := GetHash(TObject(AKey), FInternalSize);
+end;
+
+function TRefMap<TKey, TData>.ActualKey(AKey: TKey): TKey;
+begin
+  if not GetActualKey(AKey, Result) then
+    raise Exception.Create('HashTable-Key not found');
 end;
 
 class function TRefMap<TKey, TData>.CantIndex(AKey: TKey): Boolean;
@@ -1081,9 +1190,17 @@ begin
   Result := AKey1 = AKey2;
 end;
 
+{ TRefRefMap<TKey, TData> }
+
+function TRefRefMap<TKey, TData>.GetOrNil(AKey: TKey): TData;
+begin
+  if not Get(AKey, Result) then
+    Result := nil;
+end;
+
 { TRefSet<T> }
 
-function TRefSet<T>.GetKeyHash(AKey: T): Cardinal;
+function TRefSet<T>.GetKeyHash(AKey: T): Integer;
 begin
   Result := GetHash(TObject(AKey), FInternalSize);
 end;
@@ -1442,6 +1559,11 @@ begin
     Result.Add(FItems[I]);
 end;
 
+function TGenericArray<T>.Count: Integer;
+begin
+  Result := FCount;
+end;
+
 function TGenericArray<T>.Empty: Boolean;
 begin
   Result := Count = 0;
@@ -1487,9 +1609,24 @@ begin
   Result := (AIndex >= 0) and (AIndex < Count);
 end;
 
+procedure TGenericArray<T>.Append(AItems: IIterable<T>);
+var
+  AddCount: Integer;
+  Item: T;
+begin
+  AddCount := AItems.Count;
+  if Count + AddCount > Length(FItems) then
+    SetLength(FItems, FSizeSteps * Ceil((Count + AddCount) / FSizeSteps));
+  for Item in AItems do
+  begin
+    FItems[FCount] := Item;
+    Inc(FCount);
+  end;
+end;
+
 { TClassMap }
 
-function TClassMap<T>.GetKeyHash(AKey: TClass): Cardinal;
+function TClassMap<T>.GetKeyHash(AKey: TClass): Integer;
 begin
   Result := GetHash(TObject(AKey), FInternalSize);
 end;
@@ -1501,7 +1638,15 @@ end;
 
 class function TClassMap<T>.KeysEqual(AKey1, AKey2: TClass): Boolean;
 begin
-  Result := Pointer(AKey1) = Pointer(AKey2);
+  Result := AKey1 = AKey2;
+end;
+
+{ TClassRefMap }
+
+function TClassRefMap<T>.GetOrNil(AKey: TClass): T;
+begin
+  if not Get(AKey, Result) then
+    Result := nil;
 end;
 
 { TClassObjectMap }
@@ -1513,9 +1658,9 @@ end;
 
 { TCardinalSet }
 
-function TCardinalSet.GetKeyHash(AKey: Cardinal): Cardinal;
+function TCardinalSet.GetKeyHash(AKey: Cardinal): Integer;
 begin
-  Result := AKey mod FInternalSize;
+  Result := Integer(AKey) mod FInternalSize;
 end;
 
 class function TCardinalSet.CantIndex(AKey: Cardinal): Boolean;
@@ -1580,7 +1725,7 @@ end;
 
 { TTags }
 
-function TTags.GetKeyHash(AKey: string): Cardinal;
+function TTags.GetKeyHash(AKey: string): Integer;
 begin
   Result := GetHash(AKey, FInternalSize);
 end;
@@ -1616,7 +1761,7 @@ begin
     // Move to next list
     repeat
       FIndex := FIndex + 1;
-      if Cardinal(FIndex) = FList.FInternalSize then
+      if FIndex = FList.FInternalSize then
         Exit(False);
       FEntry := FList.FTags[FIndex];
     until (FEntry <> nil);
@@ -1649,7 +1794,7 @@ end;
 
 procedure TSet<T>.SetElement(S: T; AValue: Boolean);
 var
-  Hash: Cardinal;
+  Hash: Integer;
   Entry, EntryToDelete: TEntry;
 begin
   if CantIndex(S) then
@@ -1720,7 +1865,7 @@ begin
   // might not do anything depending on generic Data Type
 end;
 
-constructor TSet<T>.Create(AInternalSize: Cardinal);
+constructor TSet<T>.Create(AInternalSize: Integer);
 begin
   inherited Create(AInternalSize);
   SetLength(FTags, FInternalSize);
@@ -1912,6 +2057,13 @@ begin
   AData.Free;
 end;
 
+{ TObjectMap<TKey, TData> }
+
+procedure TObjectMap<TKey, TData>.FreeKey(AKey: TKey);
+begin
+  AKey.Free;
+end;
+
 { TAnsiStringMap<TData> }
 
 class function TAnsiStringMap<TData>.CantIndex(AKey: AnsiString): Boolean;
@@ -1919,7 +2071,7 @@ begin
   Result := AKey = '';
 end;
 
-function TAnsiStringMap<TData>.GetKeyHash(AKey: AnsiString): Cardinal;
+function TAnsiStringMap<TData>.GetKeyHash(AKey: AnsiString): Integer;
 begin
   Result := GetHash(AKey, FInternalSize);
 end;
@@ -2163,7 +2315,7 @@ begin
   Result := FGenericArray.First;
 end;
 
-function TGenericArrayReader<T>.GetCount: Integer;
+function TGenericArrayReader<T>.Count: Integer;
 begin
   Result := FGenericArray.Count;
 end;
@@ -2287,6 +2439,21 @@ end;
 { TRefObjectMap<TKey, TData> }
 
 procedure TRefObjectMap<TKey, TData>.FreeData(AData: TData);
+begin
+  AData.Free;
+end;
+
+{ TObjectRefMap<TKey, TData> }
+
+function TObjectRefMap<TKey, TData>.GetOrNil(AKey: TKey): TData;
+begin
+  if not Get(AKey, Result) then
+    Result := nil;
+end;
+
+{ TObjectObjectMap<TKey, TData> }
+
+procedure TObjectObjectMap<TKey, TData>.FreeData(AData: TData);
 begin
   AData.Free;
 end;

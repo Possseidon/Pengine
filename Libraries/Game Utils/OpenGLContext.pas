@@ -814,6 +814,7 @@ begin
 
   try
     TResourceManager.Init;
+    GLErrorMessage;
     Init;
     GLErrorMessage;
     Start;

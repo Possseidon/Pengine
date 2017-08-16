@@ -3,7 +3,8 @@ unit SkyDome;
 interface
 
 uses
-  VAOManager, Lists, Color, Shaders, SysUtils, GLEnums, VectorGeometry, UBOManager, Camera, OpenGLContext;
+  VAOManager, Lists, Color, Shaders, SysUtils, GLEnums, VectorGeometry, UBOManager, Camera, OpenGLContext,
+  ResourceManager;
 
 type
 
@@ -29,18 +30,25 @@ type
     property Color: TColorRGB read FColor;
   end;
 
+  { TSkyDomeShaderBase }
+
+  TSkyDomeShaderBase = class(TShaderResource)
+  public type
+
+    TData = record
+      Pos: TVector3;
+    end;
+
+  protected
+    class function GetAttributeOrder: TShaderAttributeOrder; override;
+
+  end;
+
+  TSkyDomeShaderClass = class of TSkyDomeShaderBase;
 
   { TSkyDome }
 
   TSkyDome = class (TVAO)
-  private
-    type
-
-      TData = record
-        Pos: TVector3;
-        Pitch: Single;
-      end;
-
   private
     FUBO: TUBO;
     FGLForm: TGLForm;
@@ -54,7 +62,7 @@ type
     procedure AfterRender; override;
 
   public
-    constructor Create(AGLForm: TGLForm; ACamera: TCamera; AShader: TShader);
+    constructor Create(AGLForm: TGLForm; ACamera: TCamera; AShaderClass: TSkyDomeShaderClass);
     destructor Destroy; override;
 
     procedure AddStripe(AColor: TColorRGB; AAngle: Single);
@@ -82,12 +90,22 @@ var
   Data: TStripeData;
 begin
   Data.Color := FColor;
-  Data.Pitch := FAngle;
+  Data.Pitch := (FAngle + 90) / 180 * Pi;
   FUBO.SubData(SizeOf(TStripeData) * FIndex, SizeOf(TStripeData), Data);
+end;
+
+{ TSkyDomeShaderBase }
+
+class function TSkyDomeShaderBase.GetAttributeOrder: TShaderAttributeOrder;
+begin
+  Result := TShaderAttributeOrder.Create(
+    'vpos'
+    );
 end;
 
 { TSkyDome }
 
+{
 procedure TSkyDome.BuildVAO;
 const
   PitchSteps = 30; // min 1
@@ -95,7 +113,7 @@ const
 
   procedure AddData(T, P: Single);
   var
-    Data: TData;
+    Data: TSkyDomeShaderBase.TData;
   begin
     P := P * 90 / PitchSteps;
     T := T * 360 / TurnSteps;
@@ -123,6 +141,28 @@ begin
 
   Unmap;
 end;
+}
+
+procedure TSkyDome.BuildVAO;
+var
+  Data: TSkyDomeShaderBase.TData;
+  P: TPlane3;
+  T: TTexCoord2;
+begin
+  Generate(6 * 6, buStaticDraw);
+  Map(baWriteOnly);
+
+  for P in CubePlanes do
+  begin
+    for T in QuadTexCoords do
+    begin
+      Data.Pos := P[T.YX] * 2 - 1;
+      AddVertex(Data);
+    end;
+  end;
+
+  Unmap;
+end;
 
 procedure TSkyDome.BeforeRender;
 begin
@@ -138,11 +178,11 @@ begin
   inherited AfterRender;
 end;
 
-constructor TSkyDome.Create(AGLForm: TGLForm; ACamera: TCamera; AShader: TShader);
+constructor TSkyDome.Create(AGLForm: TGLForm; ACamera: TCamera; AShaderClass: TSkyDomeShaderClass);
 const
   Zero: Integer = 0;
 begin
-  inherited Create(AShader);
+  inherited Create(AShaderClass.Data);
 
   FCamera := ACamera;
 
@@ -151,7 +191,7 @@ begin
   FUBO := TUBO.Create;
   FUBO.Generate(UBOSize, buStaticDraw);
   FUBO.SubData(SizeOf(TStripeData) * MaxStripes, SizeOf(Integer), Zero);
-  FUBO.BindToShader(AShader, 'stripedata');
+  FUBO.BindToShader(Shader, 'stripedata');
 
   FStripes := TObjectArray<TStripe>.Create;
 
@@ -166,11 +206,14 @@ begin
 end;
 
 procedure TSkyDome.AddStripe(AColor: TColorRGB; AAngle: Single);
+var
+  StripeCount: Integer;
 begin
   if not FStripes.Empty and (AAngle <= TStripe(FStripes.Last).Angle) then
     raise Exception.Create('Angles of SkyDome Stripes must be ascending!');
   FStripes.Add(TStripe.Create(AColor, AAngle, FStripes.Count, FUBO));
-  FUBO.SubData(SizeOf(TStripeData) * MaxStripes, SizeOf(Integer), FStripes.Count);
+  StripeCount := FStripes.Count;
+  FUBO.SubData(SizeOf(TStripeData) * MaxStripes, SizeOf(Integer), StripeCount);
 end;
 
 end.
