@@ -47,6 +47,9 @@ type
   { TResourceParameter }
 
   TResourceParameter = class abstract
+  private
+    FRefCount: Integer;
+
   protected
     function EqualTo(AOther: TResourceParameter): Boolean; virtual; abstract;
     function GetHash(ARange: Integer): Integer; virtual; abstract;
@@ -56,16 +59,11 @@ type
 
   end;
 
-  TResourceParameterRefMap<T> = class(TMap<TResourceParameter, T>)
+  TResourceParameterMap<T: class> = class(TObjectObjectMap<TResourceParameter, T>)
   protected
     function GetKeyHash(AKey: TResourceParameter): Integer; override;
     class function CantIndex(AKey: TResourceParameter): Boolean; override;
     class function KeysEqual(AKey1, AKey2: TResourceParameter): Boolean; override;
-  end;
-
-  TResourceParameterMap<T> = class(TResourceParameterRefMap<T>)
-  protected
-    procedure FreeKey(AKey: TResourceParameter); override;
   end;
 
   { TParamResoruce<T> }
@@ -81,7 +79,6 @@ type
   TParamResource<T: class; P: TResourceParameter> = class abstract
   private class var
     FData: TResourceParameterMap<T>;
-    FRefCounts: TResourceParameterRefMap<Integer>;
 
   protected
     class procedure CreateData(var AData: T; AParam: P); virtual; abstract;
@@ -181,26 +178,19 @@ end;
 
 { TResourceParameterRefMap }
 
-function TResourceParameterRefMap<T>.GetKeyHash(AKey: TResourceParameter): Integer;
+function TResourceParameterMap<T>.GetKeyHash(AKey: TResourceParameter): Integer;
 begin
   Result := AKey.GetHash(InternalSize);
 end;
 
-class function TResourceParameterRefMap<T>.CantIndex(AKey: TResourceParameter): Boolean;
+class function TResourceParameterMap<T>.CantIndex(AKey: TResourceParameter): Boolean;
 begin
   Result := AKey = nil;
 end;
 
-class function TResourceParameterRefMap<T>.KeysEqual(AKey1, AKey2: TResourceParameter): Boolean;
+class function TResourceParameterMap<T>.KeysEqual(AKey1, AKey2: TResourceParameter): Boolean;
 begin
   Result := AKey1.EqualTo(AKey2);
-end;
-
-{ TResourceParameterMap }
-
-procedure TResourceParameterMap<T>.FreeKey(AKey: TResourceParameter);
-begin
-  AKey.Free;
 end;
 
 { TParamResource<T, P> }
@@ -208,51 +198,50 @@ end;
 class constructor TParamResource<T, P>.Create;
 begin
   FData := TResourceParameterMap<T>.Create;
-  FRefCounts := TResourceParameterRefMap<Integer>.Create;
 end;
 
 class destructor TParamResource<T, P>.Destroy;
 begin
-  FRefCounts.Free;
   FData.Free;
 end;
 
-class function TParamResource<T, P>.Make(var AParams: P): T;
+class function TParamResource<T, P>.Make(AParams: P): T;
+var
+  ActualKey: TResourceParameter;
 begin
-  if not FData.Get(AParams, Result) then
+  if FData.Get(AParams, Result) then
   begin
-    CreateData(Result, AParams);
-    FData[AParams] := Result;
-    FRefCounts[AParams] := 1;
+    ActualKey := FData.ActualKey(AParams);
+    Inc(ActualKey.FRefCount);
+    if ActualKey <> TResourceParameter(AParams) then
+      AParams.Free;
   end
   else
   begin
-    FRefCounts[AParams] := FRefCounts[AParams] + 1;
-    AParams.Free;
-    AParams :=
-    // add function to get the pointer to the actual key object and use that to do stuff..
+    CreateData(Result, AParams);
+    FData[AParams] := Result;
+    Inc(AParams.FRefCount)
   end;
 end;
 
 class function TParamResource<T, P>.Make: T;
+var
+  Params: P;
 begin
-  Result := Make(P.Create);
+  Params := P.Create;
+  Make(Params);
 end;
 
 class procedure TParamResource<T, P>.Release(AParams: P);
 var
-  RefCount: Integer;
+  ActualKey: TResourceParameter;
 begin
-  RefCount := FRefCounts[AParams] - 1;
-  if RefCount = 0 then
-  begin
-    FData[AParams].Free;
-    FData.Del(AParams);
-    FRefCounts.Del(AParams);
-  end
-  else
-    FRefCounts[AParams] := RefCount;
-  AParams.Free;
+  ActualKey := FData.ActualKey(AParams);
+  Dec(ActualKey.FRefCount);
+  if ActualKey <> TResourceParameter(AParams) then
+    AParams.Free;
+  if ActualKey.FRefCount = 0 then
+    FData.Del(ActualKey);
 end;
 
 class procedure TParamResource<T, P>.Release;

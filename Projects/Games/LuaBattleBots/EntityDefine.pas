@@ -19,7 +19,7 @@ type
     FDead: Boolean;
 
     FName: AnsiString;
-    
+
     procedure SetHealth(Value: Single);
 
   protected
@@ -140,6 +140,9 @@ type
 
     procedure RegisterLuaModulesTable;
 
+    class function GetModelParams: TResCubeVAOParams;
+    procedure UpdateModules(ADeltaTime: Single);
+
   protected
     class function GetSourceVAO: TVAO; override;
     class procedure FreeSourceVAO; override;
@@ -147,6 +150,7 @@ type
     class function GetInitialName: AnsiString; override;
 
   public
+
     constructor Create;
     destructor Destroy; override;
 
@@ -280,6 +284,7 @@ end;
 
 destructor TEntity.Destroy;
 begin
+  FreeSourceVAO;
   inherited;
 end;
 
@@ -336,7 +341,7 @@ end;
 
 destructor TLuaEntity.Destroy;
 begin
-  FLua.Close; 
+  FLua.Close;
   inherited;
 end;
 
@@ -480,6 +485,12 @@ end;
 
 { TBotCore }
 
+class function TBotCore.GetModelParams: TResCubeVAOParams;
+begin
+  Result := TResCubeVAOParams.Create;
+  Result.Texture := 'holed_ironplating';
+end;
+
 function TBotCore.GetModule(ASide: TBasicDir3): TBotModule;
 begin
   Result := FModules[ASide];
@@ -502,14 +513,12 @@ end;
 
 class function TBotCore.GetSourceVAO: TVAO;
 begin
-  FModelParams := TResCubeVAOParams.Create;
-  FModelParams.Texture := 'holed_ironplating';
-  Result := TResCubeVAO.Make(FModelParams);
+  Result := TResCubeVAO.Make(GetModelParams);
 end;
 
 class procedure TBotCore.FreeSourceVAO;
 begin
-  Result := TResCubeVAO.Release(FModelParams);
+  TResCubeVAO.Release(GetModelParams);
 end;
 
 class function TBotCore.GetInitialHealth: Single;
@@ -526,39 +535,25 @@ constructor TBotCore.Create;
 begin
   inherited Create;
 
-  registerLuaModulesTable;
+  RegisterLuaModulesTable;
 end;
 
 destructor TBotCore.Destroy;
 var
   Side: TBasicDir3;
-  Params: TResCubeVAOParams;
 begin
 
   for Side := Low(TBasicDir3) to High(TBasicDir3) do
     if Modules[Side] <> nil then
       DetachModule(Side);
 
-  Params := TResCubeVAOParams.Create;
-  Params.Texture := 'holed_ironplating';
-  TResCubeVAO.Release(Params);
-
   inherited;
 end;
 
 procedure TBotCore.Update(ADeltaTime: Single);
-var
-  Module: TBotModule;
 begin
   inherited;
-  // Update Core
-
-  // TODO: Update Modules extract to procedure, not-starter-edition has refactoring... xD
-  for Module in FModules do
-  begin
-    if Module <> nil then
-      Module.Update(ADeltaTime);
-  end;
+  UpdateModules(ADeltaTime);
 end;
 
 procedure TBotCore.UpdateLua;
@@ -583,6 +578,17 @@ end;
 function TBotCore.RenderableChildren: IIterable<IRenderable>;
 begin
   Result := TRenderableIterable.Create(Self);
+end;
+
+procedure TBotCore.UpdateModules(ADeltaTime: Single);
+var
+  Module: TBotModule;
+begin
+  for Module in FModules do
+  begin
+    if Module <> nil then
+      Module.Update(ADeltaTime);
+  end;
 end;
 
 end.

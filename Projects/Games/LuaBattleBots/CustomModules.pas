@@ -9,16 +9,16 @@ type
 
   TWheelModule = class(TBotModule)
   private
-    FModelParams: TResCubeVAOParams;
+    class function GetModelParams: TResCubeVAOParams;
 
   protected
     class function GetSourceVAO: TVAO; override;
+    class procedure FreeSourceVAO; override;
     class function GetInitialHealth: Single; override;
     class function GetInitialName: AnsiString; override;
 
   public
     constructor Create(AParent: TBotCore; ASide: TBasicDir3); override;
-    destructor Destroy; override;
 
   end;
 
@@ -28,10 +28,7 @@ implementation
 
 class function TWheelModule.GetSourceVAO: TVAO;
 begin
-  FModelParams := TResCubeVAOParams.Create;
-  FModelParams.Size := 0.75;
-  FModelParams.Texture := 'holed_ironplating';
-  Result := TResCubeVAO.Make(FModelParams);
+  Result := TResCubeVAO.Make(GetModelParams);
 end;
 
 class function TWheelModule.GetInitialHealth: Single;
@@ -44,10 +41,16 @@ begin
   Result := 'Wheel-Module';
 end;
 
-destructor TWheelModule.Destroy;
+class function TWheelModule.GetModelParams: TResCubeVAOParams;
 begin
-  TResCubeVAO.Release(FModelParams);
-  inherited;
+  Result := TResCubeVAOParams.Create;
+  Result.Size := 0.75;
+  Result.Texture := 'holed_ironplating';
+end;
+
+class procedure TWheelModule.FreeSourceVAO;
+begin
+  TResCubeVAO.Release(GetModelParams);
 end;
 
 constructor TWheelModule.Create(AParent: TBotCore; ASide: TBasicDir3);

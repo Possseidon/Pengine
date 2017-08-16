@@ -406,6 +406,9 @@ type
     function GetKeyHash(AKey: TKey): Integer; override;
     class function CantIndex(AKey: TKey): Boolean; override;
     class function KeysEqual(AKey1, AKey2: TKey): Boolean; override;
+
+    function GetActualKey(AKey: TKey; out AActualKey: TKey): Boolean;
+    function ActualKey(AKey: TKey): TKey;
   end;
 
   { TRefRefMap<TKey, TData> }
@@ -418,6 +421,27 @@ type
   { TRefObjectMap<TKey, TData> }
 
   TRefObjectMap<TKey, TData: class> = class(TRefRefMap<TKey, TData>)
+  protected
+    procedure FreeData(AData: TData); override;
+  end;
+
+  { TObjectMap }
+
+  TObjectMap<TKey: class; TData> = class(TRefMap<TKey,TData>)
+  protected
+    procedure FreeKey(AKey: TKey); override;
+  end;
+
+  { TObjectRefMap }
+
+  TObjectRefMap<TKey, TData: class> = class(TObjectMap<TKey,TData>)
+  protected
+    function GetOrNil(AKey: TKey): TData;
+  end;
+
+  { TObjectObjectMap }
+
+  TObjectObjectMap<TKey, TData: class> = class(TObjectRefMap<TKey,TData>)
   protected
     procedure FreeData(AData: TData); override;
   end;
@@ -452,13 +476,6 @@ type
   TAnsiStringObjectMap<TData: class> = class(TAnsiStringMap<TData>)
   protected
     procedure FreeData(AData: TData); override;
-  end;
-
-  { TObjectMap }
-
-  TObjectMap<TKey: class; TData> = class(TRefMap<TKey,TData>)
-  protected
-    procedure FreeKey(AKey: TKey); override;
   end;
 
   { TSet<T> }
@@ -1128,9 +1145,39 @@ end;
 
 { TRefMap<TKey, TData> }
 
+function TRefMap<TKey, TData>.GetActualKey(AKey: TKey; out AActualKey: TKey): Boolean;
+var
+  Entry: THashEntry;
+  Hash: Integer;
+begin
+  if CantIndex(AKey) then
+    raise Exception.Create('Invalid HashTable-Index');
+
+  Hash := GetKeyHash(AKey);
+  if FData[Hash] = nil then // base entry doesn't exist > not found
+    Exit(False);
+
+  Entry := FData[Hash];
+  while not KeysEqual(Entry.Key, AKey) do
+  begin
+    if Entry.Next = nil then // end reached > not found
+      Exit(False);
+    Entry := Entry.Next;
+  end;
+  // found
+  AActualKey := Entry.Key;
+  Result := True;
+end;
+
 function TRefMap<TKey, TData>.GetKeyHash(AKey: TKey): Integer;
 begin
   Result := GetHash(TObject(AKey), FInternalSize);
+end;
+
+function TRefMap<TKey, TData>.ActualKey(AKey: TKey): TKey;
+begin
+  if not GetActualKey(AKey, Result) then
+    raise Exception.Create('HashTable-Key not found');
 end;
 
 class function TRefMap<TKey, TData>.CantIndex(AKey: TKey): Boolean;
@@ -2392,6 +2439,21 @@ end;
 { TRefObjectMap<TKey, TData> }
 
 procedure TRefObjectMap<TKey, TData>.FreeData(AData: TData);
+begin
+  AData.Free;
+end;
+
+{ TObjectRefMap<TKey, TData> }
+
+function TObjectRefMap<TKey, TData>.GetOrNil(AKey: TKey): TData;
+begin
+  if not Get(AKey, Result) then
+    Result := nil;
+end;
+
+{ TObjectObjectMap<TKey, TData> }
+
+procedure TObjectObjectMap<TKey, TData>.FreeData(AData: TData);
 begin
   AData.Free;
 end;

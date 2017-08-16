@@ -227,14 +227,14 @@ begin
   FGame.Update(DeltaTime);
 
   if Input.KeyDown('A') then
-    FTestBot.Location.Slide(-DeltaTime);
+    FTestBot.Location.Slide(-DeltaTime * 2);
   if Input.KeyDown('D') then
-    FTestBot.Location.Slide(+DeltaTime);
+    FTestBot.Location.Slide(+DeltaTime * 2);
 
   if Input.KeyDown('S') then
-    FTestBot.Location.Move(-DeltaTime);
+    FTestBot.Location.Move(-DeltaTime * 2);
   if Input.KeyDown('W') then
-    FTestBot.Location.Move(+DeltaTime);
+    FTestBot.Location.Move(+DeltaTime * 2);
 
   if Input.KeyDown(VK_SHIFT) then
     FTestBot.Location.Lift(-DeltaTime);
@@ -242,19 +242,19 @@ begin
     FTestBot.Location.Lift(+DeltaTime);
 
   if Input.KeyDown(VK_LEFT) then
-    FTestBot.Location.Turn(-DeltaTime * 30);
+    FTestBot.Location.Turn(-DeltaTime * 90);
   if Input.KeyDown(VK_Right) then
-    FTestBot.Location.Turn(+DeltaTime * 30);
+    FTestBot.Location.Turn(+DeltaTime * 90);
 
   if Input.KeyDown(VK_DOWN) then
-    FTestBot.Location.Pitch(-DeltaTime * 30);
+    FTestBot.Location.Pitch(-DeltaTime * 90);
   if Input.KeyDown(VK_UP) then
-    FTestBot.Location.Pitch(+DeltaTime * 30);
+    FTestBot.Location.Pitch(+DeltaTime * 90);
 
   if Input.KeyDown('Q') then
-    FTestBot.Location.Roll(-DeltaTime * 30);
+    FTestBot.Location.Roll(-DeltaTime * 90);
   if Input.KeyDown('E') then
-    FTestBot.Location.Roll(+DeltaTime * 30);
+    FTestBot.Location.Roll(+DeltaTime * 90);
 
 end;
 
