@@ -174,6 +174,9 @@ type
       property Current: Integer read FCurrent;
     end;
 
+  private
+    function GetLength: Integer; inline;
+
   public
     /// <summary>The (usually) lower Value of the bounds</summary>
     C1: Integer;
@@ -193,7 +196,7 @@ type
     class operator Implicit(A: Integer): TIntBounds1; inline;
 
     /// <remarks>Will give a negative length for non-normalized bounds</remarks>
-    function Length: Integer; inline;
+    property Length: Integer read GetLength;
 
     /// <summary>Returns the given Bounds clamped to be inside of the calling bounds</summary>
     function EnsureRange(ARange: TIntBounds1): TIntBounds1; overload;
@@ -271,6 +274,11 @@ type
     procedure SetLineX(const Value: TIntBounds1); inline;
     procedure SetLineY(const Value: TIntBounds1); inline;
 
+    function GetSize: TIntVector2; inline;
+    function GetArea: Integer; inline;
+    function GetWidth: Integer; inline;
+    function GetHeight: Integer; inline;
+
   public
     /// <summary>The (usually) lower Values of the bounds</summary>
     C1: TIntVector2;
@@ -291,9 +299,9 @@ type
     class operator Implicit(A: TIntVector2): TIntBounds2; inline;
 
     /// <remarks>Will give a negative values for non-normalized bounds</remarks>
-    function Size: TIntVector2; inline;
+    property Size: TIntVector2 read GetSize;
     /// <summary>Calculates the Area in between the Bounds</summary>
-    function Area: Integer; inline;
+    property Area: Integer read GetArea;
 
     /// <summary>Resembles the X Components of the bounds as a TIntBounds1</summary>
     /// <remarks>WARNING! You cannot change the result directly, as it creates a copy of the values</remarks>
@@ -304,10 +312,10 @@ type
 
     /// <returns>Returns the horizontal length of the Bounds</returns>
     /// <remarks>Will give a negative length for non-normalized bounds</remarks>
-    function Width: Integer; inline;
+    property Width: Integer read GetWidth;
     /// <returns>Returns the vertical length of the Bounds</returns>
     /// <remarks>Will give a negative length for non-normalized bounds</remarks>
-    function Height: Integer; inline;
+    property Height: Integer read GetHeight;
 
     /// <summary>Returns the given Bounds clamped to be inside of the calling bounds</summary>
     function EnsureRange(ARange: TIntBounds2): TIntBounds2; overload;
@@ -401,6 +409,12 @@ type
     procedure SetPlaneZY(const Value: TIntBounds2); inline;
     procedure SetPlaneXZ(const Value: TIntBounds2); inline;
 
+    function GetSize: TIntVector3; inline;
+    function GetVolume: Integer; inline;
+    function GetWidth: Integer; inline;
+    function GetHeight: Integer; inline;
+    function GetDepth: Integer; inline;
+
   public
     /// <summary>The (usually) lower Values of the bounds</summary>
     C1: TIntVector3;
@@ -420,9 +434,9 @@ type
     class operator Implicit(A: TIntVector3): TIntBounds3; inline;
 
     /// <remarks>Will give a negative values for non-normalized bounds</remarks>
-    function Size: TIntVector3; inline;
+    property Size: TIntVector3 read GetSize;
     /// <summary>Calculates the Volume inside of the bounds</summary>
-    function Volume: Integer; inline;
+    property Volume: Integer read GetVolume;
 
     /// <summary>Resembles the X Components of the bounds as a TIntBounds1</summary>
     /// <remarks>WARNING! You cannot change the result directly, as it creates a copy of the values</remarks>
@@ -443,13 +457,13 @@ type
 
     /// <returns>Returns the horizontal length of the Bounds</returns>
     /// <remarks>Will give a negative length for non-normalized bounds</remarks>
-    function Width: Integer; inline;
+    property Width: Integer read GetWidth;
     /// <returns>Returns the vertical length of the Bounds</returns>
     /// <remarks>Will give a negative length for non-normalized bounds</remarks>
-    function Height: Integer; inline;
+    property Height: Integer read GetHeight;
     /// <returns>Returns the Z-directed length of the Bounds</returns>
     /// <remarks>Will give a negative length for non-normalized bounds</remarks>
-    function Depth: Integer; inline;
+    property Depth: Integer read GetDepth;
 
     /// <summary>Returns the given Bounds clamped to be inside of the calling bounds</summary>
     function EnsureRange(ARange: TIntBounds3): TIntBounds3; overload;
@@ -1016,7 +1030,7 @@ begin
   Result.C2 := A;
 end;
 
-function TIntBounds1.Length: Integer;
+function TIntBounds1.GetLength: Integer;
 begin
   Result := C2 - C1;
 end;
@@ -1194,22 +1208,22 @@ begin
   Result.C2 := A;
 end;
 
-function TIntBounds2.Size: TIntVector2;
+function TIntBounds2.GetSize: TIntVector2;
 begin
   Result := C2 - C1;
 end;
 
-function TIntBounds2.Area: Integer;
+function TIntBounds2.GetArea: Integer;
 begin
   Result := Width * Height;
 end;
 
-function TIntBounds2.Width: Integer;
+function TIntBounds2.GetWidth: Integer;
 begin
   Result := LineX.Length;
 end;
 
-function TIntBounds2.Height: Integer;
+function TIntBounds2.GetHeight: Integer;
 begin
   Result := LineY.Length;
 end;
@@ -1479,27 +1493,27 @@ begin
   Result.C2 := A;
 end;
 
-function TIntBounds3.Size: TIntVector3;
+function TIntBounds3.GetSize: TIntVector3;
 begin
   Result := C2 - C1;
 end;
 
-function TIntBounds3.Volume: Integer;
+function TIntBounds3.GetVolume: Integer;
 begin
   Result := Width * Height * Depth;
 end;
 
-function TIntBounds3.Width: Integer;
+function TIntBounds3.GetWidth: Integer;
 begin
   Result := LineX.Length;
 end;
 
-function TIntBounds3.Height: Integer;
+function TIntBounds3.GetHeight: Integer;
 begin
   Result := LineY.Length;
 end;
 
-function TIntBounds3.Depth: Integer;
+function TIntBounds3.GetDepth: Integer;
 begin
   Result := LineZ.Length;
 end;

@@ -33,6 +33,8 @@ type
     procedure InitSkyDome;
     procedure InitGame;
 
+    function GetFloorParams: TResFloorVAOParams;
+
   public
     procedure Init; override;
     procedure Finalize; override;
@@ -58,8 +60,8 @@ begin
   FSkyDome.Free;
   FSun.Free;
   FLightSystem.Free;
+  TResFloorVAO.Release(GetFloorParams);
   FCubeVAO.Free;
-  FFloorVAO.Free;
   FCamera.Free;
 end;
 
@@ -92,46 +94,9 @@ begin
 end;
 
 procedure TfrmMain.InitFloorVAO;
-const
-  Plane: TPlane3 = (
-    SV: (X: 0; Y: 0; Z: 0);
-    DVS: (X: 0; Y: 0; Z: 1);
-    DVT: (X: 1; Y: 0; Z: 0)
-    );
-var
-  Data: TResModelShader.TData;
-  T: TVector2;
-  GridPos: TIntVector2;
-  Grid: TIntBounds2;
 begin
   DebugWrite('Initializing Floor...');
-  Grid.Create(-16, 16);
-
-  FFloorVAO := TVAO.Create(TResModelShader.Data);
-  FFloorVAO.Generate(6 * Grid.Area, buStaticDraw);
-
-  FFloorVAO.Map(baWriteOnly);
-
-  Data.Normal := Vec3(0, 1, 0);
-  Data.Tangent := Vec3(1, 0, 0);
-  Data.Bitangent := Vec3(0, 0, 1);
-  Data.Border := TResTexturePage.Data.GetTexBounds('grass_top', FRange2(0, 1));
-
-  for GridPos in Grid do
-  begin
-    for T in QuadTexCoords do
-    begin
-      Data.Pos := Plane[T];
-      Data.Pos.XZ := Data.Pos.XZ + GridPos;
-      Data.TexCoord := Data.Border[T];
-      FFloorVAO.AddVertex(Data);
-    end;
-  end;
-
-  Data.Border := TResTexturePage.Data.HalfPixelInset(Data.Border);
-
-  FFloorVAO.Unmap;
-
+  FFloorVAO := TResFloorVAO.Make(GetFloorParams);
   FCamera.AddRenderObject(FFloorVAO);
   DebugWriteLine(' Done!');
 end;
@@ -144,7 +109,7 @@ begin
   FLightSystem.BindToShader(TResModelShader.Data);
 
   FSun := TDirectionalLightShaded.Create(FLightSystem);
-  FSun.Direction := Vec3(-1, -2, -1).Normalize;
+  FSun.Direction := Vec3(-1, -2, -1);
   FSun.Color := TColorRGB.Gray(0.9);
   FSun.Size := Sqrt(Sqr(32) + Sqr(32));
   FSun.AddOccluder(FFloorVAO);
@@ -206,6 +171,13 @@ begin
 
   FSun.AddOccluder(FTestBot);
   DebugWriteLine(' Done!');
+end;
+
+function TfrmMain.GetFloorParams: TResFloorVAOParams;
+begin
+  Result := TResFloorVAOParams.Create;
+  Result.Size := 32;
+  Result.Texture := 'grass_top';
 end;
 
 procedure TfrmMain.ResizeFunc;

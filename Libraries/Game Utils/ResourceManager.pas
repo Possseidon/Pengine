@@ -201,7 +201,11 @@ begin
 end;
 
 class destructor TParamResource<T, P>.Destroy;
+var
+  Data: TPair<TResourceParameter, T>;
 begin
+  for Data in FData do
+    DebugWriteLine('Param-Resource got not released: ' + Data.Key.ToString);
   FData.Free;
 end;
 

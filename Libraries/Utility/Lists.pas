@@ -674,6 +674,9 @@ function GetHash(AObject: TObject; ARange: Integer): Integer; overload; inline;
 function GetHash(AString: WideString; ARange: Integer): Integer; overload; inline;
 function GetHash(AString: AnsiString; ARange: Integer): Integer; overload; inline;
 function GetHash(ASingle: Single; ARange: Integer): Integer; overload; inline;
+function GetHash(AInteger: Integer; ARange: Integer): Integer; overload; inline;
+function GetHash(AIntVector: TIntVector2; ARange: Integer): Integer; overload; inline;
+function GetHash(AIntVector: TIntVector3; ARange: Integer): Integer; overload; inline;
 
 implementation
 
@@ -710,6 +713,26 @@ end;
 function GetHash(ASingle: Single; ARange: Integer): Integer;
 begin
   Result := PInteger(@ASingle)^ mod ARange;
+end;
+
+function GetHash(AInteger: Integer; ARange: Integer): Integer; overload;
+begin
+  Result := (AInteger - Low(Integer)) mod ARange;
+end;
+
+function GetHash(AIntVector: TIntVector2; ARange: Integer): Integer; overload; inline;
+begin
+  Result :=
+    (GetHash(AIntVector.X, High(Integer)) xor
+    GetHash(AIntVector.Y, High(Integer))) mod ARange;
+end;
+
+function GetHash(AIntVector: TIntVector3; ARange: Integer): Integer; overload; inline;
+begin
+  Result :=
+    (GetHash(AIntVector.X, High(Integer)) xor
+    GetHash(AIntVector.Y, High(Integer)) xor
+    GetHash(AIntVector.Z, High(Integer))) mod ARange;
 end;
 
 { TRefCountedIterable<T> }
