@@ -1,9 +1,15 @@
 unit DebugConsoleDefine;
 
+(*
+  To use this Unit correctly, follow these instructions:
+  - Add DebugConsole configuration to project
+  - Go to Linking-Settings in the new configuration and enable Console
+*)
+
 interface
 
 uses
-  Classes;
+  Classes, Windows;
 
 procedure DebugWriteLine(AMessage: string); inline; overload;
 procedure DebugWriteLine(AMessage: AnsiString); inline; overload;
@@ -18,56 +24,56 @@ procedure DebugFlushBuf(ANewLine: Boolean);
 
 implementation
 
-{$IFDEF DEBUG}
+{$IFDEF CONSOLE}
 var
   DebugBuffer: string;
 {$ENDIF}
 
 procedure DebugWriteLine(AMessage: string);
 begin
-{$IFDEF DEBUG}
+{$IFDEF CONSOLE}
   Writeln(AMessage);
 {$ENDIF}
 end;
 
 procedure DebugWriteLine(AMessage: AnsiString);
 begin
-{$IFDEF DEBUG}
+{$IFDEF CONSOLE}
   Writeln(AMessage);
 {$ENDIF}
 end;
 
 procedure DebugWrite(AMessage: string);
 begin
-{$IFDEF DEBUG}
+{$IFDEF CONSOLE}
   Write(AMessage);
 {$ENDIF}
 end;
 
 procedure DebugWrite(AMessage: AnsiString);
 begin
-{$IFDEF DEBUG}
+{$IFDEF CONSOLE}
   Write(AMessage);
 {$ENDIF}
 end;
 
 procedure DebugWriteBuf(AMessage: string);
 begin
-{$IFDEF DEBUG}
+{$IFDEF CONSOLE}
   DebugBuffer := DebugBuffer + AMessage;
 {$ENDIF}
 end;
 
 procedure DebugWriteBuf(AMessage: AnsiString);
 begin
-{$IFDEF DEBUG}
+{$IFDEF CONSOLE}
   DebugBuffer := DebugBuffer + string(AMessage);
 {$ENDIF}
 end;
 
 procedure DebugFlushBuf(ANewLine: Boolean);
 begin
-{$IFDEF DEBUG}
+{$IFDEF CONSOLE}
   if ANewLine then
     Writeln(DebugBuffer)
   else
@@ -75,5 +81,18 @@ begin
   DebugBuffer := '';
 {$ENDIF}
 end;
+
+{$IFDEF CONSOLE}
+procedure OnExit;
+begin
+  while (GetAsyncKeyState(VK_ESCAPE) and (1 shl 15)) = 0 do
+    Sleep(10);
+end;
+{$ENDIF}
+
+{$IFDEF CONSOLE}
+initialization
+  ExitProcessProc := OnExit;
+{$ENDIF}
 
 end.

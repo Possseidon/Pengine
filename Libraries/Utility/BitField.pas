@@ -9,13 +9,13 @@ type
 
   { EBitfieldRangeException }
 
-  EBitfieldRangeException = class (Exception)
+  EBitfieldRangeException = class(Exception)
     constructor Create(AValue, ARange: Integer);
   end;
 
   { EBitfieldDifferentSize }
 
-  EBitfieldDifferentSize = class (Exception)
+  EBitfieldDifferentSize = class(Exception)
     constructor Create(ASize1, ASize2: Integer);
   end;
 
@@ -128,13 +128,13 @@ begin
       repeat
         Inc(FCurrent);
         if FCurrent = FBitField.Size then
-           Exit(False);
+          Exit(False);
       until FBitField[FCurrent];
     else // True
       repeat
         Dec(FCurrent);
         if FCurrent = -1 then
-           Exit(False);
+          Exit(False);
       until FBitField[FCurrent];
   end;
   Result := True;
@@ -160,7 +160,7 @@ begin
   Result := Length(B) * SizeOf(TDataType);
 end;
 
-function TBitField.GetDataPointer: PDatatype;
+function TBitField.GetDataPointer: PDataType;
 begin
   Result := @(B[0]);
 end;
@@ -171,7 +171,7 @@ var
 begin
   Result := -1;
   if Ones = 0 then
-     Exit;
+    Exit;
   for I := 0 to Size - 1 do
     if Self[I] then
       Exit(I);
@@ -230,9 +230,9 @@ begin
     if Old <> B[I div 8] then
       Inc(FOnes);
   end
-  else           // clear bit
+  else // clear bit
   begin
-    B[I div 8] := not (1 shl (I mod 8)) and B[I div 8];
+    B[I div 8] := not(1 shl (I mod 8)) and B[I div 8];
     if Old <> B[I div 8] then
       Dec(FOnes);
   end;
@@ -275,13 +275,13 @@ end;
 procedure TBitField.Clear;
 begin
   if Length(B) > 0 then
-     FillChar(B[0], Length(B), 0);
+    FillChar(B[0], Length(B), 0);
 end;
 
 procedure TBitField.Fill;
 begin
   if Length(B) > 0 then
-     FillChar(B[0], Length(B), $FF);
+    FillChar(B[0], Length(B), $FF);
 end;
 
 procedure TBitField.Invert;
@@ -322,7 +322,7 @@ var
   I: Integer;
 begin
   if ABitField1.Size <> ABitField2.Size then
-    raise EBitfieldDifferentSize.Create(ABitfield1.Size, ABitField2.Size);
+    raise EBitfieldDifferentSize.Create(ABitField1.Size, ABitField2.Size);
   SetSize(ABitField1.Size);
   for I := 0 to Size do
     Self[I] := ABitField1[I] or ABitField2[I];
@@ -333,7 +333,7 @@ var
   I: Integer;
 begin
   if ABitField1.Size <> ABitField2.Size then
-    raise EBitfieldDifferentSize.Create(ABitfield1.Size, ABitField2.Size);
+    raise EBitfieldDifferentSize.Create(ABitField1.Size, ABitField2.Size);
   SetSize(ABitField1.Size);
   for I := 0 to Size do
     Self[I] := ABitField1[I] and ABitField2[I];
@@ -344,7 +344,7 @@ var
   I: Integer;
 begin
   if ABitField1.Size <> ABitField2.Size then
-    raise EBitfieldDifferentSize.Create(ABitfield1.Size, ABitField2.Size);
+    raise EBitfieldDifferentSize.Create(ABitField1.Size, ABitField2.Size);
   SetSize(ABitField1.Size);
   for I := 0 to Size do
     Self[I] := ABitField1[I] xor ABitField2[I];
@@ -369,4 +369,3 @@ begin
 end;
 
 end.
-

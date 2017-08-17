@@ -3,6 +3,9 @@ unit ResourceManager;
 interface
 
 uses
+{$IFNDEF DebugConsole}
+  Dialogs, UITypes,
+{$ENDIF}
   Shaders, TextureManager, VAOManager, GLEnums, VectorGeometry, Lists, SysUtils, DebugConsoleDefine;
 
 type
@@ -10,8 +13,9 @@ type
   { TResourceBase }
 
   TResourceBase = class abstract
-  private class var
-    FData: TClassRefMap<TObject>;
+  private
+    class var
+      FData: TClassRefMap<TObject>;
 
     class procedure Load; virtual; abstract;
     class procedure Unload; virtual; abstract;
@@ -68,17 +72,14 @@ type
 
   { TParamResoruce<T> }
 
-  // TODO: Change this, so that it won't create two instances for same parameters
-  //       by adding an "Equals" and a reference counter for each parameter and such
-  //       (create HashMap<TParam, TParamRes>, add refcounter to TParamRes and Destroy -> Release)
-
   /// <summary>
   /// An alternative to TResource<T>, which can contain Parameters.
-  /// Create a new Resource of this type, using Make and Free it after use.
+  /// Create a new Resource of this type, using Make and Release it after use.
   /// </summary>
   TParamResource<T: class; P: TResourceParameter> = class abstract
-  private class var
-    FData: TResourceParameterMap<T>;
+  private
+    class var
+      FData: TResourceParameterMap<T>;
 
   protected
     class procedure CreateData(var AData: T; AParam: P); virtual; abstract;
@@ -103,10 +104,14 @@ type
   TResourceManager = class
   private
     class procedure Add(AResourceClass: TResourceClass);
-
-  private class var
+{$IFDEF DEBUG}
+    class procedure ShowUnfreedParamResources;
+{$ENDIF}
+  private
+  class var
     FResourceClasses: TGenericArray<TResourceClass>;
     FUnloadResourceClasses: TGenericArray<TResourceClass>;
+    FUnfreedParamResources: TRefSet<TResourceParameter>;
 
   public
     class constructor Create;
@@ -205,7 +210,8 @@ var
   Data: TPair<TResourceParameter, T>;
 begin
   for Data in FData do
-    DebugWriteLine('Param-Resource got not released: ' + Data.Key.ToString);
+    TResourceManager.FUnfreedParamResources.Add(Data.Key);
+
   FData.Free;
 end;
 
@@ -263,6 +269,10 @@ end;
 class destructor TResourceManager.Destroy;
 begin
   FUnloadResourceClasses.Free;
+{$IFDEF DEBUG}
+  ShowUnfreedParamResources;
+{$ENDIF}
+  FUnfreedParamResources.Free;
 end;
 
 class procedure TResourceManager.Init;
@@ -281,7 +291,39 @@ var
 begin
   for ResourceClass in FUnloadResourceClasses do
     ResourceClass.Unload;
+  FUnfreedParamResources := TRefSet<TResourceParameter>.Create;
 end;
+
+{$IFDEF DEBUG}
+class procedure TResourceManager.ShowUnfreedParamResources;
+var
+  ParamResource: TResourceParameter;
+  ErrorString: string;
+begin
+  if FUnfreedParamResources.Count > 0 then
+  begin
+    ErrorString := 'Following Resource';
+    if FUnfreedParamResources.Count > 1 then
+      ErrorString := ErrorString + 's';
+    ErrorString := ErrorString + ' did not get released:' + sLineBreak;
+
+    for ParamResource in FUnfreedParamResources do
+    begin
+      ErrorString := ErrorString + Format(
+        '- %s: %d reference',
+        [ParamResource.ClassName, ParamResource.FRefCount]);
+      if ParamResource.FRefCount > 1 then
+        ErrorString := ErrorString + 's';
+      ErrorString := ErrorString + sLineBreak;
+    end;
+{$IFDEF CONSOLE}
+    DebugWriteLine(sLineBreak + ErrorString);
+{$ELSE}
+    MessageDlg(ErrorString, mtError, [mbOk], 0);
+{$ENDIF}
+  end;
+end;
+{$ENDIF}
 
 class procedure TResourceManager.Add(AResourceClass: TResourceClass);
 begin

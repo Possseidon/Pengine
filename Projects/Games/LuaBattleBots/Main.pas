@@ -74,6 +74,7 @@ begin
   InitCamera;
   InitSkyDome;
   InitFloorVAO;
+
   InitLightSystem;
   InitGame;
 end;

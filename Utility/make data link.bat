@@ -2,8 +2,10 @@
 
 cd %~dp0
 call :create_links Debug Win64
+call :create_links DebugConsole Win64
 call :create_links Release Win64
 call :create_links Debug Win32
+call :create_links DebugConsole Win32
 call :create_links Release Win32
 pause
 exit
