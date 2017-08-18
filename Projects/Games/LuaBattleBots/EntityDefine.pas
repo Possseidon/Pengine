@@ -230,8 +230,7 @@ class function TEntity.LuaGetHealthPercentage(L: TLuaState): Integer;
 var
   Self: TEntity;
 begin
-  Self := TEntity(L.ToUserdata(1));
-  L.Remove(1);
+  Self := GetSelf(L);
 
   L.CheckEnd(1);
 
@@ -273,7 +272,7 @@ begin
   L.SetField(PPAnsiChar(@AName)^, -2);
 end;
 
-constructor TEntity.Create();
+constructor TEntity.Create;
 begin
   inherited Create(GetSourceVAO);
   FHealth := GetInitialHealth;
