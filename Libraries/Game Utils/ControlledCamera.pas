@@ -51,7 +51,7 @@ type
 
 
   public
-    constructor Create(FOV, Aspect, NearClip, FarClip: Single; AInput: TInputHandler);
+    constructor Create(AFOV, AAspect, ANearClip, AFarClip: Single; AInput: TInputHandler);
     destructor Destroy; override;
 
     property Moving: Boolean read FMoving;
@@ -86,7 +86,7 @@ type
     procedure ProcessMovement; override;
 
   public
-    constructor Create(FOV, Aspect, NearClip, FarClip: Single; AGLForm: TGLForm);
+    constructor Create(AFOV, AAspect, ANearClip, AFarClip: Single; AGLForm: TGLForm);
 
     property SmoothSpeed: Single read FSmoothSpeed write FSmoothSpeed;
 
@@ -278,9 +278,9 @@ begin
   Location.OffsetZ := Min(Location.OffsetZ, AValue);
 end;
 
-constructor TControlledCamera.Create(FOV, Aspect, NearClip, FarClip: Single; AInput: TInputHandler);
+constructor TControlledCamera.Create(AFOV, AAspect, ANearClip, AFarClip: Single; AInput: TInputHandler);
 begin
-  inherited Create(FOV, Aspect, NearClip, FarClip);
+  inherited Create(AFOV, AAspect, ANearClip, AFarClip);
 
   FInput := AInput;
   
@@ -338,9 +338,9 @@ begin
   FDeltaOffset := FDeltaOffset - DOffset;
 end;
 
-constructor TSmoothControlledCamera.Create(FOV, Aspect, NearClip, FarClip: Single; AGLForm: TGLForm);
+constructor TSmoothControlledCamera.Create(AFOV, AAspect, ANearClip, AFarClip: Single; AGLForm: TGLForm);
 begin
-  inherited Create(FOV, Aspect, NearClip, FarClip, AGLForm.Input);
+  inherited Create(AFOV, AAspect, ANearClip, AFarClip, AGLForm.Input);
   FGLForm := AGLForm;
   FSmoothSpeed := 42;
 end;
