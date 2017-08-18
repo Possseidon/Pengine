@@ -1012,9 +1012,7 @@ type
     FPos: TVector3;
     FOffset: TVector3;
     FScale: TVector3;
-    FPitch: Single;
-    FTurn: Single;
-    FRoll: Single;
+    FRotation: TVector3;
 
     FMatrix: TMatrix4;
     FInvMatrix: TMatrix4;
@@ -1103,9 +1101,9 @@ type
     procedure Lift(ADistance: Single; AYOnly: Boolean = False);
     procedure Move(ADistance: Single; AHorizontal: Boolean = False);
 
-    property TurnAngle: Single read FTurn write SetTurn;
-    property PitchAngle: Single read FPitch write SetPitch;
-    property RollAngle: Single read FRoll write SetRoll;
+    property TurnAngle: Single read FRotation.Y write SetTurn;
+    property PitchAngle: Single read FRotation.X write SetPitch;
+    property RollAngle: Single read FRotation.Z write SetRoll;
 
     property Right: TVector3 read GetRight;
     property Up: TVector3 read GetUp;
@@ -1126,6 +1124,7 @@ type
     procedure Pitch(const APitch: Single);
     procedure Roll(const ARoll: Single);
 
+    procedure Rotate(const ARotation: TVector3);
     procedure Translate(const AVector: TVector3);
     procedure MoveOffset(const AVector: TVector3);
     procedure ScaleBy(const AScale: TVector3);
@@ -3447,17 +3446,17 @@ begin
   begin
     FreeTranslate(-FOffset);
     FreeScale(1 / FScale);
-    FreeRoll(-FRoll);
-    FreePitch(-FPitch);
-    FreeTurn(-FTurn);
+    FreeRoll(-RollAngle);
+    FreePitch(-PitchAngle);
+    FreeTurn(-TurnAngle);
     FreeTranslate(-FPos);
   end
   else
   begin
     FreeTranslate(FPos);
-    FreeTurn(FTurn);
-    FreePitch(FPitch);
-    FreeRoll(FRoll);
+    FreeTurn(TurnAngle);
+    FreePitch(PitchAngle);
+    FreeRoll(RollAngle);
     FreeScale(FScale);
     FreeTranslate(FOffset);
   end;
@@ -3502,9 +3501,9 @@ end;
 procedure TLocation.SetPitch(AValue: Single);
 begin
   AValue := FMod(AValue, MinRotation, MaxRotation);
-  if FPitch = AValue then
+  if FRotation.X = AValue then
     Exit;
-  FPitch := AValue;
+  FRotation.X := AValue;
   TriggerChanges([ctPitch]);
 end;
 
@@ -3543,18 +3542,18 @@ end;
 procedure TLocation.SetRoll(AValue: Single);
 begin
   AValue := FMod(AValue, MinRotation, MaxRotation);
-  if FRoll = AValue then
+  if FRotation.Z = AValue then
     Exit;
-  FRoll := AValue;
+  FRotation.Z := AValue;
   TriggerChanges([ctRoll]);
 end;
 
 procedure TLocation.SetTurn(AValue: Single);
 begin
   AValue := FMod(AValue, MinRotation, MaxRotation);
-  if FTurn = AValue then
+  if FRotation.Y = AValue then
     Exit;
-  FTurn := AValue;
+  FRotation.Y := AValue;
   TriggerChanges([ctTurn]);
 end;
 
@@ -3615,9 +3614,7 @@ begin
   Pos := 0;
   Offset := 0;
   Scale := 1;
-  FTurn := 0;
-  FPitch := 0;
-  FRoll := 0;
+  FRotation := 0;
   FMatrix.LoadIdentity;
   FChanged := True;
   OnChanged.Execute(TChangeEventInfo.Create(Self, [
@@ -3631,11 +3628,9 @@ end;
 
 procedure TLocation.ResetRotation;
 begin
-  if (FTurn = 0) and (FPitch = 0) and (FRoll = 0) then
+  if FRotation = 0 then
     Exit;
-  FTurn := 0;
-  FPitch := 0;
-  FRoll := 0;
+  FRotation := 0;
   TriggerChanges([ctTurn, ctPitch, ctRoll]);
 end;
 
@@ -3665,17 +3660,17 @@ end;
 
 procedure TLocation.Turn(const ATurn: Single);
 begin
-  TurnAngle := FTurn + ATurn;
+  TurnAngle := TurnAngle + ATurn;
 end;
 
 procedure TLocation.Pitch(const APitch: Single);
 begin
-  PitchAngle := FPitch + APitch;
+  PitchAngle := PitchAngle + APitch;
 end;
 
 procedure TLocation.Roll(const ARoll: Single);
 begin
-  RollAngle := FRoll + ARoll;
+  RollAngle := RollAngle + ARoll;
 end;
 
 procedure TLocation.FreeTurn(ATurn: Single);
@@ -3797,6 +3792,25 @@ begin
   FMatrix.Minor[3, 3] := AMatrix;
   FFreeChanged := True;
   TriggerChanges([ctFreeRotation, ctFreeScale]);
+end;
+
+procedure TLocation.Rotate(const ARotation: TVector3);
+var
+  Changes: TChanges;
+begin
+  Changes := [];
+  if ARotation.X <> 0 then
+    Include(Changes, ctPitch);
+  if ARotation.Y <> 0 then
+    Include(Changes, ctTurn);
+  if ARotation.Z <> 0 then
+    Include(Changes, ctRoll);
+  if Changes <> [] then
+  begin
+    FRotation := FRotation + ARotation;
+    FFreeChanged := True;
+    TriggerChanges(Changes);
+  end;
 end;
 
 procedure TLocation.Translate(const AVector: TVector3);

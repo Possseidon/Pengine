@@ -82,7 +82,7 @@ end;
 procedure TfrmMain.InitCamera;
 begin
   DebugWrite('Initializing Camera...');
-  FCamera := TControlledCamera.Create(60, Aspect, 0.05, 420, Input);
+  FCamera := TSmoothControlledCamera.Create(60, Aspect, 0.05, 420, Self);
   FCamera.Location.OffsetZ := 3;
   FCamera.Location.PitchAngle := -20;
   FCamera.Location.TurnAngle := -30;

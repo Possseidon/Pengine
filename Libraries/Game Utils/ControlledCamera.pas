@@ -10,8 +10,6 @@ uses
 
 type
 
-  TRequestLockPointFunction = function(out APoint: TVector3): Boolean of object;
-
   { TControlledCamera }
 
   TControlledCamera = class (TCamera)
@@ -21,23 +19,12 @@ type
 
     FOldMousePos: TVector2;
 
-    FResetLocation: TLocation;
-
     FLowerLimit, FUpperLimit: TVector3;
     FZoomLowerLimit: Single;
     FZoomSpeed: Single;
     FZoomUpperLimit: Single;
     FPitchLowerLimit: Single;
     FPitchUpperLimit: Single;
-
-    FGetLockPoint: TRequestLockPointFunction;
-    FLockPointOnFront: Boolean;
-    FLockPointEnabled: Boolean;
-    FLockPointRadius: Single;
-    FLockPointStart: TVectorDir;
-    FSaveCamTurn, FSaveCamPitch, FSaveCamRoll: Single;
-
-    function GetLockPointDirection: TVectorDir;
 
     procedure SetLowerLimit(AValue: TVector3);
     procedure SetLowerLimitX(AValue: Single);
@@ -52,17 +39,22 @@ type
     procedure SetZoomLowerLimit(AValue: Single);
     procedure SetZoomUpperLimit(AValue: Single);
 
-    procedure DoMovement;
+    procedure RecordMovement;
+    procedure EnsureLimits;
+
+  protected
+    FDeltaRotation: TVector3;
+    FDeltaPos: TVector3;
+    FDeltaOffset: TVector3;
+
+    procedure ProcessMovement; virtual;
+
 
   public
     constructor Create(FOV, Aspect, NearClip, FarClip: Single; AInput: TInputHandler);
     destructor Destroy; override;
 
     property Moving: Boolean read FMoving;
-
-    procedure SetReset; overload;
-    procedure SetReset(FPos, FOffset, FScale: TVector3; FTurn, FPitch: Single; FRoll: Single = 0); overload;
-    procedure Reset;
 
     property PosLowerLimit: TVector3 read FLowerLimit write SetLowerLimit;
     property PosLowerLimitX: Single read FLowerLimit.X write SetLowerLimitX;
@@ -80,34 +72,26 @@ type
     property ZoomLowerLimit: Single read FZoomLowerLimit write SetZoomLowerLimit;
     property ZoomUpperLimit: Single read FZoomUpperLimit write SetZoomUpperLimit;
 
-    property GetLockPoint: TRequestLockPointFunction write FGetLockPoint;
-
-    procedure Update; virtual;
+    procedure Update;
   end;
 
   { TSmoothControlledCamera }
-  {
-  TSmoothControlledCamera = class (TControlledCamera)
+
+  TSmoothControlledCamera = class(TControlledCamera)
   private
-    FVisibleLocation: TLocation;
     FGLForm: TGLForm;
     FSmoothSpeed: Single;
-    function GetEndLocation: TLocation;
 
   protected
-    function GetLocation: TLocation; override;
+    procedure ProcessMovement; override;
+
   public
     constructor Create(FOV, Aspect, NearClip, FarClip: Single; AGLForm: TGLForm);
-    destructor Destroy; override;
-
-    procedure HardReset;
 
     property SmoothSpeed: Single read FSmoothSpeed write FSmoothSpeed;
-    property EndLocation: TLocation read GetEndLocation;
 
-    procedure Update; override;
   end;
-  }
+
 implementation
 
 uses
@@ -116,176 +100,76 @@ uses
 const
   MouseSensitivity = 200;
 
-{ TSmoothControlledCamera }
-{
-procedure TSmoothControlledCamera.Update;
-begin
-  inherited Update;
-  FVisibleLocation.Approach(EndLocation, 1 - exp(-FSmoothSpeed * FGLForm.DeltaTime));
-end;
-
-function TSmoothControlledCamera.GetEndLocation: TLocation;
-begin
-  Result := Location;
-end;
-
-function TSmoothControlledCamera.GetLocation: TLocation;
-begin
-  Result := FVisibleLocation;
-end;
-
-constructor TSmoothControlledCamera.Create(FOV, Aspect, NearClip, FarClip: Single; AGLForm: TGLForm);
-begin
-  FGLForm := AGLForm;
-  FVisibleLocation := TLocation.Create(True);
-  FSmoothSpeed := 20;
-  inherited Create(FOV, Aspect, NearClip, FarClip, AGLForm.Input);
-end;
-
-destructor TSmoothControlledCamera.Destroy;
-begin
-  FVisibleLocation.Free;
-  inherited Destroy;
-end;
-
-procedure TSmoothControlledCamera.HardReset;
-begin
-  Reset;
-  FVisibleLocation.Assign(EndLocation);
-end;
-}
 { TControlledCamera }
 
-procedure TControlledCamera.DoMovement;
+procedure TControlledCamera.RecordMovement;
 var
   DeltaMouse: TVector2;
-  LockPoint: TVector3;
-  LockPointCurrent: TVectorDir;
 begin
   with FInput do
   begin
     if ButtonPressed(mbRight) or ButtonPressed(mbLeft) then
-    begin
       FOldMousePos := FInput.MousePos;
-      if KeyDown(VK_SHIFT) and not KeyDown(VK_CONTROL) then
-      begin
-        if Assigned(FGetLockPoint) and FGetLockPoint(LockPoint) then
-        begin
-          FSaveCamTurn := Location.TurnAngle;
-          FSaveCamPitch := Location.PitchAngle;
-          FSaveCamRoll := Location.RollAngle;
-          FLockPointRadius := Location.Pos.DistanceTo(LockPoint);
-          FLockPointOnFront := Location.Look.Dot(Location.Pos.VectorTo(LockPoint)) <= 0;
-          FLockPointStart := GetLockPointDirection;
-          FLockPointEnabled := True;
-        end
-        else
-          FLockPointEnabled := False;
-      end;
-    end;
 
     DeltaMouse := FInput.MousePos - FOldMousePos;
 
     if KeyDown(VK_SHIFT) then
     begin
-      if KeyDown(VK_CONTROL) then
+      // Alt Mode
+      if ButtonDown(mbRight) then
       begin
-        // Alt Mode
-        if ButtonDown(mbRight) then
-        begin
-          Location.Turn(MouseSensitivity * DeltaMouse.X);
-          Location.Lift(-Location.OffsetZ * DeltaMouse.Y, True);
-        end
-        else if ButtoNDown(mbLeft) then
-          SlideMove(-Location.OffsetZ * DeltaMouse);
+        FDeltaRotation.Y := FDeltaRotation.Y + MouseSensitivity * DeltaMouse.X;
+        FDeltaPos.Y := FDeltaPos.Y - Location.OffsetZ * DeltaMouse.Y;
       end
-      else
+      else if ButtonDown(mbLeft) then
       begin
-        // Locked Mode
-        if ButtonDown(mbRight) and FLockPointEnabled then
-        begin
-          LockPointCurrent := GetLockPointDirection;
-          Location.TurnAngle := FSaveCamTurn +
-            (LockPointCurrent.TurnAngle - FLockPointStart.TurnAngle);
-          Location.PitchAngle := FSaveCamPitch +
-            (LockPointCurrent.PitchAngle - FLockPointStart.PitchAngle);
-        end;
+        FDeltaPos := FDeltaPos - Location.Right * Location.OffsetZ * DeltaMouse.X;
+        FDeltaPos := FDeltaPos - Location.Look * Location.OffsetZ * DeltaMouse.Y;
       end;
     end
     else
     begin
       // Normal Mode
       if ButtonDown(mbRight) then
-        TurnPitch(MouseSensitivity * DeltaMouse)
+        FDeltaRotation.YX := FDeltaRotation.YX + MouseSensitivity * DeltaMouse
       else if ButtonDown(mbLeft) then
-        SlideLift(-Location.OffsetZ * DeltaMouse);
+      begin
+        FDeltaPos := FDeltaPos - Location.Right * Location.OffsetZ * DeltaMouse.X;
+        FDeltaPos := FDeltaPos - Location.Up * Location.OffsetZ * DeltaMouse.Y;
+      end;
     end;
 
     if ButtonDown(mbLeft) or buttonDown(mbRight) then
       FOldMousePos := FInput.MousePos;
 
-    Location.Pos := Vec3(
-      EnsureRange(Location.Pos.X, FLowerLimit.X, FUpperLimit.X),
-      EnsureRange(Location.Pos.Y, FLowerLimit.Y, FUpperLimit.Y),
-      EnsureRange(Location.Pos.Z, FLowerLimit.Z, FUpperLimit.Z)
-    );
-
-    Location.PitchAngle := EnsureRange(Location.PitchAngle, FPitchLowerLimit, FPitchUpperLimit);
-
     if ScrolledUp then
-      Location.OffsetZ := Max(Location.OffsetZ / (1 + FZoomSpeed), FZoomLowerLimit);
+      FDeltaOffset.Z := Location.OffsetZ - Location.OffsetZ * (1 + FZoomSpeed);
     if ScrolledDown then
-      Location.OffsetZ := Location.OffsetZ * (1 + FZoomSpeed);
-
-    Location.OffsetZ := Min(Location.OffsetZ, FZoomUpperLimit);
+      FDeltaOffset.Z := Location.OffsetZ - Location.OffsetZ / (1 + FZoomSpeed);
 
   end;
 end;
 
-function TControlledCamera.GetLockPointDirection: TVectorDir;
-var
-  L: TLine3;
-  D, P: Single;
-  OldT, OldP, OldR: Single;
-  Distance: Single;
+procedure TControlledCamera.EnsureLimits;
 begin
-  OldT := Location.TurnAngle;
-  OldP := Location.PitchAngle;
-  OldR := Location.RollAngle;
+  Location.Pos := Vec3(
+    EnsureRange(Location.Pos.X, FLowerLimit.X, FUpperLimit.X),
+    EnsureRange(Location.Pos.Y, FLowerLimit.Y, FUpperLimit.Y),
+    EnsureRange(Location.Pos.Z, FLowerLimit.Z, FUpperLimit.Z)
+  );
+  Location.PitchAngle := EnsureRange(Location.PitchAngle, FPitchLowerLimit, FPitchUpperLimit);
+  Location.OffsetZ := EnsureRange(Location.OffsetZ, FZoomLowerLimit, FZoomUpperLimit);
+end;
 
-  Location.TurnAngle := FSaveCamTurn;
-  Location.PitchAngle := FSaveCamPitch;
-  Location.RollAngle := FSaveCamRoll;
+procedure TControlledCamera.ProcessMovement;
+begin
+  Location.Translate(FDeltaPos);
+  Location.Rotate(FDeltaRotation);
+  Location.MoveOffset(FDeltaOffset);
 
-  L := GetCursorLine(FInput.MousePos);
-
-  Location.TurnAngle := OldT;
-  Location.PitchAngle := OldP;
-  Location.RollAngle := OldR;
-
-  L.SV := L.SV - Location.Pos;
-  L.DV := L.DV.Normalize * FLockPointRadius;
-  Distance := L.OrthoProj(0);
-  P := L[Distance].Length / FLockPointRadius; // percentage (0 = on sphere-middle, 1 = on sphere-side)
-
-  if P >= 1 then
-  begin
-    // Try changing the line, so it fits perfectly on the circle
-    P := 1;
-  end;
-
-  D := Sqrt(1 - Sqr(P));
-  if FLockPointOnFront then
-    D := Distance - D
-  else
-    D := Distance + D;
-
-  Result := L[D];
-  if not FLockPointOnFront then
-  begin
-    Result.TurnAngleRad := Result.TurnAngleRad + Pi;
-    Result.PitchAngleRad := -Result.PitchAngle;
-  end;
+  FDeltaRotation := 0;
+  FDeltaPos := 0;
+  FDeltaOffset := 0;
 end;
 
 procedure TControlledCamera.SetLowerLimit(AValue: TVector3);
@@ -399,8 +283,7 @@ begin
   inherited Create(FOV, Aspect, NearClip, FarClip);
 
   FInput := AInput;
-  FResetLocation := TLocation.Create;
-
+  
   PosLowerLimit := -InfVec3;
   PosUpperLimit := +InfVec3;
 
@@ -414,38 +297,7 @@ end;
 
 destructor TControlledCamera.Destroy;
 begin
-  FResetLocation.Free;
   inherited;
-end;
-
-procedure TControlledCamera.SetReset;
-begin
-  FResetLocation.Pos := Location.Pos;
-  FResetLocation.Offset := Location.Offset;
-  FResetLocation.Scale := Location.Scale;
-  FResetLocation.TurnAngle := Location.TurnAngle;
-  FResetLocation.PitchAngle := Location.PitchAngle;
-  FResetLocation.RollAngle := Location.RollAngle;
-end;
-
-procedure TControlledCamera.SetReset(FPos, FOffset, FScale: TVector3; FTurn, FPitch: Single; FRoll: Single);
-begin
-  FResetLocation.Pos := FPos;
-  FResetLocation.Offset := FOffset;
-  FResetLocation.Scale := FScale;
-  FResetLocation.TurnAngle := FTurn;
-  FResetLocation.PitchAngle := FPitch;
-  FResetLocation.RollAngle := FRoll;
-end;
-
-procedure TControlledCamera.Reset;
-begin
-  Location.Pos := FResetLocation.Pos;
-  Location.Offset := FResetLocation.Offset;
-  Location.Scale := FResetLocation.Scale;
-  Location.TurnAngle := FResetLocation.TurnAngle;
-  Location.PitchAngle := FResetLocation.PitchAngle;
-  Location.RollAngle := FResetLocation.RollAngle;
 end;
 
 procedure TControlledCamera.Update;
@@ -457,7 +309,40 @@ begin
     FMoving := False;
 
   if FMoving then
-    DoMovement;
+    RecordMovement;
+
+  ProcessMovement;
+
+  EnsureLimits;
+end;
+
+{ TSmoothControlledCamera }
+
+procedure TSmoothControlledCamera.ProcessMovement;
+var
+  Factor: Single;
+  DRotation, DPos, DOffset: TVector3;
+begin
+  Factor := 1 - Exp(-FSmoothSpeed * FGLForm.DeltaTime);
+
+  DRotation := FDeltaRotation * Factor;
+  DPos := FDeltaPos * Factor;
+  DOffset := FDeltaOffset * Factor;
+
+  Location.Rotate(DRotation);
+  Location.Translate(DPos);
+  Location.MoveOffset(DOffset);
+
+  FDeltaRotation := FDeltaRotation - DRotation;
+  FDeltaPos := FDeltaPos - DPos;
+  FDeltaOffset := FDeltaOffset - DOffset;
+end;
+
+constructor TSmoothControlledCamera.Create(FOV, Aspect, NearClip, FarClip: Single; AGLForm: TGLForm);
+begin
+  inherited Create(FOV, Aspect, NearClip, FarClip, AGLForm.Input);
+  FGLForm := AGLForm;
+  FSmoothSpeed := 42;
 end;
 
 end.
