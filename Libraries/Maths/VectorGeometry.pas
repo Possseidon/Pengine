@@ -1134,9 +1134,6 @@ type
     procedure Assign(ALocation: TLocation);
     procedure Swap(ALocation: TLocation);
 
-    // TODO: remove property Changed: Boolean read FChanged;
-    // TODO: remove procedure NotifyChanges;
-
     // Those will directly change the current Matrix and thus not trigger the rebuild
     // FTurn/FPitch/FRoll/FPos/FOffset won't be correct anymore
     procedure FreeRotate(AVector: TVector3; const AAngle: Single);
@@ -3686,7 +3683,9 @@ var
   M: TMatrix4;
 begin
   ATurn := ATurn * Pi / 180;
-  M.LoadIdentity;
+  M.Clear;
+  M[1, 1] := 1;
+  M[3, 3] := 1;
   M[0, 0] := Cos(ATurn);
   M[2, 0] := -Sin(ATurn);
   M[0, 2] := Sin(ATurn);
@@ -3701,7 +3700,9 @@ var
   M: TMatrix4;
 begin
   APitch := APitch * Pi / 180;
-  M.LoadIdentity;
+  M.Clear;
+  M[0, 0] := 1;
+  M[3, 3] := 1;
   M[1, 1] := Cos(APitch);
   M[2, 1] := -Sin(APitch);
   M[1, 2] := Sin(APitch);
@@ -3716,7 +3717,9 @@ var
   M: TMatrix4;
 begin
   ARoll := ARoll * Pi / 180;
-  M.LoadIdentity;
+  M.Clear;
+  M[2, 2] := 1;
+  M[3, 3] := 1;
   M[0, 0] := Cos(ARoll);
   M[1, 0] := Sin(ARoll);
   M[0, 1] := -Sin(ARoll);
@@ -3858,14 +3861,6 @@ begin
   Self.Assign(Tmp);
   Tmp.Free;
 end;
-
-// TODO: REMOVE
-{
-procedure TLocation.NotifyChanges;
-begin
-  FChanged := False;
-end;
-}
 
 procedure TLocation.FreeRotate(AVector: TVector3; const AAngle: Single);
 var
