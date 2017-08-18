@@ -149,7 +149,7 @@ type
     function RenderObjectVisible(const AFrustum: TGHexahedron; ARenderObject: IRenderable): Boolean; overload;
 
   public
-    constructor Create(FOV, Aspect, NearClip, FarClip: Single);
+    constructor Create(AFOV, AAspect, ANearClip, AFarClip: Single);
     destructor Destroy; override;
 
     property Matrix[AMatrixType: TMatrixType]: TMatrix4 read GetMatrix;
@@ -262,16 +262,16 @@ uses
 
 { TCamera }
 
-constructor TCamera.Create(FOV, Aspect, NearClip, FarClip: Single);
+constructor TCamera.Create(AFOV, AAspect, ANearClip, AFarClip: Single);
 begin
-  if FOV = 0 then
+  if AFOV = 0 then
     FOrtho := True;
   FOrthoFactor := 1;
 
-  FFOV := FOV;
-  FAspect := Aspect;
-  FNearClip := NearClip;
-  FFarClip := FarClip;
+  FFOV := AFOV;
+  FAspect := AAspect;
+  FNearClip := ANearClip;
+  FFarClip := AFarClip;
 
   FLocation := TLocation.Create(True);
   FLocation.OnChanged.Add(LocationChanged);
