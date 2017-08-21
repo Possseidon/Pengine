@@ -22,7 +22,6 @@ begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TfrmMain, frmMain);
-
   DebugWriteLine('--- Everything initialized!');
 
   Application.Run;

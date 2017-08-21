@@ -407,7 +407,7 @@ begin
   FCamera := TCamera.Create(0, 1, -50, 50);
   inherited Create(ALightSystem);
   Size := 100;
-  FFBO := TFBO.Create(1024, 1024);
+  FFBO := TFBO.Create(2048, 2048);
   FFBO.EnableTexture2DLayer(fbaDepth, LightSystem.DirectionalLightTexArray, Index);
   if not FFBO.Finish then
     raise Exception.Create('IT DOESNT WORK!');
@@ -928,7 +928,7 @@ end;
 
 class function TDirectionalLight.MaxLights: Integer;
 begin
-  Result := 4;
+  Result := 1;
 end;
 
 class function TDirectionalLight.CalcMajorOffset: Integer;
@@ -1061,7 +1061,7 @@ begin
   FPointLights := TRefArray<TPointLight>.Create;
   FSpotLights := TRefArray<TSpotLight>.Create;
 
-  FDirectionalLightTexArray := TEmptyTexture2DArray.Create(1024, 1024, TDirectionalLight.MaxLights, pfDepthComponent);
+  FDirectionalLightTexArray := TEmptyTexture2DArray.Create(2048, 2048, TDirectionalLight.MaxLights, pfDepthComponent);
   FDirectionalLightTexArray.MagFilter := magLinear;
   FDirectionalLightTexArray.TextureCompareMode := tcmCompareRefToTexture;
 

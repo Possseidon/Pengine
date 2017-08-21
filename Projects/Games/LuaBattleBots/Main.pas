@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, OpenGLContext, Camera, Shaders, VAOManager, VectorGeometry, IntfBase,
   Matrix, Lists, TextureManager, Lights, ControlledCamera, GLEnums, IntegerMaths, Color, SkyDome, LuaHeader,
-  Game, EntityDefine, DebugConsoleDefine, InputHandler, Resources, CustomModules, System.Win.ScktComp;
+  Game, EntityDefine, DebugConsoleDefine, InputHandler, Resources, CustomModules, System.Win.ScktComp, ModelDefine;
 
 type
 
@@ -69,7 +69,7 @@ procedure TfrmMain.Init;
 begin
   State.DebugOutput := False;
   VSync := False;
-  FPSLimit := 300;
+  //FPSLimit := 300;
 
   InitCamera;
   InitSkyDome;
@@ -112,7 +112,7 @@ begin
   FSun := TDirectionalLightShaded.Create(FLightSystem);
   FSun.Direction := Vec3(-1, -2, -1);
   FSun.Color := TColorRGB.Gray(0.9);
-  FSun.Size := Sqrt(Sqr(32) + Sqr(32));
+  FSun.Size := Sqrt(Sqr(64) + Sqr(64));
   FSun.AddOccluder(FFloorVAO);
   DebugWriteLine(' Done!');
 end;
@@ -140,44 +140,53 @@ end;
 procedure TfrmMain.InitGame;
 var
   Code: TStrings;
+  I: Integer;
+  P: TVector3;
 begin
   DebugWrite('Initializing Game...');
   FGame := TGame.Create(FCamera);
 
-  FTestBot := TBotCore.Create;
+  P.Y := 0;
+  for I := 0 to 99 do
+  begin
+    FTestBot := TBotCore.Create;
 
-  FTestBot.Location.TurnAngle := 0;
-  FTestBot.Location.PitchAngle := 0;
-  FTestBot.Location.RollAngle := 0;
+    P.XZ := TVector2.RandomBox * 30;
+    FTestBot.Location.Pos := P;
 
-  FTestBot.AttachModule(sdUp, TWheelModule);
-  FTestBot.AttachModule(sdLeft, TWheelModule);
-  FTestBot.AttachModule(sdRight, TWheelModule);
-  FTestBot.AttachModule(sdFront, TWheelModule);
-  FTestBot.AttachModule(sdBack, TWheelModule);
+    FTestBot.Location.TurnAngle := 0;
+    FTestBot.Location.PitchAngle := 0;
+    FTestBot.Location.RollAngle := 0;
 
-  try
-    Code := TStringList.Create;
+    FTestBot.AttachModule(sdUp, TWheelModule);
+    FTestBot.AttachModule(sdLeft, TWheelModule);
+    FTestBot.AttachModule(sdRight, TWheelModule);
+    FTestBot.AttachModule(sdFront, TWheelModule);
+    FTestBot.AttachModule(sdBack, TWheelModule);
+
     try
-      Code.LoadFromFile('Data/TestCode.lua');
-      FTestBot.SetUpdateFunction(AnsiString(Code.Text));
-    finally
-      Code.Free;
+      Code := TStringList.Create;
+      try
+        Code.LoadFromFile('Data/TestCode.lua');
+        FTestBot.SetUpdateFunction(AnsiString(Code.Text));
+      finally
+        Code.Free;
+      end;
+    except
+      DebugWriteLine('Error while trying to load TestCode!');
     end;
-  except
-    DebugWriteLine('Error while trying to load TestCode!');
+
+    FGame.AddEntity(FTestBot);
+    FSun.AddOccluder(FTestBot);
   end;
 
-  FGame.AddEntity(FTestBot);
-
-  FSun.AddOccluder(FTestBot);
   DebugWriteLine(' Done!');
 end;
 
 function TfrmMain.GetFloorParams: TResFloorVAOParams;
 begin
   Result := TResFloorVAOParams.Create;
-  Result.Size := 32;
+  Result.Size := 64;
   Result.Texture := 'grass_top';
 end;
 
@@ -195,6 +204,7 @@ begin
   // FSun.Position := FCamera.Location.RealPosition;
   FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0.2).Normalize, DeltaTime);
 
+  FCamera.Location.LookAt(FTestBot.Location.RealPosition);
   FCamera.Update;
 
   FGame.Update(DeltaTime);
