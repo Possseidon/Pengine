@@ -93,6 +93,8 @@ type
         
       TProcessingFunc = procedure(AArguments: TArray<string>) of object;
 
+      ELoadError = class(Exception);
+
     private const
       CommandNames: array [TCommandType] of string = (
         {$REGION 'Vertex data'}
@@ -158,7 +160,7 @@ type
     public
       class constructor Create;
       class destructor Destroy;
-    
+
       constructor Create(AModel: TModelOBJ; ALines: TStrings);
 
     published      
@@ -171,12 +173,16 @@ type
   private
     FDefaultGroup: TGroup;
     FGroups: TGroups;
-
+    FLog: TCodeLog;
+    
   public
     constructor Create;
     destructor Destroy; override;
 
     procedure LoadFromFile(AFileName: string);
+
+    function LoadSuccess: Boolean;
+    property Log: TCodeLog read FLog;
 
     procedure GenerateVAO(AVAO: TVAO); override;
 
@@ -191,10 +197,12 @@ constructor TModelOBJ.Create;
 begin
   FDefaultGroup := TGroup.Create;
   FGroups := TGroups.Create;
+  FLog := TCodeLog.Create;
 end;
 
 destructor TModelOBJ.Destroy;
 begin
+  FLog.Free;
   FGroups.Free;
   FDefaultGroup.Free;
   inherited;
@@ -221,16 +229,31 @@ begin
   end;
 end;
 
+function TModelOBJ.LoadSuccess: Boolean;
+begin
+  Result := FLog.Success;
+end;
+
 { TModelOBJ.TLoader }
 
 constructor TModelOBJ.TLoader.Create(AModel: TModelOBJ; ALines: TStrings);
 var
-  Line: string;
+  I: Integer;
 begin
   FModel := AModel;
+  FModel.Log.Clear;
   FMethodHelper.Data := Self;
-  for Line in ALines do
-    ProcessLine(Line);
+  for I := 0 to ALines.Count - 1 do
+  begin
+    try
+      ProcessLine(ALines[I]);
+    except
+      on E: ELoadError do
+        FModel.Log.Add(TCodeLogEntry.Create(E.Message, I + 1, esError));
+      on E: Exception do
+        FModel.Log.Add(TCodeLogEntry.Create(E.Message, I + 1, esFatal));
+    end;
+  end;
 end;
 
 class constructor TModelOBJ.TLoader.Create;

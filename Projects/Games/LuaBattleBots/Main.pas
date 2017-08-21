@@ -204,7 +204,6 @@ begin
   // FSun.Position := FCamera.Location.RealPosition;
   FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0.2).Normalize, DeltaTime);
 
-  FCamera.Location.LookAt(FTestBot.Location.RealPosition);
   FCamera.Update;
 
   FGame.Update(DeltaTime);

@@ -8,11 +8,11 @@ uses
 type
 
   TErrorSeverity = (
-    esFatal,
-    esError,
-    esWarning,
+    esVerbose,
     esHint,
-    esVerbose
+    esWarning,
+    esError,
+    esFatal
   );
 
   TLogEntry = class
@@ -40,11 +40,14 @@ type
     FEntries: TObjectArray<T>;
     FEntriesReader: TRefArrayReader<T>;
 
+  protected
+    procedure InitLog; virtual;
+
   public
     constructor Create;
     destructor Destroy; override;
 
-    procedure Add(AEntry: T);
+    procedure Add(AEntry: T); virtual;
     procedure Clear;
 
     property Entries: TRefArrayReader<T> read FEntriesReader;
@@ -52,6 +55,19 @@ type
     function GetEnumerator: IIterator<T>;
     function Count: Integer;
 
+  end;
+
+  TCodeLog = class(TLog<TCodeLogEntry>)
+  private
+    FSuccess: Boolean;
+
+  protected
+    procedure InitLog; override;
+
+  public
+    procedure Add(AEntry: TCodeLogEntry); override;
+
+    property Success: Boolean read FSuccess;
   end;
 
 implementation
@@ -66,6 +82,7 @@ end;
 procedure TLog<T>.Clear;
 begin
   FEntries.DelAll;
+  InitLog;
 end;
 
 function TLog<T>.Count: Integer;
@@ -91,6 +108,10 @@ begin
   Result := FEntries.GetEnumerator;
 end;
 
+procedure TLog<T>.InitLog;
+begin
+end;
+
 { TCodeLogEntry }
 
 constructor TCodeLogEntry.Create(ADescription: string; ALineNumber: Integer; ASeverity: TErrorSeverity);
@@ -98,6 +119,21 @@ begin
   FDescription := ADescription;
   FLineNumber := ALineNumber;
   FSeverity := ASeverity;
+end;
+
+{ TCodeLog }
+
+procedure TCodeLog.Add(AEntry: TCodeLogEntry);
+begin
+  inherited;
+  if AEntry.FSeverity >= esError then
+    FSuccess := False;
+end;
+
+procedure TCodeLog.InitLog;
+begin
+  inherited;
+  FSuccess := True;
 end;
 
 end.
