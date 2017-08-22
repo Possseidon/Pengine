@@ -3,9 +3,26 @@ unit ModelDefine;
 interface
 
 uses
-  IntfBase, Camera, VectorGeometry, VAOManager, Lists, SysUtils, Classes, Logger;
+  IntfBase, Camera, VectorGeometry, VAOManager, Lists, SysUtils, Classes, Logger, ResourceManager, Shaders, GLEnums;
 
 type
+
+  TModelShaderBase = class(TShaderResource)
+  public type
+
+    TData = record
+      Pos: TVector3;
+      TexCoord: TTexCoord2;
+      Normal: TVector3;
+      Tangent: TVector3;
+      Bitangent: TVector3;
+      Border: TBounds2;
+    end;
+
+  protected
+    class function GetAttributeOrder: TShaderAttributeOrder; override;
+
+  end;
 
   { TModel }
 
@@ -18,15 +35,26 @@ type
 
   TModelOBJ = class(TModel)
   public type
+
     TVertices = TGenericArray<TVector4>;
+
+    TTexCoords = TGenericArray<TTexCoord3>;
+
     TNormals = TGenericArray<TVector3>;
-    TTexCoord = TGenericArray<TTexCoord3>;
-    TFace = array [TTriangleSide] of Integer;
+
+    TFacePoint = record
+      VertexIndex: Integer;
+      TexCoordIndex: Integer;
+      NormalIndex: Integer;
+    end;
+
+    TFace = array of TFacePoint;
+
+    TFaces = TGenericArray<TFace>;
 
     TGroup = class
     private
-      FVertices: TGenericArray<TVector3>;
-      FFaces: TGenericArray<TFace>;
+      FFaces: TFaces;
 
     public
       constructor Create;
@@ -156,6 +184,12 @@ type
       FMethodHelper: TMethod;
       FLineNumber: Integer;
 
+      FCurrentGroup: TGroup;
+
+      function GetCurrentGroup: TGroup;
+
+      property CurrentGroup: TGroup read GetCurrentGroup write FCurrentGroup;
+
       procedure ProcessLine(ALine: string);
 
     public
@@ -164,11 +198,15 @@ type
 
       constructor Create(AModel: TModelOBJ; ALines: TStrings);
 
+      function ParseSingle(const AString: string): Single;
+      function ParseInteger(const AString :string): Integer;
+      function ParseIndex(const AString: string; ACount: Integer): Integer;
+
     published      
       {$REGION 'Vertex data'}
       procedure Process_v(AArguments: TArray<string>);
-      // procedure Process_vt(AArguments: TArray<string>);
-      // procedure Process_vn(AArguments: TArray<string>);
+      procedure Process_vt(AArguments: TArray<string>);
+      procedure Process_vn(AArguments: TArray<string>);
       // procedure Process_vp(AArguments: TArray<string>);
       {$ENDREGION}
       {$REGION 'Free-form curve/surface attributes'}
@@ -217,8 +255,12 @@ type
     end;
    
   private
-    FDefaultGroup: TGroup;
     FGroups: TGroups;
+
+    FVertices: TVertices;
+    FTexCoords: TTexCoords;
+    FNormals: TNormals;
+
     FLog: TCodeLog;
     
   public
@@ -236,27 +278,75 @@ type
 
 implementation
 
-
 { TModelOBJ }
 
 constructor TModelOBJ.Create;
 begin
-  FDefaultGroup := TGroup.Create;
   FGroups := TGroups.Create;
+  FVertices := TVertices.Create;
+  FTexCoords := TTexCoords.Create;
+  FNormals := TNormals.Create;
   FLog := TCodeLog.Create;
 end;
 
 destructor TModelOBJ.Destroy;
 begin
-  FLog.Free;
   FGroups.Free;
-  FDefaultGroup.Free;
+  FNormals.Free;
+  FTexCoords.Free;
+  FVertices.Free;
+  FLog.Free;
   inherited;
 end;
 
 procedure TModelOBJ.GenerateVAO(AVAO: TVAO);
+var
+  Data: TModelShaderBase.TData;
+  GroupPair: TPair<string, TGroup>;
+  Group: TGroup;
+  Face: TFace;
+  FacePoint: TFacePoint;
+  Size: Integer;
 begin
-  // TODO: GenerateVAO
+  Size := 0;
+  for GroupPair in FGroups do
+    Size := Size + GroupPair.Data.FFaces.Count * 3; // TODO: Performance, possibly save this while loading
+  AVAO.Generate(Size, buStaticDraw);
+  AVAO.Map(baWriteOnly);
+
+  Data.Tangent := Vec3(1, 0, 0); // TODO: remove bzw chnage
+  Data.Bitangent := Vec3(1, 0, 0);
+  
+  for GroupPair in FGroups do
+  begin
+    Group := GroupPair.Data;
+    for Face in Group.FFaces do
+    begin
+      if Length(Face) <> 3 then
+        raise Exception.Create('Only triangles are supported by the Model VAO-Generator!');
+
+      Data.Border := FRange2(0, 1); // TODO: Texture and stuff
+
+      if FacePoint.TexCoordIndex = 0 then
+        Data.TexCoord := 0;
+      if FacePoint.NormalIndex = 0 then
+        Data.Normal := 
+          TVector3(FVertices[Face[0].VertexIndex - 1]).VectorTo(FVertices[Face[1].VertexIndex - 1]).Cross(
+          TVector3(FVertices[Face[0].VertexIndex - 1]).VectorTo(FVertices[Face[2].VertexIndex - 1]));
+              
+      for FacePoint in Face do
+      begin
+        Data.Pos := FVertices[FacePoint.VertexIndex - 1];
+        if FacePoint.TexCoordIndex <> 0 then
+          Data.TexCoord := FTexCoords[FacePoint.TexCoordIndex - 1].XY / 2;
+        if FacePoint.NormalIndex <> 0 then
+          Data.Normal := FNormals[FacePoint.NormalIndex - 1];
+        AVAO.AddVertex(Data); 
+      end;
+    end;
+  end;
+  AVAO.Unmap;
+  Assert(AVAO.Size = AVAO.MaxSize); // TODO: remove
 end;
 
 procedure TModelOBJ.LoadFromFile(AFileName: string);
@@ -287,7 +377,9 @@ var
   I: Integer;
 begin
   FModel := AModel;
+
   FModel.Log.Clear;
+
   FMethodHelper.Data := Self;
   for I := 0 to ALines.Count - 1 do
   begin
@@ -317,6 +409,39 @@ begin
   FCommands.Free;
 end;
 
+function TModelOBJ.TLoader.GetCurrentGroup: TGroup;
+begin
+  if FCurrentGroup = nil then
+  begin
+    FCurrentGroup := TGroup.Create;
+    FModel.FGroups['default'] := FCurrentGroup;
+  end;
+  Result := FCurrentGroup;
+end;
+
+function TModelOBJ.TLoader.ParseIndex(const AString: string; ACount: Integer): Integer;
+begin
+  Result := ParseInteger(AString);
+  if Result = 0 then
+    raise ELoadError.Create('0 is not a valid index.');
+  if Abs(Result) > ACount then
+    raise ELoadError.CreateFmt('Index %d can be at most (-)%d at this point.', [Result, ACount]);
+  if Result < 0 then
+    Result := ACount + Result + 1;
+end;
+
+function TModelOBJ.TLoader.ParseInteger(const AString: string): Integer;
+begin
+  if not Integer.TryParse(AString, Result) then
+    raise ELoadError.CreateFmt('"%s" is not a valid index value.', [AString]);
+end;
+
+function TModelOBJ.TLoader.ParseSingle(const AString: string): Single;
+begin
+  if not Single.TryParse(AString, Result, TFormatSettings.Invariant) then
+    raise ELoadError.CreateFmt('"%s" is not a valid floating point value.', [AString]);
+end;
+
 procedure TModelOBJ.TLoader.ProcessLine(ALine: string);
 var
   Arguments: TArray<string>;
@@ -324,11 +449,11 @@ begin
   ALine := ALine.Trim;
   if ALine.StartsWith('#') then
     Exit;
-  Arguments := ALine.Split([' ']);
+  Arguments := ALine.Split([' '], ExcludeEmpty);
   if Length(Arguments) = 0 then
     Exit;
   if not FCommands.Get(Arguments[0], FMethodHelper.Code) then
-    raise ELoadError.Create('No such Command "%s"');
+    raise ELoadError.CreateFmt('No such Command "%s"', [Arguments[0]]);
   if FMethodHelper.Code <> nil then
   begin
     Delete(Arguments, 0, 1);
@@ -337,31 +462,170 @@ begin
   else
   begin
     FModel.Log.Add(TCodeLogEntry.Create(
-      Format('Ignored unsupported Command "%s"', []), FLineNumber, esWarning));
+      Format('Ignored unsupported Command "%s"', [Arguments[0]]), FLineNumber, esWarning));
   end;
 end;
 
 procedure TModelOBJ.TLoader.Process_v(AArguments: TArray<string>);
+var
+  V: TVector4;
 begin
-  
+  if not (Length(AArguments) in [3 .. 4]) then
+    raise ELoadError.CreateFmt('"v" expectes 3 or 4 arguments, got %d', [Length(AArguments)]);
+  V.X := ParseSingle(AArguments[0]);
+  V.Y := ParseSingle(AArguments[1]);
+  V.Z := ParseSingle(AArguments[2]);
+  if Length(AArguments) = 4 then
+    V.W := ParseSingle(AArguments[3])
+  else
+    V.W := 1;
+  FModel.FVertices.Add(V);
+end;
+
+procedure TModelOBJ.TLoader.Process_vt(AArguments: TArray<string>);
+var
+  T: TTexCoord3;
+begin
+  if not Length(AArguments) in [1 .. 3] then
+    raise ELoadError.CreateFmt('"vt" expectes between 1 and 3 arguments, got %d', [Length(AArguments)]);
+  T.S := ParseSingle(AArguments[0]);
+  if Length(AArguments) >= 2 then
+    T.T := ParseSingle(AArguments[1])
+  else
+    T.T := 0;
+  if Length(AArguments) = 3 then
+    T.U := ParseSingle(AArguments[2])
+  else
+    T.U := 0;
+  FModel.FTexCoords.Add(T);
+end;
+
+procedure TModelOBJ.TLoader.Process_vn(AArguments: TArray<string>);
+var
+  N: TVector3;
+begin
+  if Length(AArguments) <> 3 then
+    raise ELoadError.CreateFmt('"vn" expects exactly 3 arguments, got %d', [Length(AArguments)]);
+  N.X := ParseSingle(AArguments[0]);
+  N.Y := ParseSingle(AArguments[1]);
+  N.Z := ParseSingle(AArguments[2]);
+  FModel.FNormals.Add(N);
 end;
 
 procedure TModelOBJ.TLoader.Process_f(AArguments: TArray<string>);
-begin
+const
+  InconsitentIndicesString =
+    'The %d indice-sets for "f" must be consistent with the previous ones!';
 
+type
+  TFaceMode = (
+    fmNone,
+    fmV,
+    fmVT,
+    fmVN,
+    fmVTN
+  );
+var
+  I: Integer;
+  Face: TFace;
+  Mode: TFaceMode;
+  Indices: TArray<string>;
+begin
+  if Length(AArguments) < 3 then
+    raise ELoadError.CreateFmt('"f" expectes at least three parameters, got %d', [Length(AArguments)]);
+
+  Mode := fmNone;
+
+  SetLength(Face, Length(AArguments));
+
+  for I := 0 to Length(AArguments) - 1 do
+  begin
+    Indices := AArguments[I].Split(['/']);
+
+    case Length(Indices) of
+      1:
+        begin
+          if Mode = fmNone then
+            Mode := fmV
+          else if Mode <> fmV then
+            raise ELoadError.CreateFmt(InconsitentIndicesString, [Length(Indices)]);
+
+          Face[I].VertexIndex := ParseIndex(Indices[0], FModel.FVertices.Count);
+          Face[I].TexCoordIndex := 0;
+          Face[I].NormalIndex := 0;
+        end;
+
+      2:
+        begin
+          if Mode = fmNone then
+            Mode := fmVT
+          else if Mode <> fmVT then
+            raise ELoadError.CreateFmt(InconsitentIndicesString, [Length(Indices)]);
+
+          Face[I].VertexIndex := ParseIndex(Indices[0], FModel.FVertices.Count);
+          Face[I].TexCoordIndex := ParseIndex(Indices[1], FModel.FTexCoords.Count);
+          Face[I].NormalIndex := 0;
+        end;
+
+      3:
+        begin
+          if Indices[1] = '' then
+          begin
+            if Mode = fmNone then
+              Mode := fmVN
+            else if Mode <> fmVN then
+              raise ELoadError.CreateFmt(InconsitentIndicesString, [Length(Indices)]);
+
+            Face[I].VertexIndex := ParseIndex(Indices[0], FModel.FVertices.Count);
+            Face[I].TexCoordIndex := 0;
+            Face[I].NormalIndex := ParseIndex(Indices[2], FModel.FNormals.Count);
+          end
+          else
+          begin
+            if Mode = fmNone then
+              Mode := fmVTN
+            else if Mode <> fmVTN then
+              raise ELoadError.CreateFmt(InconsitentIndicesString, [Length(Indices)]);
+
+            Face[I].VertexIndex := ParseIndex(Indices[0], FModel.FVertices.Count);
+            Face[I].TexCoordIndex := ParseIndex(Indices[1], FModel.FTexCoords.Count);
+            Face[I].NormalIndex := ParseIndex(Indices[2], FModel.FNormals.Count);
+          end;
+        end
+
+    else
+      raise ELoadError.CreateFmt('"f-indice-set" expects between 1 and 3 indices, got %d', [Length(Indices)]);
+    end;
+  end;
+  CurrentGroup.FFaces.Add(Face);
 end;
 
 { TModelOBJ.TGroup }
 
 constructor TModelOBJ.TGroup.Create;
 begin
-
+  FFaces := TFaces.Create;
 end;
 
 destructor TModelOBJ.TGroup.Destroy;
 begin
-
+  FFaces.Free;
   inherited;
+end;
+
+{ TModelShaderBase }
+
+class function TModelShaderBase.GetAttributeOrder: TShaderAttributeOrder;
+begin
+  Result := TShaderAttributeOrder.Create(
+    'vpos',
+    'vtexcoord',
+    'vnormal',
+    'vtangent',
+    'vbitangent',
+    'vborderlow',
+    'vborderhigh'
+    );
 end;
 
 end.

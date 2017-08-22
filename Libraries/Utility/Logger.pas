@@ -3,7 +3,7 @@ unit Logger;
 interface
 
 uses
-  Lists, IntfBase;
+  Lists, IntfBase, SysUtils;
 
 type
 
@@ -31,6 +31,8 @@ type
     property LineNumber: Integer read FLineNumber;
     property Description: string read FDescription;
 
+    function ToString: string; override;    
+    
   end;
 
   { TLog }
@@ -55,6 +57,8 @@ type
     function GetEnumerator: IIterator<T>;
     function Count: Integer;
 
+    function ToString: string; override;
+
   end;
 
   TCodeLog = class(TLog<TCodeLogEntry>)
@@ -69,6 +73,15 @@ type
 
     property Success: Boolean read FSuccess;
   end;
+
+const
+  ErrorSeverityStrings: array [TErrorSeverity] of string = (
+    'Verbose',
+    'Hint',
+    'Warning',
+    'Error',
+    'Fatal'
+  );
 
 implementation
 
@@ -110,6 +123,16 @@ end;
 
 procedure TLog<T>.InitLog;
 begin
+  // nothing by default
+end;
+
+function TLog<T>.ToString: string;
+var
+  Entry: T;
+begin
+  Result := '';
+  for Entry in FEntries do
+    Result := Result + Entry.ToString + sLineBreak;
 end;
 
 { TCodeLogEntry }
@@ -119,6 +142,11 @@ begin
   FDescription := ADescription;
   FLineNumber := ALineNumber;
   FSeverity := ASeverity;
+end;
+
+function TCodeLogEntry.ToString: string;
+begin
+  Result := Format('[%s] %d: %s', [ErrorSeverityStrings[Severity], LineNumber, Description]);
 end;
 
 { TCodeLog }

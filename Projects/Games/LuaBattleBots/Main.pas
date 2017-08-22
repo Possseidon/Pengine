@@ -6,7 +6,8 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, OpenGLContext, Camera, Shaders, VAOManager, VectorGeometry, IntfBase,
   Matrix, Lists, TextureManager, Lights, ControlledCamera, GLEnums, IntegerMaths, Color, SkyDome, LuaHeader,
-  Game, EntityDefine, DebugConsoleDefine, InputHandler, Resources, CustomModules, System.Win.ScktComp, ModelDefine;
+  Game, EntityDefine, DebugConsoleDefine, InputHandler, Resources, CustomModules, System.Win.ScktComp, ModelDefine,
+  TimeManager;
 
 type
 
@@ -27,11 +28,15 @@ type
 
     FTestBot: TBotCore;
 
+    FTestModel: TVAO;
+
     procedure InitCamera;
     procedure InitFloorVAO;
     procedure InitLightSystem;
     procedure InitSkyDome;
     procedure InitGame;
+
+    procedure InitTestModel;
 
     function GetFloorParams: TResFloorVAOParams;
 
@@ -63,6 +68,7 @@ begin
   TResFloorVAO.Release(GetFloorParams);
   FCubeVAO.Free;
   FCamera.Free;
+  FTestModel.Free;
 end;
 
 procedure TfrmMain.Init;
@@ -76,7 +82,9 @@ begin
   InitFloorVAO;
 
   InitLightSystem;
+  InitTestModel;
   InitGame;
+
 end;
 
 procedure TfrmMain.InitCamera;
@@ -131,6 +139,28 @@ begin
   DebugWriteLine(' Done!');
 end;
 
+procedure TfrmMain.InitTestModel;
+var
+  Model: TModelOBJ;
+begin
+  Model := TModelOBJ.Create;
+
+  StartTimer;
+  Model.LoadFromFile('Data/Galaxy.obj');
+  ShowMessage(StopTimerGetString(tfMilliseconds));
+
+  if Model.Log.Entries.Count > 0 then
+    ShowMessage(Model.Log.ToString);
+
+  FTestModel := TVAO.Create(TResModelShader.Data);
+  Model.GenerateVAO(FTestModel);
+
+  FCamera.AddRenderObject(FTestModel);
+  FSun.AddOccluder(FTestModel);
+
+  Model.Free;
+end;
+
 procedure TfrmMain.RenderFunc;
 begin
   FLightSystem.RenderShadows;
@@ -147,7 +177,7 @@ begin
   FGame := TGame.Create(FCamera);
 
   P.Y := 0;
-  for I := 0 to 99 do
+  for I := 0 to 0 do
   begin
     FTestBot := TBotCore.Create;
 
@@ -157,13 +187,13 @@ begin
     FTestBot.Location.TurnAngle := 0;
     FTestBot.Location.PitchAngle := 0;
     FTestBot.Location.RollAngle := 0;
-
+    {
     FTestBot.AttachModule(sdUp, TWheelModule);
     FTestBot.AttachModule(sdLeft, TWheelModule);
     FTestBot.AttachModule(sdRight, TWheelModule);
     FTestBot.AttachModule(sdFront, TWheelModule);
     FTestBot.AttachModule(sdBack, TWheelModule);
-
+    }
     try
       Code := TStringList.Create;
       try
@@ -179,6 +209,8 @@ begin
     FGame.AddEntity(FTestBot);
     FSun.AddOccluder(FTestBot);
   end;
+
+  FTestBot.SourceVAO := FTestModel;
 
   DebugWriteLine(' Done!');
 end;
@@ -211,19 +243,19 @@ begin
   FTestBot.Location.FreeTranslate(-FTestBot.Location.Offset);
 
   if Input.KeyDown('A') then
-    FTestBot.Location.FreeTranslate(Vec3(-DeltaTime * 2, 0, 0));
+    FTestBot.Location.FreeTranslate(Vec3(-DeltaTime * 10, 0, 0));
   if Input.KeyDown('D') then
-    FTestBot.Location.FreeTranslate(Vec3(+DeltaTime * 2, 0, 0));
+    FTestBot.Location.FreeTranslate(Vec3(+DeltaTime * 10, 0, 0));
 
   if Input.KeyDown('S') then
-    FTestBot.Location.FreeTranslate(Vec3(0, 0, +DeltaTime * 2));
+    FTestBot.Location.FreeTranslate(Vec3(0, 0, +DeltaTime * 10));
   if Input.KeyDown('W') then
-    FTestBot.Location.FreeTranslate(Vec3(0, 0, -DeltaTime * 2));
+    FTestBot.Location.FreeTranslate(Vec3(0, 0, -DeltaTime * 10));
 
   if Input.KeyDown(VK_SHIFT) then
-    FTestBot.Location.FreeTranslate(Vec3(0, -DeltaTime * 2, 0));
+    FTestBot.Location.FreeTranslate(Vec3(0, -DeltaTime * 10, 0));
   if Input.KeyDown(VK_SPACE) then
-    FTestBot.Location.FreeTranslate(Vec3(0, +DeltaTime * 2, 0));
+    FTestBot.Location.FreeTranslate(Vec3(0, +DeltaTime * 10, 0));
 
   if Input.KeyDown(VK_LEFT) then
     FTestBot.Location.FreeTurn(-DeltaTime * 90);

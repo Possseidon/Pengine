@@ -3,7 +3,8 @@ unit Resources;
 interface
 
 uses
-  ResourceManager, Shaders, TextureManager, VAOManager, VectorGeometry, GLEnums, SkyDome, Lists, IntegerMaths;
+  ResourceManager, Shaders, TextureManager, VAOManager, VectorGeometry, GLEnums, SkyDome, Lists, IntegerMaths,
+  ModelDefine;
 
 type
 
@@ -11,21 +12,9 @@ type
 
   { TResModelShader }
 
-  TResModelShader = class(TShaderResource)
-  public type
-
-    TData = record
-      Pos: TVector3;
-      TexCoord: TTexCoord2;
-      Normal: TVector3;
-      Tangent: TVector3;
-      Bitangent: TVector3;
-      Border: TBounds2;
-    end;
-
+  TResModelShader = class(TModelShaderBase)
   protected
     class function GetShaderSource: string; override;
-    class function GetAttributeOrder: TShaderAttributeOrder; override;
 
   public
     class constructor Create;
@@ -116,19 +105,6 @@ begin
   Result := 'Data/model';
 end;
 
-class function TResModelShader.GetAttributeOrder: TShaderAttributeOrder;
-begin
-  Result := TShaderAttributeOrder.Create(
-    'vpos',
-    'vtexcoord',
-    'vnormal',
-    'vtangent',
-    'vbitangent',
-    'vborderlow',
-    'vborderhigh'
-    );
-end;
-
 class constructor TResModelShader.Create;
 begin
   AddToResourceManager;
@@ -152,11 +128,14 @@ class function TResTexturePage.CreateData: TTexturePage;
 begin
   Result := TTexturePage.Create;
   Result.UniformDefaults(TResModelShader.Data);
+  Result.AddTextureFromFile('Data/Galaxy.png', 'galaxy');
+
+  Result.AddTextureFromFile('Data/holed_ironplating.png', 'holed_ironplating');
   Result.AddTextureFromFile('Data/stone_bricks.png', 'stone_bricks');
   Result.AddTextureFromFile('Data/grass_top.png', 'grass_top');
   Result.AddTextureFromFile('Data/log_side.png', 'log_side');
   Result.AddTextureFromFile('Data/iron.png', 'iron');
-  Result.AddTextureFromFile('Data/holed_ironplating.png', 'holed_ironplating');
+
   Result.BuildPage(32);
 end;
 
@@ -253,7 +232,7 @@ end;
 class procedure TResFloorVAO.CreateData(var AData: TVAO; AParams: TResFloorVAOParams);
 const
   Plane: TPlane3 = (
-    SV: (X: 0; Y: 0; Z: 0);
+    SV: (X: 0; Y: -3; Z: 0);
     DVS: (X: 0; Y: 0; Z: 1);
     DVT: (X: 1; Y: 0; Z: 0)
     );
