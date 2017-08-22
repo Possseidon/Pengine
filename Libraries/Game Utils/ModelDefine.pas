@@ -18,9 +18,9 @@ type
 
   TModelOBJ = class(TModel)
   public type
-    TVertices = TGenericArray<TVector3>;
+    TVertices = TGenericArray<TVector4>;
     TNormals = TGenericArray<TVector3>;
-    TTexCoord = TGenericArray<TTexCoord2>;
+    TTexCoord = TGenericArray<TTexCoord3>;
     TFace = array [TTriangleSide] of Integer;
 
     TGroup = class
@@ -154,6 +154,7 @@ type
     private
       FModel: TModelOBJ;
       FMethodHelper: TMethod;
+      FLineNumber: Integer;
 
       procedure ProcessLine(ALine: string);
 
@@ -164,10 +165,55 @@ type
       constructor Create(AModel: TModelOBJ; ALines: TStrings);
 
     published      
+      {$REGION 'Vertex data'}
       procedure Process_v(AArguments: TArray<string>);
-      procedure Process_vn(AArguments: TArray<string>);
-      procedure Process_vt(AArguments: TArray<string>);
-          
+      // procedure Process_vt(AArguments: TArray<string>);
+      // procedure Process_vn(AArguments: TArray<string>);
+      // procedure Process_vp(AArguments: TArray<string>);
+      {$ENDREGION}
+      {$REGION 'Free-form curve/surface attributes'}
+      // procedure Process_deg(AArguments: TArray<string>);
+      // procedure Process_bmat(AArguments: TArray<string>);
+      // procedure Process_step(AArguments: TArray<string>);
+      // procedure Process_cstype(AArguments: TArray<string>);
+      {$ENDREGION}
+      {$REGION 'Elements'}
+      // procedure Process_p(AArguments: TArray<string>);
+      // procedure Process_l(AArguments: TArray<string>);
+      procedure Process_f(AArguments: TArray<string>);
+      // procedure Process_curv(AArguments: TArray<string>);
+      // procedure Process_curv2(AArguments: TArray<string>);
+      // procedure Process_surf(AArguments: TArray<string>);
+      {$ENDREGION}
+      {$REGION 'Free-form curve/surface body statements'}
+      // procedure Process_parm(AArguments: TArray<string>);
+      // procedure Process_trim(AArguments: TArray<string>);
+      // procedure Process_hole(AArguments: TArray<string>);
+      // procedure Process_scrv(AArguments: TArray<string>);
+      // procedure Process_sp(AArguments: TArray<string>);
+      // procedure Process_end(AArguments: TArray<string>);
+      {$ENDREGION}
+      {$REGION 'Connectivity between free-form surfaces'}
+      // procedure Process_con(AArguments: TArray<string>);
+      {$ENDREGION}
+      {$REGION 'Grouping'}
+      // procedure Process_g(AArguments: TArray<string>);
+      // procedure Process_s(AArguments: TArray<string>);
+      // procedure Process_mg(AArguments: TArray<string>);
+      // procedure Process_o(AArguments: TArray<string>);
+      {$ENDREGION}
+      {$REGION 'Display/render attributes'}
+      // procedure Process_bevel(AArguments: TArray<string>);
+      // procedure Process_c_interp(AArguments: TArray<string>);
+      // procedure Process_d_interp(AArguments: TArray<string>);
+      // procedure Process_lod(AArguments: TArray<string>);
+      // procedure Process_usemtl(AArguments: TArray<string>);
+      // procedure Process_mtllib(AArguments: TArray<string>);
+      // procedure Process_shadow_obj(AArguments: TArray<string>);
+      // procedure Process_trace_obj(AArguments: TArray<string>);
+      // procedure Process_ctech(AArguments: TArray<string>);
+      // procedure Process_stech(AArguments: TArray<string>);
+      {$ENDREGION}
     end;
    
   private
@@ -245,13 +291,14 @@ begin
   FMethodHelper.Data := Self;
   for I := 0 to ALines.Count - 1 do
   begin
+    FLineNumber := I + 1;
     try
       ProcessLine(ALines[I]);
     except
       on E: ELoadError do
-        FModel.Log.Add(TCodeLogEntry.Create(E.Message, I + 1, esError));
+        FModel.Log.Add(TCodeLogEntry.Create(E.Message, FLineNumber, esError));
       on E: Exception do
-        FModel.Log.Add(TCodeLogEntry.Create(E.Message, I + 1, esFatal));
+        FModel.Log.Add(TCodeLogEntry.Create(E.Message, FLineNumber, esFatal));
     end;
   end;
 end;
@@ -273,14 +320,15 @@ end;
 procedure TModelOBJ.TLoader.ProcessLine(ALine: string);
 var
   Arguments: TArray<string>;
-  Command: TProcessingFunc;
 begin
+  ALine := ALine.Trim;
   if ALine.StartsWith('#') then
     Exit;
   Arguments := ALine.Split([' ']);
   if Length(Arguments) = 0 then
     Exit;
-  FMethodHelper.Code := FCommands[Arguments[0]];
+  if not FCommands.Get(Arguments[0], FMethodHelper.Code) then
+    raise ELoadError.Create('No such Command "%s"');
   if FMethodHelper.Code <> nil then
   begin
     Delete(Arguments, 0, 1);
@@ -288,7 +336,8 @@ begin
   end
   else
   begin
-    
+    FModel.Log.Add(TCodeLogEntry.Create(
+      Format('Ignored unsupported Command "%s"', []), FLineNumber, esWarning));
   end;
 end;
 
@@ -297,12 +346,7 @@ begin
   
 end;
 
-procedure TModelOBJ.TLoader.Process_vn(AArguments: TArray<string>);
-begin
-
-end;
-
-procedure TModelOBJ.TLoader.Process_vt(AArguments: TArray<string>);
+procedure TModelOBJ.TLoader.Process_f(AArguments: TArray<string>);
 begin
 
 end;
