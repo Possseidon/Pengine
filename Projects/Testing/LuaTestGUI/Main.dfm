@@ -76,6 +76,11 @@ object frmMain: TfrmMain
     WantTabs = True
     OnChange = seCodeChange
     FontSmoothing = fsmClearType
-    ExplicitHeight = 262
+    RemovedKeystrokes = <>
+    AddedKeystrokes = <
+      item
+        Command = ecDeleteWord
+        ShortCut = 16430
+      end>
   end
 end
