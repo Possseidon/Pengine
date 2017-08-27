@@ -2,8 +2,8 @@ object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'Lua Test'
-  ClientHeight = 342
-  ClientWidth = 460
+  ClientHeight = 362
+  ClientWidth = 452
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -18,60 +18,67 @@ object frmMain: TfrmMain
   object pnlBottom: TPanel
     AlignWithMargins = True
     Left = 3
-    Top = 309
-    Width = 454
-    Height = 30
+    Top = 320
+    Width = 446
+    Height = 39
     Align = alBottom
     TabOrder = 0
+    DesignSize = (
+      446
+      39)
     object lbError: TLabel
       AlignWithMargins = True
       Left = 4
       Top = 4
-      Width = 374
-      Height = 22
-      Align = alClient
+      Width = 227
+      Height = 31
+      Align = alLeft
+      Anchors = [akLeft, akTop, akRight, akBottom]
       AutoSize = False
       WordWrap = True
-      ExplicitWidth = 3
-      ExplicitHeight = 13
+      ExplicitWidth = 235
+      ExplicitHeight = 22
     end
     object Label1: TLabel
-      Left = 245
+      Left = 237
       Top = 7
       Width = 66
       Height = 13
+      Anchors = [akTop, akRight]
       Caption = 'Timeout (ms):'
+      ExplicitLeft = 245
     end
     object btnRun: TButton
       AlignWithMargins = True
-      Left = 384
+      Left = 375
       Top = 4
       Width = 66
       Height = 22
-      Align = alRight
+      Anchors = [akTop, akRight]
       Caption = 'Run'
       TabOrder = 0
       OnClick = btnRunClick
-      ExplicitHeight = 33
     end
     object seTimeout: TSpinEdit
       AlignWithMargins = True
-      Left = 317
+      Left = 309
       Top = 4
       Width = 61
       Height = 22
-      MaxValue = 100
+      Anchors = [akTop, akRight]
+      MaxValue = 10000
       MinValue = 1
       TabOrder = 1
       Value = 100
+      ExplicitLeft = 317
     end
   end
   object seCode: TSynEdit
     AlignWithMargins = True
     Left = 3
     Top = 3
-    Width = 454
-    Height = 300
+    Width = 446
+    Height = 311
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -89,13 +96,23 @@ object frmMain: TfrmMain
     Gutter.Font.Style = []
     Gutter.ShowLineNumbers = True
     Lines.Strings = (
-      '')
-    Options = [eoAutoIndent, eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabsToSpaces]
+      'stuff = {'
+      '  1,'
+      '  "test",'
+      '  {},'
+      '  function() end'
+      '}'
+      ''
+      'for i = 1, #stuff do'
+      '  print(type(stuff[i]))'
+      'end')
+    Options = [eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabsToSpaces]
     TabWidth = 2
     WantTabs = True
     OnChange = seCodeChange
     FontSmoothing = fsmClearType
-    ExplicitHeight = 289
+    ExplicitLeft = -2
+    ExplicitHeight = 295
     RemovedKeystrokes = <>
     AddedKeystrokes = <
       item

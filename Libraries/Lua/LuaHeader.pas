@@ -125,7 +125,7 @@ type
     nparams: Byte; // (u) number of parameters
     isvararg: ByteBool; // (u)
     istailcall: ByteBool; // (t)
-    short_src: array [0 .. LUA_IDSIZE - 1] of Char; // (S)
+    short_src: array [0 .. LUA_IDSIZE - 1] of AnsiChar; // (S)
     i_ci: Pointer; // active function
   end;
 
@@ -292,8 +292,8 @@ type
     function IsCFunction(index: Integer = -1): LongBool; inline;
     function IsInteger(index: Integer = -1): LongBool; inline;
     function IsUserdata(index: Integer = -1): LongBool; inline;
-    function TypeAt_X(index: Integer = -1): Integer; inline;
-    function TypeAt(index: Integer = -1): TLuaType; inline;
+    function Type_X(index: Integer = -1): Integer; inline;
+    function &Type(index: Integer = -1): TLuaType; inline;
     function TypeName_X(tp: Integer = -1): PAnsiChar; inline;
     function TypeName(tp: TLuaType): PAnsiChar; inline;
 
@@ -442,7 +442,7 @@ type
     // --- Custom Functions ---
 
     property Top: Integer read GetTop write SetTop;
-    function TypeNameAt(index: Integer): AnsiString; inline;
+    function TypeNameAt(index: Integer = -1): PAnsiChar; inline;
 
     function LoadString(AString: AnsiString; AChunkName: AnsiString = ''): TLuaLoadError;
 
@@ -892,14 +892,14 @@ begin
   Result := lua_isuserdata(@Self, index);
 end;
 
-function TLuaStateRec.TypeAt_X(index: Integer): Integer;
+function TLuaStateRec.Type_X(index: Integer): Integer;
 begin
   Result := lua_type(@Self, index);
 end;
 
-function TLuaStateRec.TypeAt(index: Integer): TLuaType;
+function TLuaStateRec.&Type(index: Integer): TLuaType;
 begin
-  Result := TLuaType(TypeAt_X(index));
+  Result := TLuaType(Type_X(index));
 end;
 
 function TLuaStateRec.TypeName_X(tp: Integer): PAnsiChar;
@@ -912,9 +912,9 @@ begin
   Result := TypeName_X(Ord(tp));
 end;
 
-function TLuaStateRec.TypeNameAt(index: Integer): AnsiString;
+function TLuaStateRec.TypeNameAt(index: Integer): PAnsiChar;
 begin
-  Result := TypeName_X(TypeAt_X(index));
+  Result := TypeName_X(Type_X(index));
 end;
 
 function TLuaStateRec.LoadString(AString: AnsiString; AChunkName: AnsiString): TLuaLoadError;
@@ -984,7 +984,7 @@ begin
       First := False;
       Continue;
     end;
-    Result := Result + ' or ' + TypeName(T);
+    Result := Result + '/' + TypeName(T);
   end;
 end;
 
@@ -992,7 +992,7 @@ procedure TLuaStateRec.CheckType(AIndex: Integer; AType: TLuaType);
 var
   T: TLuaType;
 begin
-  T := TypeAt(AIndex);
+  T := &Type(AIndex);
   if T <> AType then
     ErrorFmt('arg #%d: %s expected, got %s', [AIndex, TypeName(AType), TypeNameAt(AIndex)]);
 end;
@@ -1001,14 +1001,14 @@ procedure TLuaStateRec.CheckType(AIndex: Integer; ATypes: TLuaTypes; ANone: Bool
 var
   T: TLuaType;
 begin
-  T := TypeAt(AIndex);
+  T := &Type(AIndex);
   if (T = ltNone) and not ANone or (T <> ltNone) and not(T in ATypes) then
     ErrorFmt('arg #%d: %s expected, got %s', [AIndex, FormatTypes(ATypes, ANone), TypeName(T)]);
 end;
 
 function TLuaStateRec.CheckAny(AIndex: Integer): TLuaType;
 begin
-  Result := TypeAt(AIndex);
+  Result := &Type(AIndex);
   if Result = ltNone then
     ErrorFmt('arg #%d: argument expected, got %s', [AIndex, TypeName(Result)]);
 end;
@@ -1550,34 +1550,29 @@ function TLuaStateRec.ToString(index: Integer): PAnsiChar;
 var
   T: TLuaType;
 begin
-  T := TypeAt(index);
+  index := AbsIndex(index);
+  T := &Type(index);
   case T of
     ltNone:
-      Result := 'none';
+      PushString('none');
     ltNil:
-      Result := 'nil';
+      PushString('nil');
     ltBoolean:
       if ToBoolean(index) then
-        Result := 'true'
+        PushString('true')
       else
-        Result := 'false';
+        PushString('false');
     ltLightUserdata:
-      begin
-        PushFString('lightuserdata: %p', [ToPointer(index)]);
-        Replace(index);
-        Result := ToString_X(index);
-      end;
+      PushFString('lightuserdata: %p', [ToPointer(index)]);
     // ltNumber: ; // default
     // ltString: ; // default
     ltTable .. ltThread:
-      begin
-        PushFString('%s: %p', [TypeName(T), ToPointer(index)]);
-        Replace(index);
-        Result := ToString_X(index);
-      end;
+      PushFString('%s: %p', [TypeName(T), ToPointer(index)]);
   else
-    Result := ToString_X(index);
+    Exit(ToString_X(index));
   end;
+  Replace(index);
+  Result := ToString_X(index);
 end;
 
 procedure TLuaStateRec.Insert(index: Integer);
