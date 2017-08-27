@@ -9,10 +9,15 @@ type
 
   TLuaLibBasic = class(TLuaLib)
   private
+    class function LuaAssert(L: TLuaState): Integer; static; cdecl;
     class function LuaError(L: TLuaState): Integer; static; cdecl;
+    class function LuaIPairs(L: TLuaState): Integer; static; cdecl;
     class function LuaNext(L: TLuaState): Integer; static; cdecl;
+    class function LuaPairs(L: TLuaState): Integer; static; cdecl;
     class function LuaToString(L: TLuaState): Integer; static; cdecl;
     class function LuaType(L: TLuaState): Integer; static; cdecl;
+
+    class function LuaINext(L: TLuaState): Integer; static; cdecl;
 
   protected
     class function CreateEntry: TLuaLib.TEntry; override;
@@ -29,10 +34,28 @@ begin
   Env := TTableEntry.Create;
   with Env do
   begin
+    Add('assert', LuaAssert);
     Add('error', LuaError);
+    Add('ipairs', LuaIPairs);
     Add('next', LuaNext);
+    Add('pairs', LuaPairs);
     Add('tostring', LuaToString);
     Add('type', LuaType);
+  end;
+end;
+
+class function TLuaLibBasic.LuaAssert(L: TLuaState): Integer;
+begin
+  L.CheckAny(1);
+  if L.ToBoolean(1) then
+  begin
+    Result := L.Top;
+  end
+  else
+  begin
+    L.Remove(1);
+    L.Top := 1;
+    L.Error_X;
   end;
 end;
 
@@ -53,6 +76,33 @@ begin
   Result := L.Error(L.ToString(1), Level);
 end;
 
+class function TLuaLibBasic.LuaINext(L: TLuaState): Integer;
+var
+  I: TLuaInteger;
+begin
+  L.CheckType(1, ltTable);
+  L.Top := 2;
+  L.CheckEnd(3);
+  I := L.CheckOrDefault(2, 0) + 1;
+  L.Top := 1;
+  L.PushInteger(I);
+  L.GetI(I, 1);
+  if L.IsNoneOrNil then
+    Result := 0
+  else
+    Result := 2;
+end;
+
+class function TLuaLibBasic.LuaIPairs(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltTable);
+  L.CheckEnd(2);
+  L.PushCFunction(LuaINext);
+  L.Insert(1);
+  L.PushInteger(0);
+  Result := 3;
+end;
+
 class function TLuaLibBasic.LuaNext(L: TLuaState): Integer;
 begin
   L.CheckType(1, ltTable);
@@ -62,6 +112,15 @@ begin
     Result := 2
   else
     Result := 0;
+end;
+
+class function TLuaLibBasic.LuaPairs(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltTable);
+  L.CheckEnd(2);
+  L.PushCFunction(LuaNext);
+  L.Insert(1);
+  Result := 2;
 end;
 
 class function TLuaLibBasic.LuaToString(L: TLuaState): Integer;

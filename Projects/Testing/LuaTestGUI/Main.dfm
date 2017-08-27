@@ -70,7 +70,6 @@ object frmMain: TfrmMain
       MinValue = 1
       TabOrder = 1
       Value = 100
-      ExplicitLeft = 317
     end
   end
   object seCode: TSynEdit
@@ -96,23 +95,16 @@ object frmMain: TfrmMain
     Gutter.Font.Style = []
     Gutter.ShowLineNumbers = True
     Lines.Strings = (
-      'stuff = {'
-      '  1,'
-      '  "test",'
-      '  {},'
-      '  function() end'
-      '}'
+      'x = {1, 2, 3, 4, 5}'
       ''
-      'for i = 1, #stuff do'
-      '  print(type(stuff[i]))'
+      'for i, v in ipairs(x) do'
+      '  print(i .. ": " .. v)'
       'end')
     Options = [eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabsToSpaces]
     TabWidth = 2
     WantTabs = True
     OnChange = seCodeChange
     FontSmoothing = fsmClearType
-    ExplicitLeft = -2
-    ExplicitHeight = 295
     RemovedKeystrokes = <>
     AddedKeystrokes = <
       item

@@ -368,7 +368,7 @@ type
     // coroutine functions
     function YieldK(nresults: Integer; ctx: lua_KContext; k: lua_KFunction): Integer; inline;
     function Resume(from: TLuaState; nargs: Integer): Integer; inline;
-    function status: Integer; inline;
+    function Status: Integer; inline;
     function IsYieldable: LongBool; inline;
     function Yield(nresults: Integer): Integer; inline;
 
@@ -379,7 +379,7 @@ type
     function Error_X: Integer; inline;
     function Next(index: Integer): LongBool; inline;
     procedure Concat(n: Integer); inline;
-    procedure len(index: Integer); inline;
+    procedure Len(index: Integer); inline;
     function StringToNumber(s: PAnsiChar): NativeUInt; inline;
 
     function GetAllocF(ud: PPointer): lua_Alloc; inline;
@@ -1336,7 +1336,7 @@ begin
   Result := lua_resume(@Self, from, nargs);
 end;
 
-function TLuaStateRec.status: Integer;
+function TLuaStateRec.Status: Integer;
 begin
   Result := lua_status(@Self);
 end;
@@ -1371,7 +1371,7 @@ begin
   lua_concat(@Self, n);
 end;
 
-procedure TLuaStateRec.len(index: Integer);
+procedure TLuaStateRec.Len(index: Integer);
 begin
   lua_len(@Self, index);
 end;
