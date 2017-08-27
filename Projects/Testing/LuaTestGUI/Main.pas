@@ -4,36 +4,24 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, SynEdit, LuaHeader;
-
-const
-  WM_CONSOLE = WM_USER + 0;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, SynEdit, Lua, LuaHeader, Vcl.Samples.Spin,
+  TimeManager;
 
 type
-
-  TLuaThread = class(TThread)
-  private
-    FLua: TLuaState;
-  protected
-    procedure Execute; override;
-  public
-    constructor Create(ALua: TLuaState; ACreateSuspended: Boolean);
-  end;
 
   TfrmMain = class(TForm)
     pnlBottom: TPanel;
     seCode: TSynEdit;
     lbError: TLabel;
     btnRun: TButton;
+    seTimeout: TSpinEdit;
+    Label1: TLabel;
     procedure seCodeChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnRunClick(Sender: TObject);
   private
-    L: TLuaState;
-
-  public
-    procedure ConsolePrint(var AMessage: TMessage); message WM_CONSOLE;
+    FLua: TLua;
 
   end;
 
@@ -45,59 +33,56 @@ implementation
 
 {$R *.dfm}
 
-procedure TLuaThread.Execute;
-begin
-  FLua.GetGlobal('code');
-  if FLua.PCall(0, 0, 0) = lceErrorRun then
-  begin
-    ShowMessage(string(FLua.ToString));
-  end;
-end;
-
-constructor TLuaThread.Create(ALua: TLuaState; ACreateSuspended: Boolean);
-begin
-  inherited Create(ACreateSuspended);
-  FLua := ALua;
-end;
-
 procedure TfrmMain.btnRunClick(Sender: TObject);
 var
-  Thread: TLuaThread;
+  Err: TLuaPCallError;
+  I: Integer;
 begin
-  Thread := TLuaThread.Create(L, True);
-  Thread.FreeOnTerminate := True;
-  Thread.Start;
-end;
-
-procedure TfrmMain.ConsolePrint(var AMessage: TMessage);
-begin
-
+  StartTimer;
+  for I := 0 to 9 do
+  begin
+    FLua.L.GetGlobal('code');
+    if FLua.LCall(0, 0, seTimeout.Value / 1000, Err) then
+    begin
+      if Err <> lceOK then
+      begin
+        ShowMessage(string(FLua.L.ToString));
+        FLua.L.Pop;
+      end
+    end
+    else
+    begin
+      // ShowMessage('Timeout!');
+      seCodeChange(nil);
+    end;
+  end;
+  ShowMessage(StopTimerGetString);
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
-  L := NewLuaState;
+  FLua := TLua.Create;
   seCodeChange(nil);
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
-  L.Close;
+  FLua.Free;
 end;
 
 procedure TfrmMain.seCodeChange(Sender: TObject);
 begin
-  case L.LoadString(AnsiString(seCode.Text)) of
+  case FLua.L.LoadString(AnsiString(seCode.Text)) of
     lleOK:
       begin
-        L.SetGlobal('code');
+        FLua.L.SetGlobal('code');
         lbError.Caption := 'Compiled without Error';
         lbError.Font.Color := clDefault;
       end;
     lleErrorSyntax:
       begin
-        lbError.Caption := string(L.ToString_X(1));
-        L.Pop;
+        lbError.Caption := string(FLua.L.ToString_X(1));
+        FLua.L.Pop;
         lbError.Font.Color := clRed;
       end;
     lleErrorMemory:

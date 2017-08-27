@@ -7,6 +7,18 @@ uses
 
 type
 
+  TTimeFormat = (
+    tfNanoseconds,
+    tfMicroseconds,
+    tfMilliseconds,
+    tfSeconds,
+    tfMinutes,
+    tfHours,
+    tfDays,
+    tfWeeks,
+    tfYears
+  );
+
   { TDeltaTimer }
 
   TDeltaTimer = record
@@ -33,17 +45,15 @@ type
     procedure ForceFPSUpdate;
   end;
 
-  TTimeFormat = (
-    tfNanoseconds,
-    tfMicroseconds,
-    tfMilliseconds,
-    tfSeconds,
-    tfMinutes,
-    tfHours,
-    tfDays,
-    tfWeeks,
-    tfYears
-  );
+  { TStopWatch }
+
+  TStopWatch = record
+  private
+    FStart: Single;
+  public
+    procedure Start; inline;
+    function Time(ATimeFormat: TTimeFormat = tfSeconds): Single;
+  end;
 
 procedure StartTimer;
 function StopTimer: Single;
@@ -179,7 +189,25 @@ begin
   FUpdateTime := FUpdateInterval;
 end;
 
+{ TStopWatch }
+
+procedure TStopWatch.Start;
 begin
+  FStart := 0;
+  FStart := Time;
+end;
+
+function TStopWatch.Time(ATimeFormat: TTimeFormat): Single;
+var
+  StartTime: Int64;
+begin
+  QueryPerformanceCounter(StartTime);
+  Result := StartTime / Frequency - FStart;
+  if ATimeFormat <> tfSeconds then
+    Result := ConvertSecondsTo(Result, ATimeFormat);
+end;
+
+initialization
   InitFrequency;
   StartTimer;
 end.

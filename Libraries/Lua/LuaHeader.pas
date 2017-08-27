@@ -468,7 +468,7 @@ type
   end;
 
 function LuaDefaultAlloc(ud, ptr: Pointer; osize, nsize: NativeUInt): Pointer; cdecl;
-function NewLuaState: TLuaState;
+function NewLuaState(AAllocFunc: TLuaAlloc; AUserData: Pointer = nil): TLuaState;
 
 // --- DLL ---
 
@@ -790,13 +790,12 @@ end;
 
 { TLuaStateRec }
 
-function NewLuaState: TLuaState;
+function NewLuaState(AAllocFunc: TLuaAlloc; AUserData: Pointer): TLuaState;
 begin
-  Result := lua_newstate(LuaDefaultAlloc, nil);
+  Result := lua_newstate(AAllocFunc, AUserData);
 end;
 
-class function TLuaStateRec.Reader(L: TLuaState; ud: Pointer; size: PNativeUInt
-  ): PAnsiChar;
+class function TLuaStateRec.Reader(L: TLuaState; ud: Pointer; size: PNativeUInt): PAnsiChar;
 var
   R: PReaderRec;
 begin
