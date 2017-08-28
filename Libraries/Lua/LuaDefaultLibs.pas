@@ -7,6 +7,8 @@ uses
 
 type
 
+  { TLuaLibBasic }
+
   TLuaLibBasic = class(TLuaLib)
   private
     class function LuaAssert(L: TLuaState): Integer; static; cdecl;
@@ -22,19 +24,27 @@ type
     class function LuaINext(L: TLuaState): Integer; static; cdecl;
 
   protected
-    class function CreateEntry: TLuaLib.TEntry; override;
+    class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
+  end;
+
+  { TLuaLibTable }
+
+  TLuaLibTable = class(TLuaLib)
+  private
+    class function LuaPack(L: TLuaState): Integer; static; cdecl;
+    class function LuaUnpack(L: TLuaState): Integer; static; cdecl;
+
+  protected
+    class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
   end;
 
 implementation
 
 { TLuaLibBasic }
 
-class function TLuaLibBasic.CreateEntry: TLuaLib.TEntry;
-var
-  Env: TTableEntry absolute Result;
+class procedure TLuaLibBasic.CreateEntry(AEntry: TLuaLib.TTableEntry);
 begin
-  Env := TTableEntry.Create;
-  with Env do
+  with AEntry do
   begin
     Add('assert', LuaAssert);
     Add('error', LuaError);
@@ -45,7 +55,7 @@ begin
     Add('setmetatable', LuaSetMetatable);
     Add('tostring', LuaToString);
     Add('type', LuaType);
-    AddRecursion('_G');
+    AddRecursion('_G', AEntry);
   end;
 end;
 
@@ -116,7 +126,7 @@ class function TLuaLibBasic.LuaIPairs(L: TLuaState): Integer;
 begin
   L.CheckType(1, ltTable);
   L.CheckEnd(2);
-  L.PushCFunction(LuaINext);
+  PushFunc(L, LuaINext);
   L.Insert(1);
   L.PushInteger(0);
   Result := 3;
@@ -173,6 +183,43 @@ begin
   L.CheckEnd(2);
   L.PushString(L.TypeName(T));
   Result := 1;
+end;
+
+{ TLuaLibTable }
+
+class procedure TLuaLibTable.CreateEntry(AEntry: TLuaLib.TTableEntry);
+begin
+  with AEntry.Add('table') do
+  begin
+    Add('pack', LuaPack);
+    Add('unpack', LuaUnpack);
+  end;
+end;
+
+class function TLuaLibTable.LuaPack(L: TLuaState): Integer;
+var
+  I: TLuaInteger;
+begin
+  L.CreateTable(L.Top, 0);
+  L.Insert(1);
+  for I := L.Top - 1 downto 1 do
+    L.SetI(I, 1);
+  Result := 1;
+end;
+
+class function TLuaLibTable.LuaUnpack(L: TLuaState): Integer;
+var
+  A, B, I: TLuaInteger;
+begin
+  L.CheckType(1, ltTable);
+  L.CheckEnd(4);
+  L.Top := 3;
+  L.Len(1);
+  A := L.CheckOrDefault(2, 1);
+  B := L.CheckOrDefault(3, L.ToInteger);
+  for I := A to B do
+    L.GetI(I, 1);
+  Result := B - A + 1;
 end;
 
 end.

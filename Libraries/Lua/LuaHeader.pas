@@ -277,8 +277,8 @@ type
 
     // basic stack manipulation
     function AbsIndex(idx: Integer): Integer; inline;
-    function GetTop: Integer; inline;
-    procedure SetTop(index: Integer); inline;
+    function GetTop: TLuaInteger; inline;
+    procedure SetTop(index: TLuaInteger); inline;
     procedure PushValue(index: Integer = -1); inline;
     procedure Rotate(idx, n: Integer); inline;
     procedure Copy(fromidx, toidx: Integer); inline;
@@ -441,7 +441,7 @@ type
 
     // --- Custom Functions ---
 
-    property Top: Integer read GetTop write SetTop;
+    property Top: TLuaInteger read GetTop write SetTop;
     function TypeNameAt(index: Integer = -1): PAnsiChar; inline;
 
     function LoadString(AString: AnsiString; AChunkName: AnsiString = ''): TLuaLoadError;
@@ -464,6 +464,10 @@ type
     function CheckOrDefault(AIndex: Integer; ADefault: TLuaNumber): TLuaNumber; overload;
     function CheckOrDefault(AIndex: Integer; ADefault: TLuaString): TLuaString; overload;
     function CheckOrDefault(AIndex: Integer; ADefault: Boolean): Boolean; overload;
+
+    // Debug
+    function GetStackAsArray: TArray<AnsiString>;
+    property Stack: TArray<AnsiString> read GetStackAsArray;
 
   end;
 
@@ -832,12 +836,12 @@ begin
   Result := lua_absindex(@Self, idx);
 end;
 
-function TLuaStateRec.GetTop: Integer;
+function TLuaStateRec.GetTop: TLuaInteger;
 begin
   Result := lua_gettop(@Self);
 end;
 
-procedure TLuaStateRec.SetTop(index: Integer);
+procedure TLuaStateRec.SetTop(index: TLuaInteger);
 begin
   lua_settop(@Self, index);
 end;
@@ -1609,6 +1613,19 @@ end;
 function TLuaStateRec.GetStack(level: Integer; ar: Plua_Debug): LongBool;
 begin
   Result := lua_getstack(@Self, level, ar);
+end;
+
+function TLuaStateRec.GetStackAsArray: TArray<AnsiString>;
+var
+  I: Integer;
+begin
+  SetLength(Result, Top);
+  for I := 1 to Top do
+  begin
+    PushValue(I);
+    Result[I - 1] := Format('[%d] = %s', [Top - I, ToString]);
+    Pop;
+  end;
 end;
 
 function TLuaStateRec.GetInfo(what: PAnsiChar; ar: Plua_Debug): LongBool;

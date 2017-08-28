@@ -12,8 +12,9 @@ type
   TLuaLibHelp = class(TLuaLib)
   private
     class function LuaPrint(L: TLuaState): Integer; static; cdecl;
+
   protected
-    class function CreateEntry: TLuaLib.TEntry; override;
+    class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
   end;
 
   TfrmMain = class(TForm)
@@ -22,11 +23,12 @@ type
     lbError: TLabel;
     btnRun: TButton;
     seTimeout: TSpinEdit;
-    Label1: TLabel;
+    cbTimeout: TCheckBox;
     procedure seCodeChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnRunClick(Sender: TObject);
+    procedure cbTimeoutClick(Sender: TObject);
   private
     FLua: TLua;
 
@@ -47,7 +49,13 @@ var
 begin
   StartTimer;
   FLua.L.GetGlobal('code');
-  NoTimeout := FLua.LCall(0, 0, seTimeout.Value / 1000, Err);
+  if cbTimeout.Checked then
+    NoTimeout := FLua.LCall(0, 0, seTimeout.Value / 1000, Err)
+  else
+  begin
+    NoTimeout := True;
+    Err := FLua.L.PCall(0, 0, 0);
+  end;
   if NoTimeout then
   begin
     if Err <> lceOK then
@@ -67,11 +75,17 @@ begin
   end;
 end;
 
+procedure TfrmMain.cbTimeoutClick(Sender: TObject);
+begin
+  seTimeout.Enabled := cbTimeout.Checked;
+end;
+
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
   FLua := TLua.Create;
   FLua.AddLib(TLuaLibBasic);
   FLua.AddLib(TLuaLibHelp);
+  FLua.AddLib(TLuaLibTable);
   seCodeChange(nil);
 end;
 
@@ -87,23 +101,22 @@ begin
     FLua.L.SetGlobal('code');
     lbError.Caption := 'Compiled without Error';
     lbError.Font.Color := clDefault;
+    btnRun.Enabled := True;
   end
   else
   begin
     lbError.Caption := string(FLua.L.ToString_X(1));
     FLua.L.Pop;
     lbError.Font.Color := clRed;
+    btnRun.Enabled := False;
   end;
 end;
 
 { THelpLib }
 
-class function TLuaLibHelp.CreateEntry: TLuaLib.TEntry;
-var
-  Env: TTableEntry absolute Result;
+class procedure TLuaLibHelp.CreateEntry(AEntry: TLuaLib.TTableEntry);
 begin
-  Env := TTableEntry.Create;
-  with Env do
+  with AEntry do
   begin
     Add('print', LuaPrint);
   end;

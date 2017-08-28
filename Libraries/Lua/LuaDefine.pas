@@ -10,11 +10,17 @@ type
   TLuaLib = class abstract
   protected type
 
+    TTableEntry = class;
+
     { TEntry }
 
     TEntry = class abstract
     private
       FName: TLuaString;
+      FParent: TTableEntry;
+
+      procedure PushValue(AL: TLuaState);
+
     public
       constructor Create(AName: TLuaString);
 
@@ -38,6 +44,9 @@ type
       property Func: TLuaCFunction read FFunc;
 
       procedure RegisterEntry(AL: TLuaState); override;
+
+      class procedure PushWrappedFunction(AL: TLuaState; AFunc: TLuaCFunction); static;
+
     end;
 
     { TStringEntry }
@@ -101,7 +110,7 @@ type
       procedure Add(AName: TLuaString; AInteger: TLuaInteger); overload;
       function Add(AName: TLuaString): TTableEntry; overload;
 
-      procedure AddRecursion(AName: AnsiString);
+      procedure AddRecursion(AName: AnsiString; ATable: TTableEntry);
 
       procedure RegisterEntry(AL: TLuaState); override;
       procedure UnregisterEntry(AL: TLuaState); override;
@@ -110,24 +119,30 @@ type
     { TRecursiveTableEntry }
 
     TRecursiveTableEntry = class(TEntry)
+    private
+      FTable: TTableEntry;
     public
+      constructor Create(AName: AnsiString; ATable: TTableEntry);
+
       procedure RegisterEntry(AL: TLuaState); override;
     end;
 
   private
     FL: TLuaState;
-    FEntry: TEntry;
+    FEntry: TTableEntry;
 
   protected
     property L: TLuaState read FL;
 
-    class function CreateEntry: TEntry; virtual; abstract;
+    class procedure CreateEntry(AEntry: TTableEntry); virtual; abstract;
 
   public
     constructor Create(AL: TLuaState); virtual;
     destructor Destroy; override;
 
     procedure ChangeLuaState(AL: TLuaState); virtual;
+
+    class procedure PushFunc(AL: TLuaState; AFunc: TLuaCFunction); static;
 
   end;
 
@@ -447,7 +462,8 @@ end;
 
 constructor TLuaLib.Create(AL: TLuaState);
 begin
-  FEntry := CreateEntry;
+  FEntry := TTableEntry.Create;
+  CreateEntry(FEntry);
   ChangeLuaState(AL);
 end;
 
@@ -460,11 +476,29 @@ begin
   inherited;
 end;
 
+class procedure TLuaLib.PushFunc(AL: TLuaState; AFunc: TLuaCFunction);
+begin
+  TFunctionEntry.PushWrappedFunction(AL, @AFunc);
+end;
+
 { TLuaLib.TEntry }
 
 constructor TLuaLib.TEntry.Create(AName: AnsiString);
 begin
   FName := AName;
+end;
+
+procedure TLuaLib.TEntry.PushValue(AL: TLuaState);
+begin
+  if FParent <> nil then
+    FParent.PushValue(AL)
+  else
+    AL.PushGlobalTable;
+  if Name <> '' then
+  begin
+    AL.GetField(PPAnsiChar(@Name)^);
+    AL.Remove(-2);
+  end;
 end;
 
 procedure TLuaLib.TEntry.RegisterEntry(AL: TLuaState);
@@ -487,11 +521,16 @@ begin
   FFunc := AFunc;
 end;
 
+class procedure TLuaLib.TFunctionEntry.PushWrappedFunction(AL: TLuaState; AFunc: TLuaCFunction);
+begin
+  AL.PushLightuserdata(@AFunc);
+  AL.PushCClosure(WrapperFunc, 1);
+end;
+
 procedure TLuaLib.TFunctionEntry.RegisterEntry(AL: TLuaState);
 begin
   inherited;
-  AL.PushLightuserdata(@Func);
-  AL.PushCClosure(WrapperFunc, 1);
+  PushWrappedFunction(AL, @Func);
   AL.SetTable(-3);
 end;
 
@@ -513,37 +552,38 @@ end;
 procedure TLuaLib.TTableEntry.Add(AEntry: TEntry);
 begin
   FEntries.Add(AEntry);
+  AEntry.FParent := Self;
 end;
 
 procedure TLuaLib.TTableEntry.Add(AName, AString: TLuaString);
 begin
-  FEntries.Add(TStringEntry.Create(AName, AString));
+  Add(TStringEntry.Create(AName, AString));
 end;
 
 procedure TLuaLib.TTableEntry.Add(AName: TLuaString; AFunc: TLuaCFunction);
-begin                                           
-  FEntries.Add(TFunctionEntry.Create(AName, AFunc));
+begin
+  Add(TFunctionEntry.Create(AName, AFunc));
 end;
 
 procedure TLuaLib.TTableEntry.Add(AName: TLuaString; ANumber: TLuaNumber);
-begin          
-  FEntries.Add(TNumberEntry.Create(AName, ANumber));
+begin
+  Add(TNumberEntry.Create(AName, ANumber));
 end;
 
 function TLuaLib.TTableEntry.Add(AName: TLuaString): TTableEntry;
-begin          
-  Result := TTableEntry.Create(AName);                       
-  FEntries.Add(Result); 
+begin
+  Result := TTableEntry.Create(AName);
+  Add(Result);
 end;
 
 procedure TLuaLib.TTableEntry.Add(AName: TLuaString; AInteger: TLuaInteger);
-begin                                      
-  FEntries.Add(TIntegerEntry.Create(AName, AInteger));    
+begin
+  Add(TIntegerEntry.Create(AName, AInteger));
 end;
 
-procedure TLuaLib.TTableEntry.AddRecursion(AName: AnsiString);
+procedure TLuaLib.TTableEntry.AddRecursion(AName: AnsiString; ATable: TTableEntry);
 begin
-  FEntries.Add(TRecursiveTableEntry.Create(AName));
+  Add(TRecursiveTableEntry.Create(AName, ATable));
 end;
 
 constructor TLuaLib.TTableEntry.Create(AName: AnsiString);
@@ -572,6 +612,8 @@ begin
   end;
   for Entry in FEntries do
     Entry.RegisterEntry(AL);
+  if Name <> '' then
+    AL.Pop;
 end;
 
 procedure TLuaLib.TTableEntry.UnregisterEntry(AL: TLuaState);
@@ -591,10 +633,16 @@ end;
 
 { TLuaLib.TRecursiveTableEntry }
 
+constructor TLuaLib.TRecursiveTableEntry.Create(AName: AnsiString; ATable: TTableEntry);
+begin
+  inherited Create(AName);
+  FTable := ATable;
+end;
+
 procedure TLuaLib.TRecursiveTableEntry.RegisterEntry(AL: TLuaState);
 begin
   inherited;
-  AL.PushValue(-2);
+  FTable.PushValue(AL);
   AL.SetTable(-3);
 end;
 
