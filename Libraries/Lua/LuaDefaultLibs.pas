@@ -11,9 +11,11 @@ type
   private
     class function LuaAssert(L: TLuaState): Integer; static; cdecl;
     class function LuaError(L: TLuaState): Integer; static; cdecl;
+    class function LuaGetMetatable(L: TLuaState): Integer; static; cdecl;
     class function LuaIPairs(L: TLuaState): Integer; static; cdecl;
     class function LuaNext(L: TLuaState): Integer; static; cdecl;
     class function LuaPairs(L: TLuaState): Integer; static; cdecl;
+    class function LuaSetMetatable(L: TLuaState): Integer; static; cdecl;
     class function LuaToString(L: TLuaState): Integer; static; cdecl;
     class function LuaType(L: TLuaState): Integer; static; cdecl;
 
@@ -36,11 +38,14 @@ begin
   begin
     Add('assert', LuaAssert);
     Add('error', LuaError);
+    Add('getmetatable', LuaGetMetatable);
     Add('ipairs', LuaIPairs);
     Add('next', LuaNext);
     Add('pairs', LuaPairs);
+    Add('setmetatable', LuaSetMetatable);
     Add('tostring', LuaToString);
     Add('type', LuaType);
+    AddRecursion('_G');
   end;
 end;
 
@@ -55,7 +60,7 @@ begin
   begin
     L.Remove(1);
     L.Top := 1;
-    L.Error_X;
+    Result := L.Error_X;
   end;
 end;
 
@@ -74,6 +79,20 @@ begin
     L.CheckEnd(3);
   end;
   Result := L.Error(L.ToString(1), Level);
+end;
+
+class function TLuaLibBasic.LuaGetMetatable(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltTable);
+  L.CheckEnd(2);
+  if L.GetMetatable(1) then
+  begin
+    if L.GetField('__metatable', 2) = ltNil then
+      L.Top := 2;
+    Result := 1;
+  end
+  else
+    Result := 0;
 end;
 
 class function TLuaLibBasic.LuaINext(L: TLuaState): Integer;
@@ -121,6 +140,21 @@ begin
   L.PushCFunction(LuaNext);
   L.Insert(1);
   Result := 2;
+end;
+
+class function TLuaLibBasic.LuaSetMetatable(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltTable);
+  L.CheckType(2, [ltTable, ltNil]);
+  L.CheckEnd(3);
+  if L.GetMetatable(1) then
+  begin
+    if L.GetField('__metatable', 3) <> ltNil then
+      L.Error('cannot change a protected metatable');
+    L.Top := 2;
+  end;
+  L.SetMetatable(1);
+  Result := 1;
 end;
 
 class function TLuaLibBasic.LuaToString(L: TLuaState): Integer;

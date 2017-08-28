@@ -1566,12 +1566,28 @@ begin
       PushFString('lightuserdata: %p', [ToPointer(index)]);
     // ltNumber: ; // default
     // ltString: ; // default
-    ltTable .. ltThread:
+    ltTable:
+      begin
+        if GetMetatable(index) then
+        begin
+          if GetField('__tostring') <> ltNil then
+          begin
+            PushValue(index);
+            Call(1, 1);
+          end
+          else
+            PushFString('%s: %p', [TypeName(T), ToPointer(index)]);
+        end
+        else
+          PushFString('%s: %p', [TypeName(T), ToPointer(index)]);
+      end;
+    ltFunction .. ltThread:
       PushFString('%s: %p', [TypeName(T), ToPointer(index)]);
   else
     Exit(ToString_X(index));
   end;
   Replace(index);
+  Top := index;
   Result := ToString_X(index);
 end;
 

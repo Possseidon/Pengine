@@ -78,28 +78,40 @@ type
       
       procedure RegisterEntry(AL: TLuaState); override;
     end;
-              
+
+    TRecursiveTableEntry = class;
+
     { TTableEntry }
 
     TTableEntry = class(TEntry)
     private
       FEntries: TObjectArray<TEntry>;
       FEntryReader: TRefArrayReader<TEntry>;
+
     public
       constructor Create(AName: TLuaString = '');
       destructor Destroy; override;
 
       property Entries: TRefArrayReader<TEntry> read FEntryReader;
-      
-      procedure Add(AEntry: TEntry); overload;  
+
+      procedure Add(AEntry: TEntry); overload;
       procedure Add(AName: TLuaString; AFunc: TLuaCFunction); overload;
       procedure Add(AName: TLuaString; AString: TLuaString); overload;
       procedure Add(AName: TLuaString; ANumber: TLuaNumber); overload;
       procedure Add(AName: TLuaString; AInteger: TLuaInteger); overload;
       function Add(AName: TLuaString): TTableEntry; overload;
 
+      procedure AddRecursion(AName: AnsiString);
+
       procedure RegisterEntry(AL: TLuaState); override;
       procedure UnregisterEntry(AL: TLuaState); override;
+    end;
+
+    { TRecursiveTableEntry }
+
+    TRecursiveTableEntry = class(TEntry)
+    public
+      procedure RegisterEntry(AL: TLuaState); override;
     end;
 
   private
@@ -486,7 +498,6 @@ end;
 class function TLuaLib.TFunctionEntry.WrapperFunc(L: TLuaState): Integer;
 var
   Lua: TLua;
-  F: TLuaCFunction;
 begin
   Lua := TLua.FromState(L);
   Lua.Interlock;
@@ -530,6 +541,11 @@ begin
   FEntries.Add(TIntegerEntry.Create(AName, AInteger));    
 end;
 
+procedure TLuaLib.TTableEntry.AddRecursion(AName: AnsiString);
+begin
+  FEntries.Add(TRecursiveTableEntry.Create(AName));
+end;
+
 constructor TLuaLib.TTableEntry.Create(AName: AnsiString);
 begin
   inherited;
@@ -571,6 +587,15 @@ begin
     for Entry in FEntries do
       Entry.UnregisterEntry(AL);
   end;
+end;
+
+{ TLuaLib.TRecursiveTableEntry }
+
+procedure TLuaLib.TRecursiveTableEntry.RegisterEntry(AL: TLuaState);
+begin
+  inherited;
+  AL.PushValue(-2);
+  AL.SetTable(-3);
 end;
 
 { TLuaLib.TStringEntry }

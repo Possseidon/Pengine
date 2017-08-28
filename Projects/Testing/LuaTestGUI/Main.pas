@@ -45,6 +45,7 @@ var
   Err: TLuaPCallError;
   NoTimeout: Boolean;
 begin
+  StartTimer;
   FLua.L.GetGlobal('code');
   NoTimeout := FLua.LCall(0, 0, seTimeout.Value / 1000, Err);
   if NoTimeout then
@@ -54,10 +55,14 @@ begin
       ShowMessage(string(FLua.L.ToString));
       FLua.L.Pop;
     end
+    else
+    begin
+      ShowMessage(Format('Success! %s', [StopTimerGetString(tfMilliseconds)]));
+    end;
   end
   else
   begin
-    ShowMessage('Timeout!');
+    ShowMessage(Format('Timeout! %s', [StopTimerGetString(tfMilliseconds)]));
     seCodeChange(nil);
   end;
 end;
