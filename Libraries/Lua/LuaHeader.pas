@@ -466,8 +466,8 @@ type
     function CheckOrDefault(AIndex: Integer; ADefault: Boolean): Boolean; overload;
 
     // Debug
-    function GetStackAsArray: TArray<AnsiString>;
-    property Stack: TArray<AnsiString> read GetStackAsArray;
+    function GetStackAsArray: TArray<string>;
+    property Stack: TArray<string> read GetStackAsArray;
 
   end;
 
@@ -1615,7 +1615,7 @@ begin
   Result := lua_getstack(@Self, level, ar);
 end;
 
-function TLuaStateRec.GetStackAsArray: TArray<AnsiString>;
+function TLuaStateRec.GetStackAsArray: TArray<string>;
 var
   I: Integer;
 begin
@@ -1623,7 +1623,7 @@ begin
   for I := 1 to Top do
   begin
     PushValue(I);
-    Result[I - 1] := Format('[%d] = %s', [Top - I, ToString]);
+    Result[Top - I - 1] := Format('[%d] = %s', [I, ToString]);
     Pop;
   end;
 end;
