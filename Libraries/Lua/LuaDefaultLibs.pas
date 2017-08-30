@@ -3,7 +3,7 @@ unit LuaDefaultLibs;
 interface
 
 uses
-  LuaDefine, LuaHeader, SysUtils;
+  LuaDefine, LuaHeader, SysUtils, Sorting;
 
 type
 
@@ -30,12 +30,39 @@ type
   { TLuaLibTable }
 
   TLuaLibTable = class(TLuaLib)
+  private type
+
+    TLuaSorter = class(TQuickSorter)
+    private
+      FLua: TLua;
+      FL: TLuaState;
+
+    protected
+      function Low: Integer; override;
+      function High: Integer; override;
+
+      procedure SavePivot(I: Integer); override;
+      procedure DiscardPivot; override;
+      function LessThanPivot(I: Integer): Boolean; override;
+      function GreaterThanPivot(I: Integer): Boolean; override;
+
+      procedure Swap(A, B: Integer); override;
+
+    public
+      constructor Create(AL: TLuaState);
+
+    end;
+
   private
     class function LuaConcat(L: TLuaState): Integer; static; cdecl;
     class function LuaInsert(L: TLuaState): Integer; static; cdecl;
     class function LuaMove(L: TLuaState): Integer; static; cdecl;
     class function LuaPack(L: TLuaState): Integer; static; cdecl;
+    class function LuaRemove(L: TLuaState): Integer; static; cdecl;
+    class function LuaSort(L: TLuaState): Integer; static; cdecl;
     class function LuaUnpack(L: TLuaState): Integer; static; cdecl;
+
+    class function LuaDefaultCompare(L: TLuaState): Integer; static; cdecl;
 
   protected
     class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
@@ -204,8 +231,8 @@ begin
     Add('insert', LuaInsert);
     Add('move', LuaMove);
     Add('pack', LuaPack);
-    Add('remove', LuaNotImplemented); // TODO: implement
-    Add('sort', LuaNotImplemented); // TODO: implement
+    Add('remove', LuaRemove);
+    Add('sort', LuaSort);
     Add('unpack', LuaUnpack);
   end;
 end;
@@ -213,7 +240,6 @@ end;
 class function TLuaLibTable.LuaConcat(L: TLuaState): Integer;
 var
   Lua: TLua;
-  Sep: AnsiString;
   A, B, I: TLuaInteger;
 begin
   Lua := TLua.FromState(L);
@@ -269,7 +295,7 @@ begin
     L.CheckType(2, ltNumber);
     Pos := L.CheckInteger(2);
     if (Pos < 1) or (Pos > Len + 1) then
-      L.ErrorFmt('arg #2: pos %d out of bounds, allowed [1 - %d]', [Pos, Len + 1]);
+      Exit(L.ErrorFmt('arg #2: pos %d out of bounds, allowed [1 - %d]', [Pos, Len + 1]));
     L.CheckEnd(4);
   end;
   L.CheckAny(L.Top);
@@ -331,6 +357,70 @@ begin
   Result := 1;
 end;
 
+class function TLuaLibTable.LuaRemove(L: TLuaState): Integer;
+var
+  Pos, Len, I: TLuaInteger;
+begin
+  L.CheckType(1, ltTable);
+  L.CheckEnd(3);
+  L.Len(1);
+  Len := L.ToInteger;
+  Pos := L.CheckOrDefault(2, Len);
+  if Len = 0 then
+  begin
+    if not (Pos in [0 .. 1]) then
+    begin
+      Exit(L.ErrorFmt('arg #2: pos %d out of bounds, allowed [0 - 1]', [Pos]));
+    end;
+  end
+  else
+  begin
+    if (Pos < 1) or (Pos > Len + 1) then
+    begin
+      Exit(L.ErrorFmt('arg #2: pos %d out of bounds, allowed [1 - %d]', [Pos, Len + 1]));
+    end;
+  end;
+  L.GetI(Pos, 1);
+  for I := Pos to Len do
+  begin
+    L.GetI(I + 1, 1);
+    L.SetI(I, 1);
+  end;
+  Result := 1;
+end;
+
+class function TLuaLibTable.LuaSort(L: TLuaState): Integer;
+var
+  TmpQS, QS: TLuaSorter;
+  Alloc: TLuaAlloc;
+  UD: Pointer;
+begin
+  L.CheckType(1, ltTable);
+  if L.Top > 1 then
+  begin
+    L.CheckType(2, ltFunction);
+    L.CheckEnd(3);
+  end
+  else
+  begin
+    L.PushCFunction(LuaDefaultCompare);
+  end;
+
+  Alloc := L.GetAllocF(@UD);
+  TmpQS := TLuaSorter.Create(L);
+  QS := Alloc(UD, nil, 0, TmpQS.InstanceSize);
+  Move(Pointer(TmpQS)^, Pointer(QS)^, TmpQS.InstanceSize);
+  TmpQS.Free;
+  try
+    if not QS.Sort then
+      L.Error('invalid sort function');
+  finally
+    Alloc(UD, QS, SizeOf(TLuaSorter), 0);
+  end;
+
+  Result := 0;
+end;
+
 class function TLuaLibTable.LuaUnpack(L: TLuaState): Integer;
 var
   Lua: TLua;
@@ -350,6 +440,75 @@ begin
       Exit(0);
   end;
   Result := B - A + 1;
+end;
+
+class function TLuaLibTable.LuaDefaultCompare(L: TLuaState): Integer;
+begin
+  L.CheckEnd(3);
+  L.PushBoolean(L.Compare(1, 2, lcoLessThan));
+  Result := 1;
+end;
+
+{ TLuaLibTable.TLuaSorter }
+
+function TLuaLibTable.TLuaSorter.Low: Integer;
+begin
+  Result := 1;
+end;
+
+procedure TLuaLibTable.TLuaSorter.DiscardPivot;
+begin
+  FL.Pop;
+end;
+
+function TLuaLibTable.TLuaSorter.High: Integer;
+begin
+  FL.Len(1);
+  Result := FL.ToInteger;
+  FL.Pop;
+end;
+
+function TLuaLibTable.TLuaSorter.LessThanPivot(I: Integer): Boolean;
+begin
+  FL.PushValue(2); // function
+  FL.GetI(I, 1);   // tested element
+  FL.PushValue(3); // pivot element
+  FLua.Unlock;
+  FL.Call(2, 1);
+  FLua.Interlock;
+  Result := FL.ToBoolean;
+  FL.Pop;
+end;
+
+function TLuaLibTable.TLuaSorter.GreaterThanPivot(I: Integer): Boolean;
+begin
+  FL.PushValue(2); // function
+  FL.PushValue(3); // pivot element
+  FL.GetI(I, 1);   // tested element
+  FLua.Unlock;
+  FL.Call(2, 1);
+  FLua.Interlock;
+  Result := FL.ToBoolean;
+  FL.Pop;
+end;
+
+procedure TLuaLibTable.TLuaSorter.SavePivot(I: Integer);
+begin
+  FL.GetI(I, 1);
+end;
+
+constructor TLuaLibTable.TLuaSorter.Create(AL: TLuaState);
+begin
+  FL := AL;
+  FLua := TLua.FromState(AL);
+end;
+
+procedure TLuaLibTable.TLuaSorter.Swap(A, B: Integer);
+begin
+  FL.GetI(A, 1);
+  FL.GetI(B, 1);
+  FL.SetI(A, 1);
+  FL.SetI(B, 1);
 end;
 
 end.

@@ -311,7 +311,8 @@ type
     procedure Arith(op: Integer); inline;
 
     function RawEqual(index1, index2: Integer): LongBool; inline;
-    function Compare(index1, index2, op: Integer): LongBool; inline;
+    function CompareX(index1, index2, op: Integer): LongBool; inline;
+    function Compare(index1, index2: Integer; op: TLuaCompareOp): LongBool; inline;
 
     // push functions (C (Delphi) -> stack)
     procedure PushNil; inline;
@@ -964,7 +965,8 @@ begin
   Result := '';
   for I := Top downto 1 do
   begin
-    PushValue;
+
+    PushValue(I);
     Result := Result + AnsiStrings.Format('[%d/-%d] %s', [I, Top - I, ToString]) + #10;
     Pop;
   end;
@@ -1116,7 +1118,12 @@ begin
   Result := lua_rawequal(@Self, index1, index2);
 end;
 
-function TLuaStateRec.Compare(index1, index2, op: Integer): LongBool;
+function TLuaStateRec.Compare(index1, index2: Integer; op: TLuaCompareOp): LongBool;
+begin
+  Result := lua_compare(@Self, index1, index2, Ord(Op));
+end;
+
+function TLuaStateRec.CompareX(index1, index2, op: Integer): LongBool;
 begin
   Result := lua_compare(@Self, index1, index2, op);
 end;

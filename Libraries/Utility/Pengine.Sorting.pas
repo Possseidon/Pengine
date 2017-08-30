@@ -3,12 +3,12 @@ unit Pengine.Sorting;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, IntegerMaths;
 
 type
 
   { TBinaryTreeSorter }
-
+  {
   TBinaryTreeSorter = class abstract
   protected
     type
@@ -38,58 +38,90 @@ type
 
     procedure SortedExecute;
   end;
-
+  }
   { TQuickSorter }
 
   TQuickSorter = class abstract
   protected
-    function Compare(A, B: TObject): Boolean; virtual; abstract;
+    function Low: Integer; virtual; abstract;
+    function High: Integer; virtual; abstract;
+
+    procedure SavePivot(I: Integer); virtual; abstract;
+    procedure DiscardPivot; virtual;
+    function LessThanPivot(I: Integer): Boolean; virtual; abstract;
+    function GreaterThanPivot(I: Integer): Boolean; virtual; abstract;
+  
+    procedure Swap(A, B: Integer); virtual; abstract;
+
   public
-    procedure Sort(var Data: array of TObject);
+    function Sort: Boolean;
+
   end;
 
 implementation
 
 { TQuickSorter }
 
-procedure TQuickSorter.Sort(var Data: array of TObject);
+procedure TQuickSorter.DiscardPivot;
+begin
+  // possibly nothing
+end;
 
-  procedure DoQuickSort(var A: array of TObject; iLo, iHi: Integer);
+function TQuickSorter.Sort: Boolean;
+
+  function QuickSortRecursive(iLo, iHi: Integer): Boolean;
   var
     Lo, Hi: Integer;
-    Mid, T: TObject;
   begin
     Lo := iLo;
     Hi := iHi;
-    Mid := A[(Lo + Hi) div 2];
+
+    SavePivot((Lo + Hi) div 2);
+
     repeat
-      while Compare(Mid, A[Lo]) do
+      while LessThanPivot(Lo) do
+      begin
         Inc(Lo);
-      while Compare(A[Hi], Mid) do
+        if Lo > iHi then
+          Exit(False);
+      end;
+      while GreaterThanPivot(Hi) do
+      begin
         Dec(Hi);
+        if Hi < iLo then
+          Exit(False);
+      end;
       if Lo <= Hi then
       begin
-        T := A[Lo];
-        A[Lo] := A[Hi];
-        A[Hi] := T;
+        if Lo <> Hi then
+          Swap(Lo, Hi);
         Inc(Lo);
         Dec(Hi);
       end;
     until Lo > Hi;
 
+    DiscardPivot;
+
+    Result := True;
     if Hi > iLo then
-      DoQuickSort(A, iLo, Hi);
+      Result := QuickSortRecursive(iLo, Hi);
     if Lo < iHi then
-      DoQuickSort(A, Lo, iHi);
+      Result := Result and QuickSortRecursive(Lo, iHi);
   end;
 
+var
+  L, H: Integer;
 begin
-  if Length(Data) > 1 then
-    DoQuickSort(Data, 0, Length(Data) - 1);
+  L := Low;
+  H := High;
+  if H - L > 1 then
+    Result := QuickSortRecursive(L, H)
+  else
+    Result := True;
 end;
 
 { TBinaryTreeSorter }
-
+              {
 procedure TBinaryTreeSorter.AddToNode(var Node: PNode; Entry: TObject);
 begin
   if Node = nil then
@@ -147,6 +179,7 @@ procedure TBinaryTreeSorter.SortedExecute;
 begin
   SortedExecuteNode(FRoot);
 end;
+              }
 
 end.
 

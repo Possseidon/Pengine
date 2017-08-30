@@ -23,8 +23,6 @@ object frmMain: TfrmMain
     Height = 39
     Align = alBottom
     TabOrder = 0
-    ExplicitTop = 320
-    ExplicitWidth = 446
     DesignSize = (
       498
       39)
@@ -51,7 +49,6 @@ object frmMain: TfrmMain
       Caption = 'Run'
       TabOrder = 0
       OnClick = btnRunClick
-      ExplicitLeft = 375
     end
     object seTimeout: TSpinEdit
       AlignWithMargins = True
@@ -64,7 +61,6 @@ object frmMain: TfrmMain
       MinValue = 1
       TabOrder = 1
       Value = 100
-      ExplicitLeft = 309
     end
     object cbTimeout: TCheckBox
       Left = 269
@@ -102,19 +98,37 @@ object frmMain: TfrmMain
     Gutter.Font.Style = []
     Gutter.ShowLineNumbers = True
     Lines.Strings = (
-      'x = {1, 2, 3, 4, 5}'
+      'x = {'
+      '  7,'
+      '  6,'
+      '  8,'
+      '  8,'
+      '  9,'
+      '  9,'
+      '  5,'
+      '  3,'
+      '  6,'
+      '  7,'
+      '  9,'
+      '  8,'
+      '  7,'
+      '  9,'
+      '  3,'
+      '  1,'
+      '  6,'
+      '  7,'
+      '  9,'
+      '  2'
+      '}'
       ''
-      'for i, v in ipairs(x) do'
-      '  print(i .. ": " .. v)'
-      'end')
+      'table.sort(x)'
+      ''
+      'print(table.concat(x, ", "))')
     Options = [eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabsToSpaces]
     TabWidth = 2
     WantTabs = True
     OnChange = seCodeChange
     FontSmoothing = fsmClearType
-    ExplicitLeft = -2
-    ExplicitWidth = 446
-    ExplicitHeight = 311
     RemovedKeystrokes = <>
     AddedKeystrokes = <
       item

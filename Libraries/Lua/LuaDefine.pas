@@ -324,24 +324,26 @@ begin
   FThread.Start(AParams, AResults);
   while StopWatch.Time < ATimeOut do
   begin
-    TThread.Yield;
     if FThread.Done then
     begin
       AError := FThread.Error;
       Exit(True);
     end;
+    TThread.Yield;
   end;
 
   FThread.ForceKill;
   FAllocations.PerformCleanup;
   FMemoryUsage := 0;
+
+  FThread.Free;
+  FThread := TLuaThread.Create(Self);
+
   MakeLuaState;
 
   for Lib in FLibs do
     Lib.Data.ChangeLuaState(L);
 
-  FThread.Free;
-  FThread := TLuaThread.Create(Self);
 end;
 
 procedure TLua.MakeLuaState;
@@ -358,16 +360,14 @@ end;
 procedure TLua.Interlock;
 begin
   if not FLock.TryEnter then
-    while True do
-      Sleep(INFINITE); // wait for the TerminateThread
+    Sleep(INFINITE);
 end;
 
 procedure TLua.Unlock;
 begin
   FLock.Leave;
   if ShouldTerminate then
-    while True do
-      Sleep(INFINITE); // wait for the TerminateThread
+    Sleep(INFINITE);
 end;
 
 { TLua.TAllocationList }
