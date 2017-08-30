@@ -134,6 +134,8 @@ type
   protected
     property L: TLuaState read FL;
 
+    class function LuaNotImplemented(L: TLuaState): Integer; static; cdecl;
+
     class procedure CreateEntry(AEntry: TTableEntry); virtual; abstract;
 
   public
@@ -286,8 +288,8 @@ constructor TLua.Create;
 begin
   FLock := TCriticalSection.Create;
   FAllocations := TAllocationList.Create(12289);
-  MakeLuaState;
   FThread := TLuaThread.Create(Self);
+  MakeLuaState;
   FLibs := TClassObjectMap<TLuaLib>.Create;
 end;
 
@@ -357,12 +359,15 @@ procedure TLua.Interlock;
 begin
   if not FLock.TryEnter then
     while True do
-      TThread.Yield;
+      Sleep(INFINITE); // wait for the TerminateThread
 end;
 
 procedure TLua.Unlock;
 begin
   FLock.Leave;
+  if ShouldTerminate then
+    while True do
+      Sleep(INFINITE); // wait for the TerminateThread
 end;
 
 { TLua.TAllocationList }
@@ -458,6 +463,11 @@ begin
   L.PushGlobalTable;
   FEntry.RegisterEntry(L);
   L.Pop;
+end;
+
+class function TLuaLib.LuaNotImplemented(L: TLuaState): Integer;
+begin
+  Result := L.Error('The function is not implemented!');
 end;
 
 constructor TLuaLib.Create(AL: TLuaState);

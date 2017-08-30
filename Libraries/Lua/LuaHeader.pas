@@ -460,14 +460,12 @@ type
     function CheckAny(AIndex: Integer): TLuaType; overload;
     procedure CheckEnd(AIndex: Integer); overload; inline;
 
+    function CheckInteger(AIndex: Integer): TLuaInteger;
+
     function CheckOrDefault(AIndex: Integer; ADefault: TLuaInteger): TLuaInteger; overload;
     function CheckOrDefault(AIndex: Integer; ADefault: TLuaNumber): TLuaNumber; overload;
     function CheckOrDefault(AIndex: Integer; ADefault: TLuaString): TLuaString; overload;
     function CheckOrDefault(AIndex: Integer; ADefault: Boolean): Boolean; overload;
-
-    // Debug
-    function GetStackAsArray: TArray<string>;
-    property Stack: TArray<string> read GetStackAsArray;
 
   end;
 
@@ -1022,16 +1020,21 @@ begin
   CheckType(AIndex, ltNone);
 end;
 
-function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: TLuaInteger): TLuaInteger;
+function TLuaStateRec.CheckInteger(AIndex: Integer): TLuaInteger;
 var
   isnum: LongBool;
+begin
+  Result := ToIntegerX(@isnum, AIndex);
+  if not isnum then
+    ErrorFmt('arg #%d: number must be an integer', [AIndex]);
+end;
+
+function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: TLuaInteger): TLuaInteger;
 begin
   CheckType(AIndex, [ltNil, ltNumber], True);
   if IsNoneOrNil(AIndex) then
     Exit(ADefault);
-  Result := ToIntegerX(@isnum, AIndex);
-  if not isnum then
-    ErrorFmt('arg #%d: number must be an integer', [AIndex]);
+  Result := CheckInteger(AIndex);
 end;
 
 function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: TLuaNumber): TLuaNumber;
@@ -1613,19 +1616,6 @@ end;
 function TLuaStateRec.GetStack(level: Integer; ar: Plua_Debug): LongBool;
 begin
   Result := lua_getstack(@Self, level, ar);
-end;
-
-function TLuaStateRec.GetStackAsArray: TArray<string>;
-var
-  I: Integer;
-begin
-  SetLength(Result, Top);
-  for I := 1 to Top do
-  begin
-    PushValue(I);
-    Result[Top - I - 1] := Format('[%d] = %s', [I, ToString]);
-    Pop;
-  end;
 end;
 
 function TLuaStateRec.GetInfo(what: PAnsiChar; ar: Plua_Debug): LongBool;
