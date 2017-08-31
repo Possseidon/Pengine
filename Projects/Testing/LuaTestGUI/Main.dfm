@@ -121,7 +121,11 @@ object frmMain: TfrmMain
       '  2'
       '}'
       ''
-      'table.sort(x)'
+      'i = 0'
+      ''
+      'table.sort(x, function(a, b) i = i + 1 return a < b end)'
+      ''
+      'print(i .. " comparissions")'
       ''
       'print(table.concat(x, ", "))')
     Options = [eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabsToSpaces]

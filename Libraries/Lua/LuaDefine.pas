@@ -150,6 +150,13 @@ type
 
   TLuaLibClass = class of TLuaLib;
 
+  { TLibNotLoaded }
+
+  ELibNotLoaded = class(Exception)
+  public
+    constructor Create(ALib: TLuaLibClass);
+  end;
+
   { TLua }
 
   TLua = class
@@ -211,6 +218,8 @@ type
     property L: TLuaState read FL;
     property MemoryLimit: NativeUInt read FMemoryLimit write FMemoryLimit;
     property MemoryUsage: NativeUInt read FMemoryUsage;
+
+    function Lib<T: TLuaLib>: T;
 
     procedure Interlock;
     procedure Unlock;
@@ -355,6 +364,15 @@ end;
 function TLua.ShouldTerminate: Boolean;
 begin
   Result := FThread.Terminated;
+end;
+
+function TLua.Lib<T>: T;
+var
+  Lib: TLuaLib;
+begin
+  if FLibs.Get(T, Lib) then
+    Exit(T(Lib));
+  raise ELibNotLoaded.Create(T);
 end;
 
 procedure TLua.Interlock;
@@ -699,6 +717,13 @@ begin
   inherited;  
   AL.PushInteger(Value);
   AL.SetTable(-3); 
+end;
+
+{ ELibNotLoaded }
+
+constructor ELibNotLoaded.Create(ALib: TLuaLibClass);
+begin
+  inherited Create(ALib.ClassName);
 end;
 
 end.

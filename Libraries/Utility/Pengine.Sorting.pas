@@ -42,14 +42,19 @@ type
   { TQuickSorter }
 
   TQuickSorter = class abstract
+  protected type
+    TCompareDirection = (
+      cdBeforePivot,
+      cdAfterPivot
+    );
+
   protected
     function Low: Integer; virtual; abstract;
     function High: Integer; virtual; abstract;
 
     procedure SavePivot(I: Integer); virtual; abstract;
     procedure DiscardPivot; virtual;
-    function LessThanPivot(I: Integer): Boolean; virtual; abstract;
-    function GreaterThanPivot(I: Integer): Boolean; virtual; abstract;
+    function CompareToPivot(I: Integer; ADir: TCompareDirection): Boolean; virtual; abstract;
   
     procedure Swap(A, B: Integer); virtual; abstract;
 
@@ -79,13 +84,13 @@ function TQuickSorter.Sort: Boolean;
     SavePivot((Lo + Hi) div 2);
 
     repeat
-      while LessThanPivot(Lo) do
+      while CompareToPivot(Lo, cdBeforePivot) do
       begin
         Inc(Lo);
         if Lo > iHi then
           Exit(False);
       end;
-      while GreaterThanPivot(Hi) do
+      while CompareToPivot(Hi, cdAfterPivot) do
       begin
         Dec(Hi);
         if Hi < iLo then
@@ -97,7 +102,7 @@ function TQuickSorter.Sort: Boolean;
           Swap(Lo, Hi);
         Inc(Lo);
         Dec(Hi);
-      end;
+      end
     until Lo > Hi;
 
     DiscardPivot;

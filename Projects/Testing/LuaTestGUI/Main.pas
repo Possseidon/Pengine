@@ -86,6 +86,7 @@ begin
   FLua.AddLib(TLuaLibBasic);
   FLua.AddLib(TLuaLibHelp);
   FLua.AddLib(TLuaLibTable);
+  FLua.AddLib(TLuaLibMath);
   seCodeChange(nil);
 end;
 
