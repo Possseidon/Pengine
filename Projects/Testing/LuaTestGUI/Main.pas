@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, SynEdit, LuaDefine, LuaHeader, Vcl.Samples.Spin,
-  TimeManager, LuaDefaultLibs;
+  TimeManager, LuaDefaultLibs, System.Actions, Vcl.ActnList;
 
 type
 
@@ -24,11 +24,13 @@ type
     btnRun: TButton;
     seTimeout: TSpinEdit;
     cbTimeout: TCheckBox;
+    ActionList1: TActionList;
+    actRun: TAction;
     procedure seCodeChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure btnRunClick(Sender: TObject);
     procedure cbTimeoutClick(Sender: TObject);
+    procedure actRunExecute(Sender: TObject);
   private
     FLua: TLua;
 
@@ -42,7 +44,7 @@ implementation
 
 {$R *.dfm}
 
-procedure TfrmMain.btnRunClick(Sender: TObject);
+procedure TfrmMain.actRunExecute(Sender: TObject);
 var
   Err: TLuaPCallError;
   NoTimeout: Boolean;
@@ -50,7 +52,7 @@ begin
   StartTimer;
   FLua.L.GetGlobal('code');
   if cbTimeout.Checked then
-    NoTimeout := FLua.LCall(0, 0, seTimeout.Value / 1000, Err)
+    NoTimeout := FLua.CallTimeout(0, 0, seTimeout.Value / 1000, Err)
   else
   begin
     NoTimeout := True;
@@ -102,14 +104,14 @@ begin
     FLua.L.SetGlobal('code');
     lbError.Caption := 'Compiled without Error';
     lbError.Font.Color := clDefault;
-    btnRun.Enabled := True;
+    actRun.Enabled := True;
   end
   else
   begin
     lbError.Caption := string(FLua.L.ToString_X(1));
     FLua.L.Pop;
     lbError.Font.Color := clRed;
-    btnRun.Enabled := False;
+    actRun.Enabled := False;
   end;
 end;
 

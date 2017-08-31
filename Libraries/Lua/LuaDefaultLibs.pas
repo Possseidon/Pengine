@@ -69,6 +69,12 @@ type
 
     class function LuaDefaultCompare(L: TLuaState): Integer; static; cdecl;
 
+    // custom functions
+    class function LuaAggregate(L: TLuaState): Integer; static; cdecl;
+    class function LuaCopy(L: TLuaState): Integer; static; cdecl;
+    class function LuaCopyIf(L: TLuaState): Integer; static; cdecl;
+    class function LuaZip(L: TLuaState): Integer; static; cdecl;
+
   protected
     class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
 
@@ -86,25 +92,25 @@ type
     class function LuaArcCos(L: TLuaState): Integer; static; cdecl;
     class function LuaArcSin(L: TLuaState): Integer; static; cdecl;
     class function LuaArcTan(L: TLuaState): Integer; static; cdecl;
-    // class function LuaCeil(L: TLuaState): Integer; static; cdecl;
-    // class function LuaCos(L: TLuaState): Integer; static; cdecl;
-    // class function LuaDeg(L: TLuaState): Integer; static; cdecl;
-    // class function LuaExp(L: TLuaState): Integer; static; cdecl;
-    // class function LuaFloor(L: TLuaState): Integer; static; cdecl;
-    // class function LuaFMod(L: TLuaState): Integer; static; cdecl;
-    // class function LuaLog(L: TLuaState): Integer; static; cdecl;
-    // class function LuaMax(L: TLuaState): Integer; static; cdecl;
-    // class function LuaMin(L: TLuaState): Integer; static; cdecl;
-    // class function LuaModF(L: TLuaState): Integer; static; cdecl;
-    // class function LuaRad(L: TLuaState): Integer; static; cdecl;
+    class function LuaCeil(L: TLuaState): Integer; static; cdecl;
+    class function LuaCos(L: TLuaState): Integer; static; cdecl;
+    class function LuaDeg(L: TLuaState): Integer; static; cdecl;
+    class function LuaExp(L: TLuaState): Integer; static; cdecl;
+    class function LuaFloor(L: TLuaState): Integer; static; cdecl;
+    class function LuaFMod(L: TLuaState): Integer; static; cdecl;
+    class function LuaLog(L: TLuaState): Integer; static; cdecl;
+    class function LuaMax(L: TLuaState): Integer; static; cdecl;
+    class function LuaMin(L: TLuaState): Integer; static; cdecl;
+    class function LuaModF(L: TLuaState): Integer; static; cdecl;
+    class function LuaRad(L: TLuaState): Integer; static; cdecl;
     // class function LuaRandom(L: TLuaState): Integer; static; cdecl;
     // class function LuaRandomSeed(L: TLuaState): Integer; static; cdecl;
-    // class function LuaSin(L: TLuaState): Integer; static; cdecl;
-    // class function LuaSqrt(L: TLuaState): Integer; static; cdecl;
-    // class function LuaTan(L: TLuaState): Integer; static; cdecl;
-    // class function LuaToInteger(L: TLuaState): Integer; static; cdecl;
-    // class function LuaType(L: TLuaState): Integer; static; cdecl;
-    // class function LuaUlt(L: TLuaState): Integer; static; cdecl;
+    class function LuaSin(L: TLuaState): Integer; static; cdecl;
+    class function LuaSqrt(L: TLuaState): Integer; static; cdecl;
+    class function LuaTan(L: TLuaState): Integer; static; cdecl;
+    class function LuaToInteger(L: TLuaState): Integer; static; cdecl;
+    class function LuaType(L: TLuaState): Integer; static; cdecl;
+    class function LuaUlt(L: TLuaState): Integer; static; cdecl;
 
   protected
     class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
@@ -280,6 +286,11 @@ begin
     Add('remove', LuaRemove);
     Add('sort', LuaSort);
     Add('unpack', LuaUnpack);
+    // custom
+    Add('aggregate', LuaAggregate);
+    Add('copy', LuaCopy);
+    Add('copyif', LuaCopyIf);
+    Add('zip', LuaZip);
   end;
 end;
 
@@ -481,6 +492,8 @@ begin
   L.Len(1);
   A := L.CheckOrDefault(2, 1);
   B := L.CheckOrDefault(3, L.ToInteger);
+  if not L.CheckStack(B - A) then
+    L.Error('too many results to unpack');
   for I := A to B do
   begin
     L.GetI(I, 1);
@@ -495,6 +508,139 @@ begin
   L.CheckEnd(3);
   L.PushBoolean(L.Compare(1, 2, lcoLessThan));
   Result := 1;
+end;
+
+class function TLuaLibTable.LuaAggregate(L: TLuaState): Integer;
+var
+  Lua: TLua;
+  I, Len: TLuaInteger;
+begin
+  Lua := TLua.FromState(L);
+  L.CheckType(1, ltTable);
+  L.CheckType(2, ltFunction);
+  L.CheckEnd(3);
+  L.Len(1);
+  Len := L.ToInteger;
+  if Len = 0 then
+  begin
+    L.PushNil;
+    Exit(1);
+  end;
+  L.GetI(1, 1);  
+  for I := 2 to Len do
+  begin          
+    L.PushValue(2);
+    L.Insert(4);
+    L.GetI(I, 1);
+    Lua.CallUnlocked(2, 1);
+    if Lua.ShouldTerminate then
+      Exit(0);
+  end;
+  Result := 1;
+end;
+                          
+class function TLuaLibTable.LuaCopy(L: TLuaState): Integer;
+var
+  A, B, I, J: TLuaInteger;
+begin
+  L.CheckType(1, ltTable);
+  if L.Top <= 2 then
+  begin                  
+    L.Len(1); 
+    A := 1;
+    B := L.CheckOrDefault(2, L.ToInteger);
+  end
+  else
+  begin
+    L.CheckType(2, ltNumber);
+    L.CheckType(3, ltNumber);
+    L.CheckEnd(4);
+    A := L.ToInteger(2);
+    B := L.ToInteger(3);
+  end;
+  L.CreateTable(B - A + 1, 0); // 5
+  J := 1;
+  for I := A to B do
+  begin
+    L.GetI(I, 1);
+    L.SetI(J, -2);
+    Inc(J);
+  end;
+  Result := 1;
+end;
+
+class function TLuaLibTable.LuaCopyIf(L: TLuaState): Integer;
+var
+  Lua: TLua;
+  A, B, I, J: Integer;
+  Add: Boolean;
+begin
+  Lua := TLua.FromState(L);
+  L.CheckType(1, ltTable);
+  L.CheckType(2, ltFunction);
+  if L.Top <= 3 then
+  begin                  
+    L.Len(1); 
+    A := 1;
+    B := L.CheckOrDefault(3, L.ToInteger);
+  end
+  else
+  begin
+    L.CheckType(3, ltNumber);
+    L.CheckType(4, ltNumber);
+    L.CheckEnd(5);
+    A := L.ToInteger(3);
+    B := L.ToInteger(4);
+  end;
+  L.CreateTable(B - A + 1, 0); // 5
+  J := 1;
+  for I := A to B do
+  begin            
+    L.GetI(I, 1); // 6
+    L.PushValue(2); // function
+    L.PushValue(6); // value
+    Lua.CallUnlocked(1, 1);
+    Add := L.ToBoolean;
+    L.Pop;
+    if Add then
+    begin
+      L.SetI(J, 5);
+      Inc(J);
+    end
+    else
+      L.Pop;
+  end;
+  Result := 1;
+end;
+
+class function TLuaLibTable.LuaZip(L: TLuaState): Integer;
+var
+  Lua: TLua;
+  LenA, LenB, Len: TLuaInteger;
+  I: TLuaInteger;
+begin
+  Lua := TLua.FromState(L);
+  L.CheckType(1, ltTable);
+  L.CheckType(2, ltTable);
+  L.CheckType(3, ltFunction);
+  L.CheckEnd(4);
+  L.Len(1); // stack 4
+  LenA := L.ToInteger;
+  L.Len(2); // stack 5
+  LenB := L.ToInteger;
+  Len := Max(LenA, LenB);
+  L.CreateTable(Len, 0); // stack 6
+  for I := 1 to Len do
+  begin  
+    L.PushValue(3);
+    L.GetI(I, 1);
+    L.GetI(I, 2);
+    Lua.CallUnlocked(2, 1);
+    L.SetI(I, 6);
+    if Lua.ShouldTerminate then
+      Exit(0);
+  end;
+  Result := 1; 
 end;
 
 { TLuaLibTable.TLuaSorter }
@@ -534,9 +680,7 @@ begin
     L.PushValue(3); // pivot element
     L.GetI(I, 1);   // tested element
   end;
-  FLua.Unlock;
-  L.Call(2, 1);
-  FLua.Interlock;
+  FLua.CallUnlocked(2, 1);
   Result := L.ToBoolean;
   L.Pop;
 end;
@@ -570,37 +714,44 @@ begin
     Add('acos', LuaArcCos);
     Add('asin', LuaArcSin);
     Add('atan', LuaArcTan);
-    Add('ceil', LuaNotImplemented);
-    Add('cos', LuaNotImplemented);
-    Add('deg', LuaNotImplemented);
-    Add('exp', LuaNotImplemented);
-    Add('floor', LuaNotImplemented);
-    Add('fmod', LuaNotImplemented);
+    Add('ceil', LuaCeil);
+    Add('cos', LuaCos);
+    Add('deg', LuaDeg);
+    Add('exp', LuaExp);
+    Add('floor', LuaFloor);
+    Add('fmod', LuaFMod);
     Add('huge', Infinity);
-    Add('log', LuaNotImplemented);
-    Add('max', LuaNotImplemented);
+    Add('log', LuaLog);
+    Add('max', LuaMax);
     Add('maxinteger', TLuaInteger.MaxValue);
-    Add('min', LuaNotImplemented);
+    Add('min', LuaMin);
     Add('mininteger', TLuaInteger.MinValue);
-    Add('modf', LuaNotImplemented);
+    Add('modf', LuaModF);
     Add('pi', Pi);
-    Add('rad', LuaNotImplemented);
+    Add('rad', LuaRad);
     Add('random', LuaNotImplemented);
     Add('randomseed', LuaNotImplemented);
-    Add('sin', LuaNotImplemented);
-    Add('sqrt', LuaNotImplemented);
-    Add('tan', LuaNotImplemented);
-    Add('tointeger', LuaNotImplemented);
-    Add('type', LuaNotImplemented);
-    Add('ult', LuaNotImplemented);
+    Add('sin', LuaSin);
+    Add('sqrt', LuaSqrt);
+    Add('tan', LuaTan);
+    Add('tointeger', LuaToInteger);
+    Add('type', LuaType);
+    Add('ult', LuaUlt);
   end;
 end;
 
 class function TLuaLibMath.LuaAbs(L: TLuaState): Integer;
+var
+  IsInt: LongBool;
+  X: TLuaInteger;
 begin
   L.CheckType(1, ltNumber);
   L.CheckEnd(2);
-  L.PushNumber(Abs(L.ToNumber(1)));
+  X := L.ToIntegerX(@IsInt, 1);
+  if IsInt then
+    L.PushInteger(Abs(X))
+  else
+    L.PushNumber(Abs(L.ToNumber(1)));
   Result := 1;
 end;
 
@@ -621,10 +772,244 @@ begin
 end;
 
 class function TLuaLibMath.LuaArcTan(L: TLuaState): Integer;
+var
+  X, Y: TLuaNumber;
+begin
+  L.CheckType(1, ltNumber);
+  Y := L.CheckOrDefault(2, 1.0);
+  L.CheckEnd(3);
+  X := L.ToNumber(1);
+  if Y = 0 then
+  begin
+    if X > 0 then
+      L.PushNumber(Pi / 2)
+    else if X = 0 then
+      L.PushNumber(NaN)
+    else
+      L.PushNumber(-Pi / 2);
+  end
+  else
+  begin
+    L.PushNumber(ArcTan(X / Y));
+  end;
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaCeil(L: TLuaState): Integer;
+var
+  X: TLuaNumber;
 begin
   L.CheckType(1, ltNumber);
   L.CheckEnd(2);
-  L.PushNumber(ArcTan(L.ToNumber(1)));
+  X := L.ToNumber(1);
+  if X <= TLuaNumber.MinValue - 1 then
+    Exit(L.ErrorFmt('%f is too small to get ceiled', [X]));
+  if X > TLuaNumber.MaxValue then
+    Exit(L.ErrorFmt('%f is too big to get ceiled', [X]));
+  L.PushInteger(Ceil(L.ToNumber(1)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaCos(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  L.PushNumber(Cos(L.ToNumber(1)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaDeg(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  L.PushNumber(RadToDeg(L.ToNumber(1)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaExp(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  L.PushNumber(Exp(L.ToNumber(1)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaFloor(L: TLuaState): Integer;
+var
+  X: TLuaNumber;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  X := L.ToNumber(1);
+  if X <= TLuaNumber.MinValue then
+    Exit(L.ErrorFmt('%f is too small to get floored', [X]));
+  if X > TLuaNumber.MaxValue + 1 then
+    Exit(L.ErrorFmt('%f is too big to get floored', [X]));
+  L.PushInteger(Ceil(L.ToNumber(1)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaFMod(L: TLuaState): Integer;
+var
+  X, Y: TLuaInteger;
+  XIsInt, YIsInt: LongBool;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckType(2, ltNumber);
+  L.CheckEnd(3);
+  X := L.ToIntegerX(@XIsInt, 1);
+  if XIsInt then
+  begin
+    Y := L.ToIntegerX(@YIsInt, 2);
+    if YIsInt then
+    begin
+      L.PushInteger(X mod Y);
+      Exit(1);
+    end;
+  end;
+  L.PushNumber(FMod(L.ToNumber(1), L.ToNumber(2)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaLog(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  if L.Top = 1 then // arg 2 is e, use ln instead of log
+  begin
+    L.PushNumber(Ln(L.ToNumber(1)));
+  end
+  else
+  begin
+    L.CheckType(2, ltNumber);
+    L.CheckEnd(3);
+    L.PushNumber(LogN(L.ToNumber(2), L.ToNumber(1))); // note that base and X are swapped
+  end;
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaMax(L: TLuaState): Integer;
+var
+  Lua: TLua;
+  I: TLuaInteger;
+  MaxIndex: TLuaInteger;
+begin
+  Lua := TLua.FromState(L);
+  L.CheckAny(1);
+  MaxIndex := 1;
+  for I := 2 to L.Top do
+  begin
+    if L.Compare(MaxIndex, I, lcoLessThan) then
+      MaxIndex := I;
+    if Lua.ShouldTerminate then
+      Exit(0);
+  end;
+  L.PushValue(MaxIndex);
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaMin(L: TLuaState): Integer;
+var
+  Lua: TLua;
+  I: TLuaInteger;
+  MinIndex: TLuaInteger;
+begin
+  Lua := TLua.FromState(L);
+  L.CheckAny(1);
+  MinIndex := 1;
+  for I := 2 to L.Top do
+  begin
+    if L.Compare(I, MinIndex, lcoLessThan) then
+      MinIndex := I;
+    if Lua.ShouldTerminate then
+      Exit(0);
+  end;
+  L.PushValue(MinIndex);
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaModF(L: TLuaState): Integer;
+var
+  X: lua_Number;
+  IsInt: LongBool;
+  IntPart: TLuaInteger;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  X := L.ToNumber(1);
+  L.PushNumber(Int(X));
+  IntPart := L.ToIntegerX(@IsInt, 2);
+  if IsInt then
+    L.PushInteger(IntPart);
+  L.PushNumber(Frac(X));
+  Result := 2;
+end;
+
+class function TLuaLibMath.LuaRad(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  L.PushNumber(DegToRad(L.ToNumber(1)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaSin(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  L.PushNumber(Sin(L.ToNumber(1)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaSqrt(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  L.PushNumber(Sqrt(L.ToNumber(1)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaTan(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  L.PushNumber(Tan(L.ToNumber(1)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaToInteger(L: TLuaState): Integer;
+var
+  IsInt: LongBool;
+  I: TLuaInteger;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  I := L.ToIntegerX(@IsInt, 1);
+  if IsInt then
+    L.PushInteger(I)
+  else
+    L.PushNil;
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaType(L: TLuaState): Integer;
+begin
+  L.CheckAny(1);
+  L.CheckEnd(2);
+  if L.IsInteger(1) then
+    L.PushString('integer')
+  else if L.IsNumber(1) then
+    L.PushString('float')
+  else
+    L.PushNil;
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaUlt(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckType(2, ltNumber);
+  L.CheckEnd(3);
+  L.PushBoolean(TLuaUnsigned(L.CheckInteger(1)) < TLuaUnsigned(L.CheckInteger(2)));
   Result := 1;
 end;
 

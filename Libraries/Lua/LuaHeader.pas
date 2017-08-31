@@ -239,6 +239,7 @@ type
   TLuaString = AnsiString;
   PLuaString = PAnsiChar;
   TLuaInteger = lua_Integer;
+  TLuaUnsigned = lua_Unsigned;
   TLuaCFunction = lua_CFunction;
 
   TLuaAlloc = lua_Alloc;
@@ -297,8 +298,8 @@ type
     function TypeName_X(tp: Integer = -1): PAnsiChar; inline;
     function TypeName(tp: TLuaType): PAnsiChar; inline;
 
-    function ToNumberX(isnum: PInteger; index: Integer = -1): lua_Number; inline;
-    function ToIntegerX(isnum: PInteger; index: Integer = -1): lua_Integer; inline;
+    function ToNumberX(isnum: PLongBool; index: Integer = -1): lua_Number; inline;
+    function ToIntegerX(isnum: PLongBool; index: Integer = -1): lua_Integer; inline;
     function ToBoolean(index: Integer = -1): LongBool; inline;
     function ToLString(len: PNativeUInt; index: Integer = -1): PAnsiChar; inline;
     function RawLen(index: Integer = -1): NativeUInt; inline;
@@ -504,8 +505,8 @@ function lua_isuserdata(L: TLuaState; index: Integer): LongBool; cdecl; external
 function lua_type(L: TLuaState; index: Integer): Integer; cdecl; external LuaDLL;
 function lua_typename(L: TLuaState; tp: Integer): PAnsiChar; cdecl; external LuaDLL;
 
-function lua_tonumberx(L: TLuaState; index: Integer; isnum: PInteger): lua_Number; cdecl; external LuaDLL;
-function lua_tointegerx(L: TLuaState; index: Integer; isnum: PInteger): lua_Integer; cdecl; external LuaDLL;
+function lua_tonumberx(L: TLuaState; index: Integer; isnum: PLongBool): lua_Number; cdecl; external LuaDLL;
+function lua_tointegerx(L: TLuaState; index: Integer; isnum: PLongBool): lua_Integer; cdecl; external LuaDLL;
 function lua_toboolean(L: TLuaState; index: Integer): LongBool; cdecl; external LuaDLL;
 function lua_tolstring(L: TLuaState; index: Integer; len: PNativeUInt): PAnsiChar; cdecl; external LuaDLL;
 function lua_rawlen(L: TLuaState; index: Integer): NativeUInt; cdecl; external LuaDLL;
@@ -1063,12 +1064,12 @@ begin
   Result := ToBoolean(AIndex);
 end;
 
-function TLuaStateRec.ToNumberX(isnum: PInteger; index: Integer): lua_Number;
+function TLuaStateRec.ToNumberX(isnum: PLongBool; index: Integer): lua_Number;
 begin
   Result := lua_tonumberx(@Self, index, isnum);
 end;
 
-function TLuaStateRec.ToIntegerX(isnum: PInteger; index: Integer): lua_Integer;
+function TLuaStateRec.ToIntegerX(isnum: PLongBool; index: Integer): lua_Integer;
 begin
   Result := lua_tointegerx(@Self, index, isnum);
 end;

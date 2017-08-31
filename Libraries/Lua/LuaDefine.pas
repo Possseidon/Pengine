@@ -225,7 +225,8 @@ type
     procedure Unlock;
     function ShouldTerminate: Boolean;
 
-    function LCall(AParams, AResults: Integer; ATimeout: Single; out AError: TLuaPCallError): Boolean;
+    function CallTimeout(AParams, AResults: Integer; ATimeout: Single; out AError: TLuaPCallError): Boolean;
+    procedure CallUnlocked(AParams, AResults: Integer); inline;
 
     procedure AddLib(ALib: TLuaLibClass);
     procedure DelLib(ALib: TLuaLibClass);
@@ -322,7 +323,7 @@ begin
   Result := TLua(AL.GetExtraSpace^);
 end;
 
-function TLua.LCall(AParams, AResults: Integer; ATimeout: Single; out AError: TLuaPCallError): Boolean;
+function TLua.CallTimeout(AParams, AResults: Integer; ATimeout: Single; out AError: TLuaPCallError): Boolean;
 var
   StopWatch: TStopWatch;
   Lib: TPair<TClass, TLuaLib>;
@@ -353,6 +354,13 @@ begin
   for Lib in FLibs do
     Lib.Data.ChangeLuaState(L);
 
+end;
+
+procedure TLua.CallUnlocked(AParams, AResults: Integer);
+begin
+  Unlock;
+  L.Call(AParams, AResults);
+  Interlock;
 end;
 
 procedure TLua.MakeLuaState;

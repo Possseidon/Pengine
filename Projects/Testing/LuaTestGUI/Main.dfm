@@ -45,10 +45,9 @@ object frmMain: TfrmMain
       Top = 4
       Width = 66
       Height = 22
+      Action = actRun
       Anchors = [akTop, akRight]
-      Caption = 'Run'
       TabOrder = 0
-      OnClick = btnRunClick
     end
     object seTimeout: TSpinEdit
       AlignWithMargins = True
@@ -98,36 +97,12 @@ object frmMain: TfrmMain
     Gutter.Font.Style = []
     Gutter.ShowLineNumbers = True
     Lines.Strings = (
-      'x = {'
-      '  7,'
-      '  6,'
-      '  8,'
-      '  8,'
-      '  9,'
-      '  9,'
-      '  5,'
-      '  3,'
-      '  6,'
-      '  7,'
-      '  9,'
-      '  8,'
-      '  7,'
-      '  9,'
-      '  3,'
-      '  1,'
-      '  6,'
-      '  7,'
-      '  9,'
-      '  2'
-      '}'
+      'x = {}'
+      'for i = 1, 999990 do'
+      '  x[i] = i'
+      'end'
       ''
-      'i = 0'
-      ''
-      'table.sort(x, function(a, b) i = i + 1 return a < b end)'
-      ''
-      'print(i .. " comparissions")'
-      ''
-      'print(table.concat(x, ", "))')
+      'table.unpack(x)')
     Options = [eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabsToSpaces]
     TabWidth = 2
     WantTabs = True
@@ -139,5 +114,14 @@ object frmMain: TfrmMain
         Command = ecDeleteWord
         ShortCut = 16430
       end>
+  end
+  object ActionList1: TActionList
+    Left = 424
+    Top = 24
+    object actRun: TAction
+      Caption = 'Run'
+      ShortCut = 120
+      OnExecute = actRunExecute
+    end
   end
 end
