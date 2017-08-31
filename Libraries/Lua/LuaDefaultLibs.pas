@@ -82,10 +82,10 @@ type
 
   TLuaLibMath = class(TLuaLib)
   private
-    // class function LuaAbs(L: TLuaState): Integer; static; cdecl;
-    // class function LuaArcCos(L: TLuaState): Integer; static; cdecl;
-    // class function LuaArcSin(L: TLuaState): Integer; static; cdecl;
-    // class function LuaArcTan(L: TLuaState): Integer; static; cdecl;
+    class function LuaAbs(L: TLuaState): Integer; static; cdecl;
+    class function LuaArcCos(L: TLuaState): Integer; static; cdecl;
+    class function LuaArcSin(L: TLuaState): Integer; static; cdecl;
+    class function LuaArcTan(L: TLuaState): Integer; static; cdecl;
     // class function LuaCeil(L: TLuaState): Integer; static; cdecl;
     // class function LuaCos(L: TLuaState): Integer; static; cdecl;
     // class function LuaDeg(L: TLuaState): Integer; static; cdecl;
@@ -566,10 +566,10 @@ class procedure TLuaLibMath.CreateEntry(AEntry: TLuaLib.TTableEntry);
 begin
   with AEntry.Add('math') do
   begin
-    Add('abs', LuaNotImplemented);
-    Add('acos', LuaNotImplemented);
-    Add('asin', LuaNotImplemented);
-    Add('atan', LuaNotImplemented);
+    Add('abs', LuaAbs);
+    Add('acos', LuaArcCos);
+    Add('asin', LuaArcSin);
+    Add('atan', LuaArcTan);
     Add('ceil', LuaNotImplemented);
     Add('cos', LuaNotImplemented);
     Add('deg', LuaNotImplemented);
@@ -594,6 +594,38 @@ begin
     Add('type', LuaNotImplemented);
     Add('ult', LuaNotImplemented);
   end;
+end;
+
+class function TLuaLibMath.LuaAbs(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  L.PushNumber(Abs(L.ToNumber(1)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaArcCos(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  L.PushNumber(ArcCos(L.ToNumber(1)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaArcSin(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  L.PushNumber(ArcSin(L.ToNumber(1)));
+  Result := 1;
+end;
+
+class function TLuaLibMath.LuaArcTan(L: TLuaState): Integer;
+begin
+  L.CheckType(1, ltNumber);
+  L.CheckEnd(2);
+  L.PushNumber(ArcTan(L.ToNumber(1)));
+  Result := 1;
 end;
 
 end.
