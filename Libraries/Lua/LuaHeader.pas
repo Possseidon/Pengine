@@ -23,7 +23,7 @@ const
 
   // thread status
   LUA_OK = 0;
-  LUA_YIELD_STATUS = 1; // name conflict with lua_yield function
+  LUA_YIELDED = 1; // name conflict with lua_yield function
   LUA_ERRRUN = 2;
   LUA_ERRSYNTAX = 3;
   LUA_ERRMEM = 4;
