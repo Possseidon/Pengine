@@ -272,14 +272,14 @@ type
     procedure Close; inline;
     function NewThread: TLuaState; inline;
 
-    function AtPanic(panicf: lua_CFunction): lua_CFunction; inline;
+    function AtPanic(panicf: lua_CFunction): TLuaCFunction; inline;
 
     function Version: Plua_Number; inline;
 
     // basic stack manipulation
     function AbsIndex(idx: Integer): Integer; inline;
-    function GetTop: TLuaInteger; inline;
-    procedure SetTop(index: TLuaInteger); inline;
+    function GetTop: Integer; inline;
+    procedure SetTop(index: Integer); inline;
     procedure PushValue(index: Integer = -1); inline;
     procedure Rotate(idx, n: Integer); inline;
     procedure Copy(fromidx, toidx: Integer); inline;
@@ -298,12 +298,12 @@ type
     function TypeName_X(tp: Integer = -1): PAnsiChar; inline;
     function TypeName(tp: TLuaType): PAnsiChar; inline;
 
-    function ToNumberX(isnum: PLongBool; index: Integer = -1): lua_Number; inline;
-    function ToIntegerX(isnum: PLongBool; index: Integer = -1): lua_Integer; inline;
+    function ToNumberX(isnum: PLongBool; index: Integer = -1): TLuaNumber; inline;
+    function ToIntegerX(isnum: PLongBool; index: Integer = -1): TLuaInteger; inline;
     function ToBoolean(index: Integer = -1): LongBool; inline;
     function ToLString(len: PNativeUInt; index: Integer = -1): PAnsiChar; inline;
     function RawLen(index: Integer = -1): NativeUInt; inline;
-    function ToCFunction(index: Integer = -1): lua_CFunction; inline;
+    function ToCFunction(index: Integer = -1): TLuaCFunction; inline;
     function ToUserdata(index: Integer = -1): Pointer; inline;
     function ToThread(index: Integer = -1): TLuaState; inline;
     function ToPointer(index: Integer = -1): Pointer; inline;
@@ -357,10 +357,10 @@ type
     procedure SetUservalue(index: Integer); inline;
 
     // 'load' and 'call' functions (load and run Lua code)
-    procedure CallK(nargs, nresults: Integer; ctx: lua_KContext; k: lua_KFunction); inline;
+    procedure CallK(nargs, nresults: Integer; ctx: TLuaKContext; k: TLuaKFunction); inline;
     procedure Call(nargs, nresults: Integer); inline;
-    function PCallK_X(nargs, nresults, msgh: Integer; ctx: lua_KContext; k: lua_KFunction): Integer; inline;
-    function PCallK(nargs, nresults, msgh: Integer; ctx: lua_KContext; k: lua_KFunction): TLuaPCallError; inline;
+    function PCallK_X(nargs, nresults, msgh: Integer; ctx: TLuaKContext; k: TLuaKFunction): Integer; inline;
+    function PCallK(nargs, nresults, msgh: Integer; ctx: TLuaKContext; k: TLuaKFunction): TLuaPCallError; inline;
     function PCall_X(nargs, nresults, msgh: Integer): Integer; inline;
     function PCall(nargs, nresults, msgh: Integer): TLuaPCallError; inline;
     function Load_X(Reader: lua_Reader; Data: Pointer; chunkname, mode: PAnsiChar): Integer; inline;
@@ -368,9 +368,11 @@ type
     function Dump(writer: lua_Writer; Data: Pointer; strip: Integer): Integer; inline;
 
     // coroutine functions
-    function YieldK(nresults: Integer; ctx: lua_KContext; k: lua_KFunction): Integer; inline;
-    function Resume(from: TLuaState; nargs: Integer): Integer; inline;
-    function Status: Integer; inline;
+    function YieldK(nresults: Integer; ctx: TLuaKContext; k: TLuaKFunction): Integer; inline;
+    function Resume_X(from: TLuaState; nargs: Integer): Integer; inline;
+    function Resume(from: TLuaState; nargs: Integer): TLuaStatus; inline;
+    function Status_X: Integer; inline;
+    function Status: TLuaStatus; inline;
     function IsYieldable: LongBool; inline;
     function Yield(nresults: Integer): Integer; inline;
 
@@ -384,21 +386,21 @@ type
     procedure Len(index: Integer); inline;
     function StringToNumber(s: PAnsiChar): NativeUInt; inline;
 
-    function GetAllocF(ud: PPointer): lua_Alloc; inline;
-    procedure SetAllocF(f: lua_Alloc; ud: Pointer); inline;
+    function GetAllocF(ud: PPointer): TLuaAlloc; inline;
+    procedure SetAllocF(f: TLuaAlloc; ud: Pointer); inline;
 
     // some useful macros
     function GetExtraSpace: Pointer; inline;
-    function ToNumber(index: Integer = -1): lua_Number; inline;
-    function ToInteger(index: Integer = -1): lua_Integer; inline;
+    function ToNumber(index: Integer = -1): TLuaNumber; inline;
+    function ToInteger(index: Integer = -1): TLuaInteger; inline;
 
     procedure Pop(n: Integer = 1); inline;
 
     procedure NewTable; inline;
 
-    procedure &Register(name: PAnsiChar; f: lua_CFunction); inline;
+    procedure &Register(name: PAnsiChar; f: TLuaCFunction); inline;
 
-    procedure PushCFunction(f: lua_CFunction); inline;
+    procedure PushCFunction(f: TLuaCFunction); inline;
 
     function IsFunction(index: Integer = -1): LongBool; inline;
     function IsTable(index: Integer = -1): LongBool; inline;
@@ -443,7 +445,7 @@ type
 
     // --- Custom Functions ---
 
-    property Top: TLuaInteger read GetTop write SetTop;
+    property Top: Integer read GetTop write SetTop;
     function TypeNameAt(index: Integer = -1): PAnsiChar; inline;
 
     function LoadString(AString: AnsiString; AChunkName: AnsiString = ''): TLuaLoadError;
@@ -458,7 +460,7 @@ type
     function FormatTypes(ATypes: TLuaTypes; ANone: Boolean = False): AnsiString;
 
     procedure CheckType(AIndex: Integer; AType: TLuaType); overload;
-    procedure CheckType(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean = False); overload;
+    function CheckType(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean = False): TLuaType; overload;
     function CheckAny(AIndex: Integer): TLuaType; overload;
     procedure CheckEnd(AIndex: Integer); overload; inline;
 
@@ -821,7 +823,7 @@ begin
   Result := lua_newthread(@Self);
 end;
 
-function TLuaStateRec.AtPanic(panicf: lua_CFunction): lua_CFunction;
+function TLuaStateRec.AtPanic(panicf: lua_CFunction): TLuaCFunction;
 begin
   Result := lua_atpanic(@Self, panicf);
 end;
@@ -836,12 +838,12 @@ begin
   Result := lua_absindex(@Self, idx);
 end;
 
-function TLuaStateRec.GetTop: TLuaInteger;
+function TLuaStateRec.GetTop: Integer;
 begin
   Result := lua_gettop(@Self);
 end;
 
-procedure TLuaStateRec.SetTop(index: TLuaInteger);
+procedure TLuaStateRec.SetTop(index: Integer);
 begin
   lua_settop(@Self, index);
 end;
@@ -966,7 +968,6 @@ begin
   Result := '';
   for I := Top downto 1 do
   begin
-
     PushValue(I);
     Result := Result + AnsiStrings.Format('[%d/-%d] %s', [I, Top - I, ToString]) + #10;
     Pop;
@@ -1002,13 +1003,11 @@ begin
     ErrorFmt('arg #%d: %s expected, got %s', [AIndex, TypeName(AType), TypeNameAt(AIndex)]);
 end;
 
-procedure TLuaStateRec.CheckType(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean);
-var
-  T: TLuaType;
+function TLuaStateRec.CheckType(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean): TLuaType;
 begin
-  T := &Type(AIndex);
-  if (T = ltNone) and not ANone or (T <> ltNone) and not(T in ATypes) then
-    ErrorFmt('arg #%d: %s expected, got %s', [AIndex, FormatTypes(ATypes, ANone), TypeName(T)]);
+  Result := &Type(AIndex);
+  if (Result = ltNone) and not ANone or (Result <> ltNone) and not (Result in ATypes) then
+    ErrorFmt('arg #%d: %s expected, got %s', [AIndex, FormatTypes(ATypes, ANone), TypeName(Result)]);
 end;
 
 function TLuaStateRec.CheckAny(AIndex: Integer): TLuaType;
@@ -1064,12 +1063,12 @@ begin
   Result := ToBoolean(AIndex);
 end;
 
-function TLuaStateRec.ToNumberX(isnum: PLongBool; index: Integer): lua_Number;
+function TLuaStateRec.ToNumberX(isnum: PLongBool; index: Integer = -1): TLuaNumber;
 begin
   Result := lua_tonumberx(@Self, index, isnum);
 end;
 
-function TLuaStateRec.ToIntegerX(isnum: PLongBool; index: Integer): lua_Integer;
+function TLuaStateRec.ToIntegerX(isnum: PLongBool; index: Integer = -1): TLuaInteger;
 begin
   Result := lua_tointegerx(@Self, index, isnum);
 end;
@@ -1089,7 +1088,7 @@ begin
   Result := lua_rawlen(@Self, index);
 end;
 
-function TLuaStateRec.ToCFunction(index: Integer): lua_CFunction;
+function TLuaStateRec.ToCFunction(index: Integer = -1): TLuaCFunction;
 begin
   Result := lua_tocfunction(@Self, index);
 end;
@@ -1294,8 +1293,7 @@ begin
   lua_setuservalue(@Self, index);
 end;
 
-procedure TLuaStateRec.CallK(nargs, nresults: Integer; ctx: lua_KContext;
-  k: lua_KFunction);
+procedure TLuaStateRec.CallK(nargs, nresults: Integer; ctx: TLuaKContext; k: TLuaKFunction);
 begin
   lua_callk(@Self, nargs, nresults, ctx, k);
 end;
@@ -1305,13 +1303,12 @@ begin
   lua_call(@Self, nargs, nresults);
 end;
 
-function TLuaStateRec.PCallK_X(nargs, nresults, msgh: Integer; ctx: lua_KContext;
-  k: lua_KFunction): Integer;
+function TLuaStateRec.PCallK_X(nargs, nresults, msgh: Integer; ctx: TLuaKContext; k: TLuaKFunction): Integer;
 begin
   Result := lua_pcallk(@Self, nargs, nresults, msgh, ctx, k);
 end;
 
-function TLuaStateRec.PCallK(nargs, nresults, msgh: Integer; ctx: lua_KContext; k: lua_KFunction): TLuaPCallError;
+function TLuaStateRec.PCallK(nargs, nresults, msgh: Integer; ctx: TLuaKContext; k: TLuaKFunction): TLuaPCallError;
 begin
   Result := TLuaPCallError(PCallK_X(nargs, nresults, msgh, ctx, k));
 end;
@@ -1341,17 +1338,27 @@ begin
   Result := lua_dump(@Self, writer, Data, strip);
 end;
 
-function TLuaStateRec.YieldK(nresults: Integer; ctx: lua_KContext; k: lua_KFunction): Integer;
+function TLuaStateRec.YieldK(nresults: Integer; ctx: TLuaKContext; k: TLuaKFunction): Integer;
 begin
   Result := lua_yieldk(@Self, nresults, ctx, k);
 end;
 
-function TLuaStateRec.Resume(from: TLuaState; nargs: Integer): Integer;
+function TLuaStateRec.Resume(from: TLuaState; nargs: Integer): TLuaStatus;
+begin
+  Result := TLuaStatus(Resume_X(from, nargs));
+end;
+
+function TLuaStateRec.Resume_X(from: TLuaState; nargs: Integer): Integer;
 begin
   Result := lua_resume(@Self, from, nargs);
 end;
 
-function TLuaStateRec.Status: Integer;
+function TLuaStateRec.Status: TLuaStatus;
+begin
+  Result := TLuaStatus(Status_X);
+end;
+
+function TLuaStateRec.Status_X: Integer;
 begin
   Result := lua_status(@Self);
 end;
@@ -1396,12 +1403,12 @@ begin
   Result := lua_stringtonumber(@Self, s);
 end;
 
-function TLuaStateRec.GetAllocF(ud: PPointer): lua_Alloc;
+function TLuaStateRec.GetAllocF(ud: PPointer): TLuaAlloc;
 begin
   Result := lua_getallocf(@Self, ud);
 end;
 
-procedure TLuaStateRec.SetAllocF(f: lua_Alloc; ud: Pointer);
+procedure TLuaStateRec.SetAllocF(f: TLuaAlloc; ud: Pointer);
 begin
   lua_setallocf(@Self, f, ud);
 end;
@@ -1411,12 +1418,12 @@ begin
   Result := lua_getextraspace(@Self);
 end;
 
-function TLuaStateRec.ToNumber(index: Integer): lua_Number;
+function TLuaStateRec.ToNumber(index: Integer = -1): TLuaNumber;
 begin
   Result := lua_tonumber(@Self, index);
 end;
 
-function TLuaStateRec.ToInteger(index: Integer): lua_Integer;
+function TLuaStateRec.ToInteger(index: Integer = -1): TLuaInteger;
 begin
   Result := lua_tointeger(@Self, index);
 end;
@@ -1431,12 +1438,12 @@ begin
   lua_newtable(@Self);
 end;
 
-procedure TLuaStateRec.&Register(name: PAnsiChar; f: lua_CFunction);
+procedure TLuaStateRec.&Register(name: PAnsiChar; f: TLuaCFunction);
 begin
   lua_register(@Self, name, f);
 end;
 
-procedure TLuaStateRec.PushCFunction(f: lua_CFunction);
+procedure TLuaStateRec.PushCFunction(f: TLuaCFunction);
 begin
   lua_pushcfunction(@Self, f);
 end;

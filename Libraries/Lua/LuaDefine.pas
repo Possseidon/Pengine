@@ -3,7 +3,7 @@ unit LuaDefine;
 interface
 
 uses
-  LuaHeader, Lists, LuaConf, SyncObjs, Classes, Windows, TimeManager, SysUtils;
+  LuaHeader, Lists, LuaConf, SyncObjs, Classes, Windows, TimeManager, SysUtils, DebugConsoleDefine;
 
 type
 
@@ -203,6 +203,7 @@ type
     FMemoryLimit: NativeUInt;
     FMemoryUsage: NativeUInt;
     FLock: TCriticalSection;
+    FLockCounter, A: Integer;
     FThread: TLuaThread;
     FLibs: TClassObjectMap<TLuaLib>;
 
@@ -385,15 +386,20 @@ end;
 
 procedure TLua.Interlock;
 begin
-  if not FLock.TryEnter then
+  if (FLockCounter = 0) and not FLock.TryEnter then
     Sleep(INFINITE);
+  Inc(FLockCounter);
 end;
 
 procedure TLua.Unlock;
-begin
-  FLock.Leave;
-  if ShouldTerminate then
-    Sleep(INFINITE);
+begin                  
+  Dec(FLockCounter);
+  if FLockCounter = 0 then
+  begin
+    FLock.Leave;
+    if ShouldTerminate then
+      Sleep(INFINITE);
+  end;
 end;
 
 { TLua.TAllocationList }

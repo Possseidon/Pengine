@@ -17,7 +17,9 @@ type
     class function LuaIPairs(L: TLuaState): Integer; static; cdecl;
     class function LuaNext(L: TLuaState): Integer; static; cdecl;
     class function LuaPairs(L: TLuaState): Integer; static; cdecl;
+    class function LuaSelect(L: TLuaState): Integer; static; cdecl;
     class function LuaSetMetatable(L: TLuaState): Integer; static; cdecl;
+    class function LuaToNumber(L: TLuaState): Integer; static; cdecl;
     class function LuaToString(L: TLuaState): Integer; static; cdecl;
     class function LuaType(L: TLuaState): Integer; static; cdecl;
 
@@ -117,6 +119,29 @@ type
 
   end;
 
+  { TLuaLibCoroutine }
+
+  TLuaLibCoroutine = class(TLuaLib)
+  private
+    class function LuaCreate(L: TLuaState): Integer; static; cdecl;
+    class function LuaIsYieldable(L: TLuaState): Integer; static; cdecl;
+    class function LuaResume(L: TLuaState): Integer; static; cdecl;
+    class function LuaRunning(L: TLuaState): Integer; static; cdecl;
+    class function LuaStatus(L: TLuaState): Integer; static; cdecl;
+    class function LuaWrap(L: TLuaState): Integer; static; cdecl;
+    class function LuaYield(L: TLuaState): Integer; static; cdecl;
+
+    class function LuaResumeHelper(L, C: TLuaState; AArgs: Integer): Integer;
+    class function LuaWrapHelper(L: TLuaState): Integer; static; cdecl;
+
+  protected
+    class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
+
+  end;
+
+var
+  Counter: Int64;
+
 implementation
 
 { TLuaLibBasic }
@@ -131,7 +156,9 @@ begin
     Add('ipairs', LuaIPairs);
     Add('next', LuaNext);
     Add('pairs', LuaPairs);
+    Add('select', LuaSelect);
     Add('setmetatable', LuaSetMetatable);
+    Add('tonumber', LuaToNumber);
     Add('tostring', LuaToString);
     Add('type', LuaType);
     AddRecursion('_G', AEntry);
@@ -240,6 +267,27 @@ begin
   Result := 2;
 end;
 
+class function TLuaLibBasic.LuaSelect(L: TLuaState): Integer;
+var
+  I: TLuaInteger;
+begin
+  if L.CheckType(1, [ltNumber, ltString]) = ltNumber then
+  begin
+    I := L.CheckInteger(1);
+    if (I = 0) or (I <= -L.Top) then
+      Exit(L.ErrorFmt('arg #1: index must not be zero or less than -%d', [L.Top - 1]));
+    if I < 0 then
+      Exit(-I);
+    Exit(Max(L.Top - I, 0));
+  end;
+  if L.ToString[1] = '#' then
+  begin
+    L.PushInteger(L.Top - 1);
+    Exit(1);
+  end;
+  Result := L.Error('string can only be "#" to get argument count');
+end;
+
 class function TLuaLibBasic.LuaSetMetatable(L: TLuaState): Integer;
 begin
   L.CheckType(1, ltTable);
@@ -253,6 +301,27 @@ begin
   end;
   L.SetMetatable(1);
   Result := 1;
+end;
+
+class function TLuaLibBasic.LuaToNumber(L: TLuaState): Integer;
+var
+  IsNum: LongBool;
+  N: TLuaNumber;
+begin
+  L.CheckType(1, [ltNumber, ltString]);
+  if L.Top = 1 then
+  begin
+    N := L.ToNumberX(@IsNum);
+    if IsNum then
+    begin
+      if L.ToIn then
+
+      L.PushNumber(N)
+    end
+    else
+      L.PushNil;
+    Result := 1;
+  end;
 end;
 
 class function TLuaLibBasic.LuaToString(L: TLuaState): Integer;
@@ -310,6 +379,7 @@ class function TLuaLibTable.LuaConcat(L: TLuaState): Integer;
 var
   Lua: TLua;
   A, B, I: TLuaInteger;
+  S: AnsiString;
 begin
   Lua := TLua.FromState(L);
   L.CheckType(1, ltTable);
@@ -325,22 +395,24 @@ begin
     L.CheckType(2, ltString);
   A := L.CheckOrDefault(3, 1);
   B := L.CheckOrDefault(4, L.ToInteger);
-  L.PushString('');
+  S := '';
   for I := A to B do
   begin
     L.GetI(I, 1);
     if not (L.&Type in [ltNumber, ltString]) then
       Exit(L.ErrorFmt('table element #%d: number or string expected, got %s', [I, L.TypeNameAt]));
+    S := S + L.ToString_X;
+    L.Pop;
     if I < B then
-    begin
-      L.PushValue(2);
-      L.Concat(3)
-    end
-    else
-      L.Concat(2);
+      S := S + L.ToString_X(2);
     if Lua.ShouldTerminate then
       Exit(0);
+    Inc(Counter);
   end;
+  if S = '' then
+    L.PushLiteral('')
+  else
+    L.PushString(PPAnsiChar(@S)^);
   Result := 1;
 end;
 
@@ -1011,6 +1083,169 @@ begin
   L.CheckEnd(3);
   L.PushBoolean(TLuaUnsigned(L.CheckInteger(1)) < TLuaUnsigned(L.CheckInteger(2)));
   Result := 1;
+end;
+
+{ TLuaLibCoroutine }
+
+class procedure TLuaLibCoroutine.CreateEntry(AEntry: TLuaLib.TTableEntry);
+begin
+  with AEntry.Add('coroutine') do
+  begin
+    Add('create', LuaCreate);
+    Add('isyieldable', LuaIsYieldable);
+    Add('resume', LuaResume);
+    Add('running', LuaRunning);
+    Add('status', LuaStatus);
+    Add('wrap', LuaWrap);
+    Add('yield', LuaYield);
+  end;
+end;
+
+class function TLuaLibCoroutine.LuaCreate(L: TLuaState): Integer;
+var
+  Thread: TLuaState;
+begin
+  L.CheckType(1, ltFunction);
+  L.CheckEnd(2);
+  Thread := L.NewThread;
+  L.PushValue(1);
+  L.XMove(Thread, 1);
+  Result := 1;
+end;
+
+class function TLuaLibCoroutine.LuaIsYieldable(L: TLuaState): Integer;
+begin
+  L.CheckEnd(1);
+  L.PushBoolean(L.IsYieldable);
+  Result := 1;
+end;
+
+class function TLuaLibCoroutine.LuaResume(L: TLuaState): Integer;
+var
+  R: Integer;
+begin
+  L.CheckType(1, ltThread);
+  R := LuaResumeHelper(L, L.ToThread(1), L.Top - 1);
+  if R < 0 then
+  begin
+    L.PushBoolean(False);
+    L.Insert(-2);
+    Result := 2;
+  end
+  else
+  begin
+    L.PushBoolean(True);
+    L.Insert(-R - 1);
+    Result := R + 1;
+  end;
+end;
+
+class function TLuaLibCoroutine.LuaRunning(L: TLuaState): Integer;
+begin
+  L.CheckEnd(1);
+  L.PushBoolean(L.PushThread);
+  Result := 2;
+end;
+
+class function TLuaLibCoroutine.LuaStatus(L: TLuaState): Integer;
+var
+  C: TLuaState;
+  AR: TLuaDebug;
+begin
+  L.CheckType(1, ltThread);
+  L.CheckEnd(2);
+  C := L.ToThread(1);
+
+  if L = C then
+    L.PushLiteral('running')
+  else
+  begin
+    case C.Status of
+      lstYield:
+        L.PushLiteral('suspended');
+      lstOk:
+        begin
+          if C.GetStack(0, @AR) then
+            L.PushLiteral('normal')
+          else if C.Top = 0 then
+            L.PushLiteral('dead')
+          else
+            L.PushLiteral('suspended');
+        end;
+    else
+      L.PushLiteral('dead');
+    end;
+  end;
+  Result := 1;
+end;
+
+class function TLuaLibCoroutine.LuaWrap(L: TLuaState): Integer;
+begin
+  LuaCreate(L);
+  L.PushCClosure(LuaWrapHelper, 1);
+  Result := 1;
+end;
+
+class function TLuaLibCoroutine.LuaYield(L: TLuaState): Integer;
+begin
+  Result := L.Yield(L.Top);
+end;
+
+class function TLuaLibCoroutine.LuaResumeHelper(L, C: TLuaState; AArgs: Integer): Integer;
+var
+  Lua: TLua;
+  Status: TLuaStatus;
+  ResultCount: Integer;
+begin
+  Lua := TLua.FromState(L);
+  if not C.CheckStack(AArgs) then
+  begin
+    L.PushString('too many arguments to resume');
+    Exit(-1);
+  end;
+  if (C.Status = lstOk) and (L.Top = 0) then
+  begin
+    L.PushString('cannot resume dead coroutine');
+    Exit(-1);
+  end;
+  L.XMove(C, AArgs);
+  Lua.Unlock;
+  Status := C.Resume(L, AArgs);
+  Lua.Interlock;
+  if Status in [lstOk, lstYield] then
+  begin
+    ResultCount := C.Top;
+    if not L.CheckStack(ResultCount + 1) then
+    begin
+      C.Pop(ResultCount);
+      C.PushLiteral('too many results to resume');
+      Exit(-1);
+    end;
+    C.XMove(L, ResultCount);
+    Exit(ResultCount);
+  end;
+  C.XMove(L, 1);
+  Result := -1;
+end;
+
+class function TLuaLibCoroutine.LuaWrapHelper(L: TLuaState): Integer;
+var
+  C: TLuaState;
+  R: Integer;
+begin
+  C := L.ToThread(L.UpvalueIndex(1));
+  R := LuaResumeHelper(L, C, L.Top);
+  if R < 0 then
+  begin
+    if L.&Type = ltString then
+    begin
+      L.Where(1);
+      L.Insert(-2);
+      L.Concat(2);
+    end;
+    Exit(L.Error_X);
+  end;
+  Result := R;
 end;
 
 end.

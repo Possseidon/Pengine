@@ -39,7 +39,6 @@ type
 var
   frmMain: TfrmMain;
 
-
 implementation
 
 {$R *.dfm}
@@ -89,6 +88,7 @@ begin
   FLua.AddLib(TLuaLibHelp);
   FLua.AddLib(TLuaLibTable);
   FLua.AddLib(TLuaLibMath);
+  FLua.AddLib(TLuaLibCoroutine);
   seCodeChange(nil);
 end;
 
