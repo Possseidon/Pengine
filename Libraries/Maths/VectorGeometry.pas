@@ -142,9 +142,9 @@ type
     /// <summary>Returns a Vector, where each negative Component is positive</summary>
     function Abs: TVector2;
     /// <summary>Returns the Vector with each Component being rounded down</summary>
-    function Floor: TVector2;
+    function Floor: TIntVector2;
     /// <summary>Returns the Vector with each Component being rounded up</summary>
-    function Ceil: TVector2;
+    function Ceil: TIntVector2;
 
   end;
 
@@ -973,6 +973,12 @@ type
 
   end;
 
+  { TVector2Helper }
+
+  TVector2Helper = record helper for TVector2
+    function LineTo(A: TVector2): TLine2;
+  end;
+
   { TLocation }
 
   TLocation = class
@@ -1597,13 +1603,13 @@ begin
   Result.Y := System.Abs(Y);
 end;
 
-function TVector2.Floor: TVector2;
+function TVector2.Floor: TIntVector2;
 begin
   Result.X := Math.Floor(X);
   Result.Y := Math.Floor(Y);
 end;
 
-function TVector2.Ceil: TVector2;
+function TVector2.Ceil: TIntVector2;
 begin
   Result.X := Math.Ceil(X);
   Result.Y := Math.Ceil(Y);
@@ -3051,6 +3057,8 @@ end;
 
 function TLine2.Height(const A: TVector2): Single;
 begin
+  if DV = 0 then
+    Exit(SV.DistanceTo(A));
   Result := TLine2.Create(SV, DV.Cross.Normalize).OrthoProj(A);
 end;
 
@@ -3255,6 +3263,13 @@ end;
 function TPlane3.AngleTo(const A: TPlane3): Single;
 begin
   Result := NormalX.AngleTo(A.NormalX);
+end;
+
+{ TVector2Helper }
+
+function TVector2Helper.LineTo(A: TVector2): TLine2;
+begin
+  Result.Create(Self, VectorTo(A));
 end;
 
 { TLocation.TChangeEventInfo }

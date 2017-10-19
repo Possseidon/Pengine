@@ -3,7 +3,7 @@ unit IntegerMaths;
 interface
 
 uses
-  Math, SysUtils;
+  Math, SysUtils, Types;
 
 type
 
@@ -29,6 +29,7 @@ type
     constructor Create(V: Integer); overload;
 
     class operator Implicit(V: Integer): TIntVector2; inline;
+    class operator Implicit(A: TIntVector2): TPoint;
 
     {$REGION 'All versions of rearrangement TIntVector2'}
 
@@ -655,6 +656,12 @@ end;
 class operator TIntVector2.Implicit(A: TIntVector2): string;
 begin
   Result := A.ToString;
+end;
+
+class operator TIntVector2.Implicit(A: TIntVector2): TPoint;
+begin
+  Result.X := A.X;
+  Result.Y := A.Y;
 end;
 
 { TIntVector3 }

@@ -95,6 +95,9 @@ type
     property LastZero: Integer read GetLastZero;
 
     function GetEnumerator: TIterator;
+
+    function Equals(Obj: TObject): Boolean; override;
+
   end;
 
 implementation
@@ -258,6 +261,26 @@ end;
 destructor TBitField.Destroy;
 begin
   inherited Destroy;
+end;
+
+function TBitField.Equals(Obj: TObject): Boolean;
+var
+  Other: TBitField;
+  I: Integer;
+  Shift: Integer;
+begin
+  if not (Obj is TBitField) then
+    Exit(False);
+  Other := TBitField(Obj);
+  if Size <> Other.Size then
+    Exit(False);
+  if Size = 0 then
+    Exit(True);
+  for I := 0 to ByteSize - 2 do
+    if B[I] <> Other.B[I] then
+      Exit(False);
+  Shift := Size mod (SizeOf(TDataType) * 8);
+  Result := B[ByteSize - 1] shr Shift = Other.B[ByteSize - 1] shr Shift;
 end;
 
 procedure TBitField.SetSize(Bits: Integer);

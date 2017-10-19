@@ -9,13 +9,13 @@ unit DebugConsoleDefine;
 interface
 
 uses
-  Classes, Windows;
+  Classes, Windows, SyncObjs;
 
-procedure DebugWriteLine(AMessage: string); inline; overload;
-procedure DebugWriteLine(AMessage: AnsiString); inline; overload;
+procedure DebugWriteLine(AMessage: string); overload;
+procedure DebugWriteLine(AMessage: AnsiString); overload;
 
-procedure DebugWrite(AMessage: string); inline; overload;
-procedure DebugWrite(AMessage: AnsiString); inline; overload;
+procedure DebugWrite(AMessage: string); overload;
+procedure DebugWrite(AMessage: AnsiString); overload;
 
 procedure DebugWriteBuf(AMessage: string); overload;
 procedure DebugWriteBuf(AMessage: AnsiString); overload;
@@ -25,35 +25,45 @@ procedure DebugFlushBuf(ANewLine: Boolean);
 implementation
 
 {$IFDEF CONSOLE}
-var
+threadvar
   DebugBuffer: string;
+var
+  Lock: TCriticalSection;
 {$ENDIF}
 
 procedure DebugWriteLine(AMessage: string);
 begin
 {$IFDEF CONSOLE}
+  Lock.Enter;
   Writeln(AMessage);
+  Lock.Leave;
 {$ENDIF}
 end;
 
 procedure DebugWriteLine(AMessage: AnsiString);
 begin
 {$IFDEF CONSOLE}
+  Lock.Enter;
   Writeln(AMessage);
+  Lock.Leave;
 {$ENDIF}
 end;
 
 procedure DebugWrite(AMessage: string);
 begin
 {$IFDEF CONSOLE}
+  Lock.Enter;
   Write(AMessage);
+  Lock.Leave;
 {$ENDIF}
 end;
 
 procedure DebugWrite(AMessage: AnsiString);
 begin
 {$IFDEF CONSOLE}
+  Lock.Enter;
   Write(AMessage);
+  Lock.Leave;
 {$ENDIF}
 end;
 
@@ -74,10 +84,12 @@ end;
 procedure DebugFlushBuf(ANewLine: Boolean);
 begin
 {$IFDEF CONSOLE}
+  Lock.Enter;
   if ANewLine then
     Writeln(DebugBuffer)
   else
     Write(DebugBuffer);
+  Lock.Leave;
   DebugBuffer := '';
 {$ENDIF}
 end;
@@ -92,7 +104,12 @@ end;
 
 {$IFDEF CONSOLE}
 initialization
+  Lock := TCriticalSection.Create;
   ExitProcessProc := OnExit;
+
+finalization
+  Lock.Free;
+
 {$ENDIF}
 
 end.
