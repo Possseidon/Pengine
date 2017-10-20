@@ -205,39 +205,39 @@ begin
 
   FGame.Update(DeltaTime);
 
-  FTestBot.Location.FreeTranslate(-FTestBot.Location.Offset);
+//  FTestBot.Location.FreeTranslate(-FTestBot.Location.Offset);
 
-  if Input.KeyDown('A') then
-    FTestBot.Location.FreeTranslate(Vec3(-DeltaTime * 2, 0, 0));
-  if Input.KeyDown('D') then
-    FTestBot.Location.FreeTranslate(Vec3(+DeltaTime * 2, 0, 0));
+//  if Input.KeyDown('A') then
+//    FTestBot.Location.FreeTranslate(Vec3(-DeltaTime * 2, 0, 0));
+//  if Input.KeyDown('D') then
+//    FTestBot.Location.FreeTranslate(Vec3(+DeltaTime * 2, 0, 0));
+//
+//  if Input.KeyDown('S') then
+//    FTestBot.Location.FreeTranslate(Vec3(0, 0, +DeltaTime * 2));
+//  if Input.KeyDown('W') then
+//    FTestBot.Location.FreeTranslate(Vec3(0, 0, -DeltaTime * 2));
+//
+//  if Input.KeyDown(VK_SHIFT) then
+//    FTestBot.Location.FreeTranslate(Vec3(0, -DeltaTime * 2, 0));
+//  if Input.KeyDown(VK_SPACE) then
+//    FTestBot.Location.FreeTranslate(Vec3(0, +DeltaTime * 2, 0));
+//
+//  if Input.KeyDown(VK_LEFT) then
+//    FTestBot.Location.FreeTurn(-DeltaTime * 90);
+//  if Input.KeyDown(VK_Right) then
+//    FTestBot.Location.FreeTurn(+DeltaTime * 90);
+//
+//  if Input.KeyDown(VK_DOWN) then
+//    FTestBot.Location.FreePitch(+DeltaTime * 90);
+//  if Input.KeyDown(VK_UP) then
+//    FTestBot.Location.FreePitch(-DeltaTime * 90);
+//
+//  if Input.KeyDown('Q') then
+//    FTestBot.Location.FreeRoll(-DeltaTime * 90);
+//  if Input.KeyDown('E') then
+//    FTestBot.Location.FreeRoll(+DeltaTime * 90);
 
-  if Input.KeyDown('S') then
-    FTestBot.Location.FreeTranslate(Vec3(0, 0, +DeltaTime * 2));
-  if Input.KeyDown('W') then
-    FTestBot.Location.FreeTranslate(Vec3(0, 0, -DeltaTime * 2));
-
-  if Input.KeyDown(VK_SHIFT) then
-    FTestBot.Location.FreeTranslate(Vec3(0, -DeltaTime * 2, 0));
-  if Input.KeyDown(VK_SPACE) then
-    FTestBot.Location.FreeTranslate(Vec3(0, +DeltaTime * 2, 0));
-
-  if Input.KeyDown(VK_LEFT) then
-    FTestBot.Location.FreeTurn(-DeltaTime * 90);
-  if Input.KeyDown(VK_Right) then
-    FTestBot.Location.FreeTurn(+DeltaTime * 90);
-
-  if Input.KeyDown(VK_DOWN) then
-    FTestBot.Location.FreePitch(+DeltaTime * 90);
-  if Input.KeyDown(VK_UP) then
-    FTestBot.Location.FreePitch(-DeltaTime * 90);
-
-  if Input.KeyDown('Q') then
-    FTestBot.Location.FreeRoll(-DeltaTime * 90);
-  if Input.KeyDown('E') then
-    FTestBot.Location.FreeRoll(+DeltaTime * 90);
-
-  FTestBot.Location.FreeTranslate(FTestBot.Location.Offset);
+//  FTestBot.Location.FreeTranslate(FTestBot.Location.Offset);
 
 end;
 
