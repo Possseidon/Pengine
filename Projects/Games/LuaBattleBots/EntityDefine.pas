@@ -3,7 +3,7 @@ unit EntityDefine;
 interface
 
 uses
-  VAOManager, LuaHeader, Math, LuaConf, VectorGeometry, DebugConsoleDefine, IntegerMaths, SysUtils, Resources,
+  VAOManager, LuaHeader, Math, LuaDefine, VectorGeometry, DebugConsoleDefine, IntegerMaths, SysUtils, Resources,
   Lists, Camera;
 
 type
@@ -61,7 +61,7 @@ type
     LuaUpdateInterval = 0.1;
 
   private
-    FLua: TLuaState;
+    FLua: TLua;
     FLuaValid: Boolean;
 
     class function LuaPrint(L: TLuaState): Integer; static; cdecl;
@@ -70,9 +70,8 @@ type
   protected
 
   public
-    constructor Create;
-    destructor Destroy; override;
-
+    constructor Create(ALua: TLua);
+    
     procedure Update(ADeltaTime: Single); override;
     procedure UpdateLua; virtual;
 
@@ -88,13 +87,13 @@ type
   private
     FParent: TBotCore;
     FSide: TBasicDir3;
-    FLua: TLuaState;
+    FLua: TLua;
 
   protected
     property Parent: TBotCore read FParent;
     property Side: TBasicDir3 read FSide;
 
-    property Lua: TLuaState read FLua;
+    property Lua: TLua read FLua;
 
     procedure AttachLua; virtual;
     procedure DetachLua; virtual;
@@ -151,7 +150,7 @@ type
 
   public
 
-    constructor Create;
+    constructor Create(FLua: TLua);
     destructor Destroy; override;
 
     procedure Update(ADeltaTime: Single); override;
@@ -317,31 +316,26 @@ begin
   Result := TLuaEntity(TEntity.GetSelf(L));
 end;
 
-constructor TLuaEntity.Create;
+constructor TLuaEntity.Create(ALua: TLua);
 begin
   inherited Create;
 
   // Lua Init
-  FLua := NewLuaState;
-  PPointer(FLua.GetExtraSpace)^ := Self;
-
+  FLua := ALua;
+  
   // Base Lua Functions
-  FLua.PushGlobalTable;
+  {
+  FLua.L.PushGlobalTable;
 
-  RegisterLuaMethod(FLua, 'print', LuaPrint);
-  RegisterLuaMethod(FLua, 'getHealth', LuaGetHealth);
-  RegisterLuaMethod(FLua, 'getMaxHealth', LuaGetMaxHealth);
-  RegisterLuaMethod(FLua, 'getName', LuaGetName);
-  RegisterLuaMethod(FLua, 'setName', LuaSetName);
-  RegisterLuaMethod(FLua, 'getHealthPercentage', LuaGetHealthPercentage);
+  RegisterLuaMethod(FLua.L, 'print', LuaPrint);
+  RegisterLuaMethod(FLua.L, 'getHealth', LuaGetHealth);
+  RegisterLuaMethod(FLua.L, 'getMaxHealth', LuaGetMaxHealth);
+  RegisterLuaMethod(FLua.L, 'getName', LuaGetName);
+  RegisterLuaMethod(FLua.L, 'setName', LuaSetName);
+  RegisterLuaMethod(FLua.L, 'getHealthPercentage', LuaGetHealthPercentage);
 
-  FLua.Top := 0;
-end;
-
-destructor TLuaEntity.Destroy;
-begin
-  FLua.Close;
-  inherited;
+  FLua.L.Top := 0;
+  }
 end;
 
 procedure TLuaEntity.Update(ADeltaTime: Single);
@@ -356,17 +350,24 @@ begin
   inherited;
   if FLuaValid then
   begin
-    FLua.GetGlobal('update');
-    Err := FLua.PCall(0, 0, 0);
-    case Err of
-      lceErrorRun:
-        DebugWriteLine(Name + ' Runtime Error: ' + FLua.ToString);
-      lceErrorMemory:
-        DebugWriteLine('Lua Memory Error');
-      lceErrorGCMM:
-        DebugWriteLine('Lua GarbageCollector Error');
-      lceErrorError:
-        DebugWriteLine('Lua Error-Function Error');
+    FLua.L.GetGlobal('update');
+    if FLua.CallTimeout(0, 0, 1, Err) then
+    begin
+      case Err of
+        lceErrorRun:
+          DebugWriteLine(Name + ' Runtime Error: ' + FLua.L.ToString);
+        lceErrorMemory:
+          DebugWriteLine('Lua Memory Error');
+        lceErrorGCMM:
+          DebugWriteLine('Lua GarbageCollector Error');
+        lceErrorError:
+          DebugWriteLine('Lua Error-Function Error');
+      end;
+    end
+    else
+    begin
+      DebugWriteLine(Name + ' Update Timeout');
+      FLuaValid := False;
     end;
   end;
 end;
@@ -375,16 +376,16 @@ procedure TLuaEntity.SetUpdateFunction(const AFunction: AnsiString);
 var
   Err: TLuaLoadError;
 begin
-  Err := FLua.LoadString(AFunction);
+  Err := FLua.L.LoadString(AFunction);
   case Err of
     lleErrorSyntax:
-      DebugWriteLine(Name + ' Syntax Error: ' + FLua.ToString);
+      DebugWriteLine(Name + ' Syntax Error: ' + FLua.L.ToString);
     lleErrorMemory:
       DebugWriteLine('Lua Memory Error');
     lleErrorGCMM:
       DebugWriteLine('Lua Garbage Collector Error');
   end;
-  FLua.SetGlobal('update');
+  FLua.L.SetGlobal('update');
   FLuaValid := Err = lleOK;
 end;
 
@@ -392,25 +393,25 @@ end;
 
 procedure TBotModule.AttachLua;
 begin
-  RegisterLuaMethod(FLua, 'getHealth', LuaGetHealth);
-  RegisterLuaMethod(FLua, 'getMaxHealth', LuaGetMaxHealth);
-  RegisterLuaMethod(FLua, 'getName', LuaGetName);
-  RegisterLuaMethod(FLua, 'setName', LuaSetName);
-  RegisterLuaMethod(FLua, 'getHealthPercentage', LuaGetHealthPercentage);
+  RegisterLuaMethod(FLua.L, 'getHealth', LuaGetHealth);
+  RegisterLuaMethod(FLua.L, 'getMaxHealth', LuaGetMaxHealth);
+  RegisterLuaMethod(FLua.L, 'getName', LuaGetName);
+  RegisterLuaMethod(FLua.L, 'setName', LuaSetName);
+  RegisterLuaMethod(FLua.L, 'getHealthPercentage', LuaGetHealthPercentage);
 end;
 
 procedure TBotModule.DetachLua;
 begin
-  FLua.PushNil;
-  FLua.SetField('getHealth', -2);
-  FLua.PushNil;
-  FLua.SetField('getMaxHealth', -2);
-  FLua.PushNil;
-  FLua.SetField('getName', -2);
-  FLua.PushNil;
-  FLua.SetField('setName', -2);
-  FLua.PushNil;
-  FLua.SetField('getHealthPercentage', -2);
+  FLua.L.PushNil;
+  FLua.L.SetField('getHealth', -2);
+  FLua.L.PushNil;
+  FLua.L.SetField('getMaxHealth', -2);
+  FLua.L.PushNil;
+  FLua.L.SetField('getName', -2);
+  FLua.L.PushNil;
+  FLua.L.SetField('setName', -2);
+  FLua.L.PushNil;
+  FLua.L.SetField('getHealthPercentage', -2);
 end;
 
 constructor TBotModule.Create(AParent: TBotCore; ASide: TBasicDir3);
@@ -421,24 +422,26 @@ begin
   FSide := ASide;
   Location.Parent := FParent.Location;
   Location.Pos := VecDir[ASide];
-
-  FLua.GetGlobal('modules');
-  FLua.GetField(PPAnsiChar(@BasicPosNames[FSide])^, 1);
+  {
+  FLua.L.GetGlobal('modules');
+  FLua.L.GetField(PPAnsiChar(@BasicPosNames[FSide])^, 1);
 
   AttachLua;
 
-  FLua.Top := 0;
+  FLua.L.Top := 0;
+  }
 end;
 
 destructor TBotModule.Destroy;
 begin
-  FLua.GetGlobal('modules');
-  FLua.GetField(PPAnsiChar(@BasicPosNames[FSide])^, 1);
+  {
+  FLua.L.GetGlobal('modules');
+  FLua.L.GetField(PPAnsiChar(@BasicPosNames[FSide])^, 1);
 
   DetachLua;
 
-  FLua.Top := 0;
-
+  FLua.L.Top := 0;
+  }
   inherited;
 end;
 
@@ -499,15 +502,15 @@ procedure TBotCore.RegisterLuaModulesTable;
 var
   Name: AnsiString;
 begin
-  FLua.CreateTable(0, 6);
+  FLua.L.CreateTable(0, 6);
 
   for Name in BasicPosNames do
   begin
-    FLua.NewTable;
-    FLua.SetField(PPAnsiChar(@Name)^, 1);
+    FLua.L.NewTable;
+    FLua.L.SetField(PPAnsiChar(@Name)^, 1);
   end;
 
-  FLua.SetGlobal('modules');
+  FLua.L.SetGlobal('modules');
 end;
 
 class function TBotCore.GetSourceVAO: TVAO;
@@ -530,9 +533,9 @@ begin
   Result := 'Basic Bot';
 end;
 
-constructor TBotCore.Create;
+constructor TBotCore.Create(FLua: TLua);
 begin
-  inherited Create;
+  inherited Create(FLua);
 
   RegisterLuaModulesTable;
 end;
@@ -541,7 +544,6 @@ destructor TBotCore.Destroy;
 var
   Side: TBasicDir3;
 begin
-
   for Side := Low(TBasicDir3) to High(TBasicDir3) do
     if Modules[Side] <> nil then
       DetachModule(Side);

@@ -22,11 +22,11 @@ type
 
   TCoordAxis = (caX, caY, caZ);
 
-  TBasicDir = (sdNone, sdRight, sdLeft, sdUp, sdDown, sdFront, sdBack);
+  TBasicDir = (bdNone, bdRight, bdLeft, bdUp, bdDown, bdFront, bdBack);
 
-  TBasicDir3 = sdRight .. sdBack;
-  TBasicDir2 = sdRight .. sdDown;
-  TBasicDir1 = sdRight .. sdLeft;
+  TBasicDir3 = bdRight .. bdBack;
+  TBasicDir2 = bdRight .. bdDown;
+  TBasicDir1 = bdRight .. bdLeft;
 
   TBasicDirs3 = set of TBasicDir3;
   TBasicDirs2 = set of TBasicDir2;
@@ -1236,7 +1236,7 @@ type
 
   TGHexahedron = record
   public
-    FaceNormals: array [sdRight .. sdBack] of TLine3;
+    FaceNormals: array [bdRight .. bdBack] of TLine3;
 
     function AllOutside(APoints: array of TVector3): Boolean;
 
@@ -3938,7 +3938,7 @@ begin
   Include(UsedDirections, AbsBasicDir(AX));
   Include(UsedDirections, AbsBasicDir(AY));
   Include(UsedDirections, AbsBasicDir(AZ));
-  if UsedDirections = [sdRight, sdUp, sdFront] then
+  if UsedDirections = [bdRight, bdUp, bdFront] then
   begin
     FX := AX;
     FY := AY;
@@ -3951,15 +3951,15 @@ end;
 function TBlockRotation.Convert(ADirection: TBasicDir3): TBasicDir3;
 begin
   case ADirection of
-    sdRight:
+    bdRight:
       Exit(FX);
-    sdLeft:
+    bdLeft:
       Exit(InvertBasicDir(FX));
-    sdUp:
+    bdUp:
       Exit(FY);
-    sdDown:
+    bdDown:
       Exit(InvertBasicDir(FY));
-    sdFront:
+    bdFront:
       Exit(FZ);
   else // sdBack
     Exit(InvertBasicDir(FZ));
@@ -3988,15 +3988,15 @@ function TBlockRotation.Matrix: TMatrix3;
   end;
 
 begin
-  Result[0, 0] := IfOrThen(FX = sdRight, FX = sdLeft);
-  Result[0, 1] := IfOrThen(FX = sdUp, FX = sdDown);
-  Result[0, 2] := IfOrThen(FX = sdFront, FX = sdBack);
-  Result[1, 0] := IfOrThen(FY = sdRight, FY = sdLeft);
-  Result[1, 1] := IfOrThen(FY = sdUp, FY = sdDown);
-  Result[1, 2] := IfOrThen(FY = sdFront, FY = sdBack);
-  Result[2, 0] := IfOrThen(FZ = sdRight, FZ = sdLeft);
-  Result[2, 1] := IfOrThen(FZ = sdUp, FZ = sdDown);
-  Result[2, 2] := IfOrThen(FZ = sdFront, FZ = sdBack);
+  Result[0, 0] := IfOrThen(FX = bdRight, FX = bdLeft);
+  Result[0, 1] := IfOrThen(FX = bdUp, FX = bdDown);
+  Result[0, 2] := IfOrThen(FX = bdFront, FX = bdBack);
+  Result[1, 0] := IfOrThen(FY = bdRight, FY = bdLeft);
+  Result[1, 1] := IfOrThen(FY = bdUp, FY = bdDown);
+  Result[1, 2] := IfOrThen(FY = bdFront, FY = bdBack);
+  Result[2, 0] := IfOrThen(FZ = bdRight, FZ = bdLeft);
+  Result[2, 1] := IfOrThen(FZ = bdUp, FZ = bdDown);
+  Result[2, 2] := IfOrThen(FZ = bdFront, FZ = bdBack);
 end;
 
 procedure TBlockRotation.FromMatrix(AMatrix: TMatrix3);
@@ -4052,9 +4052,9 @@ end;
 
 procedure TBlockRotation.Reset;
 begin
-  FX := sdRight;
-  FY := sdUp;
-  FZ := sdFront;
+  FX := bdRight;
+  FY := bdUp;
+  FZ := bdFront;
   FChanged := True;
 end;
 
@@ -4227,32 +4227,32 @@ end;
 
 function InvertBasicDir(ADir: TBasicDir): TBasicDir;
 begin
-  Result := sdNone;
+  Result := bdNone;
   case ADir of
-    sdRight:
-      Exit(sdLeft);
-    sdLeft:
-      Exit(sdRight);
-    sdUp:
-      Exit(sdDown);
-    sdDown:
-      Exit(sdUp);
-    sdFront:
-      Exit(sdBack);
-    sdBack:
-      Exit(sdFront);
+    bdRight:
+      Exit(bdLeft);
+    bdLeft:
+      Exit(bdRight);
+    bdUp:
+      Exit(bdDown);
+    bdDown:
+      Exit(bdUp);
+    bdFront:
+      Exit(bdBack);
+    bdBack:
+      Exit(bdFront);
   end;
 end;
 
 function AbsBasicDir(ADir: TBasicDir): TBasicDir;
 begin
   case ADir of
-    sdLeft:
-      Exit(sdRight);
-    sdDown:
-      Exit(sdUp);
-    sdBack:
-      Exit(sdFront);
+    bdLeft:
+      Exit(bdRight);
+    bdDown:
+      Exit(bdUp);
+    bdBack:
+      Exit(bdFront);
   else
     Exit(ADir);
   end;
@@ -4260,9 +4260,9 @@ end;
 
 function RotateBasicDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer): TBasicDir;
 begin
-  Result := sdNone;
+  Result := bdNone;
 
-  if (AbsBasicDir(ADir) = AbsBasicDir(AAxis)) or (ADir = sdNone) then
+  if (AbsBasicDir(ADir) = AbsBasicDir(AAxis)) or (ADir = bdNone) then
     Exit(ADir);
   if ASteps < 0 then
     ASteps := ASteps - Floor(ASteps / 4) * 4;
@@ -4274,142 +4274,142 @@ begin
     1: // CW if axis points toward eye
       begin
         case AAxis of
-          sdRight:
+          bdRight:
             case ADir of
-              sdUp:
-                Exit(sdBack);
-              sdDown:
-                Exit(sdFront);
-              sdFront:
-                Exit(sdUp);
-              sdBack:
-                Exit(sdDown);
+              bdUp:
+                Exit(bdBack);
+              bdDown:
+                Exit(bdFront);
+              bdFront:
+                Exit(bdUp);
+              bdBack:
+                Exit(bdDown);
             end;
-          sdLeft:
+          bdLeft:
             case ADir of
-              sdUp:
-                Exit(sdFront);
-              sdDown:
-                Exit(sdBack);
-              sdFront:
-                Exit(sdDown);
-              sdBack:
-                Exit(sdUp);
+              bdUp:
+                Exit(bdFront);
+              bdDown:
+                Exit(bdBack);
+              bdFront:
+                Exit(bdDown);
+              bdBack:
+                Exit(bdUp);
             end;
-          sdUp:
+          bdUp:
             case ADir of
-              sdRight:
-                Exit(sdFront);
-              sdLeft:
-                Exit(sdBack);
-              sdFront:
-                Exit(sdLeft);
-              sdBack:
-                Exit(sdRight);
+              bdRight:
+                Exit(bdFront);
+              bdLeft:
+                Exit(bdBack);
+              bdFront:
+                Exit(bdLeft);
+              bdBack:
+                Exit(bdRight);
             end;
-          sdDown:
+          bdDown:
             case ADir of
-              sdRight:
-                Exit(sdBack);
-              sdLeft:
-                Exit(sdFront);
-              sdFront:
-                Exit(sdRight);
-              sdBack:
-                Exit(sdLeft);
+              bdRight:
+                Exit(bdBack);
+              bdLeft:
+                Exit(bdFront);
+              bdFront:
+                Exit(bdRight);
+              bdBack:
+                Exit(bdLeft);
             end;
-          sdFront:
+          bdFront:
             case ADir of
-              sdRight:
-                Exit(sdDown);
-              sdLeft:
-                Exit(sdUp);
-              sdUp:
-                Exit(sdRight);
-              sdDown:
-                Exit(sdLeft);
+              bdRight:
+                Exit(bdDown);
+              bdLeft:
+                Exit(bdUp);
+              bdUp:
+                Exit(bdRight);
+              bdDown:
+                Exit(bdLeft);
             end;
-          sdBack:
+          bdBack:
             case ADir of
-              sdRight:
-                Exit(sdUp);
-              sdLeft:
-                Exit(sdDown);
-              sdUp:
-                Exit(sdLeft);
-              sdDown:
-                Exit(sdRight);
+              bdRight:
+                Exit(bdUp);
+              bdLeft:
+                Exit(bdDown);
+              bdUp:
+                Exit(bdLeft);
+              bdDown:
+                Exit(bdRight);
             end;
         end;
       end;
     3: // CCW
       begin
         case AAxis of
-          sdRight:
+          bdRight:
             case ADir of
-              sdUp:
-                Exit(sdFront);
-              sdDown:
-                Exit(sdBack);
-              sdFront:
-                Exit(sdDown);
-              sdBack:
-                Exit(sdUp);
+              bdUp:
+                Exit(bdFront);
+              bdDown:
+                Exit(bdBack);
+              bdFront:
+                Exit(bdDown);
+              bdBack:
+                Exit(bdUp);
             end;
-          sdLeft:
+          bdLeft:
             case ADir of
-              sdUp:
-                Exit(sdBack);
-              sdDown:
-                Exit(sdFront);
-              sdFront:
-                Exit(sdUp);
-              sdBack:
-                Exit(sdDown);
+              bdUp:
+                Exit(bdBack);
+              bdDown:
+                Exit(bdFront);
+              bdFront:
+                Exit(bdUp);
+              bdBack:
+                Exit(bdDown);
             end;
-          sdUp:
+          bdUp:
             case ADir of
-              sdRight:
-                Exit(sdBack);
-              sdLeft:
-                Exit(sdFront);
-              sdFront:
-                Exit(sdRight);
-              sdBack:
-                Exit(sdLeft);
+              bdRight:
+                Exit(bdBack);
+              bdLeft:
+                Exit(bdFront);
+              bdFront:
+                Exit(bdRight);
+              bdBack:
+                Exit(bdLeft);
             end;
-          sdDown:
+          bdDown:
             case ADir of
-              sdRight:
-                Exit(sdFront);
-              sdLeft:
-                Exit(sdBack);
-              sdFront:
-                Exit(sdLeft);
-              sdBack:
-                Exit(sdRight);
+              bdRight:
+                Exit(bdFront);
+              bdLeft:
+                Exit(bdBack);
+              bdFront:
+                Exit(bdLeft);
+              bdBack:
+                Exit(bdRight);
             end;
-          sdFront:
+          bdFront:
             case ADir of
-              sdRight:
-                Exit(sdUp);
-              sdLeft:
-                Exit(sdDown);
-              sdUp:
-                Exit(sdLeft);
-              sdDown:
-                Exit(sdRight);
+              bdRight:
+                Exit(bdUp);
+              bdLeft:
+                Exit(bdDown);
+              bdUp:
+                Exit(bdLeft);
+              bdDown:
+                Exit(bdRight);
             end;
-          sdBack:
+          bdBack:
             case ADir of
-              sdRight:
-                Exit(sdDown);
-              sdLeft:
-                Exit(sdUp);
-              sdUp:
-                Exit(sdRight);
-              sdDown:
-                Exit(sdLeft);
+              bdRight:
+                Exit(bdDown);
+              bdLeft:
+                Exit(bdUp);
+              bdUp:
+                Exit(bdRight);
+              bdDown:
+                Exit(bdLeft);
             end;
         end;
       end;
@@ -4420,17 +4420,17 @@ function DirectionsFromVector(AVector: TVector3): TBasicDirs3;
 begin
   Result := [];
   if AVector.X > 0 then
-    Include(Result, sdRight);
+    Include(Result, bdRight);
   if AVector.X < 0 then
-    Include(Result, sdLeft);
+    Include(Result, bdLeft);
   if AVector.Y > 0 then
-    Include(Result, sdUp);
+    Include(Result, bdUp);
   if AVector.Y < 0 then
-    Include(Result, sdDown);
+    Include(Result, bdDown);
   if AVector.Z > 0 then
-    Include(Result, sdFront);
+    Include(Result, bdFront);
   if AVector.Z < 0 then
-    Include(Result, sdBack);
+    Include(Result, bdBack);
 end;
 
 { Shorthand Constructors }

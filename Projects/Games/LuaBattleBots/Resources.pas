@@ -65,7 +65,7 @@ type
     FTexture: string;
 
   protected
-    function GetHash(ARange: Integer): Integer; override;
+    function GetHash(ARange: Cardinal): Cardinal; override;
     function EqualTo(AOther: TResourceParameter): Boolean; override;
 
   public
@@ -90,7 +90,7 @@ type
     FTexture: string;
 
   protected
-    function GetHash(ARange: Integer): Integer; override;
+    function GetHash(ARange: Cardinal): Cardinal; override;
     function EqualTo(AOther: TResourceParameter): Boolean; override;
 
   public
@@ -167,11 +167,11 @@ end;
 
 { TResCubeVAOParams }
 
-function TResCubeVAOParams.GetHash(ARange: Integer): Integer;
+function TResCubeVAOParams.GetHash(ARange: Cardinal): Cardinal;
 begin
   Result :=
-    (Lists.GetHash(Size, High(Integer)) xor
-    Lists.GetHash(Texture, High(Integer))) mod ARange;
+    (Lists.GetHash(Size, High(Cardinal)) xor
+    Lists.GetHash(Texture, High(Cardinal))) mod ARange;
 end;
 
 function TResCubeVAOParams.EqualTo(AOther: TResourceParameter): Boolean;
@@ -223,12 +223,12 @@ end;
 
 { TResFloorVAOParams }
 
-function TResFloorVAOParams.GetHash(ARange: Integer): Integer;
+function TResFloorVAOParams.GetHash(ARange: Cardinal): Cardinal;
 begin
   Result :=
-    (Lists.GetHash(FTileSize, High(Integer)) xor
-    (Lists.GetHash(FSize, High(Integer))) xor
-    (Lists.GetHash(Texture, High(Integer)))) mod ARange;
+    (Lists.GetHash(FTileSize, High(Cardinal)) xor
+    (Lists.GetHash(FSize, High(Cardinal))) xor
+    (Lists.GetHash(Texture, High(Cardinal)))) mod ARange;
 end;
 
 function TResFloorVAOParams.EqualTo(AOther: TResourceParameter): Boolean;

@@ -6,7 +6,8 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, OpenGLContext, Camera, Shaders, VAOManager, VectorGeometry, IntfBase,
   Matrix, Lists, TextureManager, Lights, ControlledCamera, GLEnums, IntegerMaths, Color, SkyDome, LuaHeader,
-  Game, EntityDefine, DebugConsoleDefine, InputHandler, Resources, CustomModules, System.Win.ScktComp;
+  Game, EntityDefine, DebugConsoleDefine, InputHandler, Resources, CustomModules, System.Win.ScktComp,
+  LuaDefine;
 
 type
 
@@ -15,6 +16,8 @@ type
   TfrmMain = class(TGLForm)
   private
     FGame: TGame;
+
+    FLua: TLua;
 
     FCamera: TControlledCamera;
     FFloorVAO: TVAO;
@@ -63,13 +66,16 @@ begin
   TResFloorVAO.Release(GetFloorParams);
   FCubeVAO.Free;
   FCamera.Free;
+  FLua.Free;
 end;
 
 procedure TfrmMain.Init;
 begin
   State.DebugOutput := False;
-  VSync := False;
+  VSync := True;
   FPSLimit := 300;
+
+  FLua := TLua.Create;
 
   InitCamera;
   InitSkyDome;
@@ -144,17 +150,17 @@ begin
   DebugWrite('Initializing Game...');
   FGame := TGame.Create(FCamera);
 
-  FTestBot := TBotCore.Create;
+  FTestBot := TBotCore.Create(FLua);
 
   FTestBot.Location.TurnAngle := 0;
   FTestBot.Location.PitchAngle := 0;
   FTestBot.Location.RollAngle := 0;
 
-  FTestBot.AttachModule(sdUp, TWheelModule);
-  FTestBot.AttachModule(sdLeft, TWheelModule);
-  FTestBot.AttachModule(sdRight, TWheelModule);
-  FTestBot.AttachModule(sdFront, TWheelModule);
-  FTestBot.AttachModule(sdBack, TWheelModule);
+  FTestBot.AttachModule(bdUp, TWheelModule);
+  FTestBot.AttachModule(bdLeft, TWheelModule);
+  FTestBot.AttachModule(bdRight, TWheelModule);
+  FTestBot.AttachModule(bdFront, TWheelModule);
+  FTestBot.AttachModule(bdBack, TWheelModule);
 
   try
     Code := TStringList.Create;

@@ -345,22 +345,22 @@ begin
   L := Location.Look;
   if Ortho then
   begin
-    Result.FaceNormals[sdRight].Create(P + R * OrthoFactor * Aspect, -R);
-    Result.FaceNormals[sdLeft].Create(P - R * OrthoFactor * Aspect, +R);
-    Result.FaceNormals[sdUp].Create(P + U * OrthoFactor, -U);
-    Result.FaceNormals[sdDown].Create(P - U * OrthoFactor, +U);
-    Result.FaceNormals[sdFront].Create(P + L * NearClip, L);
-    Result.FaceNormals[sdBack].Create(P + L * FarClip, -L);
+    Result.FaceNormals[bdRight].Create(P + R * OrthoFactor * Aspect, -R);
+    Result.FaceNormals[bdLeft].Create(P - R * OrthoFactor * Aspect, +R);
+    Result.FaceNormals[bdUp].Create(P + U * OrthoFactor, -U);
+    Result.FaceNormals[bdDown].Create(P - U * OrthoFactor, +U);
+    Result.FaceNormals[bdFront].Create(P + L * NearClip, L);
+    Result.FaceNormals[bdBack].Create(P + L * FarClip, -L);
   end
   else
   begin
     F := cot(FOV / 360 * Pi);
-    Result.FaceNormals[sdRight].Create(P, L - R * F / Aspect);
-    Result.FaceNormals[sdLeft].Create(P, L + R * F / Aspect);
-    Result.FaceNormals[sdUp].Create(P, L - U * F);
-    Result.FaceNormals[sdDown].Create(P, L + U * F);
-    Result.FaceNormals[sdFront].Create(P + L * NearClip, L);
-    Result.FaceNormals[sdBack].Create(P + L * FarClip, -L);
+    Result.FaceNormals[bdRight].Create(P, L - R * F / Aspect);
+    Result.FaceNormals[bdLeft].Create(P, L + R * F / Aspect);
+    Result.FaceNormals[bdUp].Create(P, L - U * F);
+    Result.FaceNormals[bdDown].Create(P, L + U * F);
+    Result.FaceNormals[bdFront].Create(P + L * NearClip, L);
+    Result.FaceNormals[bdBack].Create(P + L * FarClip, -L);
   end;
 end;
 
