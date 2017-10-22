@@ -7,7 +7,7 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, OpenGLContext, Camera, Shaders, VAOManager, VectorGeometry, IntfBase,
   Matrix, Lists, TextureManager, Lights, ControlledCamera, GLEnums, IntegerMaths, Color, SkyDome, LuaHeader,
   Game, EntityDefine, DebugConsoleDefine, InputHandler, Resources, CustomModules, System.Win.ScktComp,
-  LuaDefine;
+  LuaDefine, LuaDefaultLibs;
 
 type
 

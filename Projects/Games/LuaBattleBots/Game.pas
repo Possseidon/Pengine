@@ -3,12 +3,14 @@ unit Game;
 interface
 
 uses
-  EntityDefine, Lists, Camera, VectorGeometry, Matrix, LuaDefine;
+  EntityDefine, Lists, Camera, VectorGeometry, Matrix, LuaDefine, GameLogicDefine;
 
 type
 
   TGame = class
   private
+    FGameLogic: TGameLogic;
+
     FCamera: TCamera;
     FEntities: TObjectArray<TEntity>;
     FLuaUpdateTime: Single;

@@ -8,7 +8,9 @@ uses
   Game in 'Game.pas',
   CustomModules in 'CustomModules.pas',
   EntityDefine in 'EntityDefine.pas',
-  Resources in 'Resources.pas';
+  Resources in 'Resources.pas',
+  GameLogicDefine in 'GameLogicDefine.pas',
+  GameBaseDefine in 'GameBaseDefine.pas';
 
 {$R *.res}
 
@@ -22,7 +24,6 @@ begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TfrmMain, frmMain);
-
   DebugWriteLine('--- Everything initialized!');
 
   Application.Run;

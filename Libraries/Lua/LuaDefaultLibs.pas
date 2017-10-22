@@ -3,7 +3,7 @@ unit LuaDefaultLibs;
 interface
 
 uses
-  LuaDefine, LuaHeader, SysUtils, Sorting, Math;
+  LuaDefine, LuaHeader, SysUtils, Sorting, Math, AnsiStrings;
 
 type
 
@@ -305,23 +305,61 @@ end;
 
 class function TLuaLibBasic.LuaToNumber(L: TLuaState): Integer;
 var
-  IsNum: LongBool;
-  N: TLuaNumber;
+  S: AnsiString;
+  INum, Base, AddBase, Add: TLuaInteger;
+  I: Integer;
 begin
-  L.CheckType(1, [ltNumber, ltString]);
   if L.Top = 1 then
   begin
-    N := L.ToNumberX(@IsNum);
-    if IsNum then
-    begin
-      if L.ToIn then
-
-      L.PushNumber(N)
-    end
-    else
+    if L.&Type(1) = ltNumber then
+      Exit(1);
+    L.CheckType(1, [ltNumber, ltString]);
+    if L.StringToNumber(L.ToString(1)) = 0 then
       L.PushNil;
-    Result := 1;
+    Exit(1);
   end;
+  L.CheckType(1, ltString);
+  Base := L.CheckInteger(2);
+  L.CheckEnd(3);
+  S := AnsiStrings.StrUpper(L.ToString(1));
+  INum := 0;
+  AddBase := 1;
+  if not InRange(Base, 2, 36) then
+    L.Error('bad argument #2 to ''tonumber'' (base out of range)');
+  if Base > 10 then
+  begin
+    for I := Length(S) downto 1 do
+    begin
+      if (S[I] >= '0') and (S[I] <= '9') then
+        Add := Ord(S[I]) - Ord('0')
+      else if (S[I] >= 'A') and (Ord(S[I]) < Ord('A') + Base - 10) then
+        Add := 10 + Ord(S[I]) - Ord('A')
+      else
+      begin
+        L.PushNil;
+        Exit(1);
+      end;
+      Inc(INum, AddBase * Add);
+      AddBase := AddBase * Base;
+    end;
+  end
+  else
+  begin
+    for I := Length(S) downto 1 do
+    begin
+      if (S[I] >= '0') and (Ord(S[I]) < Ord('0') + Base) then
+        Add := Ord(S[I]) - Ord('0')
+      else
+      begin
+        L.PushNil;
+        Exit(1);
+      end;
+      Inc(INum, AddBase * Add);
+      AddBase := AddBase * Base;
+    end;
+  end;
+  L.PushInteger(INum);
+  Result := 1;
 end;
 
 class function TLuaLibBasic.LuaToString(L: TLuaState): Integer;
