@@ -1,89 +1,124 @@
-unit Pengine.Lists;
+unit Pengine.Collections;
 
 interface
 
 uses
-  Classes, SysUtils, IntegerMaths, Math, IntfBase;
+  // System.Classes,
+  System.SysUtils,
+  // System.Math,
+
+  Pengine.Interfaces;
 
 type
 
-  { IIterator<T> }
+  { --- Exceptions --- }
 
-  IIterator<T> = interface
-  ['{01FA5E8D-FB71-4D60-B113-429284B8B8F7}']
-    function MoveNext: Boolean;
-    function GetCurrent: T;
-
-    property Current: T read GetCurrent;
-  end;
-
-  { TIterator<T> }
-
-  TIterator<T> = class(TInterfacedObject, IIterator<T>)
-  public
-    function MoveNext: Boolean; virtual; abstract;
-    function GetCurrent: T; virtual; abstract;
-
-    property Current: T read GetCurrent;
-  end;
-
-  { IIterable<T> }
-
-  IIterable<T> = interface
-  ['{86380564-F207-4B73-A40D-F10AD12B5B98}']
-    function GetEnumerator: IIterator<T>;
-
-    function Count: Integer;
-  end;
-
-  TRefCountedIterable<T> = class(TInterfacedObject, IIterable<T>)
-  public
-    function GetEnumerator: IIterator<T>; virtual; abstract;
-
-    /// <remarks>WARNING! This function should DEFINITLY be overwritten!</remarks>
-    function Count: Integer; virtual;
-  end;
-
+  /// <summary>
+  /// Raised, if an operation requires at least one element.
+  /// </summary>
   EGenericArrayEmpty = class(Exception)
   public
     constructor Create;
   end;
 
+  /// <summary>
+  /// Raised, if an element could not be found in the collection.
+  /// </summary>
   EGenericArrayItemNotFound = class(Exception)
   public
     constructor Create;
   end;
 
+  /// <summary>
+  /// Raised, if an array-index was out of bounds.
+  /// </summary>
   EGenericArrayRangeError = class(Exception)
   public
     constructor Create(AIndex, ACount: Integer);
   end;
 
-  { TFindFunctionClass }
+  { --- Interfaces and other Helpers --- }
 
-  TFindFunctionClass<T> = class abstract
-  protected
-    function Find(AElement: T): Boolean; virtual; abstract;
+  /// <summary>
+  /// A generic Interface for an Iterator.
+  /// Used by <see cref="Pengine.Collections|IIterable`1"/>
+  /// </summary>
+  IIterator<T> = interface(IEnumerator<T>)
+    ['{01FA5E8D-FB71-4D60-B113-429284B8B8F7}']
+    function MoveNext: Boolean;
+    function GetCurrent: T;
+    property Current: T read GetCurrent;
   end;
 
-  TCompareFunction<T> = function(A, B: T): Boolean;
-  TCompareFunctionOfObject<T> = function(A, B: T): Boolean of object;
+  /// <summary>
+  /// A generic interface for an iteratable type.
+  /// Uses <see cref="Pengine.Collections|IIterator`1"/>
+  /// </summary>
+  IIterable<T> = interface
+    ['{86380564-F207-4B73-A40D-F10AD12B5B98}']
+    function GetEnumerator: IIterator<T>;
+    function Count: Integer;
+  end;
 
-  TFindFunctionStatic<T> = function(A: T): Boolean;
-  TFindFunctionOfObject<T> = function(A: T): Boolean of object;
+  /// <summary>
+  /// A generic interface, for searchable objects.
+  /// </summary>
+  IFindable<T> = interface
+    ['{9FE5998D-6A74-4BC9-A06B-129C4E72D313}']
+    function Check(AElement: T): Boolean;
+  end;
 
-  { TPair }
+  TFindFuncStatic<T> = function(AElement: T): Boolean;
+  TFindFunc<T> = function(AElement: T): Boolean of object;
 
-  TPair<TKey, TData> = record
-  private
-    FKey: TKey;
-    FData: TData;
+  /// <summary>
+  /// A generic interface for comparable objects.
+  /// </summary>
+  IComparable<T> = interface
+    ['{577FBD7F-8894-4012-BAD0-42809985D928}']
+    function Compare(ALeft, ARight: T): Boolean;
+  end;
+
+  TCompareFuncStatic<T> = function(ALeft, ARight: T): Boolean;
+  TCompareFunc<T> = function(ALeft, ARight: T): Boolean of object;
+
+  { --- Classes --- }
+
+  /// <summary>
+  /// A generic base class for iteratable types.
+  /// Implements <see cref="Pengine.Collections|IIterable`1"/>
+  /// </summary>
+  /// <remarks>
+  /// The Count function should almost definitly be overriden in the derived class.
+  /// </remarks>
+  TIterable<T> = class(TInterfacedObject, IIterable<T>)
   public
-    constructor Create(AKey: TKey; AData: TData);
+    function GetEnumerator: IIterator<T>; virtual; abstract;
 
-    property Key: TKey read FKey;
-    property Data: TData read FData;
+    /// <remarks>
+    /// This function should almost definitly be overwritten.
+    /// </remarks>
+    function Count: Integer; virtual;
   end;
+
+  /// <summary>
+  /// A generic class, representing a read-only Key-Value-Pair.
+  /// </summary>
+  TPair<K, V> = record
+  private
+    FKey: K;
+    FValue: V;
+
+  public
+    constructor Create(AKey: K; AValue: V);
+
+    property Key: K read FKey;
+    property Value: V read FValue;
+  end;
+
+// ------------------- NOT REFACTORED -------------------------
+
+  (*
 
   { TGenericArray<T> }
 
@@ -685,7 +720,43 @@ function GetHash(AInteger: Integer; ARange: Cardinal): Cardinal; overload; inlin
 function GetHash(AIntVector: TIntVector2; ARange: Cardinal): Cardinal; overload; inline;
 function GetHash(AIntVector: TIntVector3; ARange: Cardinal): Cardinal; overload; inline;
 
+*)
+
 implementation
+
+{ EEmptyGenericArray }
+
+constructor EGenericArrayEmpty.Create;
+begin
+  inherited Create('The operation requires the array to contain at least one element.');
+end;
+
+{ EGenericArrayItemNotFound }
+
+constructor EGenericArrayItemNotFound.Create;
+begin
+  inherited Create('The element could not be found in the array.');
+end;
+
+{ EGenericArrayRangeError }
+
+constructor EGenericArrayRangeError.Create(AIndex, ACount: Integer);
+begin
+  inherited CreateFmt('The array-index "%d" is out of bounds, as the collection only has %d elements.', [AIndex, ACount - 1]);
+end;
+
+{ TIterable<T> }
+
+function TIterable<T>.Count: Integer;
+var
+  Element: T;
+begin
+  Result := 0;
+  for Element in Self do
+    Inc(Result);
+end;
+
+(*
 
 function GetHash(AObject: TObject; ARange: Cardinal): Cardinal;
 var
@@ -2152,27 +2223,6 @@ begin
   FRemoveFlag := True;
 end;
 
-{ EEmptyGenericArray }
-
-constructor EGenericArrayEmpty.Create;
-begin
-  inherited Create('The GenericArray does not have a first/last Element as it is empty');
-end;
-
-{ EGenericArrayRangeError }
-
-constructor EGenericArrayRangeError.Create(AIndex, ACount: Integer);
-begin
-  inherited CreateFmt('GenericArray Index %d out of bounds [0 - %d]', [AIndex, ACount - 1]);
-end;
-
-{ EGenericArrayItemNotFound }
-
-constructor EGenericArrayItemNotFound.Create;
-begin
-  inherited Create('Could not find the Element in the GenericArray');
-end;
-
 { TGenericArray<T>.TReverseWrapper }
 
 constructor TGenericArray<T>.TReverseWrapper.Create(AGenericArray: TGenericArray<T>);
@@ -2486,6 +2536,16 @@ end;
 procedure TObjectObjectMap<TKey, TData>.FreeData(AData: TData);
 begin
   AData.Free;
+end;
+
+*)
+
+{ TPair<K, V> }
+
+constructor TPair<K, V>.Create(AKey: K; AValue: V);
+begin
+  FKey := AKey;
+  FValue := AValue;  
 end;
 
 end.
