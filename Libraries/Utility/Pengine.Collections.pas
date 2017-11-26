@@ -283,15 +283,18 @@ type
   THashBase<TKey> = class abstract
   protected
     FCount: Integer;
-    FInternalSize: Integer;
+    FInternalSize: Cardinal;
 
-    function GetKeyHash(AKey: TKey): Integer; virtual; abstract;
+    function GetKeyHash(AKey: TKey): Cardinal; virtual; abstract;
     class function CantIndex({%H-}AKey: TKey): Boolean; virtual;
     class function KeysEqual(AKey1, AKey2: TKey): Boolean; virtual; abstract;
     class function CopyKey(AKey: TKey): TKey; virtual;
 
+  protected
+    property InternalSize: Cardinal read FInternalSize;
+
   public
-    constructor Create(AInternalSize: Integer);
+    constructor Create(AInternalSize: Cardinal);
   end;
 
   { TMap }
@@ -335,7 +338,6 @@ type
     FData: array of THashEntry;
 
   protected
-    property InternalSize: Integer read FInternalSize;
 
     function GetEntry(AKey: TKey): TData;
     procedure SetEntry(AKey: TKey; AValue: TData); virtual;
@@ -344,7 +346,7 @@ type
     procedure FreeData(AData: TData); virtual;
 
   public
-    constructor Create(AInternalSize: Integer = 193);
+    constructor Create(AInternalSize: Cardinal = 193);
     destructor Destroy; override;
 
     function Get(AKey: TKey; out AData: TData): Boolean;
@@ -385,7 +387,7 @@ type
 
   TClassMap<T> = class(TMap<TClass, T>)
   protected
-    function GetKeyHash(AKey: TClass): Integer; override;
+    function GetKeyHash(AKey: TClass): Cardinal; override;
     class function CantIndex(AKey: TClass): Boolean; override;
     class function KeysEqual(AKey1, AKey2: TClass): Boolean; override;
   end;
@@ -408,7 +410,7 @@ type
 
   TRefMap<TKey: class; TData> = class(TMap<TKey, TData>)
   protected
-    function GetKeyHash(AKey: TKey): Integer; override;
+    function GetKeyHash(AKey: TKey): Cardinal; override;
     class function CantIndex(AKey: TKey): Boolean; override;
     class function KeysEqual(AKey1, AKey2: TKey): Boolean; override;
 
@@ -455,7 +457,7 @@ type
 
   TStringMap<TData> = class(TMap<string, TData>)
   protected
-    function GetKeyHash(AKey: string): Integer; override;
+    function GetKeyHash(AKey: string): Cardinal; override;
     class function CantIndex(AKey: string): Boolean; override;
     class function KeysEqual(AKey1, AKey2: string): Boolean; override;
   end;
@@ -464,7 +466,7 @@ type
 
   TAnsiStringMap<TData> = class(TMap<AnsiString, TData>)
   protected
-    function GetKeyHash(AKey: AnsiString): Integer; override;
+    function GetKeyHash(AKey: AnsiString): Cardinal; override;
     class function CantIndex(AKey: AnsiString): Boolean; override;
     class function KeysEqual(AKey1, AKey2: AnsiString): Boolean; override;
   end;
@@ -522,7 +524,7 @@ type
     procedure FreeData(const {%H-}AData: T); virtual;
 
   public
-    constructor Create(AInternalSize: Integer = 193);
+    constructor Create(AInternalSize: Cardinal = 193);
     destructor Destroy; override;
 
     property Elements[S: T]: Boolean read GetElement write SetElement; default;
@@ -542,7 +544,7 @@ type
 
   TRefSet<T: class> = class(TSet<T>)
   protected
-    function GetKeyHash(AKey: T): Integer; override;
+    function GetKeyHash(AKey: T): Cardinal; override;
     class function CantIndex(AKey: T): Boolean; override;
     class function KeysEqual(AKey1, AKey2: T): Boolean; override;
   end;
@@ -558,7 +560,7 @@ type
 
   TTags = class(TSet<string>)
   protected
-    function GetKeyHash(AKey: string): Integer; override;
+    function GetKeyHash(AKey: string): Cardinal; override;
     class function CantIndex(AKey: string): Boolean; override;
     class function KeysEqual(AKey1, AKey2: string): Boolean; override;
   end;
@@ -567,7 +569,7 @@ type
 
   TCardinalSet = class(TSet<Cardinal>)
   protected
-    function GetKeyHash(AKey: Cardinal): Integer; override;
+    function GetKeyHash(AKey: Cardinal): Cardinal; override;
     class function CantIndex({%H-}AKey: Cardinal): Boolean; override;
     class function KeysEqual(AKey1, AKey2: Cardinal): Boolean; override;
   end;
@@ -675,69 +677,69 @@ type
     function CopyAsInterfaceArray: TInterfaceArray<T>;
   end;
 
-function GetHash(AObject: TObject; ARange: Integer): Integer; overload; inline;
-function GetHash(AString: WideString; ARange: Integer): Integer; overload; inline;
-function GetHash(AString: AnsiString; ARange: Integer): Integer; overload; inline;
-function GetHash(ASingle: Single; ARange: Integer): Integer; overload; inline;
-function GetHash(AInteger: Integer; ARange: Integer): Integer; overload; inline;
-function GetHash(AIntVector: TIntVector2; ARange: Integer): Integer; overload; inline;
-function GetHash(AIntVector: TIntVector3; ARange: Integer): Integer; overload; inline;
+function GetHash(AObject: TObject; ARange: Cardinal): Cardinal; overload; inline;
+function GetHash(AString: WideString; ARange: Cardinal): Cardinal; overload; inline;
+function GetHash(AString: AnsiString; ARange: Cardinal): Cardinal; overload; inline;
+function GetHash(ASingle: Single; ARange: Cardinal): Cardinal; overload; inline;
+function GetHash(AInteger: Integer; ARange: Cardinal): Cardinal; overload; inline;
+function GetHash(AIntVector: TIntVector2; ARange: Cardinal): Cardinal; overload; inline;
+function GetHash(AIntVector: TIntVector3; ARange: Cardinal): Cardinal; overload; inline;
 
 implementation
 
-function GetHash(AObject: TObject; ARange: Integer): Integer;
+function GetHash(AObject: TObject; ARange: Cardinal): Cardinal;
 var
-  I: Integer;
+  I: Cardinal;
 begin
 {$IFDEF CPUX64}
-  I := Integer(Pointer(AObject)) xor Integer(NativeUInt(Pointer(AObject)) shr 32);
+  I := Cardinal(Pointer(AObject)) xor Cardinal(NativeUInt(Pointer(AObject)) shr 32);
 {$ELSE}
-  I := Integer(Pointer(AObject));
+  I := Cardinal(Pointer(AObject));
 {$ENDIF}
-  Result := (I xor Integer(I shl 3) xor (I shr 7)) mod ARange;
+  Result := (I xor Cardinal(I shl 3) xor (I shr 7)) mod ARange;
 end;
 
-function GetHash(AString: WideString; ARange: Integer): Integer;
+function GetHash(AString: WideString; ARange: Cardinal): Cardinal;
 begin
   if AString = '' then
     Exit(0);
-  Result := Integer(Length(AString) *
+  Result := Cardinal(Length(AString) *
     (Byte(AString[1]) or Byte(AString[(Length(AString) + 1) div 2]) shl 8 or Byte(AString[Length(AString)]) shl 16));
   Result := Result mod ARange;
 end;
 
-function GetHash(AString: AnsiString; ARange: Integer): Integer;
+function GetHash(AString: AnsiString; ARange: Cardinal): Cardinal;
 begin
   if AString = '' then
     Exit(0);
-  Result := Integer(Length(AString) *
+  Result := Cardinal(Length(AString) *
     (Byte(AString[1]) or Byte(AString[(Length(AString) + 1) div 2]) shl 8 or Byte(AString[Length(AString)]) shl 16));
   Result := Result mod ARange;
 end;
 
-function GetHash(ASingle: Single; ARange: Integer): Integer;
+function GetHash(ASingle: Single; ARange: Cardinal): Cardinal;
 begin
-  Result := PInteger(@ASingle)^ mod ARange;
+  Result := PCardinal(@ASingle)^ mod ARange;
 end;
 
-function GetHash(AInteger: Integer; ARange: Integer): Integer; overload;
+function GetHash(AInteger: Integer; ARange: Cardinal): Cardinal; overload;
 begin
-  Result := (AInteger - Low(Integer)) mod ARange;
+  Result := Cardinal(AInteger - Low(Integer)) mod ARange;
 end;
 
-function GetHash(AIntVector: TIntVector2; ARange: Integer): Integer; overload; inline;
+function GetHash(AIntVector: TIntVector2; ARange: Cardinal): Cardinal; overload; inline;
 begin
   Result :=
-    (GetHash(AIntVector.X, High(Integer)) xor
-    GetHash(AIntVector.Y, High(Integer))) mod ARange;
+    (GetHash(AIntVector.X, High(Cardinal)) xor
+    GetHash(AIntVector.Y, High(Cardinal))) mod ARange;
 end;
 
-function GetHash(AIntVector: TIntVector3; ARange: Integer): Integer; overload; inline;
+function GetHash(AIntVector: TIntVector3; ARange: Cardinal): Cardinal; overload; inline;
 begin
   Result :=
-    (GetHash(AIntVector.X, High(Integer)) xor
-    GetHash(AIntVector.Y, High(Integer)) xor
-    GetHash(AIntVector.Z, High(Integer))) mod ARange;
+    (GetHash(AIntVector.X, High(Cardinal)) xor
+    GetHash(AIntVector.Y, High(Cardinal)) xor
+    GetHash(AIntVector.Z, High(Cardinal))) mod ARange;
 end;
 
 { TRefCountedIterable<T> }
@@ -824,7 +826,7 @@ begin
   // nothing by default
 end;
 
-constructor TMap<TKey, TData>.Create(AInternalSize: Integer);
+constructor TMap<TKey, TData>.Create(AInternalSize: Cardinal);
 begin
   inherited Create(AInternalSize);
   SetLength(FData, FInternalSize);
@@ -869,7 +871,7 @@ end;
 
 procedure TMap<TKey, TData>.Del(AKey: TKey);
 var
-  Hash: Integer;
+  Hash: Cardinal;
   Entry, PrevEntry: THashEntry;
 begin
   Hash := GetKeyHash(AKey);
@@ -901,7 +903,7 @@ end;
 
 function TMap<TKey, TData>.NextKeyCheck(AKey: TKey; out AOut: TKey): Boolean;
 var
-  Hash: Integer;
+  Hash: Cardinal;
   Current: THashEntry;
 begin
   Hash := GetKeyHash(AKey);
@@ -1115,8 +1117,8 @@ begin
   begin
     // Move to next list
     repeat
-      FIndex := FIndex + 1;
-      if Integer(FIndex) = FList.FInternalSize then
+      Inc(FIndex);
+      if Cardinal(FIndex) = FList.FInternalSize then
         Exit(False);
       FEntry := FList.FData[FIndex];
     until (FEntry <> nil);
@@ -1130,7 +1132,7 @@ end;
 
 { TStringHashTable<TData> }
 
-function TStringMap<TData>.GetKeyHash(AKey: string): Integer;
+function TStringMap<TData>.GetKeyHash(AKey: string): Cardinal;
 begin
   Result := GetHash(AKey, InternalSize);
 end;
@@ -1154,7 +1156,7 @@ end;
 
 { THashBase<TKey> }
 
-constructor THashBase<TKey>.Create(AInternalSize: Integer);
+constructor THashBase<TKey>.Create(AInternalSize: Cardinal);
 begin
   if AInternalSize = 0 then
     raise Exception.Create('Internal Size for HashTable must be at least 1');
@@ -1197,7 +1199,7 @@ begin
   Result := True;
 end;
 
-function TRefMap<TKey, TData>.GetKeyHash(AKey: TKey): Integer;
+function TRefMap<TKey, TData>.GetKeyHash(AKey: TKey): Cardinal;
 begin
   Result := GetHash(TObject(AKey), FInternalSize);
 end;
@@ -1228,7 +1230,7 @@ end;
 
 { TRefSet<T> }
 
-function TRefSet<T>.GetKeyHash(AKey: T): Integer;
+function TRefSet<T>.GetKeyHash(AKey: T): Cardinal;
 begin
   Result := GetHash(TObject(AKey), FInternalSize);
 end;
@@ -1654,7 +1656,7 @@ end;
 
 { TClassMap }
 
-function TClassMap<T>.GetKeyHash(AKey: TClass): Integer;
+function TClassMap<T>.GetKeyHash(AKey: TClass): Cardinal;
 begin
   Result := GetHash(TObject(AKey), FInternalSize);
 end;
@@ -1686,9 +1688,9 @@ end;
 
 { TCardinalSet }
 
-function TCardinalSet.GetKeyHash(AKey: Cardinal): Integer;
+function TCardinalSet.GetKeyHash(AKey: Cardinal): Cardinal;
 begin
-  Result := Integer(AKey) mod FInternalSize;
+  Result := AKey mod FInternalSize;
 end;
 
 class function TCardinalSet.CantIndex(AKey: Cardinal): Boolean;
@@ -1753,7 +1755,7 @@ end;
 
 { TTags }
 
-function TTags.GetKeyHash(AKey: string): Integer;
+function TTags.GetKeyHash(AKey: string): Cardinal;
 begin
   Result := GetHash(AKey, FInternalSize);
 end;
@@ -1788,8 +1790,8 @@ begin
   begin
     // Move to next list
     repeat
-      FIndex := FIndex + 1;
-      if FIndex = FList.FInternalSize then
+      Inc(FIndex);
+      if Cardinal(FIndex) = FList.FInternalSize then
         Exit(False);
       FEntry := FList.FTags[FIndex];
     until (FEntry <> nil);
@@ -1893,7 +1895,7 @@ begin
   // might not do anything depending on generic Data Type
 end;
 
-constructor TSet<T>.Create(AInternalSize: Integer);
+constructor TSet<T>.Create(AInternalSize: Cardinal);
 begin
   inherited Create(AInternalSize);
   SetLength(FTags, FInternalSize);
@@ -2099,7 +2101,7 @@ begin
   Result := AKey = '';
 end;
 
-function TAnsiStringMap<TData>.GetKeyHash(AKey: AnsiString): Integer;
+function TAnsiStringMap<TData>.GetKeyHash(AKey: AnsiString): Cardinal;
 begin
   Result := GetHash(AKey, FInternalSize);
 end;

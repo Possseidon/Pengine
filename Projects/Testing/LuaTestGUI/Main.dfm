@@ -2,8 +2,8 @@ object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'Lua Test'
-  ClientHeight = 342
-  ClientWidth = 460
+  ClientHeight = 383
+  ClientWidth = 504
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -18,41 +18,68 @@ object frmMain: TfrmMain
   object pnlBottom: TPanel
     AlignWithMargins = True
     Left = 3
-    Top = 298
-    Width = 454
-    Height = 41
+    Top = 341
+    Width = 498
+    Height = 39
     Align = alBottom
     TabOrder = 0
+    DesignSize = (
+      498
+      39)
     object lbError: TLabel
       AlignWithMargins = True
       Left = 4
       Top = 4
-      Width = 374
-      Height = 33
-      Align = alClient
+      Width = 279
+      Height = 31
+      Align = alLeft
+      Anchors = [akLeft, akTop, akRight, akBottom]
       AutoSize = False
       WordWrap = True
-      ExplicitWidth = 3
-      ExplicitHeight = 13
+      ExplicitWidth = 235
+      ExplicitHeight = 22
     end
     object btnRun: TButton
       AlignWithMargins = True
-      Left = 384
+      Left = 427
       Top = 4
       Width = 66
-      Height = 33
-      Align = alRight
-      Caption = 'Run'
+      Height = 22
+      Action = actRun
+      Anchors = [akTop, akRight]
       TabOrder = 0
-      OnClick = btnRunClick
+    end
+    object seTimeout: TSpinEdit
+      AlignWithMargins = True
+      Left = 361
+      Top = 4
+      Width = 61
+      Height = 22
+      Anchors = [akTop, akRight]
+      MaxValue = 60000
+      MinValue = 1
+      TabOrder = 1
+      Value = 100
+    end
+    object cbTimeout: TCheckBox
+      Left = 269
+      Top = 6
+      Width = 86
+      Height = 17
+      Anchors = [akTop, akRight]
+      Caption = 'Timeout (ms):'
+      Checked = True
+      State = cbChecked
+      TabOrder = 2
+      OnClick = cbTimeoutClick
     end
   end
   object seCode: TSynEdit
     AlignWithMargins = True
     Left = 3
     Top = 3
-    Width = 454
-    Height = 289
+    Width = 498
+    Height = 332
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -70,8 +97,13 @@ object frmMain: TfrmMain
     Gutter.Font.Style = []
     Gutter.ShowLineNumbers = True
     Lines.Strings = (
-      '')
-    Options = [eoAutoIndent, eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabsToSpaces]
+      'x = {}'
+      'for i = 1, 999990 do'
+      '  x[i] = i'
+      'end'
+      ''
+      'table.unpack(x)')
+    Options = [eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabsToSpaces]
     TabWidth = 2
     WantTabs = True
     OnChange = seCodeChange
@@ -82,5 +114,14 @@ object frmMain: TfrmMain
         Command = ecDeleteWord
         ShortCut = 16430
       end>
+  end
+  object ActionList1: TActionList
+    Left = 424
+    Top = 24
+    object actRun: TAction
+      Caption = 'Run'
+      ShortCut = 120
+      OnExecute = actRunExecute
+    end
   end
 end

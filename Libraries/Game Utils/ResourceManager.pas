@@ -56,7 +56,7 @@ type
 
   protected
     function EqualTo(AOther: TResourceParameter): Boolean; virtual; abstract;
-    function GetHash(ARange: Integer): Integer; virtual; abstract;
+    function GetHash(ARange: Cardinal): Cardinal; virtual; abstract;
 
   public
     constructor Create; virtual;
@@ -65,7 +65,7 @@ type
 
   TResourceParameterMap<T: class> = class(TObjectObjectMap<TResourceParameter, T>)
   protected
-    function GetKeyHash(AKey: TResourceParameter): Integer; override;
+    function GetKeyHash(AKey: TResourceParameter): Cardinal; override;
     class function CantIndex(AKey: TResourceParameter): Boolean; override;
     class function KeysEqual(AKey1, AKey2: TResourceParameter): Boolean; override;
   end;
@@ -183,7 +183,7 @@ end;
 
 { TResourceParameterRefMap }
 
-function TResourceParameterMap<T>.GetKeyHash(AKey: TResourceParameter): Integer;
+function TResourceParameterMap<T>.GetKeyHash(AKey: TResourceParameter): Cardinal;
 begin
   Result := AKey.GetHash(InternalSize);
 end;

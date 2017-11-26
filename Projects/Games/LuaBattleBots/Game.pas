@@ -3,15 +3,19 @@ unit Game;
 interface
 
 uses
-  EntityDefine, Lists, Camera, VectorGeometry, Matrix;
+  EntityDefine, Lists, Camera, VectorGeometry, Matrix, LuaDefine, GameLogicDefine;
 
 type
 
   TGame = class
   private
+    FGameLogic: TGameLogic;
+
     FCamera: TCamera;
     FEntities: TObjectArray<TEntity>;
     FLuaUpdateTime: Single;
+
+    FLua: TLua;
 
   public
     constructor Create(ACamera: TCamera);
@@ -37,6 +41,8 @@ constructor TGame.Create(ACamera: TCamera);
 begin
   FCamera := ACamera;
   FEntities := TObjectArray<TEntity>.Create;
+
+  FLua := TLua.Create;
 end;
 
 destructor TGame.Destroy;
@@ -46,6 +52,8 @@ begin
   for Entity in FEntities do
     FCamera.DelRenderObject(Entity);
   FEntities.Free;
+
+  FLua.Free;
   inherited;
 end;
 
