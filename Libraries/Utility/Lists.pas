@@ -17,6 +17,8 @@ type
     property Current: T read GetCurrent;
   end;
 
+  { TIterator<T> }
+
   TIterator<T> = class(TInterfacedObject, IIterator<T>)
   public
     function MoveNext: Boolean; virtual; abstract;
@@ -308,21 +310,24 @@ type
 
   public type
 
+    { TPair }
+
+    TPair = TPair<TKey, TData>;
+
     { TIterator }
 
-    TIterator = class
+    TIterator = class(TIterator<TPair>)
     private
       FList: TMap<TKey, TData>;
       FIndex: Integer;
       FEntry: THashEntry;
 
-      function GetCurrent: TPair<TKey, TData>;
+      function GetCurrent: TPair; override;
 
     public
       constructor Create(AList: TMap<TKey, TData>);
 
-      function MoveNext: Boolean;
-      property Current: TPair<TKey, TData> read GetCurrent;
+      function MoveNext: Boolean; override;
 
     end;
 
@@ -1092,9 +1097,9 @@ end;
 
 { THashTable<TKey, TData>.TIterator }
 
-function TMap<TKey, TData>.TIterator.GetCurrent: TPair<TKey, TData>;
+function TMap<TKey, TData>.TIterator.GetCurrent: TPair;
 begin
-  Result := TPair<TKey, TData>.Create(FEntry.Key, FEntry.Data);
+  Result := TPair.Create(FEntry.Key, FEntry.Data);
 end;
 
 constructor TMap<TKey, TData>.TIterator.Create(AList: TMap<TKey, TData>);
