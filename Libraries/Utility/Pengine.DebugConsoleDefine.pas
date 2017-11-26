@@ -1,4 +1,4 @@
-unit DebugConsoleDefine;
+unit Pengine.DebugConsoleDefine;
 
 (*
   To use this Unit correctly, follow these instructions:
