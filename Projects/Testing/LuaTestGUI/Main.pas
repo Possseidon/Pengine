@@ -4,20 +4,17 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, SynEdit, LuaHeader;
-
-const
-  WM_CONSOLE = WM_USER + 0;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, SynEdit, LuaDefine, LuaHeader, Vcl.Samples.Spin,
+  TimeManager, LuaDefaultLibs, System.Actions, Vcl.ActnList;
 
 type
 
-  TLuaThread = class(TThread)
+  TLuaLibHelp = class(TLuaLib)
   private
-    FLua: TLuaState;
+    class function LuaPrint(L: TLuaState): Integer; static; cdecl;
+
   protected
-    procedure Execute; override;
-  public
-    constructor Create(ALua: TLuaState; ACreateSuspended: Boolean);
+    class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
   end;
 
   TfrmMain = class(TForm)
@@ -25,92 +22,115 @@ type
     seCode: TSynEdit;
     lbError: TLabel;
     btnRun: TButton;
+    seTimeout: TSpinEdit;
+    cbTimeout: TCheckBox;
+    ActionList1: TActionList;
+    actRun: TAction;
     procedure seCodeChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure btnRunClick(Sender: TObject);
+    procedure cbTimeoutClick(Sender: TObject);
+    procedure actRunExecute(Sender: TObject);
   private
-    L: TLuaState;
-
-  public
-    procedure ConsolePrint(var AMessage: TMessage); message WM_CONSOLE;
+    FLua: TLua;
 
   end;
 
 var
   frmMain: TfrmMain;
 
-
 implementation
 
 {$R *.dfm}
 
-procedure TLuaThread.Execute;
+procedure TfrmMain.actRunExecute(Sender: TObject);
+var
+  Err: TLuaPCallError;
+  NoTimeout: Boolean;
 begin
-  FLua.GetGlobal('code');
-  if FLua.PCall(0, 0, 0) = lceErrorRun then
+  StartTimer;
+  FLua.L.GetGlobal('code');
+  if cbTimeout.Checked then
+    NoTimeout := FLua.CallTimeout(0, 0, seTimeout.Value / 1000, Err)
+  else
   begin
-    ShowMessage(string(FLua.ToString));
+    NoTimeout := True;
+    Err := FLua.L.PCall(0, 0, 0);
+  end;
+  if NoTimeout then
+  begin
+    if Err <> lceOK then
+    begin
+      ShowMessage(string(FLua.L.ToString));
+      FLua.L.Pop;
+    end
+    else
+    begin
+      ShowMessage(Format('Success! %s', [StopTimerGetString(tfMilliseconds)]));
+    end;
+  end
+  else
+  begin
+    ShowMessage(Format('Timeout! %s', [StopTimerGetString(tfMilliseconds)]));
+    seCodeChange(nil);
   end;
 end;
 
-constructor TLuaThread.Create(ALua: TLuaState; ACreateSuspended: Boolean);
+procedure TfrmMain.cbTimeoutClick(Sender: TObject);
 begin
-  inherited Create(ACreateSuspended);
-  FLua := ALua;
-end;
-
-procedure TfrmMain.btnRunClick(Sender: TObject);
-var
-  Thread: TLuaThread;
-begin
-  Thread := TLuaThread.Create(L, True);
-  Thread.FreeOnTerminate := True;
-  Thread.Start;
-end;
-
-procedure TfrmMain.ConsolePrint(var AMessage: TMessage);
-begin
-
+  seTimeout.Enabled := cbTimeout.Checked;
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
-  L := NewLuaState;
+  FLua := TLua.Create;
+  FLua.AddLib(TLuaLibBasic);
+  FLua.AddLib(TLuaLibHelp);
+  FLua.AddLib(TLuaLibTable);
+  FLua.AddLib(TLuaLibMath);
+  FLua.AddLib(TLuaLibCoroutine);
   seCodeChange(nil);
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
-  L.Close;
+  FLua.Free;
 end;
 
 procedure TfrmMain.seCodeChange(Sender: TObject);
 begin
-  case L.LoadString(AnsiString(seCode.Text)) of
-    lleOK:
-      begin
-        L.SetGlobal('code');
-        lbError.Caption := 'Compiled without Error';
-        lbError.Font.Color := clDefault;
-      end;
-    lleErrorSyntax:
-      begin
-        lbError.Caption := string(L.ToString_X(1));
-        L.Pop;
-        lbError.Font.Color := clRed;
-      end;
-    lleErrorMemory:
-      begin
-        lbError.Caption := 'Memory Error';
-        lbError.Font.Color := clRed;
-      end;
-    lleErrorGCMM:
-      begin
-        lbError.Caption := 'Memory Error';
-        lbError.Font.Color := clRed;
-      end;
+  if FLua.L.LoadString(AnsiString(seCode.Text), 'code') = lleOK then
+  begin
+    FLua.L.SetGlobal('code');
+    lbError.Caption := 'Compiled without Error';
+    lbError.Font.Color := clDefault;
+    actRun.Enabled := True;
+  end
+  else
+  begin
+    lbError.Caption := string(FLua.L.ToString_X(1));
+    FLua.L.Pop;
+    lbError.Font.Color := clRed;
+    actRun.Enabled := False;
   end;
+end;
+
+{ THelpLib }
+
+class procedure TLuaLibHelp.CreateEntry(AEntry: TLuaLib.TTableEntry);
+begin
+  with AEntry do
+  begin
+    Add('print', LuaPrint);
+  end;
+end;
+
+class function TLuaLibHelp.LuaPrint(L: TLuaState): Integer;
+begin
+  L.CheckAny(1);
+  L.CheckEnd(2);
+  MessageBoxA(0, L.ToString, 'print', 0);
+  Result := 0;
 end;
 
 end.

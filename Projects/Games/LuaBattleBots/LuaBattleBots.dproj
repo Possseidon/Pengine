@@ -123,6 +123,8 @@
         <DCCReference Include="CustomModules.pas"/>
         <DCCReference Include="EntityDefine.pas"/>
         <DCCReference Include="Resources.pas"/>
+        <DCCReference Include="GameLogicDefine.pas"/>
+        <DCCReference Include="GameBaseDefine.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -153,18 +155,14 @@
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="3">
-                <DeployFile LocalName="Win32\Debug\LuaBattleBots.exe" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="Win32\DebugConsole\LuaBattleBots.exe" Configuration="DebugConsole" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>LuaBattleBots.exe</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="Win64\Debug\LuaBattleBots.exe" Configuration="Debug" Class="ProjectOutput">
-                    <Platform Name="Win64">
-                        <RemoteName>LuaBattleBots.exe</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
+                <DeployFile LocalName="Win64\Debug\LuaBattleBots.exe" Configuration="Debug" Class="ProjectOutput"/>
+                <DeployFile LocalName="Win32\Debug\LuaBattleBots.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployClass Name="AdditionalDebugSymbols">
                     <Platform Name="iOSSimulator">
                         <Operation>1</Operation>
