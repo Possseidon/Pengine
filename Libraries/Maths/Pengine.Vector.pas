@@ -50,12 +50,12 @@ type
   /// <summary>Describes one of the six simple directions in the following order:
   /// <code>
   ///  0 -> bdNone<p/>
-  /// +X -> bdRight<p/>
   /// -X -> bdLeft<p/>
-  /// +Y -> bdUp<p/>
+  /// +X -> bdRight<p/>
   /// -Y -> bdDown<p/>
-  /// +Z -> bdFront<p/>
+  /// +Y -> bdUp<p/>
   /// -Z -> bdBack
+  /// +Z -> bdFront<p/>
   /// </code>
   /// <p>The following subranges exist:</p>
   /// <p>
@@ -68,21 +68,21 @@ type
   /// </p>
   /// </summary>
   /// <remarks>The included "None" direction is defined as the origin vector.</remarks>
-  TBasicDir = (bdNone, bdRight, bdLeft, bdUp, bdDown, bdFront, bdBack);
+  TBasicDir = (bdNone, bdLeft, bdRight, bdDown, bdUp, bdBack, bdFront);
 
   /// <summary>1-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, no bdNone.</summary>
-  TBasicDir1 = bdRight .. bdLeft;
+  TBasicDir1 = bdLeft .. bdRight;
   /// <summary>2-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, no bdNone.</summary>
-  TBasicDir2 = bdRight .. bdDown;
+  TBasicDir2 = bdLeft .. bdUp;
   /// <summary>3-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, no bdNone.</summary>
-  TBasicDir3 = bdRight .. bdBack;
+  TBasicDir3 = bdLeft .. bdFront;
 
   /// <summary>1-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, with bdNone.</summary>
-  TBasicDir1Nonable = bdNone .. bdLeft;
+  TBasicDir1Nonable = bdNone .. bdRight;
   /// <summary>2-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, with bdNone.</summary>
-  TBasicDir2Nonable = bdNone .. bdDown;
+  TBasicDir2Nonable = bdNone .. bdUp;
   /// <summary>3-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, with bdNone.</summary>
-  TBasicDir3Nonable = bdNone .. bdBack;
+  TBasicDir3Nonable = bdNone .. bdFront;
 
   /// <summary>Set of 1-Dimensional directions. <p>See <see cref="Pengine.Vector|TBasicDir"/> for more info.</p></summary>
   TBasicDirs1 = set of TBasicDir1;
@@ -443,14 +443,20 @@ type
   /// <p>Shorthand constructor using: <see cref="Pengine.Vector|FRange1"/></p>
   /// </summary>
   /// <remarks>
-  /// For better performance, most functions assume, that the bounds are normalized: <c>(C1 &lt;= C2)</c>
+  /// For better performance, most functions assume, that the bounds are normalized: <c>C1 &lt;= C2</c><p/>
+  /// The <c>in</c>-operator is inclusive: <c>C1 &lt;= A &lt;= C2</c>
   /// </remarks>
   TBounds1 = record
   public type
 
     TCornerIndex = 0 .. 1;
 
-    /// <summary>A simple array-type, that can represent the two corners of the bounds.</summary>
+    /// <summary>A simple array-type, that can represent the four corners of the bounds.</summary>
+    /// <remarks>They are in the following order:<code>
+    /// Index  X<p/>
+    ///  [0]  (0)<p/>
+    ///  [1]  (1)<p/>
+    /// </code></remarks>
     TCorners = array [TCornerIndex] of Single;
 
   private
@@ -486,23 +492,30 @@ type
     /// <remarks>Will give a negative length for non-normalized bounds.</remarks>
     function Length: Single; inline;
 
-    /// <returns>The middle point between C1 and C2.</returns>
-    function Middle: Single;
+    /// <returns>The center point between C1 and C2.</returns>
+    function Center: Single;
 
-    /// <returns>Converts from <c>[0, 1]</c> to <c>[C1, C2]</c>.</returns>
+    /// <summary>Converts from <c>[0, 1]</c> to <c>[C1, C2]</c>.</summary>
     /// <remarks>Default Property.<p/>
-    /// For inverse operation see <see cref="VectorGeometry|TBounds1.InvPoint"/></remarks>
+    /// For inverse operation see <see cref="VectorGeometry|TBounds1.InvPoint"/>.</remarks>
     property Point[APos: Single]: Single read GetPoint; default;
-    /// <returns>Converts from <c>[-1, +1]</c> to <c>[C1, C2]</c></returns>
-    /// <remarks>For inverse operation see <see cref="VectorGeometry|TBounds1.InvPointSym"/></remarks>
+    /// <summary>Converts from <c>[-1, +1]</c> to <c>[C1, C2]</c></summary>
+    /// <remarks>For inverse operation see <see cref="VectorGeometry|TBounds1.InvPointSym"/>.</remarks>
     property PointSym[APos: Single]: Single read GetPointSym;
-    /// <returns>Converts from <c>[C1, C2]</c> to <c>[0, 1]</c></returns>
+    /// <summary>Converts from <c>[-1, 0]</c> to <c>[C1, C2]</c></summary>
+    /// <remarks>For inverse operation see <see cref="VectorGeometry|TBounds1.InvPointLeft"/>.</remarks>
+    property PointLeft[APos: Single]: Single read GetPointSym;
+
+    /// <summary>Converts from <c>[C1, C2]</c> to <c>[0, 1]</c></summary>
     /// <exception><see cref="System.SysUtils|EZeroDivide"/> if length is zero.</exception>
     property InvPoint[APos: Single]: Single read GetInvPoint;
-    /// <returns>Converts from <c>[C1, C2]</c> to <c>[-1, +1]</c></returns>
+    /// <summary>Converts from <c>[C1, C2]</c> to <c>[-1, +1]</c></summary>
     /// <exception><see cref="System.SysUtils|EZeroDivide"/> if length is zero.</exception>
     property InvPointSym[APos: Single]: Single read GetInvPointSym;
-                                           
+    /// <summary>Converts from <c>[C1, C2]</c> to <c>[-1, 0]</c></summary>
+    /// <exception><see cref="System.SysUtils|EZeroDivide"/> if length is zero.</exception>
+    property InvPointLeft[APos: Single]: Single read GetInvPointSym;
+
     /// <returns>Converts from <c>[C1, C2]</c> to specified bounds <c>[C1, C2]</c></returns>
     function Convert(APoint: Single; ABounds: TBounds1): Single;
                                                      
@@ -542,7 +555,7 @@ type
     class operator LessThan(const A, B: TBounds1): Boolean;
     class operator LessThanOrEqual(const A, B: TBounds1): Boolean;
 
-    /// <returns>A string representative in the form: &lt;C1~C2&gt;</returns>
+    /// <returns>A string representative in the form: <c>&lt;C1~C2&gt;</c></returns>
     /// <remarks>Direct implicit conversion to string is possible.</remarks>
     function ToString: string; inline;
     class operator Implicit(ABounds: TBounds1): string; inline;
@@ -550,19 +563,27 @@ type
   end;
 
   /// <summary>
-  /// Represents 2-Dimensional bounds using two <see cref="System|Single"/>.
+  /// Represents 2-Dimensional bounds using two <see cref="Pengine.Vector|TVector2"/>.
   /// <p>Shorthand constructor using: <see cref="Pengine.Vector|FRange2"/></p>
   /// </summary>
   /// <remarks>
-  /// For better performance, most functions assume, that the bounds are normalized: <c>(C1 &lt;= C2)</c>
+  /// For better performance, most functions assume, that the bounds are normalized: <c>C1 &lt;= C2</c><p/>
+  /// The <c>in</c>-operator is inclusive: <c>C1 &lt;= A &lt;= C2</c>
   /// </remarks>
   TBounds2 = record
   public type
 
     TCornerIndex = 0 .. 3;
 
-    /// <summary>A simple array-type, that can represent the two corners of the bounds.</summary>
-    TCorners = array [TCornerIndex] of Single;
+    /// <summary>A simple array-type, that can represent the four corners of the bounds.</summary>
+    /// <remarks>They are in the following order:<code>
+    /// Index  X, Y<p/>
+    ///  [0]  (0, 0)<p/>
+    ///  [1]  (1, 0)<p/>
+    ///  [2]  (0, 1)<p/>
+    ///  [3]  (1, 1)<p/>
+    /// </code></remarks>
+    TCorners = array [TCornerIndex] of TVector2;
 
   private
     function GetPoint(Value: TVector2): TVector2;
@@ -577,13 +598,13 @@ type
     procedure SetLineY(const Value: TBounds1); inline;
 
   public
-    /// <summary>The (usually) lower value of the bounds.</summary>
+    /// <summary>The (usually) lower values of the bounds.</summary>
     C1: TVector2;
-    /// <summary>The (usually) higher value of the bounds.</summary>
+    /// <summary>The (usually) higher values of the bounds.</summary>
     C2: TVector2;
 
     /// <summary>Alias for <see cref="Pengine.Vector|TBounds2.C1"/>.</summary>
-    property Low: TVector2 read C1 write C1;                   
+    property Low: TVector2 read C1 write C1;
     /// <summary>Alias for <see cref="Pengine.Vector|TBounds2.C2"/>.</summary>
     property High: TVector2 read C2 write C2;
 
@@ -618,22 +639,29 @@ type
     /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
     function Height: Single; inline;
 
-    /// <returns>The middle point between C1 and C2.</remarks>
-    function Middle: TVector2;
+    /// <returns>The center point between C1 and C2.</remarks>
+    function Center: TVector2;
 
-    /// <returns>Converts from <c>[0, 1]</c> to <c>[C1, C2]</c>.</returns>
+    /// <summary>Converts from <c>[0, 1]</c> to <c>[C1, C2]</c>.</summary>
     /// <remarks>Default Property.<p/>
     /// For inverse operation see <see cref="VectorGeometry|TBounds2.InvPoint"/>.</remarks>
     property Point[APos: TVector2]: TVector2 read GetPoint; default;
-    /// <returns>Converts from <c>[-1, +1]</c> to <c>[C1, C2]</c></returns>
+    /// <summary>Converts from <c>[-1, +1]</c> to <c>[C1, C2]</c></summary>
     /// <remarks>For inverse operation see <see cref="VectorGeometry|TBounds2.InvPointSym"/>.</remarks>
     property PointSym[APos: TVector2]: TVector2 read GetPointSym;
-    /// <returns>Converts from <c>[C1, C2]</c> to <c>[0, 1]</c></returns>
+    /// <summary>Converts from <c>[-1, 0]</c> to <c>[C1, C2]</c></summary>
+    /// <remarks>For inverse operation see <see cref="VectorGeometry|TBounds2.InvPointLeft"/>.</remarks>
+    property PointLeft[APos: TVector2]: TVector2 read GetPointSym;
+
+    /// <summary>Converts from <c>[C1, C2]</c> to <c>[0, 1]</c></summary>
     /// <exception><see cref="System.SysUtils|EZeroDivide"/> if length is zero.</exception>
     property InvPoint[APos: TVector2]: TVector2 read GetInvPoint;
-    /// <returns>Converts from <c>[C1, C2]</c> to <c>[-1, +1]</c></returns>
+    /// <summary>Converts from <c>[C1, C2]</c> to <c>[-1, +1]</c></summary>
     /// <exception><see cref="System.SysUtils|EZeroDivide"/> if length is zero.</exception>
     property InvPointSym[APos: TVector2]: TVector2 read GetInvPointSym;
+    /// <summary>Converts from <c>[C1, C2]</c> to <c>[-1, 0]</c></summary>
+    /// <exception><see cref="System.SysUtils|EZeroDivide"/> if length is zero.</exception>
+    property InvPointLeft[APos: TVector2]: TVector2 read GetInvPointSym;
 
     /// <returns>Converts from <c>[C1, C2]</c> to specified bounds <c>[C1, C2].</c></returns>
     function Convert(APoint: TVector2; ABounds: TBounds2): TVector2;
@@ -669,25 +697,39 @@ type
     class operator LessThan(const A, B: TBounds2): Boolean;
     class operator LessThanOrEqual(const A, B: TBounds2): Boolean;
 
-    /// <returns>A string representative in the form: &lt;C1~C2&gt;</returns>
+    /// <returns>A string representative in the form: <c>&lt;C1~C2&gt;</c></returns>
     /// <remarks>Direct implicit conversion to string is possible.</remarks>
     function ToString: string; inline;
     class operator Implicit(ABounds: TBounds2): string; inline;
 
   end;
 
-  - continue here -
-
   /// <summary>
-  /// Represents 3-Dimensional bounds using two Singles
-  /// <para>Shorthand constructor using: <see cref="VectorGeometry|FRange3"/></para>
+  /// Represents 3-Dimensional bounds using two <see cref="Pengine.Vector|TVector3"/>.
+  /// <p>Shorthand constructor using: <see cref="Pengine.Vector|FRange3"/></p>
   /// </summary>
   /// <remarks>
-  /// For better performance, most functions assume, that the bounds are normalized (C1 &lt;= C2)
+  /// For better performance, most functions assume, that the bounds are normalized: <c>C1 &lt;= C2</c><para/>
+  /// The <c>in</c>-operator is inclusive: <c>C1 &lt;= A &lt;= C2</c>
   /// </remarks>
   TBounds3 = record
   public type
-    TCorners = array [0 .. 7] of TVector3;
+
+    TCornerIndex = 0 .. 7;
+
+    /// <summary>A simple array-type, that can represent the four corners of the bounds.</summary>
+    /// <remarks>They are in the following order:<code>
+    /// Index  X, Y, Z<p/>
+    ///  [0]  (0, 0, 0)<p/>
+    ///  [1]  (1, 0, 0)<p/>
+    ///  [2]  (0, 1, 0)<p/>
+    ///  [3]  (1, 1, 0)<p/>
+    ///  [4]  (0, 0, 1)<p/>
+    ///  [5]  (1, 0, 1)<p/>
+    ///  [6]  (0, 1, 1)<p/>
+    ///  [7]  (1, 1, 1)<p/>
+    /// </code></remarks>
+    TCorners = array [TCornerIndex] of TVector3;
 
   private
     function GetPoint(Value: TVector3): TVector3;
@@ -718,90 +760,112 @@ type
     procedure SetPlaneXZ(const Value: TBounds2); inline;
 
   public
-    /// <summary>The (usually) lower Values of the bounds</summary>
+    /// <summary>The (usually) lower values of the bounds.</summary>
     C1: TVector3;
-    /// <summary>The (usually) higher Values of the bounds</summary>
+    /// <summary>The (usually) higher values of the bounds.</summary>
     C2: TVector3;
 
-    /// <summary>Equivalent to C1</summary>
+    /// <summary>Alias for <see cref="Pengine.Vector|TBounds3.C1"/>.</summary>
     property Low: TVector3 read C1 write C1;
-    /// <summary>Equivalent to C2</summary>
+    /// <summary>Alias for <see cref="Pengine.Vector|TBounds3.C2"/>.</summary>
     property High: TVector3 read C2 write C2;
 
-    /// <summary>Get an array of all Corners</summary>
+    /// <returns>An array of all corners using <see cref="Pengine.Vector|TBounds3.TCorners"/>.</returns>
+    /// <remarks>This is a getter, to remind you, that you should save it to a local variable on heavy usage.</remarks>
     function GetCorners: TCorners;
 
-    /// <summary>Creates a new TIntBounds object with the specified Values</summary>
+    /// <summary>Creates a <see cref="Pengine.Vector|TBounds3"/> with the specified range.</summary>
     constructor Create(AC1, AC2: TVector3); overload;
-    /// <summary>Creates a new TIntBounds object with both bounds laying on the same, given Value</summary>
+    /// <summary>Creates a <see cref="Pengine.Vector|TBounds3"/> with both bounds laying on the same, given value.</summary>
     constructor Create(A: TVector3); overload;
 
     class operator Implicit(A: Single): TBounds3; inline;
     class operator Implicit(A: TVector3): TBounds3; inline;
     class operator Implicit(A: TIntBounds1): TBounds3; inline;
 
-    /// <remarks>Will give a negative values for non-normalized bounds</remarks>
+    /// <returns>The difference between C1 and C2.</returns>
+    /// <remarks>Will give negative values for non-normalized bounds.</remarks>
     function Size: TVector3; inline;
 
-    /// <summary>Resembles the X Components of the bounds as a TBounds1</summary>
-    /// <remarks>WARNING! You cannot change the result directly, as it creates a copy of the values</remarks>
+    /// <summary>Resembles both X-Components of the bounds as a <see cref="Pengine.Vector|TBounds1"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property LineX: TBounds1 read GetLineX write SetLineX;
-    /// <summary>Resembles the Y Components of the bounds as a TBounds1</summary>
-    /// <remarks>WARNING! You cannot change the result directly, as it creates a copy of the values</remarks>
+    /// <summary>Resembles both Y-Components of the bounds as a <see cref="Pengine.Vector|TBounds1"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property LineY: TBounds1 read GetLineY write SetLineY;
-    /// <summary>Resembles the Z Components of the bounds as a TBounds1</summary>
-    /// <remarks>WARNING! You cannot change the result directly, as it creates a copy of the values</remarks>
+    /// <summary>Resembles both Z-Components of the bounds as a <see cref="Pengine.Vector|TBounds1"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property LineZ: TBounds1 read GetLineZ write SetLineZ;
 
+    /// <summary>Resembles an XY-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneXY: TBounds2 read GetPlaneXY write SetPlaneXY;
+    /// <summary>Resembles an YZ-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneYZ: TBounds2 read GetPlaneYZ write SetPlaneYZ;
+    /// <summary>Resembles an ZX-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneZX: TBounds2 read GetPlaneZX write SetPlaneZX;
+    /// <summary>Resembles an YX-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneYX: TBounds2 read GetPlaneYX write SetPlaneYX;
+    /// <summary>Resembles an ZY-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneZY: TBounds2 read GetPlaneZY write SetPlaneZY;
+    /// <summary>Resembles an XZ-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneXZ: TBounds2 read GetPlaneXZ write SetPlaneXZ;
 
-    /// <returns>Returns the horizontal length of the Bounds</returns>
-    /// <remarks>Will give a negative length for non-normalized bounds</remarks>
+    /// <returns>The horizontal length of the bounds.</returns>
+    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
     function Width: Single; inline;
-    /// <returns>Returns the vertical length of the Bounds</returns>
-    /// <remarks>Will give a negative length for non-normalized bounds</remarks>
+    /// <returns>The vertical length of the bounds.</returns>
+    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
     function Height: Single; inline;
-    /// <returns>Returns the Z-directed length of the Bounds</returns>
-    /// <remarks>Will give a negative length for non-normalized bounds</remarks>
+    /// <returns>The depth of the bounds.</returns>
+    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
     function Depth: Single; inline;
 
-    /// <summary>The middle point between C1 and C2</summary>
-    function Middle: TVector3;
+    /// <returns>The center point between C1 and C2.</remarks>
+    function Center: TVector3;
 
-    /// <summary>Converts [0 .. 1] into [C1 .. C2]</summary>
-    /// <remarks>For inverse operation see <see cref="VectorGeometry|TBounds2.InvPoint"/></remarks>
+    /// <summary>Converts from <c>[0, 1]</c> to <c>[C1, C2]</c>.</summary>
+    /// <remarks>Default Property.<p/>
+    /// For inverse operation see <see cref="VectorGeometry|TBounds3.InvPoint"/>.</remarks>
     property Point[APos: TVector3]: TVector3 read GetPoint; default;
-    /// <summary>Converts [-1 .. +1] into [C1 .. C2]</summary>
-    /// <remarks>For inverse operation see <see cref="VectorGeometry|TBounds2.InvPointSym"/></remarks>
+    /// <summary>Converts from <c>[-1, +1]</c> to <c>[C1, C2]</c></summary>
+    /// <remarks>For inverse operation see <see cref="VectorGeometry|TBounds3.InvPointSym"/>.</remarks>
     property PointSym[APos: TVector3]: TVector3 read GetPointSym;
-    /// <summary>Converts [C1 .. C2] into [0 .. 1]</summary>
-    /// <remarks>Raises EZeroDivide, if the Length is zero</remarks>
-    property InvPoint[APos: TVector3]: TVector3 read GetInvPoint;
-    /// <summary>Converts [C1 .. C2] into [-1 .. +1]</summary>
-    /// <remarks>Raises EZeroDivide, if the Length is zero</remarks>
-    property InvPointSym[APos: TVector3]: TVector3 read GetInvPointSym;
+    /// <summary>Converts from <c>[-1, 0]</c> to <c>[C1, C2]</c></summary>
+    /// <remarks>For inverse operation see <see cref="VectorGeometry|TBounds3.InvPointLeft"/>.</remarks>
+    property PointLeft[APos: TVector3]: TVector3 read GetPointSym;
 
-    /// <summary>Converts [C1 .. C2] into specified Bounds [C1 .. C2]</summary>
+    /// <summary>Converts from <c>[C1, C2]</c> to <c>[0, 1]</c></summary>
+    /// <exception><see cref="System.SysUtils|EZeroDivide"/> if length is zero.</exception>
+    property InvPoint[APos: TVector3]: TVector3 read GetInvPoint;
+    /// <summary>Converts from <c>[C1, C2]</c> to <c>[-1, +1]</c></summary>
+    /// <exception><see cref="System.SysUtils|EZeroDivide"/> if length is zero.</exception>
+    property InvPointSym[APos: TVector3]: TVector3 read GetInvPointSym;
+    /// <summary>Converts from <c>[C1, C2]</c> to <c>[-1, 0]</c></summary>
+    /// <exception><see cref="System.SysUtils|EZeroDivide"/> if length is zero.</exception>
+    property InvPointLeft[APos: TVector3]: TVector3 read GetInvPointSym;
+
+    /// <returns>Converts from <c>[C1, C2]</c> to specified bounds <c>[C1, C2].</c></returns>
     function Convert(APoint: TVector3; ABounds: TBounds3): TVector3;
 
-    /// <summary>Returns the given Bounds clamped to be inside of the calling bounds</summary>
+    /// <returns>The given bounds clamped to be inside of the calling bounds.</returns>
     function EnsureRange(ARange: TBounds3): TBounds3; overload;
-    /// <summary>Returns the given Value being clamped in/on the bounds</summary>
+    /// <returns>The given value being clamped to the bounds <c>[C1, C2].</c></returns>
     function EnsureRange(AValue: TVector3): TVector3; overload;
 
-    /// <returns>Returns true, if C1 &lt; C2</returns>
+    /// <returns>True, if C1 &lt;= C2</returns>
     function Normalized: Boolean; inline;
-    /// <summary>Swaps C1 and C2 if the bounds are not normalized</summary>
+    /// <returns>The normalized version of the bounds.</summary>
     function Normalize: TBounds3;
 
-    /// <summary>Increments C1 by Amount and decrements C2 by Amount</summary>
+    /// <returns>The bounds with C1 being increased and C2 being decreased by the specified amount.</summary>
     function Inset(AAmount: TVector3): TBounds3;
-    /// <summary>Decrements C1 by Amount and increments C2 by Amount</summary>
+    /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: TVector3): TBounds3;
 
     class operator Add(const A, B: TBounds3): TBounds3;
@@ -820,25 +884,25 @@ type
     class operator LessThan(const A, B: TBounds3): Boolean;
     class operator LessThanOrEqual(const A, B: TBounds3): Boolean;
 
-    /// <summary>Returns a string representative in the form: &lt;C1~C2&gt;</summary>
+    /// <returns>A string representative in the form: <c>&lt;C1~C2&gt;</c></returns>
     /// <remarks>Direct implicit conversion to string is possible.</remarks>
     function ToString: string; inline;
     class operator Implicit(ABounds: TBounds3): string; inline;
 
   end;
 
-  { TVectorDir }
   /// <summary>
-  /// Represents the Direction of a 3-Dimensional Vector using Turn and Pitch Angles
+  /// Represents the direction of a 3-Dimensional vector using turn and pitch angles.<p/>
+  /// The default direction points along the positive Z-Axis. (pointed towards camera)
   /// <code>
-  ///  Turn | Pitch |  Vector <para/>
-  /// ------|-------|---------<para/>
-  ///    90 |     0 | [1|0|0] <para/>
-  ///     0 |    90 | [0|1|0] <para/>
-  ///     0 |     0 | [0|0|1] <para/>
+  ///   vector | turn | pitch <para/>
+  /// ---------+------+-------<para/>
+  ///  [1|0|0] |   90 |     0 <para/>
+  ///  [0|1|0] |    0 |    90 <para/>
+  ///  [0|0|1] |    0 |     0 <para/>
   /// </code>
   /// </summary>
-  /// <remarks>This type does not represent rolling, since a rolled Vector does not change</remarks>
+  /// <remarks>This type cannot represent rolling, since a vector does not have such an orientation.</remarks>
   TVectorDir = record
   private
     function GetTurnAngle: Single;
@@ -848,24 +912,28 @@ type
     procedure SetPitchAngle(Value: Single);
 
   public
-    /// <summary>The Turn-Component (left/right) of the Direction in radians</summary>
+    /// <summary>The Turn-Component of the direction in radians.</summary>
+    /// <remarks>Positive values rotate from pointed towards the camera to the right.</remarks>
     TurnAngleRad: Single;
-    /// <summary>The Pitch-Component (up/down) of the Direction in radians</summary>
+    /// <summary>The Pitch-Component of the direction in radians.</summary>
+    /// <remarks>Positive values rotate from pointed towards the camera upwards.</remarks>
     PitchAngleRad: Single;
 
-    /// <summary>The Turn-Component (left/right) of the Direction in degrees</summary>
+    /// <summary>The Turn-Component of the direction in degrees.</summary>
+    /// <remarks>Positive values rotate from pointed towards the camera to the right.</remarks>
     property TurnAngle: Single read GetTurnAngle write SetTurnAngle;
-    /// <summary>The Pitch-Component (up/down) of the Direction in degrees</summary>
+    /// <summary>The Pitch-Component of the direction in degrees.</summary>
+    /// <remarks>Positive values rotate from pointed towards the camera upwards.</remarks>
     property PitchAngle: Single read GetPitchAngle write SetPitchAngle;
 
-    /// <summary>Create a new Direction from the specified Turn and Pitch Angles in radians</summary>
-    function CreateRad(ATurnAngleRad, APitchAngleRad: Single): TVectorDir;
+    /// <returns>A <see cref="Pengine.Vector|TVectorDir"/> from the specified Turn and Pitch angles in radians.</returns>
+    class function CreateRad(ATurnAngleRad, APitchAngleRad: Single): TVectorDir; static;
 
-    /// <summary>Create a new Direction from the specified Turn and Pitch Angles in degrees</summary>
+    /// <summary>Creates a <see cref="Pengine.Vector|TVectorDir"/> from the specified Turn and Pitch angles in degrees.</summary>
     constructor Create(ATurnAngle, APitchAngle: Single); overload;
-    /// <summary>Create a Direction, that points into the same direction, as the given Vector</summary>
+    /// <summary>Creates a <see cref="Pengine.Vector|TVectorDir"/>, that points into the same direction, as the given vector.</summary>
     constructor Create(AVector: TVector3); overload;
-    /// <summary>Calculate a normalized Vector, pointing into the current Direction</summary>
+    /// <returns>A normalized vector, pointing into the direction of the <see cref="Pengine.Vector|TVectorDir"/>.</returns>
     function Vector: TVector3;
 
     class operator Implicit(const AVector: TVector3): TVectorDir; inline;
@@ -873,10 +941,10 @@ type
 
   end;
 
+  /// <summary>Describes a side of a <see cref="Pengine.Vector|TLine2"/>.</summary>
   TLineSide = (lsLeft, lsOn, lsRight);
 
-  { TLine2 }
-  /// <summary>Represents a 2-Dimensional line, described by support and direction Vectors</summary>
+  /// <summary>Represents a 2-Dimensional line, defined by a support vector S and a direction vector D.</summary>
   TLine2 = record
   private
     function GetPoint(Value: Single): TVector2;
@@ -888,62 +956,64 @@ type
     procedure SetTail(Value: TVector2);
 
   public type
-    /// <summary>Distances of each line to get the intersection point</summary>
+
+    /// <summary>Contains the multiplication-factors of both lines to get to the intersection point.</summary>
     TIntsecData = record
-      /// <summary>The multiplication-factor with the calling line to get the intersection point</summary>
-      Distance: Single;
-      /// <summary>The multiplication-factor with the parameter line to get the intersection point</summary>
-      DistanceOther: Single;
+      /// <summary>The multiplication-factor with the calling line to get to the intersection point.</summary>
+      Factor: Single;
+      /// <summary>The multiplication-factor with the argument line to get to the intersection point</summary>
+      FactorOther: Single;
     end;
 
   public
-    /// <summary>The Support-Vector of the Line</summary>
-    SV: TVector2;
-    /// <summary>The Direction-Vector of the Line</summary>
-    DV: TVector2;
+    /// <summary>The support vector S of the line.</summary>
+    S: TVector2;
+    /// <summary>The direction vector D of the line.</summary>
+    D: TVector2;
 
-    /// <summary>Equal to SV + DV and setting it will leave the Tail at its current position</summary>
+    /// <summary>Equal to S + D.<p/>Setting it will leave the tail at its current position.</summary>
     property Head: TVector2 read GetHead write SetHead;
-    /// <summary>Equal to SV, BUT setting it will leave the Head at its current position</summary>
+    /// <summary>Equal to S.<p/>/!\ Setting it will leave the head at its current position.</summary>
     property Tail: TVector2 read GetTail write SetTail;
 
-    /// <summary>Get a Point on the line, where [0 .. 1] turns into [SV .. SV + DV]</summary>
-    property Point[ADistance: Single]: TVector2 read GetPoint; default;
+    /// <summary>Gets a point on the line, where [0, 1] turns into [S, S + D]</summary>
+    property Point[Factor: Single]: TVector2 read GetPoint; default;
 
-    /// <summary>Create a new Line with the given Parameters</summary>
-    constructor Create(const SV, DV: TVector2);
+    /// <summary>Creates a line with the given support and direction vector.</summary>
+    constructor Create(const S, D: TVector2);
 
-    /// <summary>Get the Distance, to reach the point on the line, which is closest to the given point</summary>
+    /// <returns>The multiplication-factor, to reach the point on the line, which is closest to the given point.</returns>
     function OrthoProj(const A: TVector2): Single;
 
-    /// <summary>Test if the lines cross each other</summary>
+    /// <returns>True, if the lines cross each other.</returns>
+    /// <remarks>This only checks, if the lines have the same direction.</remarks>
     function Intsec(const A: TLine2): Boolean; overload; inline;
-    /// <summary>Test if and where the lines cross each other</summary>
+    /// <param name="A">The line, to check the intersection with.</param>
+    /// <param name="AData">Contains the intersection result, on success.</param>
+    /// <returns>True, if the lines cross each other.</returns>
+    /// <remarks>This only checks, if the lines have the same direction.</remarks>
     function Intsec(const A: TLine2; out AData: TIntsecData): Boolean; overload;
 
-    /// <summary>Calculates the shortest distance between the line and a point</summary>
+    /// <returns>The shortest distance between the line and the given point.</returns>
     /// <remarks>Will be positive on the left and negative on the right</remarks>
     function Height(const A: TVector2): Single;
 
-    /// <summary>Get the slope of the line
-    /// <code>
-    ///  X | Y | Slope <para/>
-    /// ---|---|-------<para/>
-    ///  1 | 0 |     0 <para/>
-    ///  1 | 1 |     1 <para/>
-    ///  0 | 1 |  +inf <para/>
-    /// </code>
-    /// </summary>
-    /// <remarks>Make sure to check, if DV.X < 0, which means that the line is flipped</remarks>
+    /// <returns>The slope of the line:<code>
+    ///  X | Y | slope <p/>
+    /// ---|---|-------<p/>
+    ///  1 | 0 |     0 <p/>
+    ///  1 | 1 |     1 <p/>
+    ///  0 | 1 |  +inf
+    /// </code></returns>
+    /// <remarks>Make sure to check, if D.X &lt; 0, which means that the line is flipped.</remarks>
     function Slope: Single;
 
-    /// <summary>Get the side of the line, on which the given Point is, while looking in the direction of DV</summary>
-    function PointSide(A: TVector2): TLineSide;
+    /// <returns>The side of the line, on which the given point is, while looking in the direction of D.</summary>
+    function Side(A: TVector2): TLineSide;
 
   end;
 
-  { TLine3 }
-  /// <summary>Represents a 3-Dimensional line, described by support and direction Vectors</summary>
+  /// <summary>Represents a 3-Dimensional line, defined by a support vector S and a direction vector D.</summary>
   TLine3 = record
   private
     function GetPoint(Value: Single): TVector3;
@@ -956,9 +1026,9 @@ type
 
   public
     /// <summary>The Support-Vector of the Line</summary>
-    SV: TVector3;
+    S: TVector3;
     /// <summary>The Direction-Vector of the Line</summary>
-    DV: TVector3;
+    D: TVector3;
 
     /// <summary>Equal to SV + DV and setting it will leave the Tail at its current position</summary>
     property Head: TVector3 read GetHead write SetHead;
@@ -2351,7 +2421,7 @@ begin
   Result := C2 - C1;
 end;
 
-function TBounds1.Middle: Single;
+function TBounds1.Center: Single;
 begin
   Result := (C1 + C2) / 2;
 end;
@@ -2510,8 +2580,8 @@ end;
 function TBounds2.GetCorners: TCorners;
 begin
   Result[0].Create(C1.X, C1.Y);
-  Result[1].Create(C1.X, C2.Y);
-  Result[2].Create(C2.X, C1.Y);
+  Result[1].Create(C2.X, C1.Y);
+  Result[2].Create(C1.X, C2.Y);
   Result[3].Create(C2.X, C2.Y);
 end;
 
@@ -2592,7 +2662,7 @@ begin
   Result := LineY.Length;
 end;
 
-function TBounds2.Middle: TVector2;
+function TBounds2.Center: TVector2;
 begin
   Result := (C1 + C2) / 2;
 end;
@@ -2726,12 +2796,12 @@ end;
 function TBounds3.GetCorners: TCorners;
 begin
   Result[0].Create(C1.X, C1.Y, C1.Z);
-  Result[1].Create(C1.X, C1.Y, C2.Z);
+  Result[1].Create(C2.X, C1.Y, C1.Z);
   Result[2].Create(C1.X, C2.Y, C1.Z);
-  Result[3].Create(C1.X, C2.Y, C2.Z);
-  Result[4].Create(C2.X, C1.Y, C1.Z);
+  Result[3].Create(C2.X, C2.Y, C1.Z);
+  Result[4].Create(C1.X, C1.Y, C2.Z);
   Result[5].Create(C2.X, C1.Y, C2.Z);
-  Result[6].Create(C2.X, C2.Y, C1.Z);
+  Result[6].Create(C1.X, C2.Y, C2.Z);
   Result[7].Create(C2.X, C2.Y, C2.Z);
 end;
 
@@ -2900,7 +2970,7 @@ begin
   Result := LineZ.Length;
 end;
 
-function TBounds3.Middle: TVector3;
+function TBounds3.Center: TVector3;
 begin
   Result := (C1 + C2) / 2;
 end;
@@ -3095,39 +3165,39 @@ end;
 
 function TLine2.GetPoint(Value: Single): TVector2;
 begin
-  Result := SV + Value * DV;
+  Result := S + Value * D;
 end;
 
 function TLine2.GetHead: TVector2;
 begin
-  Result := SV + DV;
+  Result := S + D;
 end;
 
 function TLine2.GetTail: TVector2;
 begin
-  Result := SV;
+  Result := S;
 end;
 
 procedure TLine2.SetHead(Value: TVector2);
 begin
-  DV := Value - SV;
+  D := Value - S;
 end;
 
 procedure TLine2.SetTail(Value: TVector2);
 begin
-  DV := DV - SV + Value;
-  SV := Value;
+  D := D - S + Value;
+  S := Value;
 end;
 
-constructor TLine2.Create(const SV, DV: TVector2);
+constructor TLine2.Create(const S, D: TVector2);
 begin
-  Self.SV := SV;
-  Self.DV := DV;
+  Self.S := S;
+  Self.D := D;
 end;
 
 function TLine2.OrthoProj(const A: TVector2): Single;
 begin
-  Result := DV.Dot(A - SV) / DV.SqrDot;
+  Result := D.Dot(A - S) / D.SqrDot;
 end;
 
 function TLine2.Intsec(const A: TLine2): Boolean;
@@ -3141,36 +3211,36 @@ function TLine2.Intsec(const A: TLine2; out AData: TIntsecData): Boolean;
 var
   R: array [0 .. 1] of Single;
 begin
-  M3x2[0, 0] := DV.X;
-  M3x2[1, 0] := -A.DV.X;
-  M3x2[2, 0] := A.SV.X - SV.X;
-  M3x2[0, 1] := DV.Y;
-  M3x2[1, 1] := -A.DV.Y;
-  M3x2[2, 1] := A.SV.Y - SV.Y;
+  M3x2[0, 0] := D.X;
+  M3x2[1, 0] := -A.D.X;
+  M3x2[2, 0] := A.S.X - S.X;
+  M3x2[0, 1] := D.Y;
+  M3x2[1, 1] := -A.D.Y;
+  M3x2[2, 1] := A.S.Y - S.Y;
 
   Result := M3x2.Solve(R);
   if Result then
   begin
-    AData.Distance := R[0];
-    AData.DistanceOther := R[1];
+    AData.Factor := R[0];
+    AData.FactorOther := R[1];
   end;
 end;
 
 function TLine2.Height(const A: TVector2): Single;
 begin
-  if DV = 0 then
-    Exit(SV.DistanceTo(A));
-  Result := TLine2.Create(SV, DV.Cross.Normalized).OrthoProj(A);
+  if D = 0 then
+    Exit(S.DistanceTo(A));
+  Result := TLine2.Create(S, D.Cross.Normalized).OrthoProj(A);
 end;
 
 function TLine2.Slope: Single;
 begin
-  if DV.X = 0 then
+  if D.X = 0 then
     Exit(Infinity);
-  Exit(DV.Y / DV.X);
+  Exit(D.Y / D.X);
 end;
 
-function TLine2.PointSide(A: TVector2): TLineSide;
+function TLine2.Side(A: TVector2): TLineSide;
 var
   H: Single;
 begin
@@ -3187,39 +3257,39 @@ end;
 
 function TLine3.GetPoint(Value: Single): TVector3;
 begin
-  Result := SV + Value * DV;
+  Result := S + Value * D;
 end;
 
 function TLine3.GetHead: TVector3;
 begin
-  Result := SV + DV;
+  Result := S + D;
 end;
 
 function TLine3.GetTail: TVector3;
 begin
-  Result := SV;
+  Result := S;
 end;
 
 procedure TLine3.SetHead(Value: TVector3);
 begin
-  DV := Value - SV;
+  D := Value - S;
 end;
 
 procedure TLine3.SetTail(Value: TVector3);
 begin
-  DV := DV - SV + Value;
-  SV := Value;
+  D := D - S + Value;
+  S := Value;
 end;
 
 constructor TLine3.Create(const SV, DV: TVector3);
 begin
-  Self.SV := SV;
-  Self.DV := DV;
+  Self.S := SV;
+  Self.D := DV;
 end;
 
 function TLine3.OrthoProj(const A: TVector3): Single;
 begin
-  Result := DV.Dot(A - SV) / DV.SqrDot;
+  Result := D.Dot(A - S) / D.SqrDot;
 end;
 
 function TLine3.OrthoProj(const A: TLine3): Boolean;
@@ -3234,9 +3304,9 @@ var
   P: TPlane3;
   Data: TPlane3.TLineIntsecData;
 begin
-  P.SV := SV;
-  P.DVS := DV;
-  P.DVT := DV.Cross(A.DV);
+  P.SV := S;
+  P.DVS := D;
+  P.DVT := D.Cross(A.D);
   Result := P.Intsec(A, Data);
   if Result then
     ADistance := Data.DistanceLine;
@@ -3244,10 +3314,10 @@ end;
 
 function TLine3.MirrorPoint(APoint: TVector3): TVector3;
 var
-  D: Single;
+  F: Single;
 begin
-  D := OrthoProj(APoint);
-  Result := APoint - 2 * D * DV;
+  F := OrthoProj(APoint);
+  Result := APoint - 2 * D * F;
 end;
 
 { TPlane2 }
@@ -3300,16 +3370,16 @@ var
 begin
   M4x3[0, 0] := DVS.X;
   M4x3[1, 0] := DVT.X;
-  M4x3[2, 0] := -A.DV.X;
-  M4x3[3, 0] := A.SV.X - SV.X;
+  M4x3[2, 0] := -A.D.X;
+  M4x3[3, 0] := A.S.X - SV.X;
   M4x3[0, 1] := DVS.Y;
   M4x3[1, 1] := DVT.Y;
-  M4x3[2, 1] := -A.DV.Y;
-  M4x3[3, 1] := A.SV.Y - SV.Y;
+  M4x3[2, 1] := -A.D.Y;
+  M4x3[3, 1] := A.S.Y - SV.Y;
   M4x3[0, 2] := DVS.Z;
   M4x3[1, 2] := DVT.Z;
-  M4x3[2, 2] := -A.DV.Z;
-  M4x3[3, 2] := A.SV.Z - SV.Z;
+  M4x3[2, 2] := -A.D.Z;
+  M4x3[3, 2] := A.S.Z - SV.Z;
 
   Result := M4x3.Solve(R);
   if Result then
@@ -3334,11 +3404,11 @@ var
   Data: TLineIntsecData;
 begin
   N := NormalX;
-  ALine.DV := N.Cross(A.NormalX);
-  IntsecLine.DV := ALine.DV.Cross(N);
-  IntsecLine.SV := SV;
+  ALine.D := N.Cross(A.NormalX);
+  IntsecLine.D := ALine.D.Cross(N);
+  IntsecLine.S := SV;
   Result := A.Intsec(IntsecLine, Data);
-  ALine.SV := IntsecLine[Data.DistanceLine];
+  ALine.S := IntsecLine[Data.DistanceLine];
 end;
 
 function TPlane3.Height(const A: TVector3): Single;
@@ -3871,9 +3941,9 @@ procedure TLocation.FreeMirror(ANormal: TLine3);
 var
   R, U, L, P: TVector3;
 begin
-  R := Right.Mirror(ANormal.DV);
-  U := Up.Mirror(ANormal.DV);
-  L := Look.Mirror(ANormal.DV);
+  R := Right.Mirror(ANormal.D);
+  U := Up.Mirror(ANormal.D);
+  L := Look.Mirror(ANormal.D);
   P := ANormal.MirrorPoint(RealPosition);
   // Right
   FMatrix[0, 0] := R.X;
@@ -4220,14 +4290,14 @@ var
   Data: TPlane3.TLineIntsecData;
   FoundEnd: Boolean;
 begin
-  FLine.SV := FLocation.InvMatrix * ALine.SV;
-  FLine.DV := FLocation.InvRotMatrix * ALine.DV;
+  FLine.S := FLocation.InvMatrix * ALine.S;
+  FLine.D := FLocation.InvRotMatrix * ALine.D;
 
-  FDirections := DirectionsFromVector(FLine.DV);
-  InvDirections := DirectionsFromVector(-FLine.DV);
+  FDirections := DirectionsFromVector(FLine.D);
+  InvDirections := DirectionsFromVector(-FLine.D);
 
-  NormalizedLine.SV := FLine.SV / FSize;
-  NormalizedLine.DV := FLine.DV / FSize;
+  NormalizedLine.S := FLine.S / FSize;
+  NormalizedLine.D := FLine.D / FSize;
 
   FoundEnd := False;
   for D in FDirections do // Find Furthest
@@ -4302,7 +4372,7 @@ begin
     AllPointsOutside := True;
     for P in APoints do
     begin
-      if F.DV.Dot(F.SV.VectorTo(P)) > 0 then
+      if F.D.Dot(F.S.VectorTo(P)) > 0 then
       begin
         AllPointsOutside := False;
         Break;
@@ -4319,7 +4389,7 @@ var
   S: TBasicDir3;
 begin
   for S := Low(TBasicDir3) to High(TBasicDir3) do
-    if AHexahedron.FaceNormals[S].DV.Dot(AHexahedron.FaceNormals[S].SV.VectorTo(AValue)) < 0 then
+    if AHexahedron.FaceNormals[S].D.Dot(AHexahedron.FaceNormals[S].S.VectorTo(AValue)) < 0 then
       Exit(False);
   Result := True;
 end;
