@@ -3,7 +3,12 @@ unit Pengine.UBO;
 interface
 
 uses
-  dglOpenGL, GLEnums, Shaders, SysUtils;
+  dglOpenGL,
+
+  System.SysUtils,
+
+  Pengine.GLEnums,
+  Pengine.Shader;
 
 type
 

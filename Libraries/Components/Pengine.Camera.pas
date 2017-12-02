@@ -3,7 +3,17 @@ unit Pengine.Camera;
 interface
 
 uses
-  dglOpenGL, VectorGeometry, Matrix, Shaders, SysUtils, Lists, GLEnums;
+  dglOpenGL,
+
+  System.SysUtils,
+
+  Pengine.GLEnums,
+  Pengine.Matrix,
+  Pengine.Shader,
+  Pengine.CollectionInterfaces,
+  Pengine.Collections,
+  Pengine.Vector,
+  Pengine.IntMaths;
 
 const
   RotMin = -180;
@@ -13,6 +23,7 @@ type
 
   IRenderable = interface
     ['{ADF8AA5E-F78C-482C-8CD5-DCDB03B71D20}']
+
     function GetVisible: Boolean;
 
     property Visible: Boolean read GetVisible;
@@ -28,8 +39,10 @@ type
 
     procedure Render;
 
-    /// <remarks>Can return nil, if there won't ever be any children</remarks>
+    /// <returns>An iterable of IRenderable, which locations get multiplied onto the base location.</remarks>
+    /// <remarks>Returning nil is equal to returning an empty iterable.</remarks>
     function RenderableChildren: IIterable<IRenderable>;
+
   end;
 
   { TCamera }
@@ -49,8 +62,8 @@ type
 
     TUniform = class abstract
     public type
-      TUniformList = TRefArray<TShaderUniform<TMatrix4>>;
-      TRotationUniformList = TRefArray<TShaderUniform<TMatrix3>>;
+      TUniformList = TRefArray<TShader.TUniform<TMatrix4>>;
+      TRotationUniformList = TRefArray<TShader.TUniform<TMatrix3>>;
 
     private
       FCalculatesTo: TUniform;
@@ -74,11 +87,11 @@ type
       procedure SendAllMatrices;
       procedure Invalidate;
 
-      procedure AddUniform(AUniform: TShaderUniform<TMatrix4>); overload;
-      procedure DelUniform(AUniform: TShaderUniform<TMatrix4>); overload;
+      procedure AddUniform(AUniform: TShader.TUniform<TMatrix4>); overload;
+      procedure DelUniform(AUniform: TShader.TUniform<TMatrix4>); overload;
 
-      procedure AddUniform(AUniform: TShaderUniform<TMatrix3>); overload;
-      procedure DelUniform(AUniform: TShaderUniform<TMatrix3>); overload;
+      procedure AddUniform(AUniform: TShader.TUniform<TMatrix3>); overload;
+      procedure DelUniform(AUniform: TShader.TUniform<TMatrix3>); overload;
 
       property Data: TMatrix4 read GetData;
 
@@ -146,7 +159,7 @@ type
   protected
     function GetLocation: TLocation; virtual;
 
-    function RenderObjectVisible(const AFrustum: TGHexahedron; ARenderObject: IRenderable): Boolean; overload;
+    function RenderObjectVisible(const AFrustum: THexahedron; ARenderObject: IRenderable): Boolean; overload;
 
   public
     constructor Create(AFOV, AAspect, ANearClip, AFarClip: Single);
@@ -177,7 +190,7 @@ type
     function GetCursorLine(APos: TVector2): TLine3;
     function GetUntransformedCursorLine(APos: TVector2): TLine3;
 
-    function GetViewHexahedron: TGHexahedron;
+    function GetViewHexahedron: THexahedron;
 
     // Rendering
     procedure Render;
@@ -207,20 +220,20 @@ type
     /// <remarks>Inactive Uniforms get ignored automatically</remarks>
     /// <remarks>Inactive Uniforms get ignored automatically</remarks>
     /// <remarks>Inactive Uniforms get ignored automatically</remarks>
-    procedure AddUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix4>); overload;
+    procedure AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>); overload;
     /// <summary>Registers a specific RotationMatrix-Uniform-Connection</summary>
     /// <param name="AType">Which Matrix Type to bind the Uniform to</param>
     /// <param name="AUniform">The Uniform, getting bound</param>
-    procedure AddUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix3>); overload;
+    procedure AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>); overload;
 
     /// <summary>Unregisters a specific Matrix-Uniform-Connection</summary>
     /// <param name="AType">Which Matrix Type to unbind the Uniform from</param>
     /// <param name="AUniform">The Uniform, getting unbound</param>
-    procedure DelUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix4>); overload;
+    procedure DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>); overload;
     /// <summary>Unregisters a specific RotationMatrix-Uniform-Connection</summary>
     /// <param name="AType">Which Matrix Type to unbind the Uniform from</param>
     /// <param name="AUniform">The Uniform, getting unbound</param>
-    procedure DelUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix3>); overload;
+    procedure DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>); overload;
 
     // VAOs to render with given Model Matrix
     procedure AddRenderObject(ARenderObject: IRenderable);
@@ -305,15 +318,15 @@ begin
   Up := Location.Up;
   if Ortho then
   begin
-    Result.SV := (APos.X * Right + APos.Y * Up) / OrthoFactor - Location.RealPosition;
-    Result.DV := Look;
+    Result.S := (APos.X * Right + APos.Y * Up) / OrthoFactor - Location.RealPosition;
+    Result.D := Look;
   end
   else
   begin
-    Result.SV := Location.RealPosition;
+    Result.S := Location.RealPosition;
     APos.X := APos.X * Tan(FOV / 360 * Pi);
     APos.Y := APos.Y * Tan(FOV / 360 * Pi);
-    Result.DV := Look + APos.X * Right + APos.Y * Up;
+    Result.D := Look + APos.X * Right + APos.Y * Up;
   end;
 end;
 
@@ -322,19 +335,19 @@ begin
   if Ortho then
   begin
     raise Exception.Create('Might not work!');
-    Result.SV := (Vec3(APos.X * Aspect, 0, 0) + Vec3(0, APos.Y, 0)) / OrthoFactor - FLocation.Offset;
-    Result.DV := Vec3(0, 0, -1);
+    Result.S := (Vec3(APos.X * Aspect, 0, 0) + Vec3(0, APos.Y, 0)) / OrthoFactor - FLocation.Offset;
+    Result.D := Vec3(0, 0, -1);
   end
   else
   begin
-    Result.SV := FLocation.Offset;
-    Result.DV.X := APos.X * Tan(FOV / 360 * Pi);
-    Result.DV.Y := APos.Y * Tan(FOV / 360 * Pi);
-    Result.DV.Z := -1;
+    Result.S := FLocation.Offset;
+    Result.D.X := APos.X * Tan(FOV / 360 * Pi);
+    Result.D.Y := APos.Y * Tan(FOV / 360 * Pi);
+    Result.D.Z := -1;
   end;
 end;
 
-function TCamera.GetViewHexahedron: TGHexahedron;
+function TCamera.GetViewHexahedron: THexahedron;
 var
   P, L, R, U: TVector3;
   F: Single;
@@ -369,13 +382,13 @@ begin
   Result := FLocation.Matrix;
 end;
 
-procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix4>);
+procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>);
 begin
   if AUniform.Active then
     FMat[AType].AddUniform(AUniform);
 end;
 
-procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix3>);
+procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>);
 begin
   if AUniform.Active then
     FMat[AType].AddUniform(AUniform);
@@ -397,13 +410,13 @@ begin
   FRenderObjects.Add(ARenderObject);
 end;
 
-procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix4>);
+procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>);
 begin
   if AUniform.Active then
     FMat[AType].DelUniform(AUniform);
 end;
 
-procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TShaderUniform<TMatrix3>);
+procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>);
 begin
   if AUniform.Active then
     FMat[AType].DelUniform(AUniform);
@@ -444,7 +457,7 @@ end;
 
 procedure TCamera.Render;
 var
-  Frustum: TGHexahedron;
+  Frustum: THexahedron;
 
   procedure RenderList(AList: IIterable<IRenderable>);
   var
@@ -523,7 +536,7 @@ begin
   Result := FLocation;
 end;
 
-function TCamera.RenderObjectVisible(const AFrustum: TGHexahedron; ARenderObject: IRenderable): Boolean;
+function TCamera.RenderObjectVisible(const AFrustum: THexahedron; ARenderObject: IRenderable): Boolean;
 var
   I: Integer;
   Points: TBounds3.TCorners;
@@ -535,7 +548,7 @@ begin
   for I := 0 to 7 do
     Points[I] := ARenderObject.Location.Matrix * Points[I];
 
-  Result := not AFrustum.AllOutside(Points);
+  Result := not AFrustum.AnyVisible(Points);
 end;
 
 function TCamera.GetMatrix(AMatrixType: TMatrixType): TMatrix4;
@@ -577,7 +590,7 @@ end;
 
 function TCamera.GetRotMatrix(AMatrixType: TMatrixType): TMatrix3;
 begin
-  Result := FMat[AMatrixType].Data.Minor[3, 3];
+  Result := FMat[AMatrixType].Data.Minor[3];
 end;
 
 procedure TCamera.LocationChanged(AInfo: TLocation.TChangeEventInfo);
@@ -587,12 +600,12 @@ end;
 
 { TCamera.TUniform }
 
-procedure TCamera.TUniform.AddUniform(AUniform: TShaderUniform<TMatrix3>);
+procedure TCamera.TUniform.AddUniform(AUniform: TShader.TUniform<TMatrix3>);
 begin
   FRotationUniforms.Add(AUniform);
 end;
 
-procedure TCamera.TUniform.AddUniform(AUniform: TShaderUniform<TMatrix4>);
+procedure TCamera.TUniform.AddUniform(AUniform: TShader.TUniform<TMatrix4>);
 begin
   FUniforms.Add(AUniform);
 end;
@@ -603,12 +616,12 @@ begin
   FRotationUniforms := TRotationUniformList.Create;
 end;
 
-procedure TCamera.TUniform.DelUniform(AUniform: TShaderUniform<TMatrix3>);
+procedure TCamera.TUniform.DelUniform(AUniform: TShader.TUniform<TMatrix3>);
 begin
   FRotationUniforms.Del(AUniform);
 end;
 
-procedure TCamera.TUniform.DelUniform(AUniform: TShaderUniform<TMatrix4>);
+procedure TCamera.TUniform.DelUniform(AUniform: TShader.TUniform<TMatrix4>);
 begin
   FUniforms.Del(AUniform);
 end;
@@ -637,13 +650,13 @@ end;
 
 procedure TCamera.TUniform.SendToUniforms;
 var
-  Uniform: TShaderUniform<TMatrix4>;
-  RotationUniform: TShaderUniform<TMatrix3>;
+  Uniform: TShader.TUniform<TMatrix4>;
+  RotationUniform: TShader.TUniform<TMatrix3>;
 begin
   for Uniform in FUniforms do
     Uniform.Value := Data;
   for RotationUniform in FRotationUniforms do
-    RotationUniform.Value := Data.Minor[3, 3];
+    RotationUniform.Value := Data.Minor[3];
 end;
 
 procedure TCamera.TUniform.Invalidate;

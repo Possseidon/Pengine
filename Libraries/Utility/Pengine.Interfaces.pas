@@ -10,8 +10,8 @@ type
   TInterfaceBase = class(TObject, IInterface)
   public
     function QueryInterface(const IID: TGUID; out Obj): HRESULT; stdcall;
-    function _AddRef: Integer; stdcall;
-    function _Release: Integer; stdcall;
+    function _AddRef: Integer; inline; stdcall;
+    function _Release: Integer; inline; stdcall;
   end;
 
 implementation
@@ -21,9 +21,9 @@ implementation
 function TInterfaceBase.QueryInterface(const IID: TGUID; out Obj): HRESULT;
 begin
   if GetInterface(IID, Obj) then
-    Result:= S_OK
+    Result := S_OK
   else
-    Result:= E_NOINTERFACE;
+    Result := E_NOINTERFACE;
 end;
 
 function TInterfaceBase._AddRef: Integer;

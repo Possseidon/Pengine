@@ -1,4 +1,4 @@
-unit Pengine.Collections;
+unit Pengine.ICollections;
 
 interface
 
@@ -7,11 +7,9 @@ uses
   System.Math,
   System.SysUtils,
 
-  Pengine.Interfaces,
   Pengine.Sorting,
   Pengine.IntMaths,
-  Pengine.Vector,
-  Pengine.CollectionInterfaces;
+  Pengine.Vector;
 
 type
 
@@ -105,6 +103,62 @@ type
     constructor Create;
   end;
 
+  /// <summary>A generic Interface for an Iterator. Used by <see cref="Pengine.Collections|IIterable`1"/>.</summary>
+  IIterator<T> = interface
+    ['{01FA5E8D-FB71-4D60-B113-429284B8B8F7}']
+    function MoveNext: Boolean;
+    function GetCurrent: T;
+    property Current: T read GetCurrent;
+  end;
+
+  // TODO: XmlDoc
+  TIterator<T> = class abstract(TInterfacedObject, IIterator<T>)
+  public
+    function MoveNext: Boolean; virtual; abstract;
+    function GetCurrent: T; virtual; abstract;
+    property Current: T read GetCurrent;
+  end;
+
+  /// <summary>A generic interface for an iteratable type. Uses <see cref="Pengine.Collections|IIterator`1"/>.</summary>
+  IIterable<T> = interface
+    ['{86380564-F207-4B73-A40D-F10AD12B5B98}']
+    function GetEnumerator: IIterator<T>;
+    function Count: Integer;
+    function CountOptimized: Boolean;
+  end;
+
+  /// <summary>A generic interface, for searchable objects.</summary>
+  IFindable<T> = interface
+    ['{9FE5998D-6A74-4BC9-A06B-129C4E72D313}']
+    function Check(AItem: T): Boolean;
+  end;
+
+  TFindFuncStatic<T> = function(AItem: T): Boolean;
+  TFindFuncRef<T> = reference to function(AItem: T): Boolean;
+  TFindFunc<T> = function(AItem: T): Boolean of object;
+
+  /// <summary>A generic interface for comparable objects.</summary>
+  IComparable<T> = interface
+    ['{577FBD7F-8894-4012-BAD0-42809985D928}']
+    function Compare(ALeft, ARight: T): Boolean;
+  end;
+
+  TCompareFuncStatic<T> = function(ALeft, ARight: T): Boolean;
+  TCompareFuncRef<T> = reference to function(ALeft, ARight: T): Boolean;
+  TCompareFunc<T> = function(ALeft, ARight: T): Boolean of object;
+
+  /// <summary>A generic base class for iteratable types. Implements <see cref="Pengine.Collections|IIterable`1"/>.</summary>
+  /// <remarks>The Count function should almost definitly be overriden in the derived class.</remarks>
+  TIterable<T> = class(TInterfacedObject, IIterable<T>)
+  public
+    function GetEnumerator: IIterator<T>; virtual; abstract;
+
+    /// <remarks>This function should almost definitely be overwritten.</remarks>
+    function Count: Integer; virtual;
+    // TODO: XmlDoc
+    function CountOptimized: Boolean; virtual;
+  end;
+
   /// <summary>A generic class, representing a read-only Key-Value-Pair.</summary>
   TPair<K, V> = record
   private
@@ -118,8 +172,157 @@ type
     property Value: V read FValue;
   end;
 
-  // TODO: XmlDoc
-  TArray = class(TInterfaceBase)
+  IArray = interface;
+
+  IArrayReader = interface
+    ['{4653A23E-6426-4E9C-9009-64D2CEFAC8F8}']
+
+    { IArrayReader }
+
+    function GetGrowAmount: Integer;
+    function GetShrinkRetain: Integer;
+    function GetCapacity: Integer;
+
+    property GrowAmount: Integer read GetGrowAmount;
+    property ShrinkRetain: Integer read GetShrinkRetain;
+    property Capacity: Integer read GetCapacity;
+
+    function Count: Integer;
+    function CountOptimized: Boolean;
+    function MaxIndex: Integer;
+    function Empty: Boolean;
+
+    procedure RangeCheckException(AIndex: Integer);
+    function RangeCheck(AIndex: Integer): Boolean;
+
+    function DataPointer: Pointer;
+
+    function Copy: IArray;
+
+  end;
+
+  IArray = interface(IArrayReader)
+    ['{F303D1D9-65CB-4916-9B16-5C96EB94D505}']
+
+    { IArrayReader }
+
+    function GetGrowAmount: Integer;
+    function GetShrinkRetain: Integer;
+    function GetCapacity: Integer;
+
+    function Count: Integer;
+    function CountOptimized: Boolean;
+    function MaxIndex: Integer;
+    function Empty: Boolean;
+
+    procedure RangeCheckException(AIndex: Integer);
+    function RangeCheck(AIndex: Integer): Boolean;
+
+    function DataPointer: Pointer;
+
+    function Copy: IArray;
+
+    { IArray }
+
+    procedure SetGrowAmount(const Value: Integer);
+    procedure SetShrinkRetain(const Value: Integer);
+    procedure SetCapacity(const Value: Integer);
+
+    property GrowAmount: Integer read GetGrowAmount write SetGrowAmount;
+    property ShrinkRetain: Integer read GetShrinkRetain write SetShrinkRetain;
+    property Capacity: Integer read GetCapacity write SetCapacity;
+
+    procedure DelAt(AIndex: Integer);
+    procedure DelLast;
+    procedure Clear;
+
+    procedure Swap(A, B: Integer);
+    procedure SwapUnchecked(A, B: Integer);
+
+  end;
+
+  IArrayReader<T> = interface(IArrayReader)
+    ['{70C52481-77ED-4519-A31F-0111365D56C8}']
+
+    { IArrayReader }
+
+    function GetGrowAmount: Integer;
+    function GetShrinkRetain: Integer;
+    function GetCapacity: Integer;
+
+    function Count: Integer;
+    function CountOptimized: Boolean;
+    function MaxIndex: Integer;
+    function Empty: Boolean;
+
+    procedure RangeCheckException(AIndex: Integer);
+    function RangeCheck(AIndex: Integer): Boolean;
+
+    function DataPointer: Pointer;
+
+    { IIterable<T> }
+
+    function GetEnumerator: IIterator<T>;
+
+    { IArrayReader<T> }
+
+    property GrowAmount: Integer read GetGrowAmount;
+    property ShrinkRetain: Integer read GetShrinkRetain;
+    property Capacity: Integer read GetCapacity;
+
+    function FindFirstIndex(AFunc: TFindFuncStatic<T>): Integer; overload;
+    function FindFirstIndex(AFunc: TFindFuncRef<T>): Integer; overload;
+    function FindFirstIndex(AFunc: TFindFunc<T>): Integer; overload;
+
+    function FindFirst(AFunc: TFindFuncStatic<T>): T; overload;
+    function FindFirst(AFunc: TFindFuncRef<T>): T; overload;
+    function FindFirst(AFunc: TFindFunc<T>): T; overload;
+
+    function FindLastIndex(AFunc: TFindFuncStatic<T>): Integer; overload;
+    function FindLastIndex(AFunc: TFindFuncRef<T>): Integer; overload;
+    function FindLastIndex(AFunc: TFindFunc<T>): Integer; overload;
+
+    function FindLast(AFunc: TFindFuncStatic<T>): T; overload;
+    function FindLast(AFunc: TFindFuncRef<T>): T; overload;
+    function FindLast(AFunc: TFindFunc<T>): T; overload;
+
+    function FindIndexAsArray(AFunc: TFindFuncStatic<T>): IIntArray; overload;
+    function FindIndexAsArray(AFunc: TFindFuncRef<T>): IIntArray; overload;
+    function FindIndexAsArray(AFunc: TFindFunc<T>): IIntArray; overload;
+
+    function FindAsArray(AFunc: TFindFuncStatic<T>): IArray<T>; overload; virtual;
+    function FindAsArray(AFunc: TFindFuncRef<T>): IArray<T>; overload; virtual;
+    function FindAsArray(AFunc: TFindFunc<T>): IArray<T>; overload; virtual;
+
+    function Sorted(AFunc: TCompareFuncStatic<T>): Boolean; overload;
+    function Sorted(AFunc: TCompareFuncRef<T>): Boolean; overload;
+    function Sorted(AFunc: TCompareFunc<T>): Boolean; overload;
+
+    function BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer; overload;
+    function BinarySearch(AItem: T; AFunc: TCompareFuncRef<T>): Integer; overload;
+    function BinarySearch(AItem: T; AFunc: TCompareFunc<T>): Integer; overload;
+
+    function Copy: TArray<T>;
+
+    function GetItem(I: Integer): T;
+    property Items[I: Integer]: T read GetItem; default;
+
+    function GetFirst: T;
+    property First: T read GetFirst;
+
+    function GetLast: T;
+    property Last: T read GetLast;
+
+    function InReverse: TArray<T>.TReverseWrapper;
+
+    // TODO: XmlDoc
+    function ToString: string; override;
+    // TODO: XmlDoc
+    class function ItemToString(AItem: T): string; virtual;
+
+  end;
+
+  TArray = class(TInterfacedObject, IArray, IArrayReader)
   public const
 
     // TODO: XmlDoc
@@ -131,6 +334,8 @@ type
 
     procedure SetGrowAmount(const Value: Integer);
     procedure SetShrinkRetain(const Value: Integer);
+    function GetGrowAmount: Integer;
+    function GetShrinkRetain: Integer;
 
   protected
     FCount: Integer;
@@ -158,9 +363,9 @@ type
     destructor Destroy; override;
 
     // TODO: XmlDoc
-    property GrowAmount: Integer read FGrowAmount write SetGrowAmount;
+    property GrowAmount: Integer read GetGrowAmount write SetGrowAmount;
     // TODO: XmlDoc
-    property ShrinkRetain: Integer read FShrinkRetain write SetShrinkRetain;
+    property ShrinkRetain: Integer read GetShrinkRetain write SetShrinkRetain;
 
     // TODO: XmlDoc
     function Count: Integer; inline;
@@ -195,7 +400,7 @@ type
     function DataPointer: Pointer; virtual; abstract;
 
     // TODO: XmlDoc
-    function Copy: TArray;
+    function Copy: IArray;
 
   end;
 
@@ -627,7 +832,7 @@ type
   // TODO: XmlDoc
   TStack = class
   private
-    FArray: TArray;
+    FArray: IArray;
 
     function GetCapacity: Integer; inline;
     procedure SetCapacity(const Value: Integer); inline;
@@ -650,7 +855,6 @@ type
 
   public
     constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); virtual;
-    destructor Destroy; override;
 
     // TODO: XmlDoc
     procedure Clear; inline;
@@ -674,6 +878,8 @@ type
   // TODO: XmlDoc
   TStack<T> = class(TStack)
   private
+    FArray: TArray<T>;
+
     function GetTop: T; inline;
     procedure SetTop(const Value: T); inline;
 
@@ -704,11 +910,10 @@ type
   public
     // TODO: XmlDoc
     function Copy: TObjectStack<T>; reintroduce; inline;
-    
   end;
 
   // TODO: XmlDoc
-  THashBase = class(TInterfaceBase)
+  THashBase = class(TInterfacedObject)
   public const
 
     HashPrimeOffset = 6;
@@ -770,7 +975,7 @@ type
 
     function CreateBucket: TBucket; virtual; abstract;
 
-    function CreateCopy(AAutoRehash: Boolean): THashBase; virtual;
+    function CreateCopy(AAutoRehash: Boolean = True): THashBase; virtual;
 
   public
     constructor Create(AAutoRehash: Boolean = True); virtual;
@@ -900,12 +1105,8 @@ type
     end;
 
   private
-    function GetValue(AKey: K): V;
-    procedure SetValue(AKey: K; const Value: V);
-
-    function GetActualKeyE(AKey: K): K;
-    procedure SetActualKeyE(AKey: K; const Value: K);
-    function GetPair(AKey: K): TPair;
+    function GetItem(AKey: K): V;
+    procedure SetItem(AKey: K; const Value: V);
 
   protected
     function GetBuckets: Integer; override;
@@ -920,19 +1121,11 @@ type
     procedure CopyBuckets(AFrom: THashBase); override;
 
   public
-    function Get(AKey: K; out AValue: V): Boolean; overload;
-    property Values[AKey: K]: V read GetValue write SetValue; default;
-    function Get(AKey: K; out APair: TPair): Boolean; overload;
-    property Pairs[AKey: K]: TPair read GetPair;
+    function Get(AKey: K; out AValue: V): Boolean;
+    property Items[AKey: K]: V read GetItem write SetItem; default;
 
     function TryDel(AKey: K): Boolean;
     procedure Del(AKey: K);
-
-    function GetActualKey(AKey: K; out AActualKey: K): Boolean;
-    function SetActualKey(AKey, AActualKey: K): Boolean;
-    property ActualKeys[AKey: K]: K read GetActualKeyE write SetActualKeyE;
-
-    function KeyExists(AKey: K): Boolean;
 
     function GetEnumerator: IIterator<TPair>;
 
@@ -1080,6 +1273,22 @@ begin
   inherited Create('Hash key is not indexable.');
 end;
 
+{ TIterable<T> }
+
+function TIterable<T>.Count: Integer;
+var
+  Item: T;
+begin
+  Result := 0;
+  for Item in Self do
+    Inc(Result);
+end;
+
+function TIterable<T>.CountOptimized: Boolean;
+begin
+  Result := False;
+end;
+
 { TPair<K, V> }
 
 constructor TPair<K, V>.Create(AKey: K; AValue: V);
@@ -1096,7 +1305,7 @@ begin
   CopyTo(Result);
 end;
 
-function TArray.Copy: TArray;
+function TArray.Copy: IArray;
 begin
   Result := CreateCopy;
 end;
@@ -1132,6 +1341,16 @@ end;
 function TArray.Empty: Boolean;
 begin
   Result := Count = 0;
+end;
+
+function TArray.GetGrowAmount: Integer;
+begin
+  Result := FGrowAmount;
+end;
+
+function TArray.GetShrinkRetain: Integer;
+begin
+  Result := FShrinkRetain;
 end;
 
 procedure TArray.DelLast;
@@ -2195,12 +2414,6 @@ begin
   Result := TStackClass(ClassType).Create(AGrowAmount, AShrinkRetain);
 end;
 
-destructor TStack.Destroy;
-begin
-  FArray.Free;
-  inherited;
-end;
-
 constructor TStack.Create(AGrowAmount, AShrinkRetain: Integer);
 begin
   FArray := CreateArray(AGrowAmount, AShrinkRetain);
@@ -2236,12 +2449,12 @@ end;
 
 function TStack<T>.GetTop: T;
 begin
-  Result := TArray<T>(FArray).Last;
+  Result := FArray.Last;
 end;
 
 procedure TStack<T>.SetTop(const Value: T);
 begin
-  TArray<T>(FArray).Last := Value;
+  FArray.Last := Value;
 end;
 
 function TStack<T>.CreateArray(AGrowAmount, AShrinkRetain: Integer): TArray;
@@ -2251,7 +2464,7 @@ end;
 
 procedure TStack<T>.Push(AItem: T);
 begin
-  TArray<T>(FArray).Add(AItem);
+  FArray.Add(AItem);
 end;
 
 function TStack<T>.Pop: T;
@@ -2400,7 +2613,7 @@ end;
 
 function THashBase.Copy(AAutoRehash: Boolean): THashBase;
 begin
-  Result := CreateCopy(AAutoRehash);
+  Result := CreateCopy;
 end;
 
 procedure THashBase.CopyTo(AHashBase: THashBase);
@@ -2752,7 +2965,7 @@ end;
 
 function TMap<K, V>.Copy(AAutoRehash: Boolean): TMap<K, V>;
 begin
-  Result := TMap<K, V>(CreateCopy(AAutoRehash));
+  Result := TMap<K, V>(CreateCopy);
 end;
 
 procedure TMap<K, V>.CopyBuckets(AFrom: THashBase);
@@ -2796,86 +3009,9 @@ begin
   Result := False;
 end;
 
-function TMap<K, V>.Get(AKey: K; out APair: TPair): Boolean;
-var
-  H: Integer;
-  Pair: TPair;
-begin
-  if Empty then
-    Exit(False);
-
-  H := GetCappedHash(AKey);
-  if FBuckets[H] = nil then
-    Exit(False);
-  for Pair in TBucket(FBuckets[H]) do
-  begin
-    if KeysEqual(Pair.Key, AKey) then
-    begin
-      APair := Pair;
-      Exit(True);
-    end;
-  end;
-  Result := False;    
-end;
-
-function TMap<K, V>.GetActualKey(AKey: K; out AActualKey: K): Boolean;
-var
-  H: Integer;
-  Pair: TPair;
-begin
-  if Empty then
-    Exit(False);
-
-  H := GetCappedHash(AKey);
-  if FBuckets[H] = nil then
-    Exit(False);
-  for Pair in TBucket(FBuckets[H]) do
-  begin
-    if KeysEqual(Pair.Key, AKey) then
-    begin
-      AActualKey := Pair.Key;
-      Exit(True);
-    end;
-  end;
-  Result := False;
-end;
-
-function TMap<K, V>.GetActualKeyE(AKey: K): K;
-begin
-  if not GetActualKey(AKey, Result) then
-    raise EMapKeyNotFound.Create;
-end;
-
 function TMap<K, V>.GetBuckets: Integer;
 begin
   Result := Length(FBuckets);
-end;
-
-function TMap<K, V>.SetActualKey(AKey, AActualKey: K): Boolean;
-var
-  H, I: Integer;
-begin
-  if Empty then
-
-  H := GetCappedHash(AKey);
-  if FBuckets[H] = nil then
-    Exit(False);
-  for I := 0 to FBuckets[H].MaxIndex do
-  begin
-    if KeysEqual(TBucket(FBuckets[H])[I].Key, AKey) then
-    begin
-      TBucket(FBuckets[H])[I] := TPair.Create(AActualKey, TBucket(FBuckets[H])[I].Value);
-      Exit(True);
-    end;
-  end;
-
-  Result := False;
-end;
-
-procedure TMap<K, V>.SetActualKeyE(AKey: K; const Value: K);
-begin
-  if not SetActualKey(AKey, Value) then
-    raise EMapKeyNotFound.Create;
 end;
 
 procedure TMap<K, V>.SetBuckets(const Value: Integer);
@@ -2903,7 +3039,7 @@ begin
   SetLength(FBuckets, Value);
 end;
 
-procedure TMap<K, V>.SetValue(AKey: K; const Value: V);
+procedure TMap<K, V>.SetItem(AKey: K; const Value: V);
 var
   H, I: Integer;
   Pair: TPair;
@@ -2972,13 +3108,7 @@ begin
   Result := TIterator.Create(Self);
 end;
 
-function TMap<K, V>.GetValue(AKey: K): V;
-begin
-  if not Get(AKey, Result) then
-    raise EMapKeyNotFound.Create;
-end;
-
-function TMap<K, V>.GetPair(AKey: K): TPair;
+function TMap<K, V>.GetItem(AKey: K): V;
 begin
   if not Get(AKey, Result) then
     raise EMapKeyNotFound.Create;
@@ -2988,25 +3118,6 @@ procedure TMap<K, V>.OwnBuckets(AFrom: THashBase);
 begin
   Self.FBuckets := TMap<K, V>(AFrom).FBuckets;
   TMap<K, V>(AFrom).FBuckets := nil;
-end;
-
-function TMap<K, V>.KeyExists(AKey: K): Boolean;
-var
-  H: Integer;
-  Pair: TPair;
-begin
-  if Empty then
-    Exit(False);
-
-  H := GetCappedHash(AKey);
-  if FBuckets[H] = nil then
-    Exit(False);
-
-  for Pair in TBucket(FBuckets[H]) do
-    if KeysEqual(Pair.Key, AKey) then
-      Exit(True);
-
-  Result := False;
 end;
 
 function TMap<K, V>.KeySet(AAutoRehash: Boolean): TSet<K>;
@@ -3046,7 +3157,7 @@ end;
 
 function TValueMap<K, V, H>.Copy(AAutoRehash: Boolean): TValueMap<K, V, H>;
 begin
-  Result := TValueMap<K, V, H>(CreateCopy(AAutoRehash));
+  Result := TValueMap<K, V, H>(CreateCopy);
 end;
 
 { TValueSet<T, H> }
@@ -3058,7 +3169,7 @@ end;
 
 function TValueSet<T, H>.Copy(AAutoRehash: Boolean): TValueSet<T, H>;
 begin
-  Result := TValueSet<T, H>(CreateCopy(AAutoRehash));
+  Result := TValueSet<T, H>(CreateCopy);
 end;
 
 class function TValueSet<T, H>.GetHash(AKey: T): Cardinal;

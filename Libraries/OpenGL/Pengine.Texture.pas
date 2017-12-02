@@ -3,15 +3,24 @@ unit Pengine.Texture;
 interface
 
 uses
-  SysUtils, Graphics, dglOpenGL, VectorGeometry, Shaders, Lists, GLEnums, Math, Windows, BitField, GLObjectBase
+  dglOpenGL,
 
-  {$IFNDEF FPC}
+  System.SysUtils,
+  System.Math,
 
-    , pngimage
+  Vcl.Graphics,
+  Vcl.Imaging.pngimage,
 
-  {$ENDIF}
+  Winapi.Windows,
 
-    ;
+  Pengine.BitField,
+  Pengine.Collections,
+  Pengine.Hasher,
+  Pengine.GLEnums,
+  Pengine.GLObject,
+  Pengine.Shader,
+  Pengine.Vector,
+  Pengine.IntMaths;
 
 type
 
@@ -62,8 +71,8 @@ type
     FTexCoord: TTexCoord2;
   public
     constructor Create(ATextureData: TTextureData); overload;
-    //constructor Create(AFileName: String; AResource: Boolean = False); overload;
-    //constructor Create(AWidth, AHeight: Word; ABpp: Byte; AName: String); overload;
+    // constructor Create(AFileName: String; AResource: Boolean = False); overload;
+    // constructor Create(AWidth, AHeight: Word; ABpp: Byte; AName: String); overload;
 
     property TexCoord: TTexCoord2 read FTexCoord write FTexCoord;
   end;
@@ -95,7 +104,6 @@ type
     procedure DeleteObject(var AGLName: Cardinal); override;
     function GetObjectType: TGLObjectType; override;
 
-
   public
     constructor Create;
     destructor Destroy; override;
@@ -108,7 +116,7 @@ type
     procedure Activate;
     procedure Deactivate;
 
-    procedure Uniform(AUniform: TShaderUniformSampler);
+    procedure Uniform(AUniform: TShader.TUniformSampler);
 
     property UnitID: Integer read FUnitID;
 
@@ -297,7 +305,7 @@ type
     procedure AddTextureFromResource(const AResourceName, AName: string); overload; inline;
 
     procedure DelTexture(const AName: string);
-    procedure DelAll;
+    procedure Clear;
 
     procedure BuildPage(ASegmentResolution: Integer; AFreeTextures: Boolean = True);
 
@@ -325,7 +333,7 @@ type
     property SizeChanged: Boolean read FSizeChanged;
     procedure NotifySizeChange;
 
-    procedure Uniform(AUniform: TShaderUniformSampler; ATextureType: TTextureType);
+    procedure Uniform(AUniform: TShader.TUniformSampler; ATextureType: TTextureType);
     procedure UniformDefaults(AShader: TShader);
   end;
 
@@ -679,7 +687,7 @@ begin
 
 end;
 
-procedure TTexture.Uniform(AUniform: TShaderUniformSampler);
+procedure TTexture.Uniform(AUniform: TShader.TUniformSampler);
 begin
   AUniform.Value := FUnitID;
 end;
@@ -736,31 +744,11 @@ const
     Size, I: Integer;
     T: TTextureType;
     Name: string;
-
-    {$IFDEF FPC}
-
-    Png: TPortableNetworkGraphic;
-    P: ^Byte;
-
-    {$ELSE}
-
     Png: TPngImage;
     Alpha: PByteArray;
     C: TColor;
-
-    {$ENDIF}
-
   begin
-
-    {$IFDEF FPC}
-
-    Png := TPortableNetworkGraphic.Create;
-
-    {$ELSE}
-
     Png := TPngImage.Create;
-
-    {$ENDIF}
 
     if AResource then
     begin
@@ -788,8 +776,7 @@ const
     GetMem(Res, Size);
     FData[ATextureType] := Res;
 
-    {$IFDEF FPC}
-
+{$IFDEF FPC}
     if Png.Transparent then
     begin
       P := Png.RawImage.Data + Png.RawImage.DataSize;
@@ -817,8 +804,7 @@ const
       end;
     end;
 
-    {$ELSE}
-
+{$ELSE}
     for Y := Png.Height - 1 downto 0 do
     begin
       Alpha := Png.AlphaScanline[Y];
@@ -842,8 +828,7 @@ const
       end;
     end;
 
-    {$ENDIF}
-
+{$ENDIF}
     Png.Free;
 
     if ATextureType = ttMain then
@@ -950,7 +935,7 @@ end;
 
 function TTexturePage.TextureExists(const AName: string): Boolean;
 begin
-  Result := FTextureIDs.HasKey(AName);
+  Result := FTextureIDs.KeyExists(AName);
 end;
 
 procedure TTexturePage.NotifySizeChange;
@@ -958,7 +943,7 @@ begin
   FSizeChanged := False;
 end;
 
-procedure TTexturePage.Uniform(AUniform: TShaderUniformSampler; ATextureType: TTextureType);
+procedure TTexturePage.Uniform(AUniform: TShader.TUniformSampler; ATextureType: TTextureType);
 begin
   if ATextureType = ttMain then
     inherited Uniform(AUniform)
@@ -1131,9 +1116,9 @@ begin
   FTextureIDs.Del(AName);
 end;
 
-procedure TTexturePage.DelAll;
+procedure TTexturePage.Clear;
 begin
-  FTextures.DelAll;
+  FTextures.Clear;
 end;
 
 destructor TTexturePage.Destroy;
@@ -1220,7 +1205,7 @@ var
   Pair: TPair<string, TTextureID>;
 begin
   for Pair in FTextureIDs do
-    if Pair.Data = ID then
+    if Pair.Value = ID then
       Result := Pair.Key;
 end;
 

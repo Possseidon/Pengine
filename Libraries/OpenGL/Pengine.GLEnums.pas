@@ -3,7 +3,9 @@ unit Pengine.GLEnums;
 interface
 
 uses
-  dglOpenGL, SysUtils;
+  dglOpenGL,
+
+  System.SysUtils;
 
 type
 
@@ -423,7 +425,7 @@ type
   );
 
 function GLDataTypeSize(ADataType: TGLDataType): Integer; inline;
-function GLDataTypeName(ADataType: TGLDataType): string; inline;
+function GLDataTypeName(ADataType: TGLDataType): string;
 function GLDataTypeIsSampler(ADataType: TGLDataType): Boolean; inline;
 function GLBaseDataType(ADataType: TGLDataType): TGLBaseDataType; inline;
 
@@ -435,61 +437,59 @@ procedure GLErrorMessage;
 
 implementation
 
-// TODO: Think about generating big, combined, constant jump-tables to get the values quicker
-
 function GLDataTypeSize(ADataType: TGLDataType): Integer;
 begin
   case ADataType of
-    dtByte: Exit(1);
-    dtUByte: Exit(1);
-    dtShort: Exit(2);
-    dtUShort: Exit(2);
-    dtInt: Exit(4);
-    dtUInt: Exit(4);
-    dtFloat: Exit(4);
-    dt2Bytes: Exit(2);
-    dt3Bytes: Exit(3);
-    dt4Bytes: Exit(4);
-    dtDouble: Exit(8);
+    dtByte: Result := 1;
+    dtUByte: Result := 1;
+    dtShort: Result := 2;
+    dtUShort: Result := 2;
+    dtInt: Result := 4;
+    dtUInt: Result := 4;
+    dtFloat: Result := 4;
+    dt2Bytes: Result := 2;
+    dt3Bytes: Result := 3;
+    dt4Bytes: Result := 4;
+    dtDouble: Result := 8;
 
-    dtVec2: Exit(2 * 4);
-    dtVec3: Exit(3 * 4);
-    dtVec4: Exit(4 * 4);
-    dtIVec2: Exit(2 * 4);
-    dtIVec3: Exit(3 * 4);
-    dtIVec4: Exit(4 * 4);
-    dtBoolean: Exit(4);
-    dtBVec2: Exit(2 * 4);
-    dtBVec3: Exit(3 * 4);
-    dtBVec4: Exit(4 * 4);
-    dtMat2: Exit(2 * 2 * 4);
-    dtMat3: Exit(3 * 3 * 4);
-    dtMat4: Exit(4 * 4 * 4);
+    dtVec2: Result := 2 * 4;
+    dtVec3: Result := 3 * 4;
+    dtVec4: Result := 4 * 4;
+    dtIVec2: Result := 2 * 4;
+    dtIVec3: Result := 3 * 4;
+    dtIVec4: Result := 4 * 4;
+    dtBoolean: Result := 4;
+    dtBVec2: Result := 2 * 4;
+    dtBVec3: Result := 3 * 4;
+    dtBVec4: Result := 4 * 4;
+    dtMat2: Result := 2 * 2 * 4;
+    dtMat3: Result := 3 * 3 * 4;
+    dtMat4: Result := 4 * 4 * 4;
 
-    dtMat2x3: Exit(2 * 3 * 4);
-    dtMat2x4: Exit(2 * 4 * 4);
-    dtMat3x2: Exit(3 * 2 * 4);
-    dtMat3x4: Exit(3 * 4 * 4);
-    dtMat4x2: Exit(4 * 2 * 4);
-    dtMat4x3: Exit(4 * 3 * 4);
+    dtMat2x3: Result := 2 * 3 * 4;
+    dtMat2x4: Result := 2 * 4 * 4;
+    dtMat3x2: Result := 3 * 2 * 4;
+    dtMat3x4: Result := 3 * 4 * 4;
+    dtMat4x2: Result := 4 * 2 * 4;
+    dtMat4x3: Result := 4 * 3 * 4;
 
-    dtUVec2: Exit(2 * 4);
-    dtUVec3: Exit(3 * 4);
-    dtUVec4: Exit(4 * 4);
+    dtUVec2: Result := 2 * 4;
+    dtUVec3: Result := 3 * 4;
+    dtUVec4: Result := 4 * 4;
 
-    dtDMat2: Exit(2 * 2 * 8);
-    dtDMat3: Exit(3 * 3 * 8);
-    dtDMat4: Exit(4 * 4 * 8);
-    dtDMat2x3: Exit(2 * 3 * 8);
-    dtDMat2x4: Exit(2 * 4 * 8);
-    dtDMat3x2: Exit(3 * 2 * 8);
-    dtDMat3x4: Exit(3 * 4 * 8);
-    dtDMat4x2: Exit(4 * 2 * 8);
-    dtDMat4x3: Exit(4 * 3 * 8);
+    dtDMat2: Result := 2 * 2 * 8;
+    dtDMat3: Result := 3 * 3 * 8;
+    dtDMat4: Result := 4 * 4 * 8;
+    dtDMat2x3: Result := 2 * 3 * 8;
+    dtDMat2x4: Result := 2 * 4 * 8;
+    dtDMat3x2: Result := 3 * 2 * 8;
+    dtDMat3x4: Result := 3 * 4 * 8;
+    dtDMat4x2: Result := 4 * 2 * 8;
+    dtDMat4x3: Result := 4 * 3 * 8;
 
-    dtDVec2: Exit(2 * 8);
-    dtDVec3: Exit(3 * 8);
-    dtDVec4: Exit(4 * 8);
+    dtDVec2: Result := 2 * 8;
+    dtDVec3: Result := 3 * 8;
+    dtDVec4: Result := 4 * 8;
 
   else
     if GLDataTypeIsSampler(ADataType) then
@@ -596,10 +596,10 @@ function GLDataTypeIsSampler(ADataType: TGLDataType): Boolean;
 begin
   case ADataType of
     dtSampler1D .. dtSampler2DRectShadow,
-      dtSampler1DArray .. dtSamplerCubeShadow,
-      dtISampler1D .. dtUSamplerBuffer,
-      dtSampler2DMS .. dtUSampler2DMSArray,
-      dtSamplerCubeMapArray .. dtUSamplerCubeMapArray:
+    dtSampler1DArray .. dtSamplerCubeShadow,
+    dtISampler1D .. dtUSamplerBuffer,
+    dtSampler2DMS .. dtUSampler2DMSArray,
+    dtSamplerCubeMapArray .. dtUSamplerCubeMapArray:
       Result := True;
   else
     Result := False;

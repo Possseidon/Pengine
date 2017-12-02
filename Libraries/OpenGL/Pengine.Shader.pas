@@ -3,12 +3,24 @@ unit Pengine.Shader;
 interface
 
 uses
-  {$IFDEF FPC}
-  {$ELSE}
-  Types,
-  UITypes,
-  {$ENDIF}
-  dglOpenGL, Dialogs, Classes, SysUtils, GLEnums, Controls, Forms, Lists, VectorGeometry, Matrix, Windows;
+  dglOpenGL,
+
+  System.Types,
+  System.UITypes,
+  System.Classes,
+  System.SysUtils,
+
+  Vcl.Dialogs,
+  Vcl.Controls,
+  Vcl.Forms,
+
+  Winapi.Windows,
+
+  Pengine.Collections,
+  Pengine.Hasher,
+  Pengine.Matrix,
+  Pengine.Vector,
+  Pengine.GLEnums;
 
 type
 
@@ -41,17 +53,17 @@ type
   end;
 
   { EUniformWrongDataType }
-  
+
   EUniformWrongDataType = class(Exception)
   public
     constructor Create(AUniform: AnsiString; AExpected, AGot: string);
   end;
 
   { EGetInactiveUniform }
-  
+
   EGetInactiveUniform = class(Exception)
   public
-    constructor Create(AUniform: AnsiString);  
+    constructor Create(AUniform: AnsiString);
   end;
 
   { EShaderCompilation }
@@ -85,118 +97,114 @@ type
     constructor Create(ALog: AnsiString);
   end;
 
-  TShader = class;
-
-  { TShaderVariable }
-
-  TShaderVariable = class abstract
-  private
-    FShader: TShader;
-    FName: AnsiString;
-    FDataType: TGLDataType;
-    FCount: Integer;
-    FDataSize: Integer;
-    FBaseDataType: TGLBaseDataType;
-    FBaseCount: Integer;
-    FLocation: Integer;
-
-    function GetActive: Boolean;
-
-  protected
-    function GetLocation: Integer; virtual; abstract;
-
-  public
-    constructor Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType; ACount: Integer); overload;
-
-    /// <summary>Creates a "dead" entry with a Location of -1</summary>
-    constructor Create; overload;
-
-    /// <summary>The Shader, to which this Variable belongs to</summary>
-    property Shader: TShader read FShader;
-    /// <summary>The Name of the Variable as written in the Shader</summary>
-    property Name: AnsiString read FName;
-    /// <summary>The DataType of the Variable</summary>
-    property DataType: TGLDataType read FDataType;
-    /// <summary>The ArrayLength of the Variable</summary>
-    /// <remarks>For usual Non-Array Types this is always 1</remarks>
-    property Count: Integer read FCount;
-    /// <summary>The full size of the Variable, measured in bytes</summary>
-    property DataSize: Integer read FDataSize;
-
-    /// <summary>
-    /// The underlying Basic data type.
-    /// <para>float for vec3/mat4/...</para>
-    /// </summary>
-    property BaseDataType: TGLBaseDataType read FBaseDataType;
-    /// <summary>
-    /// The Count measured in the BaseDataType
-    /// <code>
-    /// <para>vec3     -> 3</para>
-    /// <para>mat4     -> 4x4 -> 16</para>
-    /// <para>vec2[10] -> 20x2 -> 20</para>
-    /// </code>
-    /// </summary>
-    property BaseCount: Integer read FBaseCount;
-
-    /// <summary>A unique identifier for this Variable in context to the underlying Shader</summary>
-    property Location: Integer read FLocation;
-
-    /// <summary>Wether this Variable is non-existent in the Shader (Location = -1)</summary>
-    property Active: Boolean read GetActive;
-
-  end;
-
-  TShaderAttribute = class(TShaderVariable)
-  private
-    FOffset: Integer;
-    function GetOffset: Integer;
-
-  protected
-    function GetLocation: Integer; override;
-
-  public
-    constructor Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType; ACount: Integer); overload;
-    constructor Create; overload;
-
-    property Offset: Integer read GetOffset;
-  end;
-
-  TShaderUniformBase = class abstract(TShaderVariable)
-  protected
-    function GetLocation: Integer; override;
-  end;
-
-  TShaderUniform<T> = class(TShaderUniformBase)
-  private
-    function GetValue: T;
-    procedure SetValue(const Value: T);
-  public
-    property Value: T read GetValue write SetValue;
-  end;
-
-  TShaderUniformSampler = TShaderUniform<Integer>;
-
-  TShaderInterfaceVariableMap = TAnsiStringObjectMap<TShaderVariable>;
-  TShaderAttributes = TRefArray<TShaderAttribute>;
-  TShaderAttributesReader = TRefArrayReader<TShaderAttribute>;
-
-  TShaderType = (
-    stFragment,
-    stVertex,
-    stGeometry,
-    stCompute
-    );
-
-  TShaderAttributeOrder = array of AnsiString;
-
   { TShader }
 
   TShader = class
+  public type
+
+    TVariable = class abstract
+    private
+      FShader: TShader;
+      FName: AnsiString;
+      FDataType: TGLDataType;
+      FCount: Integer;
+      FDataSize: Integer;
+      FBaseDataType: TGLBaseDataType;
+      FBaseCount: Integer;
+      FLocation: Integer;
+
+      function GetActive: Boolean;
+
+    protected
+      function GetLocation: Integer; virtual; abstract;
+
+    public
+      constructor Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType; ACount: Integer); overload;
+
+      /// <summary>Creates a "dead" entry with a Location of -1</summary>
+      constructor Create; overload;
+
+      /// <summary>The Shader, to which this Variable belongs to</summary>
+      property Shader: TShader read FShader;
+      /// <summary>The Name of the Variable as written in the Shader</summary>
+      property Name: AnsiString read FName;
+      /// <summary>The DataType of the Variable</summary>
+      property DataType: TGLDataType read FDataType;
+      /// <summary>The ArrayLength of the Variable</summary>
+      /// <remarks>For usual Non-Array Types this is always 1</remarks>
+      property Count: Integer read FCount;
+      /// <summary>The full size of the Variable, measured in bytes</summary>
+      property DataSize: Integer read FDataSize;
+
+      /// <summary>
+      /// The underlying Basic data type.
+      /// <p>float for vec3/mat4/...</p>
+      /// </summary>
+      property BaseDataType: TGLBaseDataType read FBaseDataType;
+      /// <summary>
+      /// The Count measured in the BaseDataType
+      /// <code>
+      /// vec3     -> 3<p/>
+      /// mat4     -> 4x4 -> 16<p/>
+      /// vec2[10] -> 20x2 -> 20
+      /// </code>
+      /// </summary>
+      property BaseCount: Integer read FBaseCount;
+
+      /// <summary>A unique identifier for this Variable in context to the underlying Shader</summary>
+      property Location: Integer read FLocation;
+
+      /// <summary>Wether this Variable is non-existent in the Shader (Location = -1)</summary>
+      property Active: Boolean read GetActive;
+
+    end;
+
+    TAttribute = class(TVariable)
+    private
+      FOffset: Integer;
+      function GetOffset: Integer;
+
+    protected
+      function GetLocation: Integer; override;
+
+    public
+      constructor Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType; ACount: Integer); overload;
+      constructor Create; overload;
+
+      property Offset: Integer read GetOffset;
+    end;
+
+    TUniformBase = class abstract(TVariable)
+    protected
+      function GetLocation: Integer; override;
+    end;
+
+    TUniform<T> = class(TUniformBase)
+    private
+      function GetValue: T;
+      procedure SetValue(const Value: T);
+    public
+      property Value: T read GetValue write SetValue;
+    end;
+
+    TUniformSampler = TUniform<Integer>;
+
+    TInterfaceVariableMap = TAnsiStringObjectMap<TVariable>;
+    TAttributes = TRefArray<TAttribute>;
+
+    TType = (
+      stFragment,
+      stVertex,
+      stGeometry,
+      stCompute
+      );
+
+    TAttributeOrder = array of AnsiString;
+
   private
     FProgramObject: GLHandle;
-    FInterfaceVariables: TShaderInterfaceVariableMap;
-    FAttributes: TShaderAttributes;
-    FAttributesReader: TShaderAttributesReader;
+    FInterfaceVariables: TInterfaceVariableMap;
+    FAttributes: TAttributes;
     FAttributeStride: Integer;
 
     procedure CheckShaderErrors(AShader: GLHandle);
@@ -207,7 +215,9 @@ type
     procedure LoadAttributeLocations;
     procedure LoadUniformLocations;
 
-    procedure AddShaderFromStream(AShaderType: TShaderType; AStream: TStream);
+    procedure AddShaderFromStream(AShaderType: TType; AStream: TStream);
+    function GetAttribute(I: Integer): TAttribute;
+    function GetAttributeCount: Integer;
 
   public
     constructor Create;
@@ -216,15 +226,16 @@ type
     procedure LoadFromFile(AFileName: string);
     procedure LoadFromResource(AResourceName: string);
 
-    procedure AddShaderFromText(ShaderType: TShaderType; const AText: AnsiString);
-    procedure AddShaderFromFile(AShaderType: TShaderType; AFileName: string);
-    procedure AddShaderFromResource(AShaderType: TShaderType; AResourceName: string);
+    procedure AddShaderFromText(ShaderType: TType; const AText: AnsiString);
+    procedure AddShaderFromFile(AShaderType: TType; AFileName: string);
+    procedure AddShaderFromResource(AShaderType: TType; AResourceName: string);
 
     procedure Link;
 
-    procedure SetAttributeOrder(AAttributes: TShaderAttributeOrder);
+    procedure SetAttributeOrder(AAttributes: TAttributeOrder);
 
-    property Attributes: TShaderAttributesReader read FAttributesReader;
+    property AttributeCount: Integer read GetAttributeCount;
+    property Attributes[I: Integer]: TAttribute read GetAttribute;
     property AttributeStride: Integer read FAttributeStride;
 
     procedure Enable;
@@ -232,45 +243,45 @@ type
 
     property ProgramObject: GLHandle read FProgramObject;
 
-    function Uniform<T>(AName: AnsiString): TShaderUniform<T>;
-    function UniformSampler(AName: AnsiString): TShaderUniformSampler;
+    function Uniform<T>(AName: AnsiString): TUniform<T>;
+    function UniformSampler(AName: AnsiString): TUniformSampler;
 
   const
 
-    GLShaderTypes: array [TShaderType] of TGLShaderType = (
+    GLShaderTypes: array [TType] of TGLShaderType = (
       TGLShaderType.stFragment,
       TGLShaderType.stVertex,
       TGLShaderType.stGeometry,
       TGLShaderType.stCompute
       );
 
-    FileExtensions: array [TShaderType] of string = ('.fs', '.vs', '.gs', '.cs');
+    FileExtensions: array [TType] of string = ('.fs', '.vs', '.gs', '.cs');
 
-    ResourceExtensions: array [TShaderType] of string = ('_FS', '_VS', '_GS', '_CS');
+    ResourceExtensions: array [TType] of string = ('_FS', '_VS', '_GS', '_CS');
 
   end;
 
 implementation
 
-{ TShaderAttribute }
+{ TShader.TAttribute }
 
-constructor TShaderAttribute.Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType; ACount: Integer);
+constructor TShader.TAttribute.Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType; ACount: Integer);
 begin
   inherited;
   FOffset := -1;
 end;
 
-constructor TShaderAttribute.Create;
+constructor TShader.TAttribute.Create;
 begin
   inherited Create;
 end;
 
-function TShaderAttribute.GetLocation: Integer;
+function TShader.TAttribute.GetLocation: Integer;
 begin
   Result := glGetAttribLocation(Shader.ProgramObject, @Name[1]);
 end;
 
-function TShaderAttribute.GetOffset: Integer;
+function TShader.TAttribute.GetOffset: Integer;
 begin
   if FOffset = -1 then
     raise EAttribNotUsed.Create(Name);
@@ -279,7 +290,7 @@ end;
 
 { TShader }
 
-procedure TShader.AddShaderFromFile(AShaderType: TShaderType; AFileName: string);
+procedure TShader.AddShaderFromFile(AShaderType: TType; AFileName: string);
 var
   FileStream: TFileStream;
 begin
@@ -296,7 +307,7 @@ begin
   end;
 end;
 
-procedure TShader.AddShaderFromResource(AShaderType: TShaderType; AResourceName: string);
+procedure TShader.AddShaderFromResource(AShaderType: TType; AResourceName: string);
 var
   ResourceStream: TResourceStream;
 begin
@@ -313,7 +324,7 @@ begin
   end;
 end;
 
-procedure TShader.AddShaderFromStream(AShaderType: TShaderType; AStream: TStream);
+procedure TShader.AddShaderFromStream(AShaderType: TType; AStream: TStream);
 var
   Text: AnsiString;
 begin
@@ -327,7 +338,7 @@ begin
   end;
 end;
 
-procedure TShader.AddShaderFromText(ShaderType: TShaderType; const AText: AnsiString);
+procedure TShader.AddShaderFromText(ShaderType: TType; const AText: AnsiString);
 var
   ShaderObject, ShaderLength: Integer;
   Data: PGLchar;
@@ -388,12 +399,11 @@ end;
 constructor TShader.Create;
 begin
   FProgramObject := glCreateProgram;
-  FInterfaceVariables := TShaderInterfaceVariableMap.Create;
+  FInterfaceVariables := TInterfaceVariableMap.Create;
 end;
 
 destructor TShader.Destroy;
 begin
-  FAttributesReader.Free;
   FAttributes.Free;
   FInterfaceVariables.Free;
   glDeleteProgram(FProgramObject);
@@ -418,25 +428,35 @@ begin
   end;
 end;
 
-function TShader.Uniform<T>(AName: AnsiString): TShaderUniform<T>;
+function TShader.GetAttribute(I: Integer): TAttribute;
+begin
+  Result := FAttributes[I];
+end;
+
+function TShader.GetAttributeCount: Integer;
+begin
+  Result := FAttributes.Count;
+end;
+
+function TShader.Uniform<T>(AName: AnsiString): TUniform<T>;
 var
-  InterfaceVar: TShaderVariable;
+  InterfaceVar: TVariable;
 begin
   if FInterfaceVariables.Get(AName, InterfaceVar) then
   begin
-    if InterfaceVar is TShaderUniform<T> then
-      Result := TShaderUniform<T>(InterfaceVar)
+    if InterfaceVar is TUniform<T> then
+      Result := TUniform<T>(InterfaceVar)
     else
-      raise EUniformWrongDataType.Create(AName, TShaderUniform<T>.ClassName, InterfaceVar.ClassName)
+      raise EUniformWrongDataType.Create(AName, TUniform<T>.ClassName, InterfaceVar.ClassName)
   end
   else
   begin
-    Result := TShaderUniform<T>.Create;
+    Result := TUniform<T>.Create;
     FInterfaceVariables[AName] := Result;
   end;
 end;
 
-function TShader.UniformSampler(AName: AnsiString): TShaderUniformSampler;
+function TShader.UniformSampler(AName: AnsiString): TUniformSampler;
 begin
   Result := Uniform<Integer>(AName);
 end;
@@ -465,16 +485,16 @@ begin
     SetLength(Buffer, MaxLength);
     glGetActiveAttrib(ProgramObject, I, MaxLength, ActualLength, Size, DataType, @Buffer[1]);
     SetLength(Buffer, ActualLength);
-    FInterfaceVariables[Buffer] := TShaderAttribute.Create(Self, Buffer, TGLDataType(DataType), Size);
+    FInterfaceVariables[Buffer] := TAttribute.Create(Self, Buffer, TGLDataType(DataType), Size);
   end;
 end;
 
 procedure TShader.LoadFromFile(AFileName: string);
 var
-  ShaderType: TShaderType;
+  ShaderType: TType;
   Name: string;
 begin
-  for ShaderType := Low(TShaderType) to High(TShaderType) do
+  for ShaderType := Low(TType) to High(TType) do
   begin
     Name := AFileName + FileExtensions[ShaderType];
     if FileExists(Name) then
@@ -485,10 +505,10 @@ end;
 
 procedure TShader.LoadFromResource(AResourceName: string);
 var
-  ShaderType: TShaderType;
+  ShaderType: TType;
   Name: string;
 begin
-  for ShaderType := Low(TShaderType) to High(TShaderType) do
+  for ShaderType := Low(TType) to High(TType) do
   begin
     Name := AResourceName + ResourceExtensions[ShaderType];
     if FindResource(HInstance, @Name[1], RT_RCDATA) <> 0 then
@@ -503,7 +523,7 @@ var
   Buffer: AnsiString;
   GLDataType: GLenum;
   DataType: TGLDataType;
-  Uniform: TShaderUniformBase;
+  Uniform: TUniformBase;
 begin
   glGetProgramiv(ProgramObject, GL_ACTIVE_UNIFORMS, @UniformCount);
   if UniformCount = 0 then
@@ -516,19 +536,29 @@ begin
     SetLength(Buffer, ActualLength);
     DataType := TGLDataType(GLDataType);
     case DataType of
-      dtInt: Uniform := TShaderUniform<Integer>.Create(Self, Buffer, DataType, Size);
-      dtUInt: Uniform := TShaderUniform<Cardinal>.Create(Self, Buffer, DataType, Size);
-      dtFloat: Uniform := TShaderUniform<Single>.Create(Self, Buffer, DataType, Size);
-      dtVec2: Uniform := TShaderUniform<TVector2>.Create(Self, Buffer, DataType, Size);
-      dtVec3: Uniform := TShaderUniform<TVector3>.Create(Self, Buffer, DataType, Size);
-      dtVec4: Uniform := TShaderUniform<TVector4>.Create(Self, Buffer, DataType, Size);
-      dtBoolean: Uniform := TShaderUniform<Boolean>.Create(Self, Buffer, DataType, Size);
-      dtMat2: Uniform := TShaderUniform<TMatrix2>.Create(Self, Buffer, DataType, Size);
-      dtMat3: Uniform := TShaderUniform<TMatrix3>.Create(Self, Buffer, DataType, Size);
-      dtMat4: Uniform := TShaderUniform<TMatrix4>.Create(Self, Buffer, DataType, Size);
+      dtInt:
+        Uniform := TUniform<Integer>.Create(Self, Buffer, DataType, Size);
+      dtUInt:
+        Uniform := TUniform<Cardinal>.Create(Self, Buffer, DataType, Size);
+      dtFloat:
+        Uniform := TUniform<Single>.Create(Self, Buffer, DataType, Size);
+      dtVec2:
+        Uniform := TUniform<TVector2>.Create(Self, Buffer, DataType, Size);
+      dtVec3:
+        Uniform := TUniform<TVector3>.Create(Self, Buffer, DataType, Size);
+      dtVec4:
+        Uniform := TUniform<TVector4>.Create(Self, Buffer, DataType, Size);
+      dtBoolean:
+        Uniform := TUniform<Boolean>.Create(Self, Buffer, DataType, Size);
+      dtMat2:
+        Uniform := TUniform<TMatrix2>.Create(Self, Buffer, DataType, Size);
+      dtMat3:
+        Uniform := TUniform<TMatrix3>.Create(Self, Buffer, DataType, Size);
+      dtMat4:
+        Uniform := TUniform<TMatrix4>.Create(Self, Buffer, DataType, Size);
     else
       if GLDataTypeIsSampler(DataType) then
-        Uniform := TShaderUniformSampler.Create(Self, Buffer, DataType, Size)
+        Uniform := TUniformSampler.Create(Self, Buffer, DataType, Size)
       else
         raise EUniformDataTypeUnsupported.Create(DataType);
     end;
@@ -536,26 +566,25 @@ begin
   end;
 end;
 
-procedure TShader.SetAttributeOrder(AAttributes: TShaderAttributeOrder);
+procedure TShader.SetAttributeOrder(AAttributes: TAttributeOrder);
 var
   Attribute: AnsiString;
-  InterfaceVar: TShaderVariable;
+  InterfaceVar: TVariable;
 begin
   if FAttributes <> nil then
     raise EAttribOrderSetAlready.Create;
 
-  FAttributes := TShaderAttributes.Create;
-  FAttributesReader := TShaderAttributesReader.Create(FAttributes);
+  FAttributes := TAttributes.Create;
 
   FAttributeStride := 0;
   for Attribute in AAttributes do
   begin
     if FInterfaceVariables.Get(Attribute, InterfaceVar) then
     begin
-      if InterfaceVar is TShaderAttribute then
+      if InterfaceVar is TAttribute then
       begin
-        FAttributes.Add(TShaderAttribute(InterfaceVar));
-        TShaderAttribute(InterfaceVar).FOffset := FAttributeStride;
+        FAttributes.Add(TAttribute(InterfaceVar));
+        TAttribute(InterfaceVar).FOffset := FAttributeStride;
         FAttributeStride := FAttributeStride + InterfaceVar.DataSize;
       end;
     end
@@ -595,9 +624,9 @@ begin
   inherited Create('GLSL Linking-Error:' + sLineBreak + string(ALog));
 end;
 
-{ TShaderVariable }
+{ TShader.TVariable }
 
-constructor TShaderVariable.Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType;
+constructor TShader.TVariable.Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType;
   ACount: Integer);
 begin
   FShader := AShader;
@@ -608,22 +637,22 @@ begin
   FBaseDataType := GLBaseDataType(FDataType);
   Assert(GLDataTypeSize(FDataType) mod GLDataTypeSize(TGLDataType(FBaseDataType)) = 0);
   FBaseCount := GLDataTypeSize(FDataType) div GLDataTypeSize(TGLDataType(FBaseDataType));
-  FLocation := GetLocation; 
+  FLocation := GetLocation;
 end;
 
-constructor TShaderVariable.Create;
+constructor TShader.TVariable.Create;
 begin
   FLocation := -1;
 end;
 
-function TShaderVariable.GetActive: Boolean;
+function TShader.TVariable.GetActive: Boolean;
 begin
   Result := Location <> -1;
 end;
 
-{ TShaderUniformBase }
+{ TShader.TUniformBase }
 
-function TShaderUniformBase.GetLocation: Integer;
+function TShader.TUniformBase.GetLocation: Integer;
 begin
   Result := glGetUniformLocation(Shader.ProgramObject, @Name[1]);
 end;
@@ -635,9 +664,9 @@ begin
   inherited CreateFmt('Uniform "%s" got accessed as "%s" but is "%s"', [AUniform, AExpected, AGot]);
 end;
 
-{ TShaderUniform<T> }
+{ TShader.TUniform<T> }
 
-function TShaderUniform<T>.GetValue: T;
+function TShader.TUniform<T>.GetValue: T;
 var
   BoolHelp: Integer;
 begin
@@ -663,7 +692,7 @@ begin
   end;
 end;
 
-procedure TShaderUniform<T>.SetValue(const Value: T);
+procedure TShader.TUniform<T>.SetValue(const Value: T);
 var
   BoolHelp: Cardinal;
 begin
@@ -671,51 +700,88 @@ begin
     Exit;
   Shader.Enable;
   case DataType of
-    dtFloat: glUniform1fv(Location, Count, PGLfloat(@Value));
-    dtVec2: glUniform2fv(Location, Count, PGLfloat(@Value));
-    dtVec3: glUniform3fv(Location, Count, PGLfloat(@Value));
-    dtVec4: glUniform4fv(Location, Count, PGLfloat(@Value));
+    dtFloat:
+      glUniform1fv(Location, Count, PGLfloat(@Value));
+    dtVec2:
+      glUniform2fv(Location, Count, PGLfloat(@Value));
+    dtVec3:
+      glUniform3fv(Location, Count, PGLfloat(@Value));
+    dtVec4:
+      glUniform4fv(Location, Count, PGLfloat(@Value));
 
-    dtMat2: glUniformMatrix2fv(Location, Count, False, PGLfloat(@Value));
-    dtMat3: glUniformMatrix3fv(Location, Count, False, PGLfloat(@Value));
-    dtMat4: glUniformMatrix4fv(Location, Count, False, PGLfloat(@Value));
+    dtMat2:
+      glUniformMatrix2fv(Location, Count, False, PGLfloat(@Value));
+    dtMat3:
+      glUniformMatrix3fv(Location, Count, False, PGLfloat(@Value));
+    dtMat4:
+      glUniformMatrix4fv(Location, Count, False, PGLfloat(@Value));
 
-    dtMat2x3: glUniformMatrix2x3fv(Location, Count, False, PGLfloat(@Value));
-    dtMat2x4: glUniformMatrix2x4fv(Location, Count, False, PGLfloat(@Value));
-    dtMat3x2: glUniformMatrix3x2fv(Location, Count, False, PGLfloat(@Value));
-    dtMat3x4: glUniformMatrix3x4fv(Location, Count, False, PGLfloat(@Value));
-    dtMat4x2: glUniformMatrix4x2fv(Location, Count, False, PGLfloat(@Value));
-    dtMat4x3: glUniformMatrix4x3fv(Location, Count, False, PGLfloat(@Value));
+    dtMat2x3:
+      glUniformMatrix2x3fv(Location, Count, False, PGLfloat(@Value));
+    dtMat2x4:
+      glUniformMatrix2x4fv(Location, Count, False, PGLfloat(@Value));
+    dtMat3x2:
+      glUniformMatrix3x2fv(Location, Count, False, PGLfloat(@Value));
+    dtMat3x4:
+      glUniformMatrix3x4fv(Location, Count, False, PGLfloat(@Value));
+    dtMat4x2:
+      glUniformMatrix4x2fv(Location, Count, False, PGLfloat(@Value));
+    dtMat4x3:
+      glUniformMatrix4x3fv(Location, Count, False, PGLfloat(@Value));
 
-    dtDouble: glUniform1dv(Location, Count, PGLdouble(@Value));
-    dtDVec2: glUniform2dv(Location, Count, PGLdouble(@Value));
-    dtDVec3: glUniform3dv(Location, Count, PGLdouble(@Value));
-    dtDVec4: glUniform4dv(Location, Count, PGLdouble(@Value));
+    dtDouble:
+      glUniform1dv(Location, Count, PGLdouble(@Value));
+    dtDVec2:
+      glUniform2dv(Location, Count, PGLdouble(@Value));
+    dtDVec3:
+      glUniform3dv(Location, Count, PGLdouble(@Value));
+    dtDVec4:
+      glUniform4dv(Location, Count, PGLdouble(@Value));
 
-    dtDMat2: glUniformMatrix2dv(Location, Count, False, PGLdouble(@Value));
-    dtDMat3: glUniformMatrix3dv(Location, Count, False, PGLdouble(@Value));
-    dtDMat4: glUniformMatrix4dv(Location, Count, False, PGLdouble(@Value));
+    dtDMat2:
+      glUniformMatrix2dv(Location, Count, False, PGLdouble(@Value));
+    dtDMat3:
+      glUniformMatrix3dv(Location, Count, False, PGLdouble(@Value));
+    dtDMat4:
+      glUniformMatrix4dv(Location, Count, False, PGLdouble(@Value));
 
-    dtDMat2x3: glUniformMatrix2x3dv(Location, Count, False, PGLdouble(@Value));
-    dtDMat2x4: glUniformMatrix2x4dv(Location, Count, False, PGLdouble(@Value));
-    dtDMat3x2: glUniformMatrix3x2dv(Location, Count, False, PGLdouble(@Value));
-    dtDMat3x4: glUniformMatrix3x4dv(Location, Count, False, PGLdouble(@Value));
-    dtDMat4x2: glUniformMatrix4x2dv(Location, Count, False, PGLdouble(@Value));
-    dtDMat4x3: glUniformMatrix4x3dv(Location, Count, False, PGLdouble(@Value));
+    dtDMat2x3:
+      glUniformMatrix2x3dv(Location, Count, False, PGLdouble(@Value));
+    dtDMat2x4:
+      glUniformMatrix2x4dv(Location, Count, False, PGLdouble(@Value));
+    dtDMat3x2:
+      glUniformMatrix3x2dv(Location, Count, False, PGLdouble(@Value));
+    dtDMat3x4:
+      glUniformMatrix3x4dv(Location, Count, False, PGLdouble(@Value));
+    dtDMat4x2:
+      glUniformMatrix4x2dv(Location, Count, False, PGLdouble(@Value));
+    dtDMat4x3:
+      glUniformMatrix4x3dv(Location, Count, False, PGLdouble(@Value));
 
-    dtInt: glUniform1iv(Location, Count, PGLint(@Value));
-    dtIVec2: glUniform2iv(Location, Count, PGLint(@Value));
-    dtIVec3: glUniform3iv(Location, Count, PGLint(@Value));
-    dtIVec4: glUniform4iv(Location, Count, PGLint(@Value));
+    dtInt:
+      glUniform1iv(Location, Count, PGLint(@Value));
+    dtIVec2:
+      glUniform2iv(Location, Count, PGLint(@Value));
+    dtIVec3:
+      glUniform3iv(Location, Count, PGLint(@Value));
+    dtIVec4:
+      glUniform4iv(Location, Count, PGLint(@Value));
 
-    dtBVec2: glUniform2iv(Location, Count, PGLint(@Value));
-    dtBVec3: glUniform3iv(Location, Count, PGLint(@Value));
-    dtBVec4: glUniform4iv(Location, Count, PGLint(@Value));
+    dtBVec2:
+      glUniform2iv(Location, Count, PGLint(@Value));
+    dtBVec3:
+      glUniform3iv(Location, Count, PGLint(@Value));
+    dtBVec4:
+      glUniform4iv(Location, Count, PGLint(@Value));
 
-    dtUInt: glUniform1uiv(Location, Count, PGLuint(@Value));
-    dtUVec2: glUniform2uiv(Location, Count, PGLuint(@Value));
-    dtUVec3: glUniform3uiv(Location, Count, PGLuint(@Value));
-    dtUVec4: glUniform4uiv(Location, Count, PGLuint(@Value));
+    dtUInt:
+      glUniform1uiv(Location, Count, PGLuint(@Value));
+    dtUVec2:
+      glUniform2uiv(Location, Count, PGLuint(@Value));
+    dtUVec3:
+      glUniform3uiv(Location, Count, PGLuint(@Value));
+    dtUVec4:
+      glUniform4uiv(Location, Count, PGLuint(@Value));
 
     dtBoolean:
       begin

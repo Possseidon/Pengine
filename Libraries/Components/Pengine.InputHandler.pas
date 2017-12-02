@@ -3,10 +3,18 @@ unit Pengine.InputHandler;
 interface
 
 uses
-  BitField, Controls, Forms, Classes, VectorGeometry, Windows, Types, Clipbrd
-  {$IFNDEF FPC}
-  , UITypes
-  {$ENDIF};
+  Winapi.Windows,
+
+  System.UITypes,
+  System.Classes,
+  System.Types,
+
+  Vcl.Controls,
+  Vcl.Forms,
+  Vcl.Clipbrd,
+
+  Pengine.BitField,
+  Pengine.Vector;
 
 type
 
@@ -816,4 +824,3 @@ begin
 end;
 
 end.
-

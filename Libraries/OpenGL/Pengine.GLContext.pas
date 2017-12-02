@@ -3,12 +3,29 @@ unit Pengine.GLContext;
 interface
 
 uses
-  dglOpenGL, Forms, Controls, Windows, Classes, GLEnums, Color, InputHandler, TimeManager, Lists, Graphics, FBOManager,
-  SysUtils, Dialogs, Shaders, ResourceManager
-  {$IFNDEF FPC}
-    , Messages, UITypes
-  {$ENDIF}
-    ;
+  dglOpenGL,
+
+  Winapi.Windows,
+  Winapi.Messages,
+
+  System.Classes,
+  System.SysUtils,
+  System.UITypes,
+
+  Vcl.Controls,
+  Vcl.Dialogs,
+  Vcl.Forms,
+  Vcl.Graphics,
+
+  Pengine.ResourceManager,
+  Pengine.Color,
+  Pengine.FBO,
+  Pengine.GLEnums,
+  Pengine.InputHandler,
+  Pengine.Collections,
+  Pengine.Hasher,
+  Pengine.Shader,
+  Pengine.TimeManager;
 
 type
 
@@ -99,6 +116,10 @@ type
   { TGLForm }
 
   TGLForm = class(TForm)
+  public type
+
+    TStateStack = TObjectStack<TOpenGLState>;
+
   private
     FFullscreen: Boolean;
     FMustUpdateFPS: Boolean;
@@ -114,7 +135,7 @@ type
 
     FClearMask: TGLAttribMask;
 
-    StateStack: TObjectStack<TOpenGLState>;
+    FStateStack: TStateStack;
 
     FDC: HDC;
     FRC: HGLRC;
@@ -200,9 +221,9 @@ type
     procedure Init; virtual;
     procedure Finalize; virtual;
 
-    procedure RenderFunc; virtual;
-    procedure UpdateFunc; virtual;
-    procedure ResizeFunc; virtual;
+    procedure RenderGL; virtual;
+    procedure UpdateGL; virtual;
+    procedure ResizeGL; virtual;
 
     property MultiSampling: Boolean read FMultiSampling write SetMultiSampling;
     property MaxSamples: Cardinal read FMaxSamples;
@@ -221,33 +242,6 @@ const
   TaskbarWindowClass = 'Shell_TrayWnd';
 
 { TOpenGLState }
-
-procedure TOpenGLState.SetClearColor(const Value: TColorRGBA);
-begin
-  if FClearColor = Value then
-    Exit;
-  FClearColor := Value;
-  Include(FChanges, stClearColor);
-  UpdateClearColor;
-end;
-
-procedure TOpenGLState.SetDebugOutput(const Value: Boolean);
-begin
-  if FDebugOutput = Value then
-    Exit;
-  FDebugOutput := Value;
-  Include(FChanges, stDebugOutput);
-  UpdateDebugOutput;
-end;
-
-procedure TOpenGLState.SetDebugOutputSynced(const Value: Boolean);
-begin
-  if FDebugOutputSynced = Value then
-    Exit;
-  FDebugOutputSynced := Value;
-  Include(FChanges, stDebugOutputSynced);
-  UpdateDebugOutput;
-end;
 
 procedure TOpenGLState.SetBlend(const Value: Boolean);
 begin
@@ -276,6 +270,15 @@ begin
   UpdateBlendFunc;
 end;
 
+procedure TOpenGLState.SetClearColor(const Value: TColorRGBA);
+begin
+  if FClearColor = Value then
+    Exit;
+  FClearColor := Value;
+  Include(FChanges, stClearColor);
+  UpdateClearColor;
+end;
+
 procedure TOpenGLState.SetCullFace(const Value: TGLCullFace);
 begin
   if FCullFace = Value then
@@ -283,15 +286,6 @@ begin
   FCullFace := Value;
   Include(FChanges, stCullFace);
   UpdateCullFace;
-end;
-
-procedure TOpenGLState.SetDepthClamp(const Value: Boolean);
-begin
-  if FDepthClamp = Value then
-    Exit;
-  FDepthClamp := Value;
-  Include(FChanges, stDepthClamp);
-  UpdateDepthClamp;
 end;
 
 procedure TOpenGLState.SetDepthFunc(const Value: TGLCompareFunction);
@@ -330,6 +324,33 @@ begin
   UpdateSeamlessCubemap;
 end;
 
+procedure TOpenGLState.SetDepthClamp(const Value: Boolean);
+begin
+  if FDepthClamp = Value then
+    Exit;
+  FDepthClamp := Value;
+  Include(FChanges, stDepthClamp);
+  UpdateDepthClamp;
+end;
+
+procedure TOpenGLState.SetDebugOutput(const Value: Boolean);
+begin
+  if FDebugOutput = Value then
+    Exit;
+  FDebugOutput := Value;
+  Include(FChanges, stDebugOutput);
+  UpdateDebugOutput;
+end;
+
+procedure TOpenGLState.SetDebugOutputSynced(const Value: Boolean);
+begin
+  if FDebugOutputSynced = Value then
+    Exit;
+  FDebugOutputSynced := Value;
+  Include(FChanges, stDebugOutputSynced);
+  UpdateDebugOutput;
+end;
+
 function TOpenGLState.Copy: TOpenGLState;
 begin
   Result := TOpenGLState.Create;
@@ -350,30 +371,6 @@ end;
 procedure TOpenGLState.UpdateClearColor;
 begin
   glClearColor(ClearColor.R, ClearColor.G, ClearColor.B, ClearColor.A);
-end;
-
-procedure TOpenGLState.UpdateDebugOutput;
-begin
-  if DebugOutput then
-    glEnable(GL_DEBUG_OUTPUT)
-  else
-    glDisable(GL_DEBUG_OUTPUT);
-end;
-
-procedure TOpenGLState.UpdateDebugOutputSynced;
-begin
-  if DebugOutputSynced then
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS)
-  else
-    glDisable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-end;
-
-procedure TOpenGLState.UpdateDepthClamp;
-begin
-  if DepthClamp then
-    glEnable(GL_DEPTH_CLAMP)
-  else
-    glDisable(GL_DEPTH_CLAMP);
 end;
 
 procedure TOpenGLState.UpdateDepthFunc;
@@ -420,12 +417,31 @@ begin
     glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 end;
 
-{ TGLForm }
-
-function TGLForm.GetDeltaTime: Single;
+procedure TOpenGLState.UpdateDepthClamp;
 begin
-  Result := FTimer.DeltaTime;
+  if DepthClamp then
+    glEnable(GL_DEPTH_CLAMP)
+  else
+    glDisable(GL_DEPTH_CLAMP);
 end;
+
+procedure TOpenGLState.UpdateDebugOutput;
+begin
+  if DebugOutput then
+    glEnable(GL_DEBUG_OUTPUT)
+  else
+    glDisable(GL_DEBUG_OUTPUT);
+end;
+
+procedure TOpenGLState.UpdateDebugOutputSynced;
+begin
+  if DebugOutputSynced then
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS)
+  else
+    glDisable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+end;
+
+{ TGLForm }
 
 procedure TGLForm.ActivateHandler(Sender: TObject);
 begin
@@ -448,23 +464,14 @@ begin
   end;
 end;
 
-class procedure TGLForm.DebugCallback(ASource, AType, AID, ASeverity: Cardinal; ALength: Integer;
-  const AMessage: PAnsiChar; AUserdata: Pointer);
-var
-  S: string;
-begin
-  S := Format(
-    'OpenGL [%s] %s (%s)' + sLineBreak + '%s',
-    [GLDebugMessageSeverityName(TGLDebugMessageSeverity(ASeverity)),
-    GLDebugMessageTypeName(TGLDebugMessageType(AType)),
-    GLDebugMessageSourceName(TGLDebugMessageSource(ASource)),
-    AMessage]);
-  OutputDebugString(@S[1]);
-end;
-
 function TGLForm.GetAspect: Single;
 begin
   Result := ClientWidth / ClientHeight;
+end;
+
+function TGLForm.GetDeltaTime: Single;
+begin
+  Result := FTimer.DeltaTime;
 end;
 
 function TGLForm.GetFPS: Single;
@@ -489,7 +496,7 @@ end;
 
 function TGLForm.GetState: TOpenGLState;
 begin
-  Result := StateStack.Top;
+  Result := FStateStack.Top;
 end;
 
 procedure TGLForm.InitGL;
@@ -500,53 +507,18 @@ begin
 
   glDebugMessageCallback(DebugCallback, Self);
 
-  StateStack := TObjectStack<TOpenGLState>.Create;
-  StateStack.Push(TOpenGLState.Create);
+  FStateStack := TStateStack.Create(1, 2);
+  FStateStack.Push(TOpenGLState.Create);
   InitDefaults;
-end;
-
-procedure TGLForm.Start;
-begin
-  Visible := True;
-  FRunning := True;
-  Application.OnDeactivate := DeactivateHandler;
-  Application.OnActivate := ActivateHandler;
-  Application.OnIdle := IdleHandler;
-end;
-
-procedure TGLForm.Paint;
-begin
-  Render;
-end;
-
-procedure TGLForm.Pause;
-begin
-  FInput.ReleaseAll;
-  Application.OnIdle := nil;
-end;
-
-procedure TGLForm.Resume;
-begin
-  FTimer.Update;
-  Application.OnIdle := IdleHandler;
 end;
 
 procedure TGLForm.FinalizeGL;
 begin
-  StateStack.Free;
+  FStateStack.Free;
 
   DeactivateRenderingContext;
   DestroyRenderingContext(FRC);
   ReleaseDC(Handle, FDC);
-end;
-
-procedure TGLForm.SetFPSLimit(Value: Single);
-begin
-  if Value = 0 then
-    raise Exception.Create('FPS Limit must be greater than zero!');
-  if FFPSLimit = Value then
-    Exit;
-  FFPSLimit := Value;
 end;
 
 procedure TGLForm.SetFullscreen(Value: Boolean);
@@ -626,6 +598,15 @@ begin
   wglSwapIntervalEXT(Integer(FVSync));
 end;
 
+procedure TGLForm.SetFPSLimit(Value: Single);
+begin
+  if Value = 0 then
+    raise Exception.Create('FPS Limit must be greater than zero!');
+  if FFPSLimit = Value then
+    Exit;
+  FFPSLimit := Value;
+end;
+
 procedure TGLForm.InitDefaults;
 begin
   glEnable(GL_CULL_FACE); // Disable can be achieved with CullFace to cfBoth
@@ -657,7 +638,7 @@ begin
   if DeltaTime <= MaxDeltaTime then
   begin
     try
-      UpdateFunc;
+      UpdateGL;
     except
       on E: Exception do
       begin
@@ -697,66 +678,32 @@ begin
   Done := False;
 end;
 
-procedure TGLForm.WndProc(var AMessage: TMessage);
+function TGLForm.ErrorBox(const ATitle, AMessage: String; AButtons: TMsgDlgButtons; ADefault: TMsgDlgBtn): TModalResult;
+begin
+  Result := MessageDlg(ATitle + sLineBreak + sLineBreak + AMessage, mtError, AButtons, 0, ADefault);
+end;
+
+procedure TGLForm.Start;
+begin
+  Visible := True;
+  FRunning := True;
+  Application.OnDeactivate := DeactivateHandler;
+  Application.OnActivate := ActivateHandler;
+  Application.OnIdle := IdleHandler;
+end;
+
+class procedure TGLForm.DebugCallback(ASource, AType, AID, ASeverity: Cardinal; ALength: Integer;
+  const AMessage: PAnsiChar; AUserdata: Pointer);
 var
-  W: WPARAM;
+  S: string;
 begin
-  case AMessage.msg of
-    WM_SYSCOMMAND:
-      begin
-        if (AMessage.wParamlo = SC_KEYMENU) and (AMessage.wParamhi = 0) then
-          AMessage.msg := WM_NULL;
-      end;
-    WM_CHAR:
-      begin
-        W := MakeWPARAM(AMessage.wParamlo, AMessage.wParamhi);
-        if W = 0 then
-          AMessage.Result := 1
-        else
-        begin
-        // 0 - 31 = control charachters
-        // 127 = Ctrl-Backspace
-          if (W >= 32) and (W < 256) and (W <> 127) then
-            FInput.PressChar(AnsiChar(W));
-        end;
-      end;
-  end;
-
-  inherited WndProc(AMessage);
-end;
-
-procedure TGLForm.Render;
-begin
-  if FMultiSampling then
-  begin
-    FFBO.Bind;
-    glClear(Ord(ClearMask));
-    RenderFunc;
-    FFBO.CopyToScreen(amColor);
-  end
-  else
-  begin
-    TFBO.BindScreen(ClientWidth, ClientHeight);
-    glClear(Ord(ClearMask));
-    RenderFunc;
-  end;
-  SwapBuffers(FDC);
-end;
-
-procedure TGLForm.Init;
-begin
-end;
-
-procedure TGLForm.Finalize;
-begin
-end;
-
-procedure TGLForm.RenderFunc;
-begin
-end;
-
-procedure TGLForm.UpdateFunc;
-begin
+  S := Format(
+    'OpenGL [%s] %s (%s)' + sLineBreak + '%s',
+    [GLDebugMessageSeverityName(TGLDebugMessageSeverity(ASeverity)),
+    GLDebugMessageTypeName(TGLDebugMessageType(AType)),
+    GLDebugMessageSourceName(TGLDebugMessageSource(ASource)),
+    AMessage]);
+  OutputDebugString(@S[1]);
 end;
 
 procedure TGLForm.Resize;
@@ -765,20 +712,16 @@ begin
   if not FRunning then
     Exit;
 
-  ResizeFunc;
+  ResizeGL;
   if MultiSampling then
     FFBO.Resize(ClientWidth, ClientHeight);
 
   Render;
 end;
 
-procedure TGLForm.ResizeFunc;
+procedure TGLForm.Paint;
 begin
-end;
-
-procedure TGLForm.ForceFPSUpdate;
-begin
-  FTimer.ForceFPSUpdate;
+  Render;
 end;
 
 constructor TGLForm.Create(TheOwner: TComponent);
@@ -832,9 +775,7 @@ begin
     end
   end;
 
-  {$IFNDEF FPC}
   Resize;
-  {$ENDIF}
 end;
 
 destructor TGLForm.Destroy;
@@ -856,18 +797,42 @@ begin
   inherited;
 end;
 
-function TGLForm.ErrorBox(const ATitle, AMessage: String; AButtons: TMsgDlgButtons; ADefault: TMsgDlgBtn): TModalResult;
+procedure TGLForm.WndProc(var AMessage: TMessage);
+var
+  W: WPARAM;
 begin
-  {$IFDEF FPC}
-  Result := MessageDlg(ATitle, PChar(AMessage), mtError, AButtons, 0, ADefault);
-  {$ELSE}
-  Result := MessageDlg(ATitle + sLineBreak + sLineBreak + AMessage, mtError, AButtons, 0, ADefault);
-  {$ENDIF}
+  case AMessage.msg of
+    WM_SYSCOMMAND:
+      begin
+        if (AMessage.wParamlo = SC_KEYMENU) and (AMessage.wParamhi = 0) then
+          AMessage.msg := WM_NULL;
+      end;
+    WM_CHAR:
+      begin
+        W := MakeWPARAM(AMessage.wParamlo, AMessage.wParamhi);
+        if W = 0 then
+          AMessage.Result := 1
+        else
+        begin
+        // 0 - 31 = control charachters
+        // 127 = Ctrl-Backspace
+          if (W >= 32) and (W < 256) and (W <> 127) then
+            FInput.PressChar(AnsiChar(W));
+        end;
+      end;
+  end;
+
+  inherited WndProc(AMessage);
+end;
+
+procedure TGLForm.ForceFPSUpdate;
+begin
+  FTimer.ForceFPSUpdate;
 end;
 
 procedure TGLForm.PushState;
 begin
-  StateStack.Push(State.Copy);
+  FStateStack.Push(State.Copy);
 end;
 
 procedure TGLForm.PopState;
@@ -876,7 +841,7 @@ var
   Changes: TOpenGLState.TStates;
 begin
   Changes := State.Changes;
-  StateStack.Pop;
+  FStateStack.Pop;
   for S in Changes do
   begin
     case S of
@@ -906,6 +871,56 @@ begin
       Assert(False);
     end;
   end;
+end;
+
+procedure TGLForm.Pause;
+begin
+  FInput.ReleaseAll;
+  Application.OnIdle := nil;
+end;
+
+procedure TGLForm.Resume;
+begin
+  FTimer.Update;
+  Application.OnIdle := IdleHandler;
+end;
+
+procedure TGLForm.Render;
+begin
+  if FMultiSampling then
+  begin
+    FFBO.Bind;
+    glClear(Ord(ClearMask));
+    RenderGL;
+    FFBO.CopyToScreen(amColor);
+  end
+  else
+  begin
+    TFBO.BindScreen(ClientWidth, ClientHeight);
+    glClear(Ord(ClearMask));
+    RenderGL;
+  end;
+  SwapBuffers(FDC);
+end;
+
+procedure TGLForm.Init;
+begin
+end;
+
+procedure TGLForm.Finalize;
+begin
+end;
+
+procedure TGLForm.RenderGL;
+begin
+end;
+
+procedure TGLForm.UpdateGL;
+begin
+end;
+
+procedure TGLForm.ResizeGL;
+begin
 end;
 
 end.

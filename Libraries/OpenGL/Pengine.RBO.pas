@@ -3,7 +3,9 @@ unit Pengine.RBO;
 interface
 
 uses
-  dglOpenGL, GLEnums;
+  dglOpenGL, 
+  
+  Pengine.GLEnums;
 
 type
 

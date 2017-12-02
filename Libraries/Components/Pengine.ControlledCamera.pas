@@ -3,10 +3,18 @@ unit Pengine.ControlledCamera;
 interface
 
 uses
-  Classes, SysUtils, Camera, InputHandler, Controls, VectorGeometry, Windows, OpenGLContext
-  {$IFNDEF FPC}
-  , UITypes
-  {$ENDIF};
+  Winapi.Windows,
+
+  System.UITypes,
+  System.Classes,
+  System.SysUtils,
+
+  Vcl.Controls,
+
+  Pengine.Camera,
+  Pengine.InputHandler,
+  Pengine.Vector,
+  Pengine.GLContext;
 
 type
 
@@ -283,7 +291,7 @@ begin
   inherited Create(AFOV, AAspect, ANearClip, AFarClip);
 
   FInput := AInput;
-  
+
   PosLowerLimit := -InfVec3;
   PosUpperLimit := +InfVec3;
 
@@ -346,4 +354,3 @@ begin
 end;
 
 end.
-

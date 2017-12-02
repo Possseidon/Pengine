@@ -3,7 +3,13 @@ unit Pengine.FBO;
 interface
 
 uses
-  GLEnums, dglOpenGL, TextureManager, RenderBufferManager, SysUtils;
+  dglOpenGL,
+
+  System.SysUtils,
+
+  Pengine.GLEnums,
+  Pengine.RBO,
+  Pengine.Texture;
 
 type
 

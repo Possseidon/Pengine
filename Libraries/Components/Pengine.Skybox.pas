@@ -3,8 +3,20 @@ unit Pengine.Skybox;
 interface
 
 uses
-  VAOManager, Lists, Color, Shaders, SysUtils, GLEnums, VectorGeometry, UBOManager, Camera, OpenGLContext,
-  ResourceManager;
+  System.SysUtils,
+
+  Pengine.VAO,
+  Pengine.Collections,
+  Pengine.Color,
+  Pengine.Shader,
+  Pengine.GLEnums,
+  Pengine.Vector,
+  Pengine.UBO,
+  Pengine.Camera,
+  Pengine.GLContext,
+  Pengine.ResourceManager,
+  Pengine.Interfaces,
+  Pengine.CollectionInterfaces;
 
 type
 
@@ -12,8 +24,6 @@ type
     Color: TColorRGB;
     Pitch: Single;
   end;
-
-  { TStripe }
 
   TStripe = class
   private
@@ -30,9 +40,7 @@ type
     property Color: TColorRGB read FColor;
   end;
 
-  { TSkyDomeShaderBase }
-
-  TSkyDomeShaderBase = class(TShaderResource)
+  TSkyboxShaderBase = class(TShaderResource)
   public type
 
     TData = record
@@ -40,36 +48,55 @@ type
     end;
 
   protected
-    class function GetAttributeOrder: TShaderAttributeOrder; override;
+    class function GetAttributeOrder: TShader.TAttributeOrder; override;
 
   end;
 
-  TSkyDomeShaderClass = class of TSkyDomeShaderBase;
+  TSkyboxShaderClass = class of TSkyboxShaderBase;
 
-  { TSkyDome }
+  TSkybox = class(TInterfaceBase, IRenderable)
+  public const
 
-  TSkyDome = class (TVAO)
+    MaxStripes = 16;
+    UBOSize = SizeOf(TStripeData) * MaxStripes + SizeOf(Integer);
+
+  private type
+
+    TSkyboxVAO = class(TVAO)
+    private
+      FGLForm: TGLForm;
+
+    protected
+      procedure BeforeRender; override;
+      procedure AfterRender; override;
+
+    public
+      constructor Create(AShader: TShader; AGLForm: TGLForm);
+
+    end;
+
   private
+    FVAO: TSkyboxVAO;
     FUBO: TUBO;
-    FGLForm: TGLForm;
     FStripes: TObjectArray<TStripe>;
-    FCamera: TCamera;
 
     procedure BuildVAO;
 
-  protected
-    procedure BeforeRender; override;
-    procedure AfterRender; override;
+    function GetVisible: Boolean;
+    procedure SetVisible(const Value: Boolean);
 
   public
-    constructor Create(AGLForm: TGLForm; ACamera: TCamera; AShaderClass: TSkyDomeShaderClass);
+    constructor Create(AGLForm: TGLForm; AShaderClass: TSkyboxShaderClass);
     destructor Destroy; override;
 
     procedure AddStripe(AColor: TColorRGB; AAngle: Single);
 
-    const
-      MaxStripes = 16;
-      UBOSize = SizeOf(TStripeData) * MaxStripes + SizeOf(Integer);
+    function Bounds: PBounds3;
+    function Location: TLocation;
+    procedure Render;
+    function RenderableChildren: IIterable<IRenderable>;
+    property Visible: Boolean read GetVisible write SetVisible;
+
   end;
 
 implementation
@@ -94,26 +121,26 @@ begin
   FUBO.SubData(SizeOf(TStripeData) * FIndex, SizeOf(TStripeData), Data);
 end;
 
-{ TSkyDomeShaderBase }
+{ TSkyboxShaderBase }
 
-class function TSkyDomeShaderBase.GetAttributeOrder: TShaderAttributeOrder;
+class function TSkyboxShaderBase.GetAttributeOrder: TShader.TAttributeOrder;
 begin
-  Result := TShaderAttributeOrder.Create(
+  Result := TShader.TAttributeOrder.Create(
     'vpos'
     );
 end;
 
-{ TSkyDome }
+{ TSkybox }
 
 {
-procedure TSkyDome.BuildVAO;
+procedure TSkybox.BuildVAO;
 const
   PitchSteps = 30; // min 1
   TurnSteps = 120; // min 3
 
   procedure AddData(T, P: Single);
   var
-    Data: TSkyDomeShaderBase.TData;
+    Data: TSkyboxShaderBase.TData;
   begin
     P := P * 90 / PitchSteps;
     T := T * 360 / TurnSteps;
@@ -143,77 +170,112 @@ begin
 end;
 }
 
-procedure TSkyDome.BuildVAO;
+function TSkybox.Bounds: PBounds3;
+begin
+  Result := nil;
+end;
+
+procedure TSkybox.BuildVAO;
 var
-  Data: TSkyDomeShaderBase.TData;
+  Data: TSkyboxShaderBase.TData;
   P: TPlane3;
   T: TTexCoord2;
 begin
-  Generate(6 * 6, buStaticDraw);
-  Map(baWriteOnly);
+  FVAO.Generate(6 * 6, buStaticDraw);
+  FVAO.Map(baWriteOnly);
 
   for P in CubePlanes do
   begin
     for T in QuadTexCoords do
     begin
       Data.Pos := P[T.YX] * 2 - 1;
-      AddVertex(Data);
+      FVAO.AddVertex(Data);
     end;
   end;
 
-  Unmap;
+  FVAO.Unmap;
 end;
 
-procedure TSkyDome.BeforeRender;
-begin
-  inherited BeforeRender;
-  FGLForm.PushState;
-  FGLForm.State.DepthTest := False;
-  FGLForm.State.DepthMask := False;
-end;
-
-procedure TSkyDome.AfterRender;
-begin
-  FGLForm.PopState;
-  inherited AfterRender;
-end;
-
-constructor TSkyDome.Create(AGLForm: TGLForm; ACamera: TCamera; AShaderClass: TSkyDomeShaderClass);
+constructor TSkybox.Create(AGLForm: TGLForm; AShaderClass: TSkyboxShaderClass);
 const
   Zero: Integer = 0;
 begin
-  inherited Create(AShaderClass.Data);
-
-  FCamera := ACamera;
-
-  FGLForm := AGLForm;
+  FVAO := TSkyboxVAO.Create(AShaderClass.Data, AGLForm);
 
   FUBO := TUBO.Create;
   FUBO.Generate(UBOSize, buStaticDraw);
   FUBO.SubData(SizeOf(TStripeData) * MaxStripes, SizeOf(Integer), Zero);
-  FUBO.BindToShader(Shader, 'stripedata');
+  FUBO.BindToShader(FVAO.Shader, 'stripedata');
 
   FStripes := TObjectArray<TStripe>.Create;
 
   BuildVAO;
 end;
 
-destructor TSkyDome.Destroy;
+destructor TSkybox.Destroy;
 begin
+  FVAO.Free;
   FStripes.Free;
   FUBO.Free;
   inherited Destroy;
 end;
 
-procedure TSkyDome.AddStripe(AColor: TColorRGB; AAngle: Single);
+function TSkybox.GetVisible: Boolean;
+begin
+  Result := FVAO.Visible;
+end;
+
+function TSkybox.Location: TLocation;
+begin
+  Result := nil;
+end;
+
+procedure TSkybox.Render;
+begin
+  FVAO.Render;
+end;
+
+function TSkybox.RenderableChildren: IIterable<IRenderable>;
+begin
+  Result := nil;
+end;
+
+procedure TSkybox.SetVisible(const Value: Boolean);
+begin
+  FVAO.Visible := Value;
+end;
+
+procedure TSkybox.AddStripe(AColor: TColorRGB; AAngle: Single);
 var
   StripeCount: Integer;
 begin
   if not FStripes.Empty and (AAngle <= TStripe(FStripes.Last).Angle) then
-    raise Exception.Create('Angles of SkyDome Stripes must be ascending!');
+    raise Exception.Create('Angles of Skybox Stripes must be ascending!');
   FStripes.Add(TStripe.Create(AColor, AAngle, FStripes.Count, FUBO));
   StripeCount := FStripes.Count;
   FUBO.SubData(SizeOf(TStripeData) * MaxStripes, SizeOf(Integer), StripeCount);
+end;
+
+{ TSkybox.TSkyboxVAO }
+
+procedure TSkybox.TSkyboxVAO.BeforeRender;
+begin
+  inherited;
+  FGLForm.PushState;
+  FGLForm.State.DepthTest := False;
+  FGLForm.State.DepthMask := False;
+end;
+
+procedure TSkybox.TSkyboxVAO.AfterRender;
+begin
+  FGLForm.PopState;
+  inherited;
+end;
+
+constructor TSkybox.TSkyboxVAO.Create(AShader: TShader; AGLForm: TGLForm);
+begin
+  inherited Create(AShader);
+  FGLForm := AGLForm;
 end;
 
 end.

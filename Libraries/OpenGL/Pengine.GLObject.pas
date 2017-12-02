@@ -3,7 +3,9 @@ unit Pengine.GLObject;
 interface
 
 uses
-  dglOpenGL, IntfBase;
+  dglOpenGL, 
+  
+  Pengine.Interfaces;
 
 type
 

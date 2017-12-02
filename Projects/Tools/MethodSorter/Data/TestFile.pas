@@ -1,6 +1,6 @@
 unit Pengine.Vector;
 
-interface
+interface   
 
 { TODO 5 -oPossseidon -cUnitTest :
   Unit-Tests for TBounds1.RangeModL and RangeModR }
@@ -16,7 +16,7 @@ interface
   Line Intsec with other Line as normal for Plane }
 
 { TODO 3 -oPossseidon -cFunction :
-  Height function for TPlane3 and TLine2, that can return negative results. See/use what is in PointSide in TLine2 }
+  Height function for TPlane3 and TLine2, that can return negative results. See/use what is in PointSide in TLine2}
 
 { TODO 4 -oPossseidon -cInline :
   Inline all functions, which call exactly one other function }
@@ -51,8 +51,7 @@ uses
 
   Pengine.EventHandling,
   Pengine.IntMaths,
-  Pengine.Matrix,
-  Pengine.CollectionInterfaces;
+  Pengine.Matrix;
 
 type
 
@@ -88,7 +87,7 @@ type
 
   /// <summary>Describes one of the six simple directions in the following order:
   /// <code>
-  /// 0 -> bdNone<p/>
+  ///  0 -> bdNone<p/>
   /// -X -> bdLeft<p/>
   /// +X -> bdRight<p/>
   /// -Y -> bdDown<p/>
@@ -178,12 +177,10 @@ type
     class operator Implicit(const AVector: TIntVector2): TVector2; inline;
 
     {$REGION 'All versions of rearrangement TVector2'}
-
     property XX: TVector2 read GetXX;
     property XY: TVector2 read GetXY write SetXY;
     property YX: TVector2 read GetYX write SetYX;
     property YY: TVector2 read GetYY;
-
     {$ENDREGION}
 
     class operator Add(const A, B: TVector2): TVector2;
@@ -219,7 +216,7 @@ type
     /// <returns>A vector, pointing from the calling to the specified vector</returns>
     function VectorTo(const A: TVector2): TVector2; inline;
 
-    /// <returns>A vector, which is Rotate by 90° counter-clockwise.</returns>
+    /// <returns>A vector, which is rotated by 90° counter-clockwise.</returns>
     function Cross: TVector2;
     /// <returns>The dot-product with another vector.</returns>
     function Dot(const A: TVector2): Single;
@@ -235,10 +232,10 @@ type
     function AngleRadTo(const A: TVector2): Single;
     /// <returns>The angle between the calling and the given vector in degrees.</returns>
     function AngleTo(const A: TVector2): Single; inline;
-    /// <returns>The by the given radian angle counter-clockwise Rotate vector.</returns>
-    function RotateRad(AAngle: Single): TVector2;
-    /// <returns>The by the given degree angle counter-clockwise Rotate vector.</returns>
-    function Rotate(AAngle: Single): TVector2;
+    /// <returns>The by the given radian angle counter-clockwise rotated vector.</returns>
+    function RotatedRad(AAngle: Single): TVector2;
+    /// <returns>The by the given degree angle counter-clockwise rotated vector.</returns>
+    function Rotated(AAngle: Single): TVector2;
 
     /// <returns>The vector, with each negative component being positive.</returns>
     function Abs: TVector2;
@@ -340,7 +337,6 @@ type
     class operator Implicit(const A: TIntVector3): TVector3; inline;
 
     {$REGION 'All versions of rearrangement TIntVector2'}
-
     property XX: TVector2 read GetXX;
     property XY: TVector2 read GetXY write SetXY;
     property XZ: TVector2 read GetXZ write SetXZ;
@@ -350,10 +346,8 @@ type
     property ZX: TVector2 read GetZX write SetZX;
     property ZY: TVector2 read GetZY write SetZY;
     property ZZ: TVector2 read GetZZ;
-
     {$ENDREGION}
     {$REGION 'All versions of rearrangement TIntVector3'}
-
     property XXX: TVector3 read GetXXX;
     property XXY: TVector3 read GetXXY;
     property XXZ: TVector3 read GetXXZ;
@@ -381,7 +375,6 @@ type
     property ZZX: TVector3 read GetZZX;
     property ZZY: TVector3 read GetZZY;
     property ZZZ: TVector3 read GetZZZ;
-
     {$ENDREGION}
 
     class operator Add(const A, B: TVector3): TVector3;
@@ -437,13 +430,13 @@ type
     function AngleRadTo(const A: TVector3): Single;
     /// <returns>The angle between the calling and the given vector in degrees.</returns>
     function AngleTo(const A: TVector3): Single; inline;
-    /// <returns>The vector Rotate around the specified vector using the given angle in radians.</returns>
+    /// <returns>The vector rotated around the specified vector using the given angle in radians.</returns>
     /// <remarks>
     /// If the specified vector points towards you, the rotation is counter-clockwise.<p/>
     /// /!\ The given vector must be normalized.
     /// </remarks>
     function RotateRad(const AAxis: TVector3; AAngle: Single): TVector3;
-    /// <returns>The vector Rotate around the specified vector using the given angle in degrees.</returns>
+    /// <returns>The vector rotated around the specified vector using the given angle in degrees.</returns>
     /// <remarks>
     /// If the specified vector points towards you, the rotation is counter-clockwise.<p/>
     /// /!\ The given vector must be normalized.
@@ -482,7 +475,7 @@ type
   end;
 
   /// <summary>An alias for <see cref="Pengine.Vector|TVector2"/>.</summary>
-  TTexCoord2 = TVector2;
+  TTexCoord2 = TVector2;                                                    
   /// <summary>An alias for <see cref="Pengine.Vector|TVector3"/>.</summary>
   TTexCoord3 = TVector3;
 
@@ -502,8 +495,8 @@ type
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
     /// Index  X<p/>
-    /// [0]  (0)<p/>
-    /// [1]  (1)<p/>
+    ///  [0]  (0)<p/>
+    ///  [1]  (1)<p/>
     /// </code></summary>
     TCorners = array [TCornerIndex] of Single;
 
@@ -511,15 +504,15 @@ type
     function GetPoint(APos: Single): Single;
     function GetPointSym(APos: Single): Single;
     function GetPointLeft(APos: Single): Single;
-
+    
     function GetInvPoint(APos: Single): Single;
     function GetInvPointSym(APos: Single): Single;
     function GetInvPointLeft(APos: Single): Single;
 
     function GetCorner(AIndex: TCornerIndex): Single;
     procedure SetCorner(AIndex: TCornerIndex; const Value: Single);
-
-  public
+    
+  public  
     /// <summary>The (usually) lower value of the bounds.</summary>
     C1: Single;
     /// <summary>The (usually) higher value of the bounds.</summary>
@@ -535,14 +528,14 @@ type
     /// <summary>Gives direct access to each corner.<p>See <see cref="Pengine.Vector|TBounds1.TCorners"/>.</p></summary>
     // LOL! corner index 0/1 and point 0.0/1.0 is the same!
     property Point[AIndex: TCornerIndex]: Single read GetCorner write SetCorner; default;
-
+    
     /// <summary>Creates a <see cref="Pengine.Vector|TBounds1"/> with the specified range.</summary>
     constructor Create(AC1, AC2: Single); overload;
     /// <summary>Creates a <see cref="Pengine.Vector|TBounds1"/> with both bounds laying on the same, given value.</summary>
     constructor Create(A: Single); overload;
 
-    class operator Implicit(A: Single): TBounds1;
-    class operator Implicit(A: TIntBounds1): TBounds1;
+    class operator Implicit(A: Single): TBounds1; 
+    class operator Implicit(A: TIntBounds1): TBounds1; 
 
     /// <returns>The difference between C1 and C2.</returns>
     /// <remarks>Will give a negative length for non-normalized bounds.</remarks>
@@ -574,7 +567,7 @@ type
 
     /// <returns>Converts from <c>[C1, C2]</c> to specified bounds <c>[C1, C2]</c></returns>
     function Convert(APoint: Single; const ABounds: TBounds1): Single;
-
+                                                     
     /// <returns>The given bounds clamped to be inside of the calling bounds.</returns>
     function Clamp(ARange: TBounds1): TBounds1; overload;
     /// <returns>The given value being clamped to the bounds <c>[C1, C2].</c></returns>
@@ -601,8 +594,8 @@ type
     class operator Divide(const A, B: TBounds1): TBounds1;
 
     // The in operator is inclusive, comparing with <= and >=
-    class operator in (const A, B: TBounds1): Boolean;
-    class operator in (A: Single; const B: TBounds1): Boolean;
+    class operator in(const A, B: TBounds1): Boolean;
+    class operator in(A: Single; const B: TBounds1): Boolean;
 
     class operator Equal(const A, B: TBounds1): Boolean;
     class operator NotEqual(const A, B: TBounds1): Boolean;
@@ -634,18 +627,18 @@ type
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
     /// Index  X, Y<p/>
-    /// [0]  (0, 0)<p/>
-    /// [1]  (1, 0)<p/>
-    /// [2]  (0, 1)<p/>
-    /// [3]  (1, 1)<p/>
+    ///  [0]  (0, 0)<p/>
+    ///  [1]  (1, 0)<p/>
+    ///  [2]  (0, 1)<p/>
+    ///  [3]  (1, 1)<p/>
     /// </code></summary>
     TCorners = array [TCornerIndex] of TVector2;
 
-  private
+  private         
     function GetPoint(Value: TVector2): TVector2;
-    function GetPointSym(Value: TVector2): TVector2;
+    function GetPointSym(Value: TVector2): TVector2;   
     function GetPointLeft(APos: TVector2): TVector2;
-
+    
     function GetInvPoint(Value: TVector2): TVector2;
     function GetInvPointSym(Value: TVector2): TVector2;
     function GetInvPointLeft(APos: TVector2): TVector2;
@@ -655,10 +648,10 @@ type
 
     procedure SetLineX(const Value: TBounds1); inline;
     procedure SetLineY(const Value: TBounds1); inline;
-
+    
     function GetCorner(AIndex: TCornerIndex): TVector2;
     procedure SetCorner(AIndex: TCornerIndex; const Value: TVector2);
-
+    
   public
     /// <summary>The (usually) lower values of the bounds.</summary>
     C1: TVector2;
@@ -674,7 +667,7 @@ type
     function GetCorners: TCorners;
     /// <summary>Gives direct access to each corner.<p>See <see cref="Pengine.Vector|TBounds2.TCorners"/>.</p></summary>
     property Point[AIndex: TCornerIndex]: TVector2 read GetCorner write SetCorner; default;
-
+    
     /// <summary>Creates a <see cref="Pengine.Vector|TBounds2"/> with the specified range.</summary>
     constructor Create(AC1, AC2: TVector2); overload;
     /// <summary>Creates a <see cref="Pengine.Vector|TBounds2"/> with both bounds laying on the same, given value.</summary>
@@ -752,8 +745,8 @@ type
     class operator Divide(const A, B: TBounds2): TBounds2;
 
     // The in operator is inclusive, comparing with <= and >=
-    class operator in (const A, B: TBounds2): Boolean;
-    class operator in (A: TVector2; const B: TBounds2): Boolean;
+    class operator in(const A, B: TBounds2): Boolean;
+    class operator in(A: TVector2; const B: TBounds2): Boolean;
 
     class operator Equal(const A, B: TBounds2): Boolean;
     class operator NotEqual(const A, B: TBounds2): Boolean;
@@ -785,24 +778,24 @@ type
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
     /// Index  X, Y, Z<p/>
-    /// [0]  (0, 0, 0)<p/>
-    /// [1]  (1, 0, 0)<p/>
-    /// [2]  (0, 1, 0)<p/>
-    /// [3]  (1, 1, 0)<p/>
-    /// [4]  (0, 0, 1)<p/>
-    /// [5]  (1, 0, 1)<p/>
-    /// [6]  (0, 1, 1)<p/>
-    /// [7]  (1, 1, 1)
+    ///  [0]  (0, 0, 0)<p/>
+    ///  [1]  (1, 0, 0)<p/>
+    ///  [2]  (0, 1, 0)<p/>
+    ///  [3]  (1, 1, 0)<p/>
+    ///  [4]  (0, 0, 1)<p/>
+    ///  [5]  (1, 0, 1)<p/>
+    ///  [6]  (0, 1, 1)<p/>
+    ///  [7]  (1, 1, 1)
     /// </code></summary>
     TCorners = array [TCornerIndex] of TVector3;
 
-  private
+  private          
     function GetPoint(Value: TVector3): TVector3;
-    function GetPointSym(Value: TVector3): TVector3;
+    function GetPointSym(Value: TVector3): TVector3;   
     function GetPointLeft(APos: TVector3): TVector3;
-
+    
     function GetInvPoint(Value: TVector3): TVector3;
-    function GetInvPointSym(Value: TVector3): TVector3;
+    function GetInvPointSym(Value: TVector3): TVector3;      
     function GetInvPointLeft(APos: TVector3): TVector3;
 
     function GetLineX: TBounds1; inline;
@@ -845,7 +838,7 @@ type
     function GetCorners: TCorners;
     /// <summary>Gives direct access to each corner.<p>See <see cref="Pengine.Vector|TBounds3.TCorners"/>.</p></summary>
     property Point[AIndex: TCornerIndex]: TVector3 read GetCorner write SetCorner; default;
-
+    
     /// <summary>Creates a <see cref="Pengine.Vector|TBounds3"/> with the specified range.</summary>
     constructor Create(AC1, AC2: TVector3); overload;
     /// <summary>Creates a <see cref="Pengine.Vector|TBounds3"/> with both bounds laying on the same, given value.</summary>
@@ -948,8 +941,8 @@ type
     class operator Divide(const A, B: TBounds3): TBounds3;
 
     // The in operator is inclusive, comparing with <= and >=
-    class operator in (const A, B: TBounds3): Boolean;
-    class operator in (A: TVector3; const B: TBounds3): Boolean;
+    class operator in(const A, B: TBounds3): Boolean;
+    class operator in(A: TVector3; const B: TBounds3): Boolean;
 
     class operator Equal(const A, B: TBounds3): Boolean;
     class operator NotEqual(const A, B: TBounds3): Boolean;
@@ -969,8 +962,8 @@ type
   /// Represents the direction of a 3-Dimensional vector using turn and pitch angles.
   /// <p>The default direction points along the positive Z-Axis. (pointed towards camera)</p>
   /// <code>
-  /// vector | turn | pitch <p/>
-  /// ---------+------+-------<p/>
+  ///  vector | turn | pitch <p/>
+  ///---------+------+-------<p/>
   /// [1|0|0] |   90 |     0 <p/>
   /// [0|1|0] |    0 |    90 <p/>
   /// [0|0|1] |    0 |     0
@@ -1009,9 +1002,6 @@ type
     constructor Create(AVector: TVector3); overload;
     /// <returns>A normalized vector, pointing into the direction of the <see cref="Pengine.Vector|TVectorDir"/>.</returns>
     function Vector: TVector3;
-
-    class operator Equal(const A, B: TVectorDir): Boolean;
-    class operator NotEqual(const A, B: TVectorDir): Boolean;
 
     class operator Implicit(const AVector: TVector3): TVectorDir; inline;
     class operator Implicit(const ADirection: TVectorDir): TVector3; inline;
@@ -1074,20 +1064,17 @@ type
     function Height(const A: TVector2): Single;
 
     /// <returns>The slope of the line:<code>
-    /// X | Y | slope <p/>
+    ///  X | Y | slope <p/>
     /// ---|---|-------<p/>
-    /// 1 | 0 |     0 <p/>
-    /// 1 | 1 |     1 <p/>
-    /// 0 | 1 |  +inf
+    ///  1 | 0 |     0 <p/>
+    ///  1 | 1 |     1 <p/>
+    ///  0 | 1 |  +inf
     /// </code></returns>
     /// <remarks>Make sure to check, if D.X &lt; 0, which means that the line is flipped.</remarks>
     function Slope: Single;
 
     /// <returns>The side of the line, on which the given point is, while looking in the direction of D.</summary>
     function Side(A: TVector2): TLineSide;
-
-    class operator Equal(const A, B: TLine2): Boolean;
-    class operator NotEqual(const A, B: TLine2): Boolean;
 
   end;
 
@@ -1150,29 +1137,17 @@ type
     /// <remarks>The calling line defines the mirror plane.</remarks>
     function Mirror(APoint: TVector3): TVector3;
 
-    class operator Equal(const A, B: TLine3): Boolean;
-    class operator NotEqual(const A, B: TLine3): Boolean;
-
   end;
 
-  { TODO 1 -oPossseidon -cRecord : Code TPlane2 record }
+  {TODO 1 -oPossseidon -cRecord : Code TPlane2 record}
   /// <summary>Represents a 2-Dimensional plane, described by one support vector S and two direction vectors D1 and D2.</summary>
   TPlane2 = record
-  private
-
-  public
     /// <summary>The support vector S of the line.</summary>
     S: TVector2;
     /// <summary>The first direction vector D1 of the line.</summary>
     D1: TVector2;
     /// <summary>The second direction vector D2 of the line.</summary>
     D2: TVector2;
-
-    /// <summary>Creates a plane with the given support vector and direction vectors.</summary>
-    constructor Create(const S, D1, D2: TVector2);
-
-    class operator Equal(const A, B: TPlane2): Boolean;
-    class operator NotEqual(const A, B: TPlane2): Boolean;
 
   end;
 
@@ -1211,7 +1186,7 @@ type
     /// <remarks>Default property.</remarks>
     property Point[APos: TVector2]: TVector3 read GetPoint; default;
 
-    /// <summary>Creates a plane with the given support vector and direction vectors.</summary>
+    /// <summary>Creates a line with the given support vector and direction vectors.</summary>
     constructor Create(const S, D1, D2: TVector3);
 
     /// <returns>The multiplication-factors, to reach the point on the plane, which is closest to the given point.</returns>
@@ -1230,24 +1205,11 @@ type
     function Intsec(const A: TLine3; out AFactors: TLineIntsecFactors): Boolean; overload;
     /// <param name="[out] APoint">Contains the intersection point.</param>
     /// <returns>True, if there is exactly one intersection with the line.</returns>
-    /// <remarks>For quicker calculation, the line is used to get the point. Use <see cref="Pengine.Vector|TPlane3.IntsecP"/>
-    /// to use the plane instead.</remarks>
-    function Intsec(const A: TLine3; out APoint: TVector3): Boolean; overload;
-    /// <param name="[out] APoint">Contains the intersection point.</param>
-    /// <returns>True, if there is exactly one intersection with the line.</returns>
-    /// <remarks>The plane is used to get the point in this function.</remarks>
-    function IntsecP(const A: TLine3; out APoint: TVector3): Boolean; overload;
+    function Intsec(const A: TLine3; out APoint: TVector2): Boolean; overload;
     /// <param name="[out] AFactors">Contains the multiplication-factors, to reach the intersection point.</param>
     /// <param name="[out] APoint">Contains the intersection point.</param>
     /// <returns>True, if there is exactly one intersection with the line.</returns>
-    /// <remarks>For quicker calculation, the line is used to get the point. Use <see cref="Pengine.Vector|TPlane3.IntsecP"/>
-    /// to use the plane instead.</remarks>
-    function Intsec(const A: TLine3; out AFactors: TLineIntsecFactors; out APoint: TVector3): Boolean; overload;
-    /// <param name="[out] AFactors">Contains the multiplication-factors, to reach the intersection point.</param>
-    /// <param name="[out] APoint">Contains the intersection point.</param>
-    /// <returns>True, if there is exactly one intersection with the line.</returns>
-    /// <remarks>The plane is used to get the point in this function.</remarks>
-    function IntsecP(const A: TLine3; out AFactors: TLineIntsecFactors; out APoint: TVector3): Boolean; overload;
+    function Intsec(const A: TLine3; out AFactors: TLineIntsecFactors; out APoint: TVector2): Boolean; overload;
 
     // --- plane intersection ---
     /// <returns>True, if the planes intersect at exactly one line.</returns>
@@ -1269,9 +1231,6 @@ type
     function AngleRadTo(const A: TPlane3): Single; overload; inline;
     /// <returns>The angle to another plane in degrees.</returns>
     function AngleTo(const A: TPlane3): Single; overload; inline;
-
-    class operator Equal(const A, B: TPlane3): Boolean;
-    class operator NotEqual(const A, B: TPlane3): Boolean;
 
   end;
 
@@ -1314,7 +1273,7 @@ type
 
     TOnChangeEvent = TObservableEvent<TChangeEventInfo>;
 
-  private
+  private   
     FPos: TVector3;
     FOffset: TVector3;
     FScale: TVector3;
@@ -1453,8 +1412,7 @@ type
     procedure FromMatrix(AMatrix: TMatrix4);
     procedure FromRotMatrix(AMatrix: TMatrix3);
 
-  public
-    // Events
+  public // Events 
     OnChanged: TOnChangeEvent;
 
   end;
@@ -1487,7 +1445,7 @@ type
 
     procedure Rotate(AAxis: TBasicDir3; ASteps: Integer = 1);
     procedure Mirror(ANormal: TBasicDir3);
-    { TODO -oPossseidon -cFunction : Mirror with mutiple two and three directions for diagonal mirroring }
+    {TODO -oPossseidon -cFunction : Mirror with mutiple two and three directions for diagonal mirroring}
     procedure Invert;
 
     procedure Reset;
@@ -1501,12 +1459,10 @@ type
 
   end;
 
-  // TODO: XmlDoc
   TBlock2Raycaster = class
 
   end;
 
-  // TODO: XmlDoc
   TBlock3Raycaster = class
   private
     FLocation: TLocation;
@@ -1519,7 +1475,7 @@ type
     FCurrent: TIntVector3;
     FLastDirection: TBasicDir3;
     FPosition: TVector3;
-
+    
   public
     constructor Create(ALocation: TLocation; ASize: TIntVector3);
 
@@ -1535,28 +1491,16 @@ type
 
   end;
 
-  /// <summary>A six-sided polyhedron, defined by six face normals, pointing to the outside.</summary>
+  /// <summary>A six-sided polyhedron, defined by six face normals.</summary>
   THexahedron = record
-  public const
-
-    CheckOrder: array [0 .. 5] of TBasicDir3 = (
-      bdFront, // check for behind the camera first, as half of the objects will be there
-      bdLeft,
-      bdRight,
-      bdBack,
-      bdDown,
-      bdUp
-      );
-
   public
     FaceNormals: array [TBasicDir3] of TLine3;
 
-    /// <returns>False, if there is at least one face, where all points are on the outside.</retruns>
-    function AnyVisible(APoints: IIterable<TVector3>): Boolean; overload;
-    function AnyVisible(APoints: array of TVector3): Boolean; overload;
+    // wtf does this... xD
+    function Visible(APoints: TArray<TVector3>): Boolean;
 
-    class operator in (APoint: TVector3; const AHexahedron: THexahedron): Boolean;
-
+    class operator in(APoint: TVector3; const AHexahedron: THexahedron): Boolean;
+    
   end;
 
   PBounds1 = ^TBounds1;
@@ -1580,28 +1524,28 @@ const
   NaNVec3: TVector3 = (X: NaN; Y: NaN; Z: NaN);
 
   Vec1Dir: array [TBasicDir1Nonable] of Integer = (
-    0,
+     0,
     -1,
     +1
-    );
+  );
 
   Vec2Dir: array [TBasicDir2Nonable] of TIntVector2 = (
-    (X: 0; Y: 0),
-    (X: - 1; Y: 0),
-    (X: + 1; Y: 0),
-    (X: 0; Y: - 1),
-    (X: 0; Y: + 1)
-    );
+    (X:  0; Y:  0),
+    (X: -1; Y:  0),
+    (X: +1; Y:  0),
+    (X:  0; Y: -1),
+    (X:  0; Y: +1)
+  );
 
   Vec3Dir: array [TBasicDir] of TIntVector3 = (
-    (X: 0; Y: 0; Z: 0),
-    (X: - 1; Y: 0; Z: 0),
-    (X: + 1; Y: 0; Z: 0),
-    (X: 0; Y: - 1; Z: 0),
-    (X: 0; Y: + 1; Z: 0),
-    (X: 0; Y: 0; Z: - 1),
-    (X: 0; Y: 0; Z: + 1)
-    );
+    (X:  0; Y:  0; Z:  0),
+    (X: -1; Y:  0; Z:  0),
+    (X: +1; Y:  0; Z:  0),
+    (X:  0; Y: -1; Z:  0),
+    (X:  0; Y: +1; Z:  0),
+    (X:  0; Y:  0; Z: -1),
+    (X:  0; Y:  0; Z: +1)
+  );
 
   FlippedBasicDirs: array [TBasicDir] of TBasicDir = (
     bdNone,
@@ -1611,7 +1555,7 @@ const
     bdDown,
     bdFront,
     bdBack
-    );
+  );
 
   AbsBasicDirs: array [TBasicDir] of TBasicDir = (
     bdNone,
@@ -1621,7 +1565,7 @@ const
     bdUp,
     bdFront,
     bdBack
-    );
+  );
 
   BasicDirAxis: array [TBasicDir] of TCoordAxis = (
     caNone,
@@ -1631,60 +1575,66 @@ const
     caY,
     caZ,
     caZ
-    );
+  );
 
-  // -                      direction    around    ccw times
+  //                        direction    around      ccw times
   BasicDirRotations: array [TBasicDir3, TBasicDir3, 1 .. 3] of TBasicDir = (
     ( // left
-    (bdLeft, bdLeft, bdLeft), // left
-    (bdLeft, bdLeft, bdLeft), // right
-    (bdBack, bdRight, bdFront), // down
-    (bdFront, bdRight, bdBack), // up
-    (bdUp, bdRight, bdDown), // back
-    (bdDown, bdRight, bdUp) // front
-    ), ( // right
-    (bdRight, bdRight, bdRight), // left
-    (bdRight, bdRight, bdRight), // right
-    (bdFront, bdLeft, bdBack), // down
-    (bdBack, bdLeft, bdFront), // up
-    (bdDown, bdLeft, bdUp), // back
-    (bdUp, bdLeft, bdDown) // front
-    ), ( // down
-    (bdBack, bdUp, bdFront), // left
-    (bdFront, bdUp, bdBack), // right
-    (bdDown, bdDown, bdDown), // down
-    (bdDown, bdDown, bdDown), // up
-    (bdLeft, bdUp, bdRight), // back
-    (bdRight, bdUp, bdLeft) // front
-    ), ( // up
-    (bdFront, bdDown, bdBack), // left
-    (bdBack, bdDown, bdFront), // right
-    (bdUp, bdUp, bdUp), // down
-    (bdUp, bdUp, bdUp), // up
-    (bdRight, bdDown, bdLeft), // back
-    (bdLeft, bdDown, bdRight) // front
-    ), ( // back
-    (bdDown, bdFront, bdUp), // left
-    (bdUp, bdFront, bdDown), // right
-    (bdLeft, bdFront, bdRight), // down
-    (bdRight, bdFront, bdLeft), // up
-    (bdBack, bdBack, bdBack), // back
-    (bdBack, bdBack, bdBack) // front
-    ), ( // front
-    (bdUp, bdBack, bdDown), // left
-    (bdDown, bdBack, bdUp), // right
-    (bdRight, bdBack, bdLeft), // down
-    (bdLeft, bdBack, bdRight), // up
-    (bdFront, bdFront, bdFront), // back
-    (bdFront, bdFront, bdFront) // front
-    ));
+      (bdLeft, bdLeft, bdLeft), // left
+      (bdLeft, bdLeft, bdLeft), // right
+      (bdBack, bdRight, bdFront), // down
+      (bdFront, bdRight, bdBack), // up
+      (bdUp, bdRight, bdDown), // back
+      (bdDown, bdRight, bdUp)  // front
+    ),
+    ( // right
+      (bdRight, bdRight, bdRight), // left
+      (bdRight, bdRight, bdRight), // right
+      (bdFront, bdLeft, bdBack), // down
+      (bdBack, bdLeft, bdFront), // up
+      (bdDown, bdLeft, bdUp), // back
+      (bdUp, bdLeft, bdDown)  // front
+    ),
+    ( // down
+      (bdBack, bdUp, bdFront), // left
+      (bdFront, bdUp, bdBack), // right
+      (bdDown, bdDown, bdDown), // down
+      (bdDown, bdDown, bdDown), // up
+      (bdLeft, bdUp, bdRight), // back
+      (bdRight, bdUp, bdLeft)  // front
+    ),
+    ( // up
+      (bdFront, bdDown, bdBack), // left
+      (bdBack, bdDown, bdFront), // right
+      (bdUp, bdUp, bdUp), // down
+      (bdUp, bdUp, bdUp), // up
+      (bdRight, bdDown, bdLeft), // back
+      (bdLeft, bdDown, bdRight)  // front
+    ),
+    ( // back
+      (bdDown, bdFront, bdUp), // left
+      (bdUp, bdFront, bdDown), // right
+      (bdLeft, bdFront, bdRight), // down
+      (bdRight, bdFront, bdLeft), // up
+      (bdBack, bdBack, bdBack), // back
+      (bdBack, bdBack, bdBack)  // front
+    ),
+    ( // front
+      (bdUp, bdBack, bdDown), // left
+      (bdDown, bdBack, bdUp), // right
+      (bdRight, bdBack, bdLeft), // down
+      (bdLeft, bdBack, bdRight), // up
+      (bdFront, bdFront, bdFront), // back
+      (bdFront, bdFront, bdFront)  // front
+    )
+  );
 
   AxisBasicDir: array [TCoordAxis] of TBasicDir = (
     bdNone,
     bdRight,
     bdUp,
     bdFront
-    );
+  );
 
   QuadSideCount = High(TQuadIndex) + 1;
 
@@ -1698,12 +1648,12 @@ const
     );
 
   QuadMiddleCoords: array [TQuadIndex] of TTexCoord2 = (
-    (X: - 1; Y: - 1),
-    (X: + 1; Y: - 1),
-    (X: + 1; Y: + 1),
-    (X: + 1; Y: + 1),
-    (X: - 1; Y: + 1),
-    (X: - 1; Y: - 1)
+    (X: -1; Y: -1),
+    (X: +1; Y: -1),
+    (X: +1; Y: +1),
+    (X: +1; Y: +1),
+    (X: -1; Y: +1),
+    (X: -1; Y: -1)
     );
 
   TriangleTexCoords: array [TTriangleIndex] of TTexCoord2 = (
@@ -1734,10 +1684,10 @@ const
 
   CubePlanes: array [TBasicDir3] of TPlane3 = (
     (S: (X: 0; Y: 0; Z: 0); D1: (X: 0; Y: 0; Z: 1); D2: (X: 0; Y: 1; Z: 0)),
-    (S: (X: 1; Y: 0; Z: 1); D1: (X: 0; Y: 0; Z: - 1); D2: (X: 0; Y: 1; Z: 0)),
+    (S: (X: 1; Y: 0; Z: 1); D1: (X: 0; Y: 0; Z: -1); D2: (X: 0; Y: 1; Z: 0)),
     (S: (X: 0; Y: 0; Z: 0); D1: (X: 1; Y: 0; Z: 0); D2: (X: 0; Y: 0; Z: 1)),
-    (S: (X: 0; Y: 1; Z: 1); D1: (X: 1; Y: 0; Z: 0); D2: (X: 0; Y: 0; Z: - 1)),
-    (S: (X: 1; Y: 0; Z: 0); D1: (X: - 1; Y: 0; Z: 0); D2: (X: 0; Y: 1; Z: 0)),
+    (S: (X: 0; Y: 1; Z: 1); D1: (X: 1; Y: 0; Z: 0); D2: (X: 0; Y: 0; Z: -1)),
+    (S: (X: 1; Y: 0; Z: 0); D1: (X: -1; Y: 0; Z: 0); D2: (X: 0; Y: 1; Z: 0)),
     (S: (X: 0; Y: 0; Z: 1); D1: (X: 1; Y: 0; Z: 0); D2: (X: 0; Y: 1; Z: 0))
     );
 
@@ -1751,7 +1701,6 @@ function RotateDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer = 1): TBa
 function Vec2(X, Y: Single): TVector2; overload; inline;
 /// <returns>A <see cref="Pengine.Vector|TVector2"/> with the given value for X and Y.</returns>
 function Vec2(V: Single): TVector2; overload; inline;
-
 /// <returns>A <see cref="Pengine.Vector|TVector3"/> with the given values for X, Y and Z.</returns>
 function Vec3(X, Y, Z: Single): TVector3; overload; inline;
 /// <returns>A <see cref="Pengine.Vector|TVector3"/> with the given value for X, Y and Z.</returns>
@@ -1772,22 +1721,12 @@ function Bounds3(A, B: TVector3): TBounds3; overload; inline;
 /// <returns>A <see cref="Pengine.Vector|TBounds3"/> for the interval: <c>[A, A]</c></returns>
 function Bounds3(A: TVector3): TBounds3; overload; inline;
 
-/// <returns>A <see cref="Pengine.Vector|TLine2"/> with the given values for S and D.</returns>
-function Line2(S, D: TVector2): TLine2; inline;
-/// <returns>A <see cref="Pengine.Vector|TLine3"/> with the given values for S and D.</returns>
-function Line3(S, D: TVector3): TLine3; inline;
-
-/// <returns>A <see cref="Pengine.Vector|TPlane2"/> with the given values for S, D1 and D2.</returns>
-function Plane2(S, D1, D2: TVector2): TPlane2; inline;
-/// <returns>A <see cref="Pengine.Vector|TPlane3"/> with the given values for S, D1 and D2.</returns>
-function Plane3(S, D1, D2: TVector3): TPlane3; inline;
-
 implementation
 
 const
-  RotationLimit: TBounds1 = (C1: - 180; C2: + 180);
-
-  { EAxisError }
+  RotationLimit: TBounds1 = (C1: -180; C2: +180);
+           
+{ EAxisError }
 
 constructor EAxisSystemError.Create;
 begin
@@ -1795,6 +1734,8 @@ begin
 end;
 
 { TVector2 }
+
+{$REGION 'All versions of rearrangement TVector2'}
 
 function TVector2.GetXX: TVector2;
 begin
@@ -1831,6 +1772,8 @@ begin
   Y := Value.X;
   X := Value.Y;
 end;
+
+{$ENDREGION}
 
 constructor TVector2.Create(X, Y: Single);
 begin
@@ -2013,14 +1956,14 @@ begin
   Result := RadToDeg(AngleRadTo(A));
 end;
 
-function TVector2.RotateRad(AAngle: Single): TVector2;
+function TVector2.RotatedRad(AAngle: Single): TVector2;
 begin
   Result := Sin(AAngle) * Cross + Cos(AAngle) * Self;
 end;
 
-function TVector2.Rotate(AAngle: Single): TVector2;
+function TVector2.Rotated(AAngle: Single): TVector2;
 begin
-  Result := RotateRad(DegToRad(AAngle));
+  Result := RotatedRad(DegToRad(AAngle));
 end;
 
 function TVector2.Abs: TVector2;
@@ -2631,21 +2574,18 @@ function TVector3.Abs: TVector3;
 begin
   Result.X := System.Abs(X);
   Result.Y := System.Abs(Y);
-  Result.Z := System.Abs(Z);
 end;
 
 function TVector3.Floor: TIntVector3;
 begin
   Result.X := System.Math.Floor(X);
   Result.Y := System.Math.Floor(Y);
-  Result.Z := System.Math.Floor(Z);
 end;
 
 function TVector3.Ceil: TIntVector3;
 begin
   Result.X := System.Math.Ceil(X);
   Result.Y := System.Math.Ceil(Y);
-  Result.Z := System.Math.Ceil(Z);
 end;
 
 function TVector3.Dirs: TBasicDirs3;
@@ -2691,18 +2631,18 @@ begin
 end;
 
 function TBounds1.GetInvPoint(APos: Single): Single;
-begin
+begin                  
   Result := (APos - C1) / Length;
 end;
 
 function TBounds1.GetInvPointSym(APos: Single): Single;
-begin
+begin                                        
   Result := (APos - C1) / Length * 2 - 1;
 end;
 
 function TBounds1.GetInvPointLeft(APos: Single): Single;
-begin
-  Result := (APos - C1) / Length - 1;
+begin                                      
+  Result := (APos - C1) / Length - 1;   
 end;
 
 function TBounds1.GetCorner(AIndex: TCornerIndex): Single;
@@ -2718,7 +2658,7 @@ begin
   if AIndex = 0 then
     C1 := Value
   else
-    C2 := Value;
+    C2 := Value;  
 end;
 
 function TBounds1.GetCorners: TCorners;
@@ -2762,7 +2702,7 @@ begin
 end;
 
 function TBounds1.Convert(APoint: Single; const ABounds: TBounds1): Single;
-begin
+begin     
   Result := ABounds[InvPoint[APoint]];
 end;
 
@@ -2779,7 +2719,7 @@ end;
 
 function TBounds1.RangedModL(AValue: Single): Single;
 
-// Copy of System.Math.FMod, but that uses Trunc, which results in a symmetric behavior
+  // Copy of System.Math.FMod, but that uses Trunc, which results in a symmetric behavior
   function FMod(const ANumerator, ADenominator: Single): Single;
   begin
     Result := ANumerator - Floor(ANumerator / ADenominator) * ADenominator;
@@ -2791,7 +2731,7 @@ end;
 
 function TBounds1.RangedModR(AValue: Single): Single;
 
-// Copy of System.Math.FMod, but that uses Trunc, which results in a symmetric behavior
+  // Copy of System.Math.FMod, but that uses Trunc, which results in a symmetric behavior
   function FMod(const ANumerator, ADenominator: Single): Single;
   begin
     Result := ANumerator - (Ceil(ANumerator / ADenominator) - 1) * ADenominator;
@@ -2929,9 +2869,9 @@ end;
 
 function TBounds2.GetInvPointLeft(APos: TVector2): TVector2;
 begin
-  Result := (APos - C1) / Size - 1;
+  Result := (APos - C1) / Size - 1;   
 end;
-
+                       
 function TBounds2.GetLineX: TBounds1;
 begin
   Result := Bounds1(C1.X, C2.X);
@@ -2961,7 +2901,7 @@ begin
 end;
 
 procedure TBounds2.SetCorner(AIndex: TCornerIndex; const Value: TVector2);
-begin
+begin                                                            
   if AIndex mod 2 = 0 then
     C1.X := Value.X
   else
@@ -2969,9 +2909,9 @@ begin
   if AIndex div 2 mod 2 = 0 then
     C1.Y := Value.Y
   else
-    C2.Y := Value.Y;
+    C2.Y := Value.Y;  
 end;
-
+                      
 function TBounds2.GetCorners: TCorners;
 begin
   Result[0].Create(C1.X, C1.Y);
@@ -3178,7 +3118,7 @@ end;
 
 function TBounds3.GetInvPointLeft(APos: TVector3): TVector3;
 begin
-
+  
 end;
 
 function TBounds3.GetLineX: TBounds1;
@@ -3302,11 +3242,11 @@ begin
   if AIndex div 2 mod 2 = 0 then
     C1.Y := Value.Y
   else
-    C2.Y := Value.Y;
+    C2.Y := Value.Y;  
   if AIndex div 4 mod 2 = 0 then
     C1.Z := Value.Z
   else
-    C2.Z := Value.Z;
+    C2.Z := Value.Z;  
 end;
 
 function TBounds3.GetCorners: TCorners;
@@ -3557,16 +3497,6 @@ begin
     Cos(TurnAngleRad) * Cos(PitchAngleRad));
 end;
 
-class operator TVectorDir.Equal(const A, B: TVectorDir): Boolean;
-begin
-  Result := (A.TurnAngleRad = B.TurnAngleRad) and (A.PitchAngleRad = B.PitchAngleRad);
-end;
-
-class operator TVectorDir.NotEqual(const A, B: TVectorDir): Boolean;
-begin
-  Result := (A.TurnAngleRad <> B.TurnAngleRad) or (A.PitchAngleRad <> B.PitchAngleRad);
-end;
-
 class operator TVectorDir.Implicit(const AVector: TVector3): TVectorDir;
 begin
   Result.Create(AVector);
@@ -3582,11 +3512,6 @@ end;
 function TLine2.GetPoint(Value: Single): TVector2;
 begin
   Result := S + Value * D;
-end;
-
-class operator TLine2.Equal(const A, B: TLine2): Boolean;
-begin
-  Result := (A.S  = B.S) and (A.D = B.D);
 end;
 
 function TLine2.GetHead: TVector2;
@@ -3647,11 +3572,6 @@ begin
   end;
 end;
 
-class operator TLine2.NotEqual(const A, B: TLine2): Boolean;
-begin
-  Result := (A.S <> B.S) or (A.D <> B.D);
-end;
-
 function TLine2.Height(const A: TVector2): Single;
 begin
   if D = 0 then
@@ -3684,11 +3604,6 @@ end;
 function TLine3.GetPoint(Value: Single): TVector3;
 begin
   Result := S + Value * D;
-end;
-
-class operator TLine3.Equal(const A, B: TLine3): Boolean;
-begin
-  Result := (A.S = B.S) and (A.D = B.D);
 end;
 
 function TLine3.GetHead: TVector3;
@@ -3769,29 +3684,7 @@ begin
   Result := APoint - D * OrthoProj(APoint) * 2;
 end;
 
-class operator TLine3.NotEqual(const A, B: TLine3): Boolean;
-begin
-  Result := (A.S <> B.S) or (A.D <> B.D);
-end;
-
 { TPlane2 }
-
-constructor TPlane2.Create(const S, D1, D2: TVector2);
-begin
-  Self.S := S;
-  Self.D1 := D1;
-  Self.D2 := D2;
-end;
-
-class operator TPlane2.Equal(const A, B: TPlane2): Boolean;
-begin
-  Result := (A.S = B.S) and (A.D1 = B.D1) and (A.D2 = B.D2);
-end;
-
-class operator TPlane2.NotEqual(const A, B: TPlane2): Boolean;
-begin
-  Result := (A.S <> B.S) or (A.D1 <> B.D1) or (A.D2 <> B.D2);
-end;
 
 { TPlane3 }
 
@@ -3815,9 +3708,14 @@ begin
   Result := Perpendicular.Normalize;
 end;
 
-class operator TPlane3.NotEqual(const A, B: TPlane3): Boolean;
+function TPlane3.CosAngleTo(const A: TPlane3): Single;
 begin
-  Result := (A.S <> B.S) or (A.D1 <> B.D1) or (A.D2 <> B.D2);
+  Result := Perpendicular.CosAngleTo(A.Perpendicular);
+end;
+
+function TPlane3.CosAngleTo(const A: TVector3): Single;
+begin
+  Result := Perpendicular.CosAngleTo(A);
 end;
 
 constructor TPlane3.Create(const S, D1, D2: TVector3);
@@ -3825,11 +3723,6 @@ begin
   Self.S := S;
   Self.D1 := D1;
   Self.D2 := D2;
-end;
-
-class operator TPlane3.Equal(const A, B: TPlane3): Boolean;
-begin
-  Result := (A.S = B.S) and (A.D1 = B.D1) and (A.D2 = B.D2);
 end;
 
 function TPlane3.OrthoProj(const A: TVector3): TVector2;
@@ -3877,22 +3770,6 @@ begin
   end;
 end;
 
-function TPlane3.Intsec(const A: TLine3; out APoint: TVector3): Boolean;
-var
-  Factors: TLineIntsecFactors;
-begin
-  Result := Intsec(A, Factors);
-  if Result then
-    APoint := A[Factors.LineFactor];
-end;
-
-function TPlane3.Intsec(const A: TLine3; out AFactors: TLineIntsecFactors; out APoint: TVector3): Boolean;
-begin
-  Result := Intsec(A, AFactors);
-  if Result then
-    APoint := A[AFactors.LineFactor];
-end;
-
 function TPlane3.Intsec(const A: TPlane3): Boolean;
 var
   Line: TLine3;
@@ -3911,29 +3788,17 @@ begin
   IntsecLine.D := ALine.D.Cross(N);
   IntsecLine.S := S;
   Result := A.Intsec(IntsecLine, Data);
-  if Result then
-    ALine.S := IntsecLine[Data.LineFactor];
+  ALine.S := IntsecLine[Data.LineFactor];
 end;
 
-function TPlane3.IntsecP(const A: TLine3; out AFactors: TLineIntsecFactors; out APoint: TVector3): Boolean;
+function TPlane3.Intsec(const A: TLine3; out APoint: TVector2): Boolean;
 begin
-  Result := Intsec(A, AFactors);
-  if Result then
-    APoint := Self[AFactors.PlaneFactors];
+
 end;
 
-function TPlane3.IntsecP(const A: TLine3; out APoint: TVector3): Boolean;
-var
-  Factors: TLineIntsecFactors;
+function TPlane3.Intsec(const A: TLine3; out AFactors: TLineIntsecFactors; out APoint: TVector2): Boolean;
 begin
-  Result := Intsec(A, Factors);
-  if Result then
-    APoint := Self[Factors.PlaneFactors];
-end;
-
-function TPlane3.CosAngleTo(const A: TVector3): Single;
-begin
-  Result := Perpendicular.CosAngleTo(A);
+  
 end;
 
 function TPlane3.AngleRadTo(const A: TVector3): Single;
@@ -3944,11 +3809,6 @@ end;
 function TPlane3.AngleTo(const A: TVector3): Single;
 begin
   Result := EnsureRange(90 - Perpendicular.AngleTo(A), 0, 90);
-end;
-
-function TPlane3.CosAngleTo(const A: TPlane3): Single;
-begin
-  Result := Perpendicular.CosAngleTo(A.Perpendicular);
 end;
 
 function TPlane3.AngleRadTo(const A: TPlane3): Single;
@@ -3983,6 +3843,14 @@ end;
 
 { TLocation }
 
+procedure TLocation.TriggerChanges(AChanges: TChanges);
+begin
+  FChanged := True;
+  if AChanges - [ctFreeScale, ctFreeTranslation, ctFreeRotation] = AChanges then // free changes matrix > no notify
+    FMatrixChanged := True;
+  OnChanged.Execute(TChangeEventInfo.Create(Self, AChanges));
+end;
+
 procedure TLocation.SetLook(AValue: TVector3);
 var
   D: TVectorDir;
@@ -3994,12 +3862,74 @@ begin
   PitchAngle := D.PitchAngle;
 end;
 
-procedure TLocation.TriggerChanges(AChanges: TChanges);
+function TLocation.GetInvMatrix: TMatrix4;
 begin
-  FChanged := True;
-  if AChanges - [ctFreeScale, ctFreeTranslation, ctFreeRotation] = AChanges then // free changes matrix > no notify
-    FMatrixChanged := True;
-  OnChanged.Execute(TChangeEventInfo.Create(Self, AChanges));
+  if FMatrixChanged or FInvMatrixChanged then
+    FInvMatrix := Matrix.Inverse;
+  Result := FInvMatrix;
+  FInvMatrixChanged := False;
+end;
+
+function TLocation.GetInvRotMatrix: TMatrix3;
+begin
+  if FMatrixChanged or FRotMatrixChanged or FInvRotMatrixChanged then
+    FInvRotMatrix := RotMatrix.Inverse;
+  Result := FInvRotMatrix;
+  FInvRotMatrixChanged := False;
+end;
+
+procedure TLocation.SetScale(AValue: TVector3);
+begin
+  if FScale = AValue then
+    Exit;
+  FScale := AValue;
+  TriggerChanges([ctScale]);
+end;
+
+procedure TLocation.SetScaleX(AValue: Single);
+begin
+  if FScale.X = AValue then
+    Exit;
+  FScale.X := AValue;
+  TriggerChanges([ctScale]);
+end;
+
+procedure TLocation.SetScaleY(AValue: Single);
+begin
+  if FScale.Y = AValue then
+    Exit;
+  FScale.Y := AValue;
+  TriggerChanges([ctScale]);
+end;
+
+procedure TLocation.SetScaleZ(AValue: Single);
+begin
+  if FScale.Z = AValue then
+    Exit;
+  FScale.Z := AValue;
+  TriggerChanges([ctScale]);
+end;
+
+function TLocation.GetLook: TVector3;
+begin
+  if FMatrixChanged then
+    BuildMatrix;
+  if FInverted then
+  begin
+    Result := TVector3.Create(
+      -FMatrix[0, 2],
+      -FMatrix[1, 2],
+      -FMatrix[2, 2]
+      );
+  end
+  else
+  begin
+    Result := TVector3.Create(
+      -FMatrix[2, 0],
+      -FMatrix[2, 1],
+      -FMatrix[2, 2]
+    );
+  end;
 end;
 
 function TLocation.GetMatrix: TMatrix4;
@@ -4009,31 +3939,6 @@ begin
   FInvMatrixChanged := True;
   FRotMatrixChanged := True;
   Result := FMatrix;
-end;
-
-function TLocation.GetInvMatrix: TMatrix4;
-begin
-  if FMatrixChanged or FInvMatrixChanged then
-    FInvMatrix := Matrix.Inverse;
-  Result := FInvMatrix;
-  FInvMatrixChanged := False;
-end;
-
-function TLocation.GetRotMatrix: TMatrix3;
-begin
-  if FMatrixChanged or FRotMatrixChanged then
-    FRotMatrix := Matrix.Minor[3];
-  Result := FRotMatrix;
-  FRotMatrixChanged := False;
-  FInvRotMatrixChanged := True;
-end;
-
-function TLocation.GetInvRotMatrix: TMatrix3;
-begin
-  if FMatrixChanged or FRotMatrixChanged or FInvRotMatrixChanged then
-    FInvRotMatrix := RotMatrix.Inverse;
-  Result := FInvRotMatrix;
-  FInvRotMatrixChanged := False;
 end;
 
 function TLocation.GetRealPosition: TVector3;
@@ -4070,26 +3975,13 @@ begin
   end;
 end;
 
-function TLocation.GetLook: TVector3;
+function TLocation.GetRotMatrix: TMatrix3;
 begin
-  if FMatrixChanged then
-    BuildMatrix;
-  if FInverted then
-  begin
-    Result := TVector3.Create(
-      -FMatrix[0, 2],
-      -FMatrix[1, 2],
-      -FMatrix[2, 2]
-      );
-  end
-  else
-  begin
-    Result := TVector3.Create(
-      -FMatrix[2, 0],
-      -FMatrix[2, 1],
-      -FMatrix[2, 2]
-      );
-  end;
+  if FMatrixChanged or FRotMatrixChanged then
+    FRotMatrix := Matrix.Minor[3, 3];
+  Result := FRotMatrix;
+  FRotMatrixChanged := False;
+  FInvRotMatrixChanged := True;
 end;
 
 function TLocation.GetUp: TVector3;
@@ -4123,12 +4015,12 @@ begin
     FMatrix.LoadIdentity;
   if FInverted then
   begin
-    FreeTranslate( -FOffset);
+    FreeTranslate(-FOffset);
     FreeScale(1 / FScale);
-    FreeRoll( -RollAngle);
-    FreePitch( -PitchAngle);
-    FreeTurn( -TurnAngle);
-    FreeTranslate( -FPos);
+    FreeRoll(-RollAngle);
+    FreePitch(-PitchAngle);
+    FreeTurn(-TurnAngle);
+    FreeTranslate(-FPos);
   end
   else
   begin
@@ -4143,38 +4035,6 @@ begin
   FFreeChanged := False;
   FChanged := True;
   OnChanged.Enable;
-end;
-
-procedure TLocation.SetPos(AValue: TVector3);
-begin
-  if FPos = AValue then
-    Exit;
-  FPos := AValue;
-  TriggerChanges([ctPosition]);
-end;
-
-procedure TLocation.SetPosX(AValue: Single);
-begin
-  if FPos.X = AValue then
-    Exit;
-  FPos.X := AValue;
-  TriggerChanges([ctPosition]);
-end;
-
-procedure TLocation.SetPosY(AValue: Single);
-begin
-  if FPos.Y = AValue then
-    Exit;
-  FPos.Y := AValue;
-  TriggerChanges([ctPosition]);
-end;
-
-procedure TLocation.SetPosZ(AValue: Single);
-begin
-  if FPos.Z = AValue then
-    Exit;
-  FPos.Z := AValue;
-  TriggerChanges([ctPosition]);
 end;
 
 procedure TLocation.SetOffset(AValue: TVector3);
@@ -4209,38 +4069,6 @@ begin
   TriggerChanges([ctOffset]);
 end;
 
-procedure TLocation.SetScale(AValue: TVector3);
-begin
-  if FScale = AValue then
-    Exit;
-  FScale := AValue;
-  TriggerChanges([ctScale]);
-end;
-
-procedure TLocation.SetScaleX(AValue: Single);
-begin
-  if FScale.X = AValue then
-    Exit;
-  FScale.X := AValue;
-  TriggerChanges([ctScale]);
-end;
-
-procedure TLocation.SetScaleY(AValue: Single);
-begin
-  if FScale.Y = AValue then
-    Exit;
-  FScale.Y := AValue;
-  TriggerChanges([ctScale]);
-end;
-
-procedure TLocation.SetScaleZ(AValue: Single);
-begin
-  if FScale.Z = AValue then
-    Exit;
-  FScale.Z := AValue;
-  TriggerChanges([ctScale]);
-end;
-
 procedure TLocation.SetPitch(AValue: Single);
 begin
   AValue := RotationLimit.RangedModL(AValue);
@@ -4248,6 +4076,38 @@ begin
     Exit;
   FRotation.X := AValue;
   TriggerChanges([ctPitch]);
+end;
+
+procedure TLocation.SetPos(AValue: TVector3);
+begin
+  if FPos = AValue then
+    Exit;
+  FPos := AValue;
+  TriggerChanges([ctPosition]);
+end;
+
+procedure TLocation.SetPosX(AValue: Single);
+begin
+  if FPos.X = AValue then
+    Exit;
+  FPos.X := AValue;
+  TriggerChanges([ctPosition]);
+end;
+
+procedure TLocation.SetPosY(AValue: Single);
+begin
+  if FPos.Y = AValue then
+    Exit;
+  FPos.Y := AValue;
+  TriggerChanges([ctPosition]);
+end;
+
+procedure TLocation.SetPosZ(AValue: Single);
+begin
+  if FPos.Z = AValue then
+    Exit;
+  FPos.Z := AValue;
+  TriggerChanges([ctPosition]);
 end;
 
 procedure TLocation.SetRoll(AValue: Single);
@@ -4337,6 +4197,14 @@ begin
     ctRoll]));
 end;
 
+procedure TLocation.ResetRotation;
+begin
+  if FRotation = 0 then
+    Exit;
+  FRotation := 0;
+  TriggerChanges([ctTurn, ctPitch, ctRoll]);
+end;
+
 procedure TLocation.ResetTranslation;
 begin
   if Pos = 0 then
@@ -4361,14 +4229,6 @@ begin
   TriggerChanges([ctScale]);
 end;
 
-procedure TLocation.ResetRotation;
-begin
-  if FRotation = 0 then
-    Exit;
-  FRotation := 0;
-  TriggerChanges([ctTurn, ctPitch, ctRoll]);
-end;
-
 procedure TLocation.Turn(const ATurn: Single);
 begin
   TurnAngle := TurnAngle + ATurn;
@@ -4382,120 +4242,6 @@ end;
 procedure TLocation.Roll(const ARoll: Single);
 begin
   RollAngle := RollAngle + ARoll;
-end;
-
-procedure TLocation.Rotate(const ARotation: TVector3);
-var
-  Changes: TChanges;
-begin
-  Changes := [];
-  if ARotation.X <> 0 then
-    Include(Changes, ctPitch);
-  if ARotation.Y <> 0 then
-    Include(Changes, ctTurn);
-  if ARotation.Z <> 0 then
-    Include(Changes, ctRoll);
-  if Changes <> [] then
-  begin
-    FRotation := FRotation + ARotation;
-    FFreeChanged := True;
-    TriggerChanges(Changes);
-  end;
-end;
-
-procedure TLocation.Translate(const AVector: TVector3);
-begin
-  FPos := FPos + AVector;
-  TriggerChanges([ctPosition]);
-end;
-
-procedure TLocation.MoveOffset(const AVector: TVector3);
-begin
-  FOffset := FOffset + AVector;
-  TriggerChanges([ctOffset]);
-end;
-
-procedure TLocation.ScaleBy(const AScale: TVector3);
-begin
-  Scale := Scale * AScale;
-end;
-
-procedure TLocation.Approach(ALocation: TLocation; ADelta: Single);
-
-  function ApproachRotation(AValue, AFinal: Single): Single;
-  begin
-    if AValue - AFinal > 180 then
-      AFinal := AFinal + 360
-    else if AValue - AFinal < -180 then
-      AFinal := AFinal - 360;
-
-    Result := (1 - ADelta) * AValue + ADelta * AFinal
-  end;
-
-begin
-  ADelta := EnsureRange(ADelta, 0, 1);
-
-  Pos := (1 - ADelta) * Pos + ADelta * ALocation.Pos;
-  Offset := (1 - ADelta) * Offset + ADelta * ALocation.Offset;
-  Scale := (1 - ADelta) * Scale + ADelta * ALocation.Scale;
-
-  TurnAngle := ApproachRotation(TurnAngle, ALocation.TurnAngle);
-  PitchAngle := ApproachRotation(PitchAngle, ALocation.PitchAngle);
-  RollAngle := ApproachRotation(RollAngle, ALocation.RollAngle);
-
-end;
-
-procedure TLocation.Assign(ALocation: TLocation);
-begin
-  Pos := ALocation.Pos;
-  Offset := ALocation.Offset;
-  Scale := ALocation.Scale;
-  TurnAngle := ALocation.TurnAngle;
-  PitchAngle := ALocation.PitchAngle;
-  RollAngle := ALocation.RollAngle;
-end;
-
-procedure TLocation.Swap(ALocation: TLocation);
-var
-  Tmp: TLocation;
-begin
-  Tmp := TLocation.Create;
-  Tmp.Assign(ALocation);
-  ALocation.Assign(Self);
-  Self.Assign(Tmp);
-  Tmp.Free;
-end;
-
-procedure TLocation.FreeRotate(AVector: TVector3; const AAngle: Single);
-var
-  S, C, CInv: Single;
-  M: TMatrix4;
-begin
-  AVector := AVector.Normalize;
-
-  S := Sin(AAngle / 180 * Pi);
-  C := Cos(AAngle / 180 * Pi);
-  CInv := 1 - C;
-
-  M.Clear;
-  // right
-  M[0, 0] := AVector.X * AVector.X * CInv + C;
-  M[0, 1] := AVector.Y * AVector.X * CInv + AVector.Z * S;
-  M[0, 2] := AVector.Z * AVector.X * CInv - AVector.Y * S;
-  // up
-  M[1, 0] := AVector.X * AVector.Y * CInv - AVector.Z * S;
-  M[1, 1] := AVector.Y * AVector.Y * CInv + C;
-  M[1, 2] := AVector.Z * AVector.Y * CInv + AVector.X * S;
-  // look
-  M[2, 0] := AVector.X * AVector.Z * CInv + AVector.Y * S;
-  M[2, 1] := AVector.Y * AVector.Z * CInv - AVector.X * S;
-  M[2, 2] := AVector.Z * AVector.Z * CInv + C;
-
-  M[3, 3] := 1;
-
-  FMatrix := FMatrix * M;
-
-  TriggerChanges([ctFreeRotation]);
 end;
 
 procedure TLocation.FreeTurn(ATurn: Single);
@@ -4615,12 +4361,126 @@ end;
 
 procedure TLocation.FromRotMatrix(AMatrix: TMatrix3);
 begin
-  FMatrix.Minor[3] := AMatrix;
+  FMatrix.Minor[3, 3] := AMatrix;
   FFreeChanged := True;
   TriggerChanges([ctFreeRotation, ctFreeScale]);
 end;
 
-{ TBasicAxisSystem }
+procedure TLocation.Rotate(const ARotation: TVector3);
+var
+  Changes: TChanges;
+begin
+  Changes := [];
+  if ARotation.X <> 0 then
+    Include(Changes, ctPitch);
+  if ARotation.Y <> 0 then
+    Include(Changes, ctTurn);
+  if ARotation.Z <> 0 then
+    Include(Changes, ctRoll);
+  if Changes <> [] then
+  begin
+    FRotation := FRotation + ARotation;
+    FFreeChanged := True;
+    TriggerChanges(Changes);
+  end;
+end;
+
+procedure TLocation.Translate(const AVector: TVector3);
+begin
+  FPos := FPos + AVector;
+  TriggerChanges([ctPosition]);
+end;
+
+procedure TLocation.MoveOffset(const AVector: TVector3);
+begin
+  FOffset := FOffset + AVector;
+  TriggerChanges([ctOffset]);
+end;
+
+procedure TLocation.ScaleBy(const AScale: TVector3);
+begin
+  Scale := Scale * AScale;
+end;
+
+procedure TLocation.Approach(ALocation: TLocation; ADelta: Single);
+
+  function ApproachRotation(AValue, AFinal: Single): Single;
+  begin
+    if AValue - AFinal > 180 then
+      AFinal := AFinal + 360
+    else if AValue - AFinal < -180 then
+      AFinal := AFinal - 360;
+
+    Result := (1 - ADelta) * AValue + ADelta * AFinal
+  end;
+
+begin
+  ADelta := EnsureRange(ADelta, 0, 1);
+
+  Pos := (1 - ADelta) * Pos + ADelta * ALocation.Pos;
+  Offset := (1 - ADelta) * Offset + ADelta * ALocation.Offset;
+  Scale := (1 - ADelta) * Scale + ADelta * ALocation.Scale;
+
+  TurnAngle := ApproachRotation(TurnAngle, ALocation.TurnAngle);
+  PitchAngle := ApproachRotation(PitchAngle, ALocation.PitchAngle);
+  RollAngle := ApproachRotation(RollAngle, ALocation.RollAngle);
+
+end;
+
+procedure TLocation.Assign(ALocation: TLocation);
+begin
+  Pos := ALocation.Pos;
+  Offset := ALocation.Offset;
+  Scale := ALocation.Scale;
+  TurnAngle := ALocation.TurnAngle;
+  PitchAngle := ALocation.PitchAngle;
+  RollAngle := ALocation.RollAngle;
+end;
+
+procedure TLocation.Swap(ALocation: TLocation);
+var
+  Tmp: TLocation;
+begin
+  Tmp := TLocation.Create;
+  Tmp.Assign(ALocation);
+  ALocation.Assign(Self);
+  Self.Assign(Tmp);
+  Tmp.Free;
+end;
+
+procedure TLocation.FreeRotate(AVector: TVector3; const AAngle: Single);
+var
+  S, C, CInv: Single;
+  M: TMatrix4;
+begin
+  AVector := AVector.Normalize;
+
+  S := Sin(AAngle / 180 * Pi);
+  C := Cos(AAngle / 180 * Pi);
+  CInv := 1 - C;
+
+  M.Clear;
+  // right
+  M[0, 0] := AVector.X * AVector.X * CInv + C;
+  M[0, 1] := AVector.Y * AVector.X * CInv + AVector.Z * S;
+  M[0, 2] := AVector.Z * AVector.X * CInv - AVector.Y * S;
+  // up
+  M[1, 0] := AVector.X * AVector.Y * CInv - AVector.Z * S;
+  M[1, 1] := AVector.Y * AVector.Y * CInv + C;
+  M[1, 2] := AVector.Z * AVector.Y * CInv + AVector.X * S;
+  // look
+  M[2, 0] := AVector.X * AVector.Z * CInv + AVector.Y * S;
+  M[2, 1] := AVector.Y * AVector.Z * CInv - AVector.X * S;
+  M[2, 2] := AVector.Z * AVector.Z * CInv + C;
+
+  M[3, 3] := 1;
+
+  FMatrix := FMatrix * M;
+
+  TriggerChanges([ctFreeRotation]);
+end;
+
+{ TBlockRotation }
 
 constructor TBasicAxisSystem.Create;
 begin
@@ -4680,7 +4540,7 @@ function TBasicAxisSystem.Matrix: TMatrix3;
     if A then
       Exit(1);
     if B then
-      Exit( -1);
+      Exit(-1);
     Result := 0;
   end;
 
@@ -4781,7 +4641,7 @@ begin
   FChanged := False;
 end;
 
-{ TBlockRaycaster3 }
+{ TBlockRaycaster }
 
 constructor TBlock3Raycaster.Create(ALocation: TLocation; ASize: TIntVector3);
 begin
@@ -4813,7 +4673,7 @@ begin
   FLine.D := FLocation.InvRotMatrix * ALine.D;
 
   FDirections := FLine.D.Dirs;
-  InvDirections := ( -FLine.D).Dirs;
+  InvDirections := (-FLine.D).Dirs;
 
   NormalizedLine.S := FLine.S / FSize;
   NormalizedLine.D := FLine.D / FSize;
@@ -4880,40 +4740,27 @@ end;
 
 { TGHexahedron }
 
-function THexahedron.AnyVisible(APoints: IIterable<TVector3>): Boolean;
+function THexahedron.Visible(APoints: TArray<TVector3>): Boolean;
 var
-  Direction: TBasicDir3;
+  Face: TLine3;
   Point: TVector3;
-  SingleFaceAllOutside: Boolean;
+  AllPointsOutside: Boolean;
 begin
-  // return true if there is at least one face, where all points are not visible
-  for Direction in CheckOrder do
+  for Face in FaceNormals do
   begin
-    // are all points on the outside of the given plane
-    SingleFaceAllOutside := True;
+    AllPointsOutside := True;
     for Point in APoints do
-    begin  
-      // Dot-Product > 0 means outside
-      if FaceNormals[Direction].D.Dot(FaceNormals[Direction].S.VectorTo(Point)) < 0 then
+    begin
+      if Face.D.Dot(Face.S.VectorTo(Point)) > 0 then
       begin
-        SingleFaceAllOutside := False;
+        AllPointsOutside := False;
         Break;
       end;
-    end;   
-    // If for one face, all points where on the outside, instantly return false
-    if SingleFaceAllOutside then
-      Exit(False);    
+    end;
+    if AllPointsOutside then
+      Exit(False);
   end;
   Result := True;
-end;
-
-function THexahedron.AnyVisible(APoints: array of TVector3): Boolean;
-var
-  Iterable: TIterableFromArray<TVector3>;
-begin
-  Iterable := TIterableFromArray<TVector3>.Create(APoints);
-  Result := AnyVisible(Iterable);
-  Iterable.Free;
 end;
 
 class operator THexahedron.in(APoint: TVector3; const AHexahedron: THexahedron): Boolean;
@@ -4996,26 +4843,6 @@ end;
 function Bounds3(A: TVector3): TBounds3;
 begin
   Result.Create(A);
-end;
-
-function Line2(S, D: TVector2): TLine2;
-begin
-  Result.Create(S, D);
-end;
-
-function Line3(S, D: TVector3): TLine3;
-begin
-  Result.Create(S, D);
-end;
-
-function Plane2(S, D1, D2: TVector2): TPlane2;
-begin
-  Result.Create(S, D1, D2);
-end;
-
-function Plane3(S, D1, D2: TVector3): TPlane3;
-begin
-  Result.Create(S, D1, D2);
 end;
 
 end.

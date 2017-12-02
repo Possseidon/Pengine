@@ -16,29 +16,42 @@ type
   PIntVector2 = ^TIntVector2;
   PIntVector3 = ^TIntVector3;
 
-  { TIntVector2 }
-  /// <summary>A two Component Vector of Type Integer</summary>
+  TIntBounds1Iterator = class;
+  TIntBounds2Iterator = class;
+  TIntBounds3Iterator = class;
+
+  /// <summary>A two component vector of type <see cref="System|Integer"/>.</summary>
   TIntVector2 = record
+  private
+    function GetXX: TIntVector2;
+    function GetXY: TIntVector2;
+    function GetYX: TIntVector2;
+    function GetYY: TIntVector2;
+
+    procedure SetXY(const Value: TIntVector2);
+    procedure SetYX(const Value: TIntVector2);
+
   public
-    /// <summary>The X-Component of the IntVector</summary>
+    /// <summary>The X-Component of the vector.</summary>
     X: Integer;
-    /// <summary>The Y-Component of the IntVector</summary>
+    /// <summary>The Y-Component of the vector.</summary>
     Y: Integer;
 
-    /// <summary>Creates a new TIntVector2 object with the specified Components</summary>
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector2"/> with the specified components.</summary>
     constructor Create(X, Y: Integer); overload;
-    /// <summary>Creates a new TIntVector2 object with both Components being the same, given Value</summary>
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector2"/> with both components being the same, given value.</summary>
     constructor Create(V: Integer); overload;
 
     class operator Implicit(V: Integer): TIntVector2; inline;
     class operator Implicit(A: TIntVector2): TPoint;
+    class operator Implicit(A: TPoint): TIntVector2;
 
     {$REGION 'All versions of rearrangement TIntVector2'}
 
-    function XX: TIntVector2;
-    function XY: TIntVector2;
-    function YX: TIntVector2;
-    function YY: TIntVector2;
+    property XX: TIntVector2 read GetXX;
+    property XY: TIntVector2 read GetXY write SetXY;
+    property YX: TIntVector2 read GetYX write SetYX;
+    property YY: TIntVector2 read GetYY;
 
     {$ENDREGION}
 
@@ -57,73 +70,129 @@ type
     class operator GreaterThan(const A, B: TIntVector2): Boolean;
     class operator GreaterThanOrEqual(const A, B: TIntVector2): Boolean;
 
-    /// <summary>Returns a string representative in the form: [X|Y]</summary>
-    /// <remarks>Also implicitly convertible</remarks>
+    class operator In (const A, B: TIntVector2): Boolean; inline;
+
+    /// <returns>A string representative in the form: <c>[X|Y]</c></returns>
+    /// <remarks>Direct implicit conversion to string is possible.</remarks>
     function ToString: string; inline;
-    class operator Implicit(A: TIntVector2): string; inline;
+    class operator Implicit(const A: TIntVector2): string; inline;
+
+    function GetEnumerator: TIntBounds2Iterator;
 
   end;
 
-  { TIntVector3 }
-  /// <summary>A three Component Vector of Type Integer</summary>
+  /// <summary>A three component vector of type <see cref="System|Integer"/>.</summary>
   TIntVector3 = record
+  private
+    function GetXX: TIntVector2;
+    function GetXY: TIntVector2;
+    function GetXZ: TIntVector2;
+    function GetYX: TIntVector2;
+    function GetYY: TIntVector2;
+    function GetYZ: TIntVector2;
+    function GetZX: TIntVector2;
+    function GetZY: TIntVector2;
+    function GetZZ: TIntVector2;
+
+    function GetXXX: TIntVector3;
+    function GetXXY: TIntVector3;
+    function GetXXZ: TIntVector3;
+    function GetXYX: TIntVector3;
+    function GetXYY: TIntVector3;
+    function GetXYZ: TIntVector3;
+    function GetXZX: TIntVector3;
+    function GetXZY: TIntVector3;
+    function GetXZZ: TIntVector3;
+    function GetYXX: TIntVector3;
+    function GetYXY: TIntVector3;
+    function GetYXZ: TIntVector3;
+    function GetYYX: TIntVector3;
+    function GetYYY: TIntVector3;
+    function GetYYZ: TIntVector3;
+    function GetYZX: TIntVector3;
+    function GetYZY: TIntVector3;
+    function GetYZZ: TIntVector3;
+    function GetZXX: TIntVector3;
+    function GetZXY: TIntVector3;
+    function GetZXZ: TIntVector3;
+    function GetZYX: TIntVector3;
+    function GetZYY: TIntVector3;
+    function GetZYZ: TIntVector3;
+    function GetZZX: TIntVector3;
+    function GetZZY: TIntVector3;
+    function GetZZZ: TIntVector3;
+
+    procedure SetXY(const Value: TIntVector2);
+    procedure SetXZ(const Value: TIntVector2);
+    procedure SetYX(const Value: TIntVector2);
+    procedure SetYZ(const Value: TIntVector2);
+    procedure SetZX(const Value: TIntVector2);
+    procedure SetZY(const Value: TIntVector2);
+
+    procedure SetXYZ(const Value: TIntVector3);
+    procedure SetXZY(const Value: TIntVector3);
+    procedure SetYXZ(const Value: TIntVector3);
+    procedure SetYZX(const Value: TIntVector3);
+    procedure SetZXY(const Value: TIntVector3);
+    procedure SetZYX(const Value: TIntVector3);
+
   public
-    /// <summary>The X-Component of the IntVector</summary>
+    /// <summary>The X-Component of the vector.</summary>
     X: Integer;
-    /// <summary>The Y-Component of the IntVector</summary>
+    /// <summary>The Y-Component of the vector.</summary>
     Y: Integer;
-    /// <summary>The Z-Component of the IntVector</summary>
+    /// <summary>The Z-Component of the vector.</summary>
     Z: Integer;
 
-    /// <summary>Creates a new TIntVector3 object with the specified Components</summary>
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector3"/> with the specified components.</summary>
     constructor Create(X, Y, Z: Integer); overload;
-    /// <summary>Creates a new TIntVector3 object with all Components being the same, given Value</summary>
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector3"/> with all components being the same, given value.</summary>
     constructor Create(V: Integer); overload;
 
     class operator Implicit(V: Integer): TIntVector3; inline;
 
     {$REGION 'All versions of rearrangement TIntVector2'}
 
-    function XX: TIntVector2;
-    function XY: TIntVector2;
-    function XZ: TIntVector2;
-    function YX: TIntVector2;
-    function YY: TIntVector2;
-    function YZ: TIntVector2;
-    function ZX: TIntVector2;
-    function ZY: TIntVector2;
-    function ZZ: TIntVector2;
+    property XX: TIntVector2 read GetXX;
+    property XY: TIntVector2 read GetXY write SetXY;
+    property XZ: TIntVector2 read GetXZ write SetXZ;
+    property YX: TIntVector2 read GetYX write SetYX;
+    property YY: TIntVector2 read GetYY;
+    property YZ: TIntVector2 read GetYZ write SetYZ;
+    property ZX: TIntVector2 read GetZX write SetZX;
+    property ZY: TIntVector2 read GetZY write SetZY;
+    property ZZ: TIntVector2 read GetZZ;
 
     {$ENDREGION}
     {$REGION 'All versions of rearrangement TIntVector3'}
 
-    function XXX: TIntVector3;
-    function XXY: TIntVector3;
-    function XXZ: TIntVector3;
-    function XYX: TIntVector3;
-    function XYY: TIntVector3;
-    function XYZ: TIntVector3;
-    function XZX: TIntVector3;
-    function XZY: TIntVector3;
-    function XZZ: TIntVector3;
-    function YXX: TIntVector3;
-    function YXY: TIntVector3;
-    function YXZ: TIntVector3;
-    function YYX: TIntVector3;
-    function YYY: TIntVector3;
-    function YYZ: TIntVector3;
-    function YZX: TIntVector3;
-    function YZY: TIntVector3;
-    function YZZ: TIntVector3;
-    function ZXX: TIntVector3;
-    function ZXY: TIntVector3;
-    function ZXZ: TIntVector3;
-    function ZYX: TIntVector3;
-    function ZYY: TIntVector3;
-    function ZYZ: TIntVector3;
-    function ZZX: TIntVector3;
-    function ZZY: TIntVector3;
-    function ZZZ: TIntVector3;
+    property XXX: TIntVector3 read GetXXX;
+    property XXY: TIntVector3 read GetXXY;
+    property XXZ: TIntVector3 read GetXXZ;
+    property XYX: TIntVector3 read GetXYX;
+    property XYY: TIntVector3 read GetXYY;
+    property XYZ: TIntVector3 read GetXYZ write SetXYZ;
+    property XZX: TIntVector3 read GetXZX;
+    property XZY: TIntVector3 read GetXZY write SetXZY;
+    property XZZ: TIntVector3 read GetXZZ;
+    property YXX: TIntVector3 read GetYXX;
+    property YXY: TIntVector3 read GetYXY;
+    property YXZ: TIntVector3 read GetYXZ write SetYXZ;
+    property YYX: TIntVector3 read GetYYX;
+    property YYY: TIntVector3 read GetYYY;
+    property YYZ: TIntVector3 read GetYYZ;
+    property YZX: TIntVector3 read GetYZX write SetYZX;
+    property YZY: TIntVector3 read GetYZY;
+    property YZZ: TIntVector3 read GetYZZ;
+    property ZXX: TIntVector3 read GetZXX;
+    property ZXY: TIntVector3 read GetZXY write SetZXY;
+    property ZXZ: TIntVector3 read GetZXZ;
+    property ZYX: TIntVector3 read GetZYX write SetZYX;
+    property ZYY: TIntVector3 read GetZYY;
+    property ZYZ: TIntVector3 read GetZYZ;
+    property ZZX: TIntVector3 read GetZZX;
+    property ZZY: TIntVector3 read GetZZY;
+    property ZZZ: TIntVector3 read GetZZZ;
 
     {$ENDREGION}
 
@@ -142,78 +211,80 @@ type
     class operator GreaterThan(const A, B: TIntVector3): Boolean;
     class operator GreaterThanOrEqual(const A, B: TIntVector3): Boolean;
 
-    /// <summary>Returns a string representative in the form: [X|Y|Z]</summary>
-    /// <remarks>Also implicitly convertible</remarks>
+    class operator In (A: Integer; const B: TIntVector3): Boolean; inline;
+
+    /// <returns>A string representative in the form: <c>[X|Y|Z]</c></returns>
+    /// <remarks>Direct implicit conversion to string is possible.</remarks>
     function ToString: string; inline;
-    class operator Implicit(A: TIntVector3): string; inline;
+    class operator Implicit(const A: TIntVector3): string; inline;
+
+    function GetEnumerator: TIntBounds3Iterator;
 
   end;
 
-  { TIntBounds1 }
   /// <summary>
-  /// Represents 1-Dimensional bounds using two Integers
-  /// <para>Shorthand constructor using:</para>
-  /// <para><see cref="IntegerMaths|Range1"/> / <see cref="IntegerMaths|Range1X"/></para>
+  /// Represents 1-Dimensional bounds <c>[C1, C2)</c> using two <see cref="System|Integer"/>.
+  /// <p>Shorthand constructor using: <see cref="Pengine.IntMaths|IBounds1"/></p>
   /// </summary>
   /// <remarks>
-  /// For better performance, most functions assume, that the bounds are normalized (C1 &lt;= C2)<para/>
-  /// It is possible to iterate over all positions, which will include both ends
+  /// For better performance, most functions assume, that the bounds are normalized: <c>C1 &lt;= C2</c><p/>
+  /// Iteration with a <c>for-in</c> loop is possible.
   /// </remarks>
   TIntBounds1 = record
   public type
 
-    TCorners = array [0 .. 1] of Integer;
+    TCornerIndex = 0 .. 1;
 
-    { TIterator }
-
-    TIterator = class
-    private
-      FCurrent: Integer;
-      FEnd: Integer;
-    public
-      constructor Create(const ABounds: TIntBounds1);
-
-      function MoveNext: Boolean;
-      property Current: Integer read FCurrent;
-    end;
-
-  private
-    function GetLength: Integer; inline;
+    /// <summary>A simple array-type, that can represent the four corners of the bounds.
+    /// <p>They are in the following order:</p><code>
+    /// Index  X<p/>
+    /// [0]  (0)<p/>
+    /// [1]  (1)<p/>
+    /// </code></summary>
+    TCorners = array [TCornerIndex] of Integer;
 
   public
-    /// <summary>The (usually) lower Value of the bounds</summary>
+    /// <summary>The (usually) lower value of the bounds.</summary>
     C1: Integer;
-    /// <summary>The (usually) higher Value of the bounds</summary>
+    /// <summary>The (usually) higher value of the bounds.</summary>
     C2: Integer;
 
-    /// <summary>Equivalent to C1</summary>
+    /// <summary>Alias for <see cref="Pengine.IntMaths|TIntBounds1.C1"/>.</summary>
     property Low: Integer read C1 write C1;
-    /// <summary>Equivalent to C2</summary>
+    /// <summary>Alias for <see cref="Pengine.IntMaths|TIntBounds1.C2"/>.</summary>
     property High: Integer read C2 write C2;
 
-    /// <summary>Creates a new TIntBounds object with the specified Values</summary>
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds1"/> with the specified range.</summary>
     constructor Create(AC1, AC2: Integer); overload;
-    /// <summary>Creates a new TIntBounds object with both bounds laying on the same, given Value</summary>
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds1"/> with both bounds laying on the same, given value.</summary>
     constructor Create(A: Integer); overload;
 
     class operator Implicit(A: Integer): TIntBounds1; inline;
 
-    /// <remarks>Will give a negative length for non-normalized bounds</remarks>
-    property Length: Integer read GetLength;
+    /// <returns>The difference between C1 and C2.</returns>
+    /// <remarks>Will give a negative length for non-normalized bounds.</remarks>
+    function Length: Integer; inline;
 
-    /// <summary>Returns the given Bounds clamped to be inside of the calling bounds</summary>
-    function EnsureRange(ARange: TIntBounds1): TIntBounds1; overload;
-    /// <summary>Returns the given Value being clamped in/on the bounds</summary>
-    function EnsureRange(AValue: Integer): Integer; overload;
+    /// <returns>The center point between C1 and C2 rounded down.</returns>
+    function Center: Integer; inline;
 
-    /// <returns>Returns true, if C1 &lt; C2</returns>
+    /// <returns>The given bounds clamped to be inside of the calling bounds.</returns>
+    /// <remarks>This operation is performed inclusive, so that repeated clamping stays the same.</remarks>
+    function Clamp(ARange: TIntBounds1): TIntBounds1; overload;
+    /// <returns>The given value being clamped to the bounds <c>[C1, C2).</c></returns>
+    function Clamp(AValue: Integer): Integer; overload;
+
+    /// <returns>The given value in the interval: <c>[C1..C2)</c></returns>
+    function RangedMod(AValue: Integer): Integer;
+
+    /// <returns>True, if C1 &lt;= C2</returns>
     function Normalized: Boolean; inline;
-    /// <summary>Swaps C1 and C2 if the bounds are not normalized</summary>
+    /// <returns>The normalized version of the bounds.</summary>
     function Normalize: TIntBounds1;
 
-    /// <summary>Increments C1 by Amount and decrements C2 by Amount</summary>
+    /// <returns>The bounds with C1 being increased and C2 being decreased by the specified amount.</summary>
     function Inset(AAmount: Integer): TIntBounds1;
-    /// <summary>Decrements C1 by Amount and increments C2 by Amount</summary>
+    /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: Integer): TIntBounds1;
 
     class operator Add(const A, B: TIntBounds1): TIntBounds1;
@@ -221,10 +292,10 @@ type
     class operator Multiply(const A, B: TIntBounds1): TIntBounds1;
     class operator IntDivide(const A, B: TIntBounds1): TIntBounds1;
 
-    // inclusive on both sides
-    class operator in(const A, B: TIntBounds1): Boolean;
-    // inclusive on C1 and exclusive on C2
-    class operator in(A: Integer; const B: TIntBounds1): Boolean;
+    // inclusive
+    class operator in (const A, B: TIntBounds1): Boolean;
+    // exclusive
+    class operator in (A: Integer; const B: TIntBounds1): Boolean;
 
     class operator Equal(const A, B: TIntBounds1): Boolean;
     class operator NotEqual(const A, B: TIntBounds1): Boolean;
@@ -233,106 +304,105 @@ type
     class operator LessThan(const A, B: TIntBounds1): Boolean;
     class operator LessThanOrEqual(const A, B: TIntBounds1): Boolean;
 
-    /// <summary>Returns a string representative in the form: &lt;C1~C2&gt;</summary>
-    /// <remarks>Also implicitly convertible</remarks>
+    /// <returns>A string representative in the form: <c>&lt;C1~C2&gt;</c></returns>
+    /// <remarks>Direct implicit conversion to string is possible.</remarks>
     function ToString: string; inline;
     class operator Implicit(ABounds: TIntBounds1): string; inline;
 
-    function GetEnumerator: TIterator;
+    function GetEnumerator: TIntBounds1Iterator;
 
   end;
 
-  { TIntBounds2 }
   /// <summary>
-  /// Represents 2-Dimensional bounds using two TIntVector2
-  /// <para>Shorthand constructor using:</para>
-  /// <para><see cref="IntegerMaths|Range2"/> / <see cref="IntegerMaths|Range2X"/></para>
+  /// Represents 2-Dimensional bounds <c>[C1, C2)</c> using two <see cref="Pengine.IntMaths|TIntVector2"/>.
+  /// <p>Shorthand constructor using: <see cref="Pengine.IntMaths|IBounds2"/></p>
   /// </summary>
   /// <remarks>
-  /// For better performance, most functions assume, that the bounds are normalized (C1 &lt;= C2)<para/>
-  /// It is possible to iterate over all positions, which will include both ends
+  /// For better performance, most functions assume, that the bounds are normalized: <c>C1 &lt;= C2</c><p/>
+  /// Iteration with a <c>for-in</c> loop is possible.
   /// </remarks>
   TIntBounds2 = record
   public type
 
-    TCorners = array [0 .. 3] of TIntVector2;
+    TCornerIndex = 0 .. 3;
 
-    { TIterator }
-
-    TIterator = class
-    private
-      FCurrent: TIntVector2;
-      FBounds: PIntBounds2;
-    public
-      constructor Create(const ABounds: TIntBounds2);
-
-      function MoveNext: Boolean;
-      property Current: TIntVector2 read FCurrent;
-    end;
+    /// <summary>A simple array-type, that can represent the four corners of the bounds.
+    /// <p>They are in the following order:</p><code>
+    /// Index  X, Y<p/>
+    /// [0]  (0, 0)<p/>
+    /// [1]  (1, 0)<p/>
+    /// [2]  (0, 1)<p/>
+    /// [3]  (1, 1)<p/>
+    /// </code></summary>
+    TCorners = array [TCornerIndex] of TIntVector2;
 
   private
+
     function GetLineX: TIntBounds1; inline;
     function GetLineY: TIntBounds1; inline;
 
     procedure SetLineX(const Value: TIntBounds1); inline;
     procedure SetLineY(const Value: TIntBounds1); inline;
 
-    function GetSize: TIntVector2; inline;
-    function GetArea: Integer; inline;
-    function GetWidth: Integer; inline;
-    function GetHeight: Integer; inline;
-
   public
-    /// <summary>The (usually) lower Values of the bounds</summary>
+    /// <summary>The (usually) lower value of the bounds.</summary>
     C1: TIntVector2;
-    /// <summary>The (usually) higher Values of the bounds</summary>
+    /// <summary>The (usually) higher value of the bounds.</summary>
     C2: TIntVector2;
 
-    /// <summary>Equivalent to C1</summary>
+    /// <summary>Alias for <see cref="Pengine.IntMaths|TIntBounds2.C1"/>.</summary>
     property Low: TIntVector2 read C1 write C1;
-    /// <summary>Equivalent to C2</summary>
+    /// <summary>Alias for <see cref="Pengine.IntMaths|TIntBounds2.C2"/>.</summary>
     property High: TIntVector2 read C2 write C2;
 
-    /// <summary>Creates a new TIntBounds object with the specified Points</summary>
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds2"/> with the specified range.</summary>
     constructor Create(AC1, AC2: TIntVector2); overload;
-    /// <summary>Creates a new TIntBounds object with both bounds laying on the same, given Point</summary>
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds2"/> with both bounds laying on the same, given value.</summary>
     constructor Create(A: TIntVector2); overload;
 
     class operator Implicit(A: Integer): TIntBounds2; inline;
     class operator Implicit(A: TIntVector2): TIntBounds2; inline;
 
-    /// <remarks>Will give a negative values for non-normalized bounds</remarks>
-    property Size: TIntVector2 read GetSize;
-    /// <summary>Calculates the Area in between the Bounds</summary>
-    property Area: Integer read GetArea;
+    /// <returns>The difference between C1 and C2.</returns>
+    /// <remarks>Will give negative values for non-normalized bounds.</remarks>
+    function Size: TIntVector2; inline;
+    /// <returns>The area of the bounds.</returns>
+    function Area: Integer; inline;
 
-    /// <summary>Resembles the X Components of the bounds as a TIntBounds1</summary>
-    /// <remarks>WARNING! You cannot change the result directly, as it creates a copy of the values</remarks>
+    /// <summary>Resembles both X-Components of the bounds as a <see cref="Pengine.IntMaths|TIntBounds1"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property LineX: TIntBounds1 read GetLineX write SetLineX;
-    /// <summary>Resembles the Y Components of the bounds as a TIntBounds1</summary>
-    /// <remarks>WARNING! You cannot change the result directly, as it creates a copy of the values</remarks>
+    /// <summary>Resembles both Y-Components of the bounds as a <see cref="Pengine.IntMaths|TIntBounds1"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property LineY: TIntBounds1 read GetLineY write SetLineY;
 
-    /// <returns>Returns the horizontal length of the Bounds</returns>
-    /// <remarks>Will give a negative length for non-normalized bounds</remarks>
-    property Width: Integer read GetWidth;
-    /// <returns>Returns the vertical length of the Bounds</returns>
-    /// <remarks>Will give a negative length for non-normalized bounds</remarks>
-    property Height: Integer read GetHeight;
+    /// <returns>The horizontal length of the bounds.</returns>
+    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
+    function Width: Integer; inline;
+    /// <returns>The vertical length of the bounds.</returns>
+    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
+    function Height: Integer; inline;
 
-    /// <summary>Returns the given Bounds clamped to be inside of the calling bounds</summary>
-    function EnsureRange(ARange: TIntBounds2): TIntBounds2; overload;
-    /// <summary>Returns the given Point being clamped in/on the bounds</summary>
-    function EnsureRange(AValue: TIntVector2): TIntVector2; overload;
+    /// <returns>The center point between C1 and C2 rounded down.</returns>
+    function Center: TIntVector2; inline;
 
-    /// <returns>Returns true, if C1 &lt; C2</returns>
+    /// <returns>The given bounds clamped to be inside of the calling bounds.</returns>
+    /// <remarks>This operation is performed inclusive, so that repeated clamping stays the same.</remarks>
+    function Clamp(ARange: TIntBounds2): TIntBounds2; overload;
+    /// <returns>The given value being clamped to the bounds <c>[C1, C2).</c></returns>
+    function Clamp(AValue: TIntVector2): TIntVector2; overload;
+
+    /// <returns>The given value in the interval: <c>[C1..C2)</c></returns>
+    function RangedMod(AValue: TIntVector2): TIntVector2;
+
+    /// <returns>True, if C1 &lt;= C2</returns>
     function Normalized: Boolean; inline;
-    /// <summary>Swaps all unnormalized components of C1 and C2</summary>
+    /// <returns>The normalized version of the bounds.</summary>
     function Normalize: TIntBounds2;
 
-    /// <summary>Increments C1 by Amount and decrements C2 by Amount</summary>
+    /// <returns>The bounds with C1 being increased and C2 being decreased by the specified amount.</summary>
     function Inset(AAmount: TIntVector2): TIntBounds2;
-    /// <summary>Decrements C1 by Amount and increments C2 by Amount</summary>
+    /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: TIntVector2): TIntBounds2;
 
     class operator Add(const A, B: TIntBounds2): TIntBounds2;
@@ -340,10 +410,10 @@ type
     class operator Multiply(const A, B: TIntBounds2): TIntBounds2;
     class operator IntDivide(const A, B: TIntBounds2): TIntBounds2;
 
-    // inclusive on both sides
-    class operator in(const A, B: TIntBounds2): Boolean;
-    // inclusive on C1 and exclusive on C2
-    class operator in(A: TIntVector2; const B: TIntBounds2): Boolean;
+    // inclusive
+    class operator in (const A, B: TIntBounds2): Boolean;
+    // exclusive
+    class operator in (A: TIntVector2; const B: TIntBounds2): Boolean;
 
     class operator Equal(const A, B: TIntBounds2): Boolean;
     class operator NotEqual(const A, B: TIntBounds2): Boolean;
@@ -352,44 +422,44 @@ type
     class operator LessThan(const A, B: TIntBounds2): Boolean;
     class operator LessThanOrEqual(const A, B: TIntBounds2): Boolean;
 
-    /// <summary>Returns a string representative in the form: &lt;C1~C2&gt;</summary>
-    /// <remarks>Also implicitly convertible</remarks>
+    /// <returns>A string representative in the form: <c>&lt;C1~C2&gt;</c></returns>
+    /// <remarks>Direct implicit conversion to string is possible.</remarks>
     function ToString: string; inline;
     class operator Implicit(ABounds: TIntBounds2): string; inline;
 
-    function GetEnumerator: TIterator;
+    function GetEnumerator: TIntBounds2Iterator;
 
   end;
 
-  { TIntBounds3 }
   /// <summary>
-  /// Represents 3-Dimensional bounds using two TIntVector3
-  /// <para>Shorthand constructor using:</para>
-  /// <para><see cref="IntegerMaths|Range3"/> / <see cref="IntegerMaths|Range3X"/></para>
+  /// Represents 2-Dimensional bounds <c>[C1, C2)</c> using two <see cref="Pengine.IntMaths|TIntVector2"/>.
+  /// <p>Shorthand constructor using: <see cref="Pengine.IntMaths|IBounds2"/></p>
   /// </summary>
   /// <remarks>
-  /// For better performance, most functions assume, that the bounds are normalized (C1 &lt;= C2)<para/>
-  /// It is possible to iterate over all positions, which will include both ends
+  /// For better performance, most functions assume, that the bounds are normalized: <c>C1 &lt;= C2</c><p/>
+  /// Iteration with a <c>for-in</c> loop is possible.
   /// </remarks>
   TIntBounds3 = record
   public type
 
-    TCorners = array [0 .. 7] of TIntVector3;
+    TCornerIndex = 0 .. 7;
 
-    { TIterator }
-
-    TIterator = class
-    private
-      FCurrent: TIntVector3;
-      FBounds: PIntBounds3;
-    public
-      constructor Create(const ABounds: TIntBounds3);
-
-      function MoveNext: Boolean;
-      property Current: TIntVector3 read FCurrent;
-    end;
+    /// <summary>A simple array-type, that can represent the four corners of the bounds.
+    /// <p>They are in the following order:</p><code>
+    /// Index  X, Y, Z<p/>
+    ///  [0]  (0, 0, 0)<p/>
+    ///  [1]  (1, 0, 0)<p/>
+    ///  [2]  (0, 1, 0)<p/>
+    ///  [3]  (1, 1, 0)<p/>
+    ///  [4]  (0, 0, 1)<p/>
+    ///  [5]  (1, 0, 1)<p/>
+    ///  [6]  (0, 1, 1)<p/>
+    ///  [7]  (1, 1, 1)<p/>
+    /// </code></summary>
+    TCorners = array [TCornerIndex] of TIntVector2;
 
   private
+
     function GetLineX: TIntBounds1; inline;
     function GetLineY: TIntBounds1; inline;
     function GetLineZ: TIntBounds1; inline;
@@ -412,75 +482,89 @@ type
     procedure SetPlaneZY(const Value: TIntBounds2); inline;
     procedure SetPlaneXZ(const Value: TIntBounds2); inline;
 
-    function GetSize: TIntVector3; inline;
-    function GetVolume: Integer; inline;
-    function GetWidth: Integer; inline;
-    function GetHeight: Integer; inline;
-    function GetDepth: Integer; inline;
-
   public
-    /// <summary>The (usually) lower Values of the bounds</summary>
+    /// <summary>The (usually) lower values of the bounds.</summary>
     C1: TIntVector3;
-    /// <summary>The (usually) higher Values of the bounds</summary>
+    /// <summary>The (usually) higher values of the bounds.</summary>
     C2: TIntVector3;
 
-    /// <summary>Equivalent to C1</summary>
+    /// <summary>Alias for <see cref="Pengine.IntMaths|TIntBounds3.C1"/>.</summary>
     property Low: TIntVector3 read C1 write C1;
-    /// <summary>Equivalent to C2</summary>
+    /// <summary>Alias for <see cref="Pengine.IntMaths|TIntBounds3.C2"/>.</summary>
     property High: TIntVector3 read C2 write C2;
 
-    /// <summary>Creates a new TIntBounds object with the specified Points</summary>
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds3"/> with the specified range.</summary>
     constructor Create(AC1, AC2: TIntVector3); overload;
-    /// <summary>Creates a new TIntBounds object with both bounds laying on the same, given Point</summary>
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds3"/> with both bounds laying on the same, given value.</summary>
     constructor Create(A: TIntVector3); overload;
 
     class operator Implicit(A: TIntVector3): TIntBounds3; inline;
 
-    /// <remarks>Will give a negative values for non-normalized bounds</remarks>
-    property Size: TIntVector3 read GetSize;
-    /// <summary>Calculates the Volume inside of the bounds</summary>
-    property Volume: Integer read GetVolume;
+    /// <returns>The difference between C1 and C2.</returns>
+    /// <remarks>Will give negative values for non-normalized bounds.</remarks>
+    function Size: TIntVector3; inline;
+    /// <returns>The volume of the bounds.</returns>
+    function Volume: Integer;
 
-    /// <summary>Resembles the X Components of the bounds as a TIntBounds1</summary>
-    /// <remarks>WARNING! You cannot change the result directly, as it creates a copy of the values</remarks>
+    /// <summary>Resembles both X-Components of the bounds as a <see cref="Pengine.Vector|TIntBounds1"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property LineX: TIntBounds1 read GetLineX write SetLineX;
-    /// <summary>Resembles the Y Components of the bounds as a TIntBounds1</summary>
-    /// <remarks>WARNING! You cannot change the result directly, as it creates a copy of the values</remarks>
+    /// <summary>Resembles both Y-Components of the bounds as a <see cref="Pengine.Vector|TIntBounds1"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property LineY: TIntBounds1 read GetLineY write SetLineY;
-    /// <summary>Resembles the Z Components of the bounds as a TIntBounds1</summary>
-    /// <remarks>WARNING! You cannot change the result directly, as it creates a copy of the values</remarks>
+    /// <summary>Resembles both Z-Components of the bounds as a <see cref="Pengine.Vector|TIntBounds1"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property LineZ: TIntBounds1 read GetLineZ write SetLineZ;
 
+    /// <summary>Resembles an XY-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneXY: TIntBounds2 read GetPlaneXY write SetPlaneXY;
+    /// <summary>Resembles an YZ-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneYZ: TIntBounds2 read GetPlaneYZ write SetPlaneYZ;
+    /// <summary>Resembles an ZX-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneZX: TIntBounds2 read GetPlaneZX write SetPlaneZX;
+    /// <summary>Resembles an YX-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneYX: TIntBounds2 read GetPlaneYX write SetPlaneYX;
+    /// <summary>Resembles an ZY-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneZY: TIntBounds2 read GetPlaneZY write SetPlaneZY;
+    /// <summary>Resembles an XZ-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
+    /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneXZ: TIntBounds2 read GetPlaneXZ write SetPlaneXZ;
 
-    /// <returns>Returns the horizontal length of the Bounds</returns>
-    /// <remarks>Will give a negative length for non-normalized bounds</remarks>
-    property Width: Integer read GetWidth;
-    /// <returns>Returns the vertical length of the Bounds</returns>
-    /// <remarks>Will give a negative length for non-normalized bounds</remarks>
-    property Height: Integer read GetHeight;
-    /// <returns>Returns the Z-directed length of the Bounds</returns>
-    /// <remarks>Will give a negative length for non-normalized bounds</remarks>
-    property Depth: Integer read GetDepth;
+    /// <returns>The horizontal length of the bounds.</returns>
+    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
+    function Width: Integer; inline;
+    /// <returns>The vertical length of the bounds.</returns>
+    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
+    function Height: Integer; inline;
+    /// <returns>The depth of the bounds.</returns>
+    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
+    function Depth: Integer; inline;
 
-    /// <summary>Returns the given Bounds clamped to be inside of the calling bounds</summary>
-    function EnsureRange(ARange: TIntBounds3): TIntBounds3; overload;
-    /// <summary>Returns the given Point being clamped in/on the bounds</summary>
-    function EnsureRange(AValue: TIntVector3): TIntVector3; overload;
+    /// <returns>The center point between C1 and C2 rounded down.</returns>
+    function Center: TIntVector3; inline;
 
-    /// <returns>Returns true, if C1 &lt; C2</returns>
+    /// <returns>The given bounds clamped to be inside of the calling bounds.</returns>
+    /// <remarks>This operation is performed inclusive, so that repeated clamping stays the same.</remarks>
+    function Clamp(ARange: TIntBounds3): TIntBounds3; overload;
+    /// <returns>The given value being clamped to the bounds <c>[C1, C2).</c></returns>
+    function Clamp(AValue: TIntVector3): TIntVector3; overload;
+
+    /// <returns>The given value in the interval: <c>[C1..C2)</c></returns>
+    function RangedMod(AValue: TIntVector3): TIntVector3;
+
+    /// <returns>True, if C1 &lt;= C2</returns>
     function Normalized: Boolean; inline;
-    /// <summary>Swaps all unnormalized components of C1 and C2</summary>
+    /// <returns>The normalized version of the bounds.</summary>
     function Normalize: TIntBounds3;
 
-    /// <summary>Increments C1 by Amount and decrements C2 by Amount</summary>
+    /// <returns>The bounds with C1 being increased and C2 being decreased by the specified amount.</summary>
     function Inset(AAmount: TIntVector3): TIntBounds3;
-    /// <summary>Decrements C1 by Amount and increments C2 by Amount</summary>
+    /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: TIntVector3): TIntBounds3;
 
     class operator Add(const A, B: TIntBounds3): TIntBounds3;
@@ -488,10 +572,10 @@ type
     class operator Multiply(const A, B: TIntBounds3): TIntBounds3;
     class operator IntDivide(const A, B: TIntBounds3): TIntBounds3;
 
-    // inclusive on both sides
-    class operator in(const A, B: TIntBounds3): Boolean;
-    // inclusive on C1 and exclusive on C2
-    class operator in(A: TIntVector3; const B: TIntBounds3): Boolean;
+    // inclusive
+    class operator in (const A, B: TIntBounds3): Boolean;
+    // exclusive
+    class operator in (const A: TIntVector3; const B: TIntBounds3): Boolean;
 
     class operator Equal(const A, B: TIntBounds3): Boolean;
     class operator NotEqual(const A, B: TIntBounds3): Boolean;
@@ -500,44 +584,128 @@ type
     class operator LessThan(const A, B: TIntBounds3): Boolean;
     class operator LessThanOrEqual(const A, B: TIntBounds3): Boolean;
 
-    /// <summary>Returns a string representative in the form: &lt;C1~C2&gt;</summary>
-    /// <remarks>Also implicitly convertible</remarks>
+    /// <returns>A string representative in the form: <c>&lt;C1~C2&gt;</c></returns>
+    /// <remarks>Direct implicit conversion to string is possible.</remarks>
     function ToString: string; inline;
     class operator Implicit(ABounds: TIntBounds3): string; inline;
 
-    function GetEnumerator: TIterator;
+    function GetEnumerator: TIntBounds3Iterator;
 
   end;
 
-// Shorthand Constructors
+  // TODO: XmlDoc
+  TIntBounds1Iterator = class
+  private
+    FCurrent: Integer;
+    FEnd: Integer;
 
-/// <summary>Shorthand constructor for TIntVector2(X, Y)</summary>
+  public
+    constructor Create(const ABounds: TIntBounds1);
+
+    function MoveNext: Boolean;
+    property Current: Integer read FCurrent;
+  end;
+
+  // TODO: XmlDoc
+  TIntBounds2Iterator = class
+  private
+    FCurrent: TIntVector2;
+    FC1, FC2: TIntVector2;
+
+  public
+    constructor Create(const ABounds: TIntBounds2);
+
+    function MoveNext: Boolean;
+    property Current: TIntVector2 read FCurrent;
+  end;
+
+  // TODO: XmlDoc
+  TIntBounds3Iterator = class
+  private
+    FCurrent: TIntVector3;
+    FC1, FC2: TIntVector3;
+
+  public
+    constructor Create(const ABounds: TIntBounds3);
+
+    function MoveNext: Boolean;
+    property Current: TIntVector3 read FCurrent;
+  end;
+
+  { Shorthand Constructors }
+
+  /// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given values for X and Y.</returns>
 function IVec2(X, Y: Integer): TIntVector2; overload; inline;
-/// <summary>Shorthand constructor for TIntVector2(V, V)</summary>
+/// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given value for X and Y.</returns>
 function IVec2(V: Integer): TIntVector2; overload; inline;
-/// <summary>Shorthand constructor for TIntVector3(X, Y, Z)</summary>
+/// <returns>A <see cref="Pengine.IntMaths|TIntVector3"/> with the given values for X, Y and Z.</returns>
 function IVec3(X, Y, Z: Integer): TIntVector3; overload; inline;
-/// <summary>Shorthand constructor for TIntVector3(V, V, V)</summary>
+/// <returns>A <see cref="Pengine.IntMaths|TIntVector3"/> with the given value for X, Y and Z.</returns>
 function IVec3(V: Integer): TIntVector3; overload; inline;
 
-/// <summary>Shorthand constructor for TIntBounds1(A, B)</summary>
-function Range1(A, B: Integer): TIntBounds1; overload; inline;
-/// <summary>Shorthand constructor for TIntBounds1(0, A)</summary>
-function Range1(A: Integer): TIntBounds1; overload; inline;
+/// <returns>A <see cref="Pengine.IntMaths|TIntBounds1"/> for the interval: <c>[A, B]</c></returns>
+function IBounds1(A, B: Integer): TIntBounds1; overload; inline;
+/// <returns>A <see cref="Pengine.IntMaths|TIntBounds1"/> for the interval: <c>[0, A)</c></returns>
+function IBounds1(A: Integer): TIntBounds1; overload; inline;
 
-/// <summary>Shorthand constructor for TIntBounds2(A, B)</summary>
-function Range2(A, B: TIntVector2): TIntBounds2; overload; inline;
-/// <summary>Shorthand constructor for TIntBounds2(0, A)</summary>
-function Range2(A: TIntVector2): TIntBounds2; overload; inline;
+/// <returns>A <see cref="Pengine.IntMaths|TIntBounds2"/> for the interval: <c>[A, B]</c></returns>
+function IBounds2(A, B: TIntVector2): TIntBounds2; overload; inline;
+/// <returns>A <see cref="Pengine.IntMaths|TIntBounds2"/> for the interval: <c>[0, A)</c></returns>
+function IBounds2(A: TIntVector2): TIntBounds2; overload; inline;
 
-/// <summary>Shorthand constructor for TIntBounds3(A, B)</summary>
-function Range3(A, B: TIntVector3): TIntBounds3; overload; inline;
-/// <summary>Shorthand constructor for TIntBounds2(0, A)</summary>
-function Range3(A: TIntVector3): TIntBounds3; overload; inline;
+/// <returns>A <see cref="Pengine.IntMaths|TIntBounds3"/> for the interval: <c>[A, B]</c></returns>
+function IBounds3(A, B: TIntVector3): TIntBounds3; overload; inline;
+/// <returns>A <see cref="Pengine.IntMaths|TIntBounds3"/> for the interval: <c>[0, A)</c></returns>
+function IBounds3(A: TIntVector3): TIntBounds3; overload; inline;
 
 implementation
 
 { TIntVector2 }
+
+{$REGION 'All version of rearrangement TIntVector2'}
+
+function TIntVector2.GetEnumerator: TIntBounds2Iterator;
+begin
+  Result := TIntBounds2Iterator.Create(IBounds2(Self));
+end;
+
+function TIntVector2.GetXX: TIntVector2;
+begin
+  Result.X := X;
+  Result.Y := X;
+end;
+
+function TIntVector2.GetXY: TIntVector2;
+begin
+  Result.X := X;
+  Result.Y := Y;
+end;
+
+function TIntVector2.GetYX: TIntVector2;
+begin
+  Result.X := Y;
+  Result.Y := X;
+end;
+
+function TIntVector2.GetYY: TIntVector2;
+begin
+  Result.X := Y;
+  Result.Y := Y;
+end;
+
+procedure TIntVector2.SetXY(const Value: TIntVector2);
+begin
+  X := Value.X;
+  Y := Value.Y;
+end;
+
+procedure TIntVector2.SetYX(const Value: TIntVector2);
+begin
+  Y := Value.X;
+  X := Value.Y;
+end;
+
+{$ENDREGION}
 
 constructor TIntVector2.Create(X, Y: Integer);
 begin
@@ -557,33 +725,17 @@ begin
   Result.Y := V;
 end;
 
-{$REGION 'All version of rearrangement TIntVector2'}
-
-function TIntVector2.XX: TIntVector2;
+class operator TIntVector2.Implicit(A: TIntVector2): TPoint;
 begin
-  Result.X := X;
-  Result.Y := X;
+  Result.X := A.X;
+  Result.Y := A.Y;
 end;
 
-function TIntVector2.XY: TIntVector2;
+class operator TIntVector2.Implicit(A: TPoint): TIntVector2;
 begin
-  Result.X := X;
-  Result.Y := Y;
+  Result.X := A.X;
+  Result.Y := A.Y;
 end;
-
-function TIntVector2.YX: TIntVector2;
-begin
-  Result.X := Y;
-  Result.Y := X;
-end;
-
-function TIntVector2.YY: TIntVector2;
-begin
-  Result.X := Y;
-  Result.Y := Y;
-end;
-
-{$ENDREGION}
 
 class operator TIntVector2.Add(const A, B: TIntVector2): TIntVector2;
 begin
@@ -650,23 +802,355 @@ begin
   Result := (A.X >= B.X) and (A.Y >= B.Y);
 end;
 
+class operator TIntVector2.In(const A, B: TIntVector2): Boolean;
+begin
+  Result := A in IBounds2(B);
+end;
+
 function TIntVector2.ToString: string;
 begin
   Result := Format('[%d|%d]', [X, Y]);
 end;
 
-class operator TIntVector2.Implicit(A: TIntVector2): string;
+class operator TIntVector2.Implicit(const A: TIntVector2): string;
 begin
   Result := A.ToString;
 end;
 
-class operator TIntVector2.Implicit(A: TIntVector2): TPoint;
+{ TIntVector3 }
+
+{$REGION 'All version of rearrangement TIntVector2'}
+
+function TIntVector3.GetEnumerator: TIntBounds3Iterator;
 begin
-  Result.X := A.X;
-  Result.Y := A.Y;
+  Result := TIntBounds3Iterator.Create(IBounds3(Self));
 end;
 
-{ TIntVector3 }
+function TIntVector3.GetXX: TIntVector2;
+begin
+  Result.X := X;
+  Result.Y := X;
+end;
+
+function TIntVector3.GetXY: TIntVector2;
+begin
+  Result.X := X;
+  Result.Y := Y;
+end;
+
+function TIntVector3.GetXZ: TIntVector2;
+begin
+  Result.X := X;
+  Result.Y := Z;
+end;
+
+function TIntVector3.GetYX: TIntVector2;
+begin
+  Result.X := Y;
+  Result.Y := X;
+end;
+
+function TIntVector3.GetYY: TIntVector2;
+begin
+  Result.X := Y;
+  Result.Y := Y;
+end;
+
+function TIntVector3.GetYZ: TIntVector2;
+begin
+  Result.X := Y;
+  Result.Y := Z;
+end;
+
+function TIntVector3.GetZX: TIntVector2;
+begin
+  Result.X := Z;
+  Result.Y := X;
+end;
+
+function TIntVector3.GetZY: TIntVector2;
+begin
+  Result.X := Z;
+  Result.Y := Y;
+end;
+
+function TIntVector3.GetZZ: TIntVector2;
+begin
+  Result.X := Z;
+  Result.Y := Z;
+end;
+
+procedure TIntVector3.SetXY(const Value: TIntVector2);
+begin
+  X := Value.X;
+  Y := Value.Y;
+end;
+
+procedure TIntVector3.SetXZ(const Value: TIntVector2);
+begin
+  X := Value.X;
+  Z := Value.Y;
+end;
+
+procedure TIntVector3.SetYX(const Value: TIntVector2);
+begin
+  Y := Value.X;
+  X := Value.Y;
+end;
+
+procedure TIntVector3.SetYZ(const Value: TIntVector2);
+begin
+  Y := Value.X;
+  Z := Value.Y;
+end;
+
+procedure TIntVector3.SetZX(const Value: TIntVector2);
+begin
+  Z := Value.X;
+  X := Value.Y;
+end;
+
+procedure TIntVector3.SetZY(const Value: TIntVector2);
+begin
+  Z := Value.X;
+  Y := Value.Y;
+end;
+
+{$ENDREGION}
+{$REGION 'All version of rearrangement TIntVector3'}
+
+function TIntVector3.GetXXX: TIntVector3;
+begin
+  Result.X := X;
+  Result.Y := X;
+  Result.Z := X;
+end;
+
+function TIntVector3.GetXXY: TIntVector3;
+begin
+  Result.X := X;
+  Result.Y := X;
+  Result.Z := Y;
+end;
+
+function TIntVector3.GetXXZ: TIntVector3;
+begin
+  Result.X := X;
+  Result.Y := X;
+  Result.Z := Z;
+end;
+
+function TIntVector3.GetXYX: TIntVector3;
+begin
+  Result.X := X;
+  Result.Y := Y;
+  Result.Z := X;
+end;
+
+function TIntVector3.GetXYY: TIntVector3;
+begin
+  Result.X := X;
+  Result.Y := Y;
+  Result.Z := Y;
+end;
+
+function TIntVector3.GetXYZ: TIntVector3;
+begin
+  Result.X := X;
+  Result.Y := Y;
+  Result.Z := Z;
+end;
+
+function TIntVector3.GetXZX: TIntVector3;
+begin
+  Result.X := X;
+  Result.Y := Z;
+  Result.Z := X;
+end;
+
+function TIntVector3.GetXZY: TIntVector3;
+begin
+  Result.X := X;
+  Result.Y := Z;
+  Result.Z := Y;
+end;
+
+function TIntVector3.GetXZZ: TIntVector3;
+begin
+  Result.X := X;
+  Result.Y := Z;
+  Result.Z := Z;
+end;
+
+function TIntVector3.GetYXX: TIntVector3;
+begin
+  Result.X := Y;
+  Result.Y := X;
+  Result.Z := X;
+end;
+
+function TIntVector3.GetYXY: TIntVector3;
+begin
+  Result.X := Y;
+  Result.Y := X;
+  Result.Z := Y;
+end;
+
+function TIntVector3.GetYXZ: TIntVector3;
+begin
+  Result.X := Y;
+  Result.Y := X;
+  Result.Z := Z;
+end;
+
+function TIntVector3.GetYYX: TIntVector3;
+begin
+  Result.X := Y;
+  Result.Y := Y;
+  Result.Z := X;
+end;
+
+function TIntVector3.GetYYY: TIntVector3;
+begin
+  Result.X := Y;
+  Result.Y := Y;
+  Result.Z := Y;
+end;
+
+function TIntVector3.GetYYZ: TIntVector3;
+begin
+  Result.X := Y;
+  Result.Y := Y;
+  Result.Z := Z;
+end;
+
+function TIntVector3.GetYZX: TIntVector3;
+begin
+  Result.X := Y;
+  Result.Y := Z;
+  Result.Z := X;
+end;
+
+function TIntVector3.GetYZY: TIntVector3;
+begin
+  Result.X := Y;
+  Result.Y := Z;
+  Result.Z := Y;
+end;
+
+function TIntVector3.GetYZZ: TIntVector3;
+begin
+  Result.X := Y;
+  Result.Y := Z;
+  Result.Z := Z;
+end;
+
+function TIntVector3.GetZXX: TIntVector3;
+begin
+  Result.X := Z;
+  Result.Y := X;
+  Result.Z := X;
+end;
+
+function TIntVector3.GetZXY: TIntVector3;
+begin
+  Result.X := Z;
+  Result.Y := X;
+  Result.Z := Y;
+end;
+
+function TIntVector3.GetZXZ: TIntVector3;
+begin
+  Result.X := Z;
+  Result.Y := X;
+  Result.Z := Z;
+end;
+
+function TIntVector3.GetZYX: TIntVector3;
+begin
+  Result.X := Z;
+  Result.Y := Y;
+  Result.Z := X;
+end;
+
+function TIntVector3.GetZYY: TIntVector3;
+begin
+  Result.X := Z;
+  Result.Y := Y;
+  Result.Z := Y;
+end;
+
+function TIntVector3.GetZYZ: TIntVector3;
+begin
+  Result.X := Z;
+  Result.Y := Y;
+  Result.Z := Z;
+end;
+
+function TIntVector3.GetZZX: TIntVector3;
+begin
+  Result.X := Z;
+  Result.Y := Z;
+  Result.Z := X;
+end;
+
+function TIntVector3.GetZZY: TIntVector3;
+begin
+  Result.X := Z;
+  Result.Y := Z;
+  Result.Z := Y;
+end;
+
+function TIntVector3.GetZZZ: TIntVector3;
+begin
+  Result.X := Z;
+  Result.Y := Z;
+  Result.Z := Z;
+end;
+
+procedure TIntVector3.SetXYZ(const Value: TIntVector3);
+begin
+  X := Value.X;
+  Y := Value.Y;
+  Z := Value.Z;
+end;
+
+procedure TIntVector3.SetXZY(const Value: TIntVector3);
+begin
+  X := Value.X;
+  Z := Value.Y;
+  Y := Value.Z;
+end;
+
+procedure TIntVector3.SetYXZ(const Value: TIntVector3);
+begin
+  Y := Value.X;
+  X := Value.Y;
+  Z := Value.Z;
+end;
+
+procedure TIntVector3.SetYZX(const Value: TIntVector3);
+begin
+  Y := Value.X;
+  Z := Value.Y;
+  X := Value.Z;
+end;
+
+procedure TIntVector3.SetZXY(const Value: TIntVector3);
+begin
+  Z := Value.X;
+  X := Value.Y;
+  Y := Value.Z;
+end;
+
+procedure TIntVector3.SetZYX(const Value: TIntVector3);
+begin
+  Z := Value.X;
+  Y := Value.Y;
+  X := Value.Z;
+end;
+
+{$ENDREGION}
 
 constructor TIntVector3.Create(X, Y, Z: Integer);
 begin
@@ -689,256 +1173,6 @@ begin
   Result.Z := V;
 end;
 
-{$REGION 'All version of rearrangement TIntVector2'}
-
-function TIntVector3.XX: TIntVector2;
-begin
-  Result.X := X;
-  Result.Y := X;
-end;
-
-function TIntVector3.XY: TIntVector2;
-begin
-  Result.X := X;
-  Result.Y := Y;
-end;
-
-function TIntVector3.XZ: TIntVector2;
-begin
-  Result.X := X;
-  Result.Y := Z;
-end;
-
-function TIntVector3.YX: TIntVector2;
-begin
-  Result.X := Y;
-  Result.Y := X;
-end;
-
-function TIntVector3.YY: TIntVector2;
-begin
-  Result.X := Y;
-  Result.Y := Y;
-end;
-
-function TIntVector3.YZ: TIntVector2;
-begin
-  Result.X := Y;
-  Result.Y := Z;
-end;
-
-function TIntVector3.ZX: TIntVector2;
-begin
-  Result.X := Z;
-  Result.Y := X;
-end;
-
-function TIntVector3.ZY: TIntVector2;
-begin
-  Result.X := Z;
-  Result.Y := Y;
-end;
-
-function TIntVector3.ZZ: TIntVector2;
-begin
-  Result.X := Z;
-  Result.Y := Z;
-end;
-
-{$ENDREGION}
-{$REGION 'All version of rearrangement TIntVector3'}
-
-function TIntVector3.XXX: TIntVector3;
-begin
-  Result.X := X;
-  Result.Y := X;
-  Result.Z := X;
-end;
-
-function TIntVector3.XXY: TIntVector3;
-begin
-  Result.X := X;
-  Result.Y := X;
-  Result.Z := Y;
-end;
-
-function TIntVector3.XXZ: TIntVector3;
-begin
-  Result.X := X;
-  Result.Y := X;
-  Result.Z := Z;
-end;
-
-function TIntVector3.XYX: TIntVector3;
-begin
-  Result.X := X;
-  Result.Y := Y;
-  Result.Z := X;
-end;
-
-function TIntVector3.XYY: TIntVector3;
-begin
-  Result.X := X;
-  Result.Y := Y;
-  Result.Z := Y;
-end;
-
-function TIntVector3.XYZ: TIntVector3;
-begin
-  Result.X := X;
-  Result.Y := Y;
-  Result.Z := Z;
-end;
-
-function TIntVector3.XZX: TIntVector3;
-begin
-  Result.X := X;
-  Result.Y := Z;
-  Result.Z := X;
-end;
-
-function TIntVector3.XZY: TIntVector3;
-begin
-  Result.X := X;
-  Result.Y := Z;
-  Result.Z := Y;
-end;
-
-function TIntVector3.XZZ: TIntVector3;
-begin
-  Result.X := X;
-  Result.Y := Z;
-  Result.Z := Z;
-end;
-
-function TIntVector3.YXX: TIntVector3;
-begin
-  Result.X := Y;
-  Result.Y := X;
-  Result.Z := X;
-end;
-
-function TIntVector3.YXY: TIntVector3;
-begin
-  Result.X := Y;
-  Result.Y := X;
-  Result.Z := Y;
-end;
-
-function TIntVector3.YXZ: TIntVector3;
-begin
-  Result.X := Y;
-  Result.Y := X;
-  Result.Z := Z;
-end;
-
-function TIntVector3.YYX: TIntVector3;
-begin
-  Result.X := Y;
-  Result.Y := Y;
-  Result.Z := X;
-end;
-
-function TIntVector3.YYY: TIntVector3;
-begin
-  Result.X := Y;
-  Result.Y := Y;
-  Result.Z := Y;
-end;
-
-function TIntVector3.YYZ: TIntVector3;
-begin
-  Result.X := Y;
-  Result.Y := Y;
-  Result.Z := Z;
-end;
-
-function TIntVector3.YZX: TIntVector3;
-begin
-  Result.X := Y;
-  Result.Y := Z;
-  Result.Z := X;
-end;
-
-function TIntVector3.YZY: TIntVector3;
-begin
-  Result.X := Y;
-  Result.Y := Z;
-  Result.Z := Y;
-end;
-
-function TIntVector3.YZZ: TIntVector3;
-begin
-  Result.X := Y;
-  Result.Y := Z;
-  Result.Z := Z;
-end;
-
-function TIntVector3.ZXX: TIntVector3;
-begin
-  Result.X := Z;
-  Result.Y := X;
-  Result.Z := X;
-end;
-
-function TIntVector3.ZXY: TIntVector3;
-begin
-  Result.X := Z;
-  Result.Y := X;
-  Result.Z := Y;
-end;
-
-function TIntVector3.ZXZ: TIntVector3;
-begin
-  Result.X := Z;
-  Result.Y := X;
-  Result.Z := Z;
-end;
-
-function TIntVector3.ZYX: TIntVector3;
-begin
-  Result.X := Z;
-  Result.Y := Y;
-  Result.Z := X;
-end;
-
-function TIntVector3.ZYY: TIntVector3;
-begin
-  Result.X := Z;
-  Result.Y := Y;
-  Result.Z := Y;
-end;
-
-function TIntVector3.ZYZ: TIntVector3;
-begin
-  Result.X := Z;
-  Result.Y := Y;
-  Result.Z := Z;
-end;
-
-function TIntVector3.ZZX: TIntVector3;
-begin
-  Result.X := Z;
-  Result.Y := Z;
-  Result.Z := X;
-end;
-
-function TIntVector3.ZZY: TIntVector3;
-begin
-  Result.X := Z;
-  Result.Y := Z;
-  Result.Z := Y;
-end;
-
-function TIntVector3.ZZZ: TIntVector3;
-begin
-  Result.X := Z;
-  Result.Y := Z;
-  Result.Z := Z;
-end;
-
-{$ENDREGION}
-
 class operator TIntVector3.Add(const A, B: TIntVector3): TIntVector3;
 begin
   Result.X := A.X + B.X;
@@ -958,6 +1192,11 @@ begin
   Result.X := A.X * B.X;
   Result.Y := A.Y * B.Y;
   Result.Z := A.Z * B.Z;
+end;
+
+class operator TIntVector3.In(A: Integer; const B: TIntVector3): Boolean;
+begin
+  Result := A in IBounds3(B);
 end;
 
 class operator TIntVector3.IntDivide(const A, B: TIntVector3): TIntVector3;
@@ -1014,7 +1253,7 @@ begin
   Result := Format('[%d|%d|%d]', [X, Y, Z]);
 end;
 
-class operator TIntVector3.Implicit(A: TIntVector3): string;
+class operator TIntVector3.Implicit(const A: TIntVector3): string;
 begin
   Result := A.ToString;
 end;
@@ -1039,20 +1278,36 @@ begin
   Result.C2 := A;
 end;
 
-function TIntBounds1.GetLength: Integer;
+function TIntBounds1.Length: Integer;
 begin
   Result := C2 - C1;
 end;
 
-function TIntBounds1.EnsureRange(ARange: TIntBounds1): TIntBounds1;
+function TIntBounds1.Clamp(ARange: TIntBounds1): TIntBounds1;
 begin
   Result.C1 := Max(C1, ARange.C1);
   Result.C2 := Min(C2, ARange.C2);
 end;
 
-function TIntBounds1.EnsureRange(AValue: Integer): Integer;
+function TIntBounds1.Center: Integer;
 begin
-  Result := System.Math.EnsureRange(AValue, C1, C2);
+  Result := (C1 + C2 - 1) div 2;
+end;
+
+function TIntBounds1.Clamp(AValue: Integer): Integer;
+begin
+  Result := EnsureRange(AValue, C1, C2 - 1);
+end;
+
+function TIntBounds1.RangedMod(AValue: Integer): Integer;
+
+  function IntMod(const ANumerator, ADenominator: Integer): Integer;
+  begin
+    Result := ANumerator - Floor(ANumerator / ADenominator) * ADenominator;
+  end;
+
+begin
+  Result := IntMod(AValue - C1, Length) + C1;
 end;
 
 function TIntBounds1.Normalized: Boolean;
@@ -1062,13 +1317,10 @@ end;
 
 function TIntBounds1.Normalize: TIntBounds1;
 begin
-  if not Normalized then
-  begin
-    Result.C1 := C2;
-    Result.C2 := C1;
-  end
-  else
-    Result := Self;
+  if Normalized then
+    Exit(Self);
+  Result.C1 := C2;
+  Result.C2 := C1;
 end;
 
 function TIntBounds1.Inset(AAmount: Integer): TIntBounds1;
@@ -1107,12 +1359,12 @@ begin
   Result.C2 := A.C2 div B.C2;
 end;
 
-class operator TIntBounds1.in(const A, B: TIntBounds1): Boolean;
+class operator TIntBounds1.In(const A, B: TIntBounds1): Boolean;
 begin
   Result := (A.C1 >= B.C1) and (A.C2 <= B.C2);
 end;
 
-class operator TIntBounds1.in(A: Integer; const B: TIntBounds1): Boolean;
+class operator TIntBounds1.In(A: Integer; const B: TIntBounds1): Boolean;
 begin
   Result := (A >= B.C1) and (A < B.C2);
 end;
@@ -1141,6 +1393,7 @@ class operator TIntBounds1.LessThan(const A, B: TIntBounds1): Boolean;
 begin
   Result := A.C2 < B.C1;
 end;
+
 class operator TIntBounds1.LessThanOrEqual(const A, B: TIntBounds1): Boolean;
 begin
   Result := A.C2 <= B.C1;
@@ -1156,35 +1409,21 @@ begin
   Result := ABounds.ToString;
 end;
 
-function TIntBounds1.GetEnumerator: TIterator;
+function TIntBounds1.GetEnumerator: TIntBounds1Iterator;
 begin
-  Result := TIterator.Create(Self);
-end;
-
-{ TIntBounds1.TIterator }
-
-constructor TIntBounds1.TIterator.Create(const ABounds: TIntBounds1);
-begin
-  FCurrent := ABounds.C1 - 1;
-  FEnd := ABounds.C2;
-end;
-
-function TIntBounds1.TIterator.MoveNext: Boolean;
-begin
-  Inc(FCurrent);
-  Result := FCurrent < FEnd;
+  Result := TIntBounds1Iterator.Create(Self);
 end;
 
 { TIntBounds2 }
 
 function TIntBounds2.GetLineX: TIntBounds1;
 begin
-  Result := Range1(C1.X, C2.X);
+  Result := IBounds1(C1.X, C2.X);
 end;
 
 function TIntBounds2.GetLineY: TIntBounds1;
 begin
-  Result := Range1(C1.Y, C2.Y);
+  Result := IBounds1(C1.Y, C2.Y);
 end;
 
 procedure TIntBounds2.SetLineX(const Value: TIntBounds1);
@@ -1211,48 +1450,59 @@ begin
   C2 := A;
 end;
 
-class operator TIntBounds2.Implicit(A: TIntVector2): TIntBounds2;
-begin
-  Result.C1 := A;
-  Result.C2 := A;
-end;
-
-function TIntBounds2.GetSize: TIntVector2;
-begin
-  Result := C2 - C1;
-end;
-
-function TIntBounds2.GetArea: Integer;
-begin
-  Result := Width * Height;
-end;
-
-function TIntBounds2.GetWidth: Integer;
-begin
-  Result := LineX.Length;
-end;
-
-function TIntBounds2.GetHeight: Integer;
-begin
-  Result := LineY.Length;
-end;
-
 class operator TIntBounds2.Implicit(A: Integer): TIntBounds2;
 begin
   Result.C1 := A;
   Result.C2 := A;
 end;
 
-function TIntBounds2.EnsureRange(ARange: TIntBounds2): TIntBounds2;
+class operator TIntBounds2.Implicit(A: TIntVector2): TIntBounds2;
 begin
-  Result.LineX := LineX.EnsureRange(ARange.LineX);
-  Result.LineY := LineY.EnsureRange(ARange.LineY);
+  Result.C1 := A;
+  Result.C2 := A;
 end;
 
-function TIntBounds2.EnsureRange(AValue: TIntVector2): TIntVector2;
+function TIntBounds2.Size: TIntVector2;
 begin
-  Result.X := LineX.EnsureRange(AValue.X);
-  Result.Y := LineY.EnsureRange(AValue.Y);
+  Result := C2 - C1;
+end;
+
+function TIntBounds2.Area: Integer;
+begin
+  Result := Width * Height;
+end;
+
+function TIntBounds2.Width: Integer;
+begin
+  Result := LineX.Length;
+end;
+
+function TIntBounds2.Height: Integer;
+begin
+  Result := LineY.Length;
+end;
+
+function TIntBounds2.Clamp(ARange: TIntBounds2): TIntBounds2;
+begin
+  Result.LineX := LineX.Clamp(ARange.LineX);
+  Result.LineY := LineY.Clamp(ARange.LineY);
+end;
+
+function TIntBounds2.Center: TIntVector2;
+begin
+  Result := (C1 + C2 - 1) div 2;
+end;
+
+function TIntBounds2.Clamp(AValue: TIntVector2): TIntVector2;
+begin
+  Result.X := LineX.Clamp(AValue.X);
+  Result.Y := LineY.Clamp(AValue.Y);
+end;
+
+function TIntBounds2.RangedMod(AValue: TIntVector2): TIntVector2;
+begin
+  Result.X := LineX.RangedMod(AValue.X);
+  Result.Y := LineY.RangedMod(AValue.Y);
 end;
 
 function TIntBounds2.Normalized: Boolean;
@@ -1302,12 +1552,12 @@ begin
   Result.C2 := A.C2 div B.C2;
 end;
 
-class operator TIntBounds2.in(const A, B: TIntBounds2): Boolean;
+class operator TIntBounds2.In(const A, B: TIntBounds2): Boolean;
 begin
   Result := (A.C1 >= B.C1) and (A.C2 <= B.C2);
 end;
 
-class operator TIntBounds2.in(A: TIntVector2; const B: TIntBounds2): Boolean;
+class operator TIntBounds2.In(A: TIntVector2; const B: TIntBounds2): Boolean;
 begin
   Result := (A >= B.C1) and (A < B.C2);
 end;
@@ -1352,46 +1602,26 @@ begin
   Result := ABounds.ToString;
 end;
 
-function TIntBounds2.GetEnumerator: TIterator;
+function TIntBounds2.GetEnumerator: TIntBounds2Iterator;
 begin
-  Result := TIterator.Create(Self);
-end;
-
-{ TIntBounds2.TIterator }
-
-constructor TIntBounds2.TIterator.Create(const ABounds: TIntBounds2);
-begin
-  FCurrent.X := ABounds.C1.X - 1;
-  FCurrent.Y := ABounds.C1.Y;
-  FBounds := @ABounds;
-end;
-
-function TIntBounds2.TIterator.MoveNext: Boolean;
-begin
-  Inc(FCurrent.X);
-  if FCurrent.X >= FBounds.C2.X then
-  begin
-    FCurrent.X := FBounds.C1.X;
-    Inc(FCurrent.Y);
-  end;
-  Result := FCurrent.Y < FBounds.C2.Y;
+  Result := TIntBounds2Iterator.Create(Self);
 end;
 
 { TIntBounds3 }
 
 function TIntBounds3.GetLineX: TIntBounds1;
 begin
-  Result := Range1(C1.X, C2.X);
+  Result := IBounds1(C1.X, C2.X);
 end;
 
 function TIntBounds3.GetLineY: TIntBounds1;
 begin
-  Result := Range1(C1.Y, C2.Y);
+  Result := IBounds1(C1.Y, C2.Y);
 end;
 
 function TIntBounds3.GetLineZ: TIntBounds1;
 begin
-  Result := Range1(C1.Z, C2.Z);
+  Result := IBounds1(C1.Z, C2.Z);
 end;
 
 procedure TIntBounds3.SetLineX(const Value: TIntBounds1);
@@ -1502,43 +1732,55 @@ begin
   Result.C2 := A;
 end;
 
-function TIntBounds3.GetSize: TIntVector3;
+function TIntBounds3.Size: TIntVector3;
 begin
-  Result := C2 - C1;
+  Result.Create(Width, Height, Depth);
 end;
 
-function TIntBounds3.GetVolume: Integer;
+function TIntBounds3.Volume: Integer;
 begin
   Result := Width * Height * Depth;
 end;
 
-function TIntBounds3.GetWidth: Integer;
+function TIntBounds3.Width: Integer;
 begin
   Result := LineX.Length;
 end;
 
-function TIntBounds3.GetHeight: Integer;
+function TIntBounds3.Height: Integer;
 begin
   Result := LineY.Length;
 end;
 
-function TIntBounds3.GetDepth: Integer;
+function TIntBounds3.Depth: Integer;
 begin
   Result := LineZ.Length;
 end;
 
-function TIntBounds3.EnsureRange(ARange: TIntBounds3): TIntBounds3;
+function TIntBounds3.Clamp(ARange: TIntBounds3): TIntBounds3;
 begin
-  Result.LineX := LineX.EnsureRange(ARange.LineX);
-  Result.LineY := LineY.EnsureRange(ARange.LineY);
-  Result.LineZ := LineZ.EnsureRange(ARange.LineZ);
+  Result.LineX := LineX.Clamp(ARange.LineX);
+  Result.LineY := LineY.Clamp(ARange.LineY);
+  Result.LineZ := LineZ.Clamp(ARange.LineZ);
 end;
 
-function TIntBounds3.EnsureRange(AValue: TIntVector3): TIntVector3;
+function TIntBounds3.Center: TIntVector3;
 begin
-  Result.X := LineX.EnsureRange(AValue.X);
-  Result.Y := LineY.EnsureRange(AValue.Y);
-  Result.Z := LineZ.EnsureRange(AValue.Z);
+  Result := (C1 + C2 - 1) div 2;
+end;
+
+function TIntBounds3.Clamp(AValue: TIntVector3): TIntVector3;
+begin
+  Result.X := LineX.Clamp(AValue.X);
+  Result.Y := LineY.Clamp(AValue.Y);
+  Result.Z := LineZ.Clamp(AValue.Z);
+end;
+
+function TIntBounds3.RangedMod(AValue: TIntVector3): TIntVector3;
+begin
+  Result.X := LineX.RangedMod(AValue.X);
+  Result.Y := LineX.RangedMod(AValue.Y);
+  Result.Z := LineX.RangedMod(AValue.Z);
 end;
 
 function TIntBounds3.Normalized: Boolean;
@@ -1589,12 +1831,12 @@ begin
   Result.C2 := A.C2 div B.C2;
 end;
 
-class operator TIntBounds3.in(const A, B: TIntBounds3): Boolean;
+class operator TIntBounds3.In(const A, B: TIntBounds3): Boolean;
 begin
   Result := (A.C1 >= B.C1) and (A.C2 <= B.C2);
 end;
 
-class operator TIntBounds3.in(A: TIntVector3; const B: TIntBounds3): Boolean;
+class operator TIntBounds3.In(const A: TIntVector3; const B: TIntBounds3): Boolean;
 begin
   Result := (A >= B.C1) and (A < B.C2);
 end;
@@ -1623,6 +1865,7 @@ class operator TIntBounds3.LessThan(const A, B: TIntBounds3): Boolean;
 begin
   Result := A.C2 < B.C1;
 end;
+
 class operator TIntBounds3.LessThanOrEqual(const A, B: TIntBounds3): Boolean;
 begin
   Result := A.C2 <= B.C1;
@@ -1638,35 +1881,71 @@ begin
   Result := ABounds.ToString;
 end;
 
-function TIntBounds3.GetEnumerator: TIterator;
+function TIntBounds3.GetEnumerator: TIntBounds3Iterator;
 begin
-  Result := TIterator.Create(Self);
+  Result := TIntBounds3Iterator.Create(Self);
 end;
 
-{ TIntBounds3.TIterator }
+{ TIntBounds1Iterator }
 
-constructor TIntBounds3.TIterator.Create(const ABounds: TIntBounds3);
+constructor TIntBounds1Iterator.Create(const ABounds: TIntBounds1);
+begin
+  FCurrent := ABounds.C1 - 1;
+  FEnd := ABounds.C2;
+end;
+
+function TIntBounds1Iterator.MoveNext: Boolean;
+begin
+  Inc(FCurrent);
+  Result := FCurrent < FEnd;
+end;
+
+{ TIntBounds2Iterator }
+
+constructor TIntBounds2Iterator.Create(const ABounds: TIntBounds2);
+begin
+  FCurrent.X := ABounds.C1.X - 1;
+  FCurrent.Y := ABounds.C1.Y;
+  FC1 := ABounds.C1;
+  FC2 := ABounds.C2;
+end;
+
+function TIntBounds2Iterator.MoveNext: Boolean;
+begin
+  Inc(FCurrent.X);
+  if FCurrent.X >= FC2.X then
+  begin
+    FCurrent.X := FC1.X;
+    Inc(FCurrent.Y);
+  end;
+  Result := FCurrent.Y < FC2.Y;
+end;
+
+{ TIntBounds3Iterator }
+
+constructor TIntBounds3Iterator.Create(const ABounds: TIntBounds3);
 begin
   FCurrent.X := ABounds.C1.X - 1;
   FCurrent.Y := ABounds.C1.Y;
   FCurrent.Z := ABounds.C1.Z;
-  FBounds := @ABounds;
+  FC1 := ABounds.C1;
+  FC2 := ABounds.C2;
 end;
 
-function TIntBounds3.TIterator.MoveNext: Boolean;
+function TIntBounds3Iterator.MoveNext: Boolean;
 begin
   Inc(FCurrent.X);
-  if FCurrent.X >= FBounds.C2.X then
+  if FCurrent.X >= FC2.X then
   begin
-    FCurrent.X := FBounds.C1.X;
+    FCurrent.X := FC1.X;
     Inc(FCurrent.Y);
-    if FCurrent.Y >= FBounds.C2.Y then
+    if FCurrent.Y >= FC2.Y then
     begin
-      FCurrent.Y := FBounds.C1.Y;
+      FCurrent.Y := FC1.Y;
       Inc(FCurrent.Z);
     end;
   end;
-  Result := FCurrent.Z < FBounds.C2.Z;
+  Result := FCurrent.Z < FC2.Z;
 end;
 
 { Shorthand Constructors }
@@ -1691,32 +1970,32 @@ begin
   Result.Create(V);
 end;
 
-function Range1(A, B: Integer): TIntBounds1;
+function IBounds1(A, B: Integer): TIntBounds1;
 begin
-  Result.Create(A, B);
+  Result.Create(A, B + 1);
 end;
 
-function Range1(A: Integer): TIntBounds1;
-begin
-  Result.Create(0, A);
-end;
-
-function Range2(A, B: TIntVector2): TIntBounds2;
-begin
-  Result.Create(A, B);
-end;
-
-function Range2(A: TIntVector2): TIntBounds2;
+function IBounds1(A: Integer): TIntBounds1;
 begin
   Result.Create(0, A);
 end;
 
-function Range3(A, B: TIntVector3): TIntBounds3;
+function IBounds2(A, B: TIntVector2): TIntBounds2;
 begin
-  Result.Create(A, B);
+  Result.Create(A, B + 1);
 end;
 
-function Range3(A: TIntVector3): TIntBounds3;
+function IBounds2(A: TIntVector2): TIntBounds2;
+begin
+  Result.Create(0, A);
+end;
+
+function IBounds3(A, B: TIntVector3): TIntBounds3;
+begin
+  Result.Create(A, B + 1);
+end;
+
+function IBounds3(A: TIntVector3): TIntBounds3;
 begin
   Result.Create(0, A);
 end;

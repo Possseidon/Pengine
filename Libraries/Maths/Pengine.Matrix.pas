@@ -3,41 +3,87 @@ unit Pengine.Matrix;
 interface
 
 uses
-  System.SysUtils;
+  System.Math,
+  System.SysUtils,
+
+  Pengine.IntMaths;
 
 type
 
-  TMatrixResult2 = array [0 .. 1] of Single;
-  TMatrixResult3 = array [0 .. 2] of Single;
-
-  { EMatrixMultiply }
-
+  // TODO: XmlDoc
   EMatrixMultiply = class(Exception)
   public
-    constructor Create(AACols, ABRows: Integer);
+    constructor Create;
   end;
 
-  { TMatrix }
-  /// <remarks>
-  /// This is not a value type
-  /// <para/>
-  /// Use <see cref="Matrix|TMatrix.Copy"/> instead
-  /// </remarks>
+  // TODO: XmlDoc
+  EMatrixDimension = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  // TODO: XmlDoc
+  EMatrixRangeError = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  /// <remarks>This is not a value type<p/>Use <see cref="Pengine.Matrix|TMatrix.Copy"/> instead.</remarks>
   TMatrix = record
   private
-    FElement: array of array of Single;
+    Data: array of array of Single;
+    
+    function GetCols: Integer;
+    function GetRows: Integer;
+    procedure SetCols(const Value: Integer);
+    procedure SetRows(const Value: Integer);
 
-    function GetElement(I, J: Byte): Single;
-    procedure SetElement(I, J: Byte; const Value: Single);
+    function GetSize: TIntVector2;
+    procedure SetSize(const Value: TIntVector2); inline;
 
-    property E[I, J: Byte]: Single read GetElement write SetElement; default;
+    function GetNum(I, J: Byte): Single; overload; inline;
+    procedure SetNum(I, J: Byte; const Value: Single); overload; inline;
+    function GetNum(V: TIntVector2): Single; overload;
+    procedure SetNum(V: TIntVector2; const Value: Single); overload;
+
+    function GetMinor(V: TIntVector2): TMatrix; overload;
+    function GetMinor(I, J: Integer): TMatrix; overload; inline;
+    procedure SetMinor(V: TIntVector2; const Value: TMatrix); overload;
+    procedure SetMinor(I, J: Integer; const Value: TMatrix); overload; inline;
+
+    function GetCofactor(V: TIntVector2): Single;
+    
+    property Num[I, J: Byte]: Single read GetNum write SetNum; default;
+    {$HINTS OFF}
+    property Num[V: TIntVector2]: Single read GetNum write SetNum; default;
+    {$HINTS ON}
+    
+    procedure RangeCheck(V: TIntVector2); inline;
+    class procedure DimensionCheck(const A, B: TMatrix); static; inline;
+
   public
-    class operator Add(A, B: TMatrix): TMatrix;
+    class operator Add(A, B: TMatrix): TMatrix; overload;
+    class operator Add(A: TMatrix; B: Single): TMatrix; overload;
+    class operator Add(A: Single; B: TMatrix): TMatrix; overload;
 
-    class operator Multiply(V: Single; A: TMatrix): TMatrix;
-    class operator Multiply(A, B: TMatrix): TMatrix;
+    class operator Subtract(A, B: TMatrix): TMatrix; overload;
+    class operator Subtract(A: TMatrix; B: Single): TMatrix; overload;
+    class operator Subtract(A: Single; B: TMatrix): TMatrix; overload;
 
-    procedure SetSize(Cols, Rows: Byte);
+    class operator Multiply(A, B: TMatrix): TMatrix; overload;
+
+    class operator Multiply(A: TMatrix; B: Single): TMatrix; overload;
+    class operator Multiply(A: Single; B: TMatrix): TMatrix; overload;
+                                                                      
+    class operator Divide(A, B: TMatrix): TMatrix; overload;
+    class operator Divide(A: TMatrix; B: Single): TMatrix; overload;
+    class operator Divide(A: Single; B: TMatrix): TMatrix; overload;
+
+    class operator Equal(A, B: TMatrix): Boolean;
+    class operator NotEqual(A, B: TMatrix): Boolean; inline;
+
+    property Size: TIntVector2 read GetSize write SetSize;
+
     procedure Clear(Value: Single = 0);
     procedure LoadIdentity;
 
@@ -48,383 +94,569 @@ type
 
     function SolveCol(Col: Byte; out R: Single): Boolean;
     function Solve(out R: array of Single): Boolean;
-    function Solveable: Boolean;
+    function Solveable: Boolean; inline;
 
     function Transpose: TMatrix;
-    function Minor(I, J: Integer): TMatrix;
-    function Cofactor(I, J: Integer): Single;
+    property Minor[V: TIntVector2]: TMatrix read GetMinor write SetMinor;
+    property MinorIJ[I, J: Integer]: TMatrix read GetMinor write SetMinor;
+    property Cofactor[V: TIntVector2]: Single read GetCofactor;
     function CofactorMatrix: TMatrix;
-    function Adjugate: TMatrix;
-    function Inverse: TMatrix;
+    function Adjugate: TMatrix; inline;
+    function Inverse: TMatrix; inline;
     function Determinant: Single;
 
-    function Cols: Byte;
-    function Rows: Byte;
+    property Cols: Integer read GetCols write SetCols;
+    property Rows: Integer read GetRows write SetRows;
 
-    /// <returns>An exact copy of the Matrix</returns>
-    /// <remarks>
-    /// <see cref="Matrix|TMatrix"/> is not a value type, use this instead
-    /// </remarks>
+    /// <returns>An exact copy of the Matrix.</returns>
+    /// <remarks><see cref="Pengine.Matrix|TMatrix"/> is not a value type, use this instead.</remarks>
     function Copy: TMatrix;
+
+    function ToString: string;
+
   end;
 
-  { TMatrix2 }
-
+  // TODO: XmlDoc
   TMatrix2 = record
-  private
-    FElement: array [0 .. 1, 0 .. 1] of Single;
-
-    function GetElement(I, J: Byte): Single;
-    procedure SetElement(I, J: Byte; const Value: Single);
-
-    property E[I, J: Byte]: Single read GetElement write SetElement; default;
   public
-    class operator Add(A, B: TMatrix2): TMatrix2;
-    class operator Multiply(V: Single; A: TMatrix2): TMatrix2;
-    class operator Multiply(A, B: TMatrix2): TMatrix2;
+    // public to allow constant definitions
+    Data: array [0 .. 1, 0 .. 1] of Single;
 
+  private
+    function GetNum(I, J: Byte): Single; overload; inline;
+    procedure SetNum(I, J: Byte; const Value: Single); overload; inline;
+    function GetNum(V: TIntVector2): Single; overload;
+    procedure SetNum(V: TIntVector2; const Value: Single); overload;
+
+    function GetMinor(V: TIntVector2): Single; overload;
+    function GetMinor(I, J: Integer): Single; overload; inline;
+    procedure SetMinor(V: TIntVector2; const Value: Single); overload;
+    procedure SetMinor(I, J: Integer; const Value: Single); overload; inline;
+
+    function GetCofactor(V: TIntVector2): Single;
+
+    property Num[I, J: Byte]: Single read GetNum write SetNum; default;
+    {$HINTS OFF}
+    property Num[V: TIntVector2]: Single read GetNum write SetNum; default;
+    {$HINTS ON}
+    
+    procedure RangeCheck(V: TIntVector2); inline;
+
+  public
+    class operator Add(A: TMatrix2; B: Single): TMatrix2;
+    class operator Add(A: Single; B: TMatrix2): TMatrix2;
+    class operator Add(A, B: TMatrix2): TMatrix2;
+    
+    class operator Subtract(A: TMatrix2; B: Single): TMatrix2;
+    class operator Subtract(A: Single; B: TMatrix2): TMatrix2;
+    class operator Subtract(A, B: TMatrix2): TMatrix2;
+    
+    class operator Divide(A: TMatrix2; B: Single): TMatrix2;
+    class operator Divide(A: Single; B: TMatrix2): TMatrix2;
+    class operator Divide(A, B: TMatrix2): TMatrix2;  
+
+    class operator Multiply(A: TMatrix2; B: Single): TMatrix2;
+    class operator Multiply(A: Single; B: TMatrix2): TMatrix2;
+    
+    class operator Multiply(A, B: TMatrix2): TMatrix2;
+    
+    class operator Equal(A, B: TMatrix2): Boolean;
+    class operator NotEqual(A, B: TMatrix2): Boolean; inline;
+
+    class operator Implicit(A: TMatrix): TMatrix2; 
+    class operator Implicit(A: TMatrix2): TMatrix; 
+    
     procedure Clear(Value: Single = 0);
-    procedure LoadIdentity;
+    procedure LoadIdentity; inline;
 
     function Transpose: TMatrix2;
-    function Determinant: Single;
-    function Minor(I, J: Integer): Single;
-    function Cofactor(I, J: Integer): Single;
+    property Minor[V: TIntVector2]: Single read GetMinor write SetMinor;
+    property MinorIJ[I, J: Integer]: Single read GetMinor write SetMinor;
+    property Cofactor[V: TIntVector2]: Single read GetCofactor;
     function CofactorMatrix: TMatrix2;
-    function Adjugate: TMatrix2;
-    function Inverse: TMatrix2;
+    function Adjugate: TMatrix2; inline;
+    function Inverse: TMatrix2; inline;
+    function Determinant: Single;
+                
+    function ToString: string; inline;
+
   end;
 
-  { TMatrix3 }
-
+  // TODO: XmlDoc
   TMatrix3 = record
-  private
-    FElement: array [0 .. 2, 0 .. 2] of Single;
-
-    function GetElement(I, J: Byte): Single;
-    procedure SetElement(I, J: Byte; const Value: Single);
-
-    property E[I, J: Byte]: Single read GetElement write SetElement; default;
   public
+    // public to allow constant definitions
+    Data: array [0 .. 2, 0 .. 2] of Single;
+
+  private
+    function GetNum(I, J: Byte): Single; overload; inline;
+    procedure SetNum(I, J: Byte; const Value: Single); overload;
+    function GetNum(V: TIntVector2): Single; overload;
+    procedure SetNum(V: TIntVector2; const Value: Single); overload;
+
+    function GetMinor(V: TIntVector2): TMatrix2; overload;
+    function GetMinor(I, J: Integer): TMatrix2; overload;
+    procedure SetMinor(V: TIntVector2; const Value: TMatrix2); overload;
+    procedure SetMinor(I, J: Integer; const Value: TMatrix2); overload;
+
+    function GetCofactor(V: TIntVector2): Single;
+
+    property Num[I, J: Byte]: Single read GetNum write SetNum; default;
+    {$HINTS OFF}
+    property Num[V: TIntVector2]: Single read GetNum write SetNum; default;
+    {$HINTS ON}
+    
+    procedure RangeCheck(V: TIntVector2); inline;
+
+  public
+    class operator Add(A: TMatrix3; B: Single): TMatrix3;
+    class operator Add(A: Single; B: TMatrix3): TMatrix3;
     class operator Add(A, B: TMatrix3): TMatrix3;
-    class operator Multiply(V: Single; A: TMatrix3): TMatrix3;
+    
+    class operator Subtract(A: TMatrix3; B: Single): TMatrix3;
+    class operator Subtract(A: Single; B: TMatrix3): TMatrix3;
+    class operator Subtract(A, B: TMatrix3): TMatrix3;
+    
+    class operator Divide(A: TMatrix3; B: Single): TMatrix3;
+    class operator Divide(A: Single; B: TMatrix3): TMatrix3;
+    class operator Divide(A, B: TMatrix3): TMatrix3;  
+
+    class operator Multiply(A: TMatrix3; B: Single): TMatrix3;
+    class operator Multiply(A: Single; B: TMatrix3): TMatrix3;
+    
     class operator Multiply(A, B: TMatrix3): TMatrix3;
 
+    class operator Equal(A, B: TMatrix3): Boolean;
+    class operator NotEqual(A, B: TMatrix3): Boolean;
+                          
+    class operator Implicit(A: TMatrix): TMatrix3; 
+    class operator Implicit(A: TMatrix3): TMatrix; 
+    
     procedure Clear(Value: Single = 0);
     procedure LoadIdentity;
 
     function Transpose: TMatrix3;
-    function Determinant: Single;
-    function Minor(I, J: Integer): TMatrix2;
-    function Cofactor(I, J: Integer): Single;
+    property Minor[V: TIntVector2]: TMatrix2 read GetMinor write SetMinor;
+    property MinorIJ[I, J: Integer]: TMatrix2 read GetMinor write SetMinor;
+    property Cofactor[V: TIntVector2]: Single read GetCofactor;
     function CofactorMatrix: TMatrix3;
-    function Adjugate: TMatrix3;
-    function Inverse: TMatrix3;
+    function Adjugate: TMatrix3; inline;
+    function Inverse: TMatrix3; inline;
+    function Determinant: Single;
+                 
+    function ToString: string;
+
   end;
 
-  { TMatrix4 }
-
+  // TODO: XmlDoc
   TMatrix4 = record
-  private
-    FElement: array [0 .. 3, 0 .. 3] of Single;
-
-    function GetElement(I, J: Byte): Single;
-    function GetMinor(I, J: Integer): TMatrix3;
-
-    procedure SetElement(I, J: Byte; const Value: Single);
-    procedure SetMinor(I, J: Integer; AValue: TMatrix3);
-
-    property E[I, J: Byte]: Single read GetElement write SetElement; default;
   public
+    // public to allow constant definitions
+    Data: array [0 .. 3, 0 .. 3] of Single;
+
+  private
+    function GetNum(I, J: Byte): Single; overload; inline;
+    procedure SetNum(I, J: Byte; const Value: Single); overload;
+    function GetNum(V: TIntVector2): Single; overload;
+    procedure SetNum(V: TIntVector2; const Value: Single); overload;
+
+    function GetMinor(V: TIntVector2): TMatrix3; overload;
+    function GetMinor(I, J: Integer): TMatrix3; overload;
+    procedure SetMinor(V: TIntVector2; const Value: TMatrix3); overload;
+    procedure SetMinor(I, J: Integer; const Value: TMatrix3); overload;
+
+    function GetCofactor(V: TIntVector2): Single;
+
+    property Num[I, J: Byte]: Single read GetNum write SetNum; default;
+    {$HINTS OFF}
+    property Num[V: TIntVector2]: Single read GetNum write SetNum; default;
+    {$HINTS ON}
+    
+    procedure RangeCheck(V: TIntVector2); inline;
+
+  public
+    class operator Add(A: TMatrix4; B: Single): TMatrix4;
+    class operator Add(A: Single; B: TMatrix4): TMatrix4;
     class operator Add(A, B: TMatrix4): TMatrix4;
-    class operator Multiply(V: Single; A: TMatrix4): TMatrix4;
+    
+    class operator Subtract(A: TMatrix4; B: Single): TMatrix4;
+    class operator Subtract(A: Single; B: TMatrix4): TMatrix4;
+    class operator Subtract(A, B: TMatrix4): TMatrix4;
+    
+    class operator Divide(A: TMatrix4; B: Single): TMatrix4;
+    class operator Divide(A: Single; B: TMatrix4): TMatrix4;
+    class operator Divide(A, B: TMatrix4): TMatrix4; 
+
+    class operator Multiply(A: TMatrix4; B: Single): TMatrix4;
+    class operator Multiply(A: Single; B: TMatrix4): TMatrix4;
+    
     class operator Multiply(A, B: TMatrix4): TMatrix4;
-
+    
     class operator Equal(A, B: TMatrix4): Boolean;
-    class operator NotEqual(A, B: TMatrix4): Boolean;
-
+    class operator NotEqual(A, B: TMatrix4): Boolean; inline;
+                         
+    class operator Implicit(A: TMatrix): TMatrix4; 
+    class operator Implicit(A: TMatrix4): TMatrix; 
+    
     procedure Clear(Value: Single = 0);
     procedure LoadIdentity;
 
     function Transpose: TMatrix4;
-    function Determinant: Single;
-    property Minor[I, J: Integer]: TMatrix3 read GetMinor write SetMinor;
-    function Cofactor(I, J: Integer): Single;
+    property Minor[V: TIntVector2]: TMatrix3 read GetMinor write SetMinor;
+    property MinorIJ[I, J: Integer]: TMatrix3 read GetMinor write SetMinor;
+    property Cofactor[V: TIntVector2]: Single read GetCofactor;
     function CofactorMatrix: TMatrix4;
-    function Adjugate: TMatrix4;
-    function Inverse: TMatrix4;
+    function Adjugate: TMatrix4; inline;
+    function Inverse: TMatrix4; inline;
+    function Determinant: Single;
+             
+    function ToString: string;
 
-    function DataPointer: Pointer;
   end;
 
   PMatrix = ^TMatrix;
-  PMatrix4 = ^TMatrix4;
+  PMatrix2 = ^TMatrix2;
   PMatrix3 = ^TMatrix3;
+  PMatrix4 = ^TMatrix4;
 
 var
-  // Only use with elementar mathmatical operations to avoid conflicts
+
+  // Only use with atomic mathmatical operations to avoid conflicts
   M3x2: TMatrix;
   M4x3: TMatrix;
 
 const
-  Matrix4Identity: TMatrix4 = (FElement:(
+
+  Matrix4Identity: TMatrix4 = (Data: (
     (1, 0, 0, 0),
     (0, 1, 0, 0),
     (0, 0, 1, 0),
     (0, 0, 0, 1)
     ));
 
-  Matrix3Identity: TMatrix3 = (FElement:(
+  Matrix3Identity: TMatrix3 = (Data: (
     (1, 0, 0),
     (0, 1, 0),
     (0, 0, 1)
     ));
 
-  Matrix2Identity: TMatrix2 = (FElement:(
+  Matrix2Identity: TMatrix2 = (Data: (
     (1, 0),
     (0, 1)
     ));
 
 implementation
 
-uses
-  Math;
+procedure FillDWORD(var Destination; Count: Integer; Value: Cardinal);
+
+{$IFDEF X86}
+
+asm
+  push edi
+  mov  edi, eax
+  mov  eax, ecx
+  mov  ecx, edx
+  rep  stosd
+  pop edi
+end;
+
+{$ELSE}
+
+type
+  Cardinals = array [0 .. 0] of Cardinal;
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    Cardinals(Destination)[I] := Value;
+end;
+
+{$ENDIF}
 
 { EMatrixMultiply }
 
-constructor EMatrixMultiply.Create(AACols, ABRows: Integer);
+constructor EMatrixMultiply.Create;
 begin
-  CreateFmt('Columns of Matrix A not equal to Rows of Matrix B! %d <> %d', [AACols, ABRows]);
+  inherited Create('Columns of first matrix not equal to rows of second matrix.');
 end;
 
-{ TMatrix3 }
+{ EMatrixDimension }
 
-function TMatrix3.GetElement(I, J: Byte): Single;
+constructor EMatrixDimension.Create;
 begin
-  Result := FElement[I, J];
+  inherited Create('Matrix dimensions are not correct.');
 end;
 
-procedure TMatrix3.SetElement(I, J: Byte; const Value: Single);
+{ EMatrixRangeError }
+
+constructor EMatrixRangeError.Create;
 begin
-  FElement[I, J] := Value;
+  inherited Create('Matrix index out of range.');
+end;
+                 
+{ TMatrix }
+
+function TMatrix.GetCols: Integer;
+begin
+  Result := Length(Data);
 end;
 
-class operator TMatrix3.Add(A, B: TMatrix3): TMatrix3;
+function TMatrix.GetRows: Integer;
 begin
-  Result[0, 0] := A[0, 0] + B[0, 0];
-  Result[1, 0] := A[1, 0] + B[1, 0];
-  Result[2, 0] := A[2, 0] + B[2, 0];
-  Result[0, 1] := A[0, 1] + B[0, 1];
-  Result[1, 1] := A[1, 1] + B[1, 1];
-  Result[2, 1] := A[2, 1] + B[2, 1];
-  Result[0, 2] := A[0, 2] + B[0, 2];
-  Result[1, 2] := A[1, 2] + B[1, 2];
-  Result[2, 2] := A[2, 2] + B[2, 2];
+  Result := Length(Data[0]);
 end;
 
-class operator TMatrix3.Multiply(V: Single; A: TMatrix3): TMatrix3;
+procedure TMatrix.SetCols(const Value: Integer);
 begin
-  Result[0, 0] := A[0, 0] * V;
-  Result[1, 0] := A[1, 0] * V;
-  Result[2, 0] := A[2, 0] * V;
-  Result[0, 1] := A[0, 1] * V;
-  Result[1, 1] := A[1, 1] * V;
-  Result[2, 1] := A[2, 1] * V;
-  Result[0, 2] := A[0, 2] * V;
-  Result[1, 2] := A[1, 2] * V;
-  Result[2, 2] := A[2, 2] * V;
+  SetLength(Data, Value, Rows);
 end;
 
-class operator TMatrix3.Multiply(A, B: TMatrix3): TMatrix3;
-begin
-  Result[0, 0] := A[0, 0] * B[0, 0] + A[1, 0] * B[0, 1] + A[2, 0] * B[0, 2];
-  Result[1, 0] := A[0, 0] * B[1, 0] + A[1, 0] * B[1, 1] + A[2, 0] * B[1, 2];
-  Result[2, 0] := A[0, 0] * B[2, 0] + A[1, 0] * B[2, 1] + A[2, 0] * B[2, 2];
-  Result[0, 1] := A[0, 1] * B[0, 0] + A[1, 1] * B[0, 1] + A[2, 1] * B[0, 2];
-  Result[1, 1] := A[0, 1] * B[1, 0] + A[1, 1] * B[1, 1] + A[2, 1] * B[1, 2];
-  Result[2, 1] := A[0, 1] * B[2, 0] + A[1, 1] * B[2, 1] + A[2, 1] * B[2, 2];
-  Result[0, 2] := A[0, 2] * B[0, 0] + A[1, 2] * B[0, 1] + A[2, 2] * B[0, 2];
-  Result[1, 2] := A[0, 2] * B[1, 0] + A[1, 2] * B[1, 1] + A[2, 2] * B[1, 2];
-  Result[2, 2] := A[0, 2] * B[2, 0] + A[1, 2] * B[2, 1] + A[2, 2] * B[2, 2];
+procedure TMatrix.SetRows(const Value: Integer);
+begin                      
+  SetLength(Data, Cols, Value);
 end;
 
-procedure TMatrix3.Clear(Value: Single);
+function TMatrix.GetSize: TIntVector2;
 begin
-  if Value = 0 then
-    FillChar(FElement, SizeOf(Single) * 9, 0)
-  else
-  begin
-    FElement[0, 0] := Value;
-    FElement[1, 0] := Value;
-    FElement[2, 0] := Value;
-    FElement[0, 1] := Value;
-    FElement[1, 1] := Value;
-    FElement[2, 1] := Value;
-    FElement[0, 2] := Value;
-    FElement[1, 2] := Value;
-    FElement[2, 2] := Value;
-  end;
+  Result.Create(Cols, Rows);
 end;
 
-procedure TMatrix3.LoadIdentity;
+procedure TMatrix.SetSize(const Value: TIntVector2);
 begin
-  Self := Matrix3Identity;
+  SetLength(Data, Value.X, Value.Y);
 end;
 
-function TMatrix3.Transpose: TMatrix3;
+function TMatrix.GetNum(I, J: Byte): Single;
 begin
-  Result[0, 0] := FElement[0, 0];
-  Result[1, 0] := FElement[0, 1];
-  Result[2, 0] := FElement[0, 2];
-  Result[0, 1] := FElement[1, 0];
-  Result[1, 1] := FElement[1, 1];
-  Result[2, 1] := FElement[1, 2];
-  Result[0, 2] := FElement[2, 0];
-  Result[1, 2] := FElement[2, 1];
-  Result[2, 2] := FElement[2, 2];
+  Result := Num[IVec2(I, J)];
 end;
 
-function TMatrix3.Determinant: Single;
+procedure TMatrix.SetNum(I, J: Byte; const Value: Single);
 begin
-  Result := E[0, 0] * E[1, 1] * E[2, 2] +
-    E[0, 1] * E[1, 2] * E[2, 0] +
-    E[0, 2] * E[1, 0] * E[2, 1] -
-    E[2, 0] * E[1, 1] * E[0, 2] -
-    E[2, 1] * E[1, 2] * E[0, 0] -
-    E[2, 2] * E[1, 0] * E[0, 1];
+  Num[IVec2(I, J)] := Value;
 end;
 
-function TMatrix3.Minor(I, J: Integer): TMatrix2;
+function TMatrix.GetNum(V: TIntVector2): Single;
+begin
+  RangeCheck(V);
+  Result := Data[V.X, V.Y];
+end;
+
+procedure TMatrix.SetNum(V: TIntVector2; const Value: Single);
+begin
+  RangeCheck(V);
+  Data[V.X, V.Y] := Value;
+end;
+
+function TMatrix.GetMinor(V: TIntVector2): TMatrix;
 var
   X1, Y1, X2, Y2: Integer;
 begin
+  RangeCheck(V);
+  Result.Size := Size - 1;
   X2 := 0;
-  for X1 := 0 to 2 do
+  for X1 := 0 to Rows - 1 do
   begin
-    if X1 = I then
+    if X1 = V.X then
       Continue;
     Y2 := 0;
-    for Y1 := 0 to 2 do
+    for Y1 := 0 to Cols - 1 do
     begin
-      if Y1 = J then
+      if Y1 = V.Y then
         Continue;
-      Result[X2, Y2] := E[X1, Y1];
-      Y2 := Y2 + 1;
+      Result[X2, Y2] := Data[X1, Y1];
+      Inc(Y2);
     end;
-    X2 := X2 + 1;
+    Inc(X2);
   end;
 end;
 
-function TMatrix3.Cofactor(I, J: Integer): Single;
+function TMatrix.GetMinor(I, J: Integer): TMatrix;
 begin
-  if ((I + J) mod 2) = 0 then
-    Result := Minor(I, J).Determinant
-  else
-    Result := -Minor(I, J).Determinant;
+  Result := Minor[IVec2(I, J)];
 end;
 
-function TMatrix3.CofactorMatrix: TMatrix3;
+procedure TMatrix.SetMinor(V: TIntVector2; const Value: TMatrix);
 var
-  I, J: Integer;
+  X1, Y1, X2, Y2: Integer;
 begin
-  for I := 0 to 2 do
-    for J := 0 to 2 do
-      Result[I, J] := Cofactor(I, J);
+  RangeCheck(V);
+  if Size - 1 <> Value.Size then
+    raise EMatrixDimension.Create;
+  X2 := 0;
+  for X1 := 0 to Rows - 1 do
+  begin
+    if X1 = V.X then
+      Continue;
+    Y2 := 0;
+    for Y1 := 0 to Cols - 1 do
+    begin
+      if Y1 = V.Y then
+        Continue;
+      Data[X2, Y2] := Value[X1, Y1];
+      Inc(Y2);
+    end;
+    Inc(X2);
+  end;
 end;
 
-function TMatrix3.Adjugate: TMatrix3;
+procedure TMatrix.SetMinor(I, J: Integer; const Value: TMatrix);
 begin
-  Result := CofactorMatrix.Transpose;
+  Minor[IVec2(I, J)] := Value;
 end;
 
-function TMatrix3.Inverse: TMatrix3;
+function TMatrix.GetCofactor(V: TIntVector2): Single;
 begin
-  Result := 1 / Determinant * Adjugate;
+  RangeCheck(V);
+  if (V.X + V.Y) mod 2 = 0 then
+    Result := +Minor[V].Determinant
+  else
+    Result := -Minor[V].Determinant;
 end;
 
-{ TMatrix }
+procedure TMatrix.RangeCheck(V: TIntVector2);
+begin
+  if not (V in Size) then
+    raise EMatrixRangeError.Create;
+end;
+
+class procedure TMatrix.DimensionCheck(const A, B: TMatrix);
+begin
+  if A.Size <> B.Size then
+    raise EMatrixDimension.Create;
+end;
 
 class operator TMatrix.Add(A, B: TMatrix): TMatrix;
 var
-  I, J: Integer;
+  V: TIntVector2;
 begin
-  if (A.Cols = B.Cols) and (A.Rows = B.Rows) then
-  begin
-    Result.SetSize(A.Cols, A.Rows);
-    for I := 0 to A.Cols - 1 do
-      for J := 0 to A.Rows - 1 do
-        Result[I, J] := A[I, J] + B[I, J];
-  end
-  else
-    Result.SetSize(0, 0);
+  DimensionCheck(A, B);
+  Result.Size := A.Size;
+  for V in A.Size do
+    Result[V] := A[V] + B[V];
 end;
 
-function TMatrix.Adjugate: TMatrix;
+class operator TMatrix.Add(A: TMatrix; B: Single): TMatrix;
+var
+  V: TIntVector2;
 begin
-  Result := CofactorMatrix.Transpose;
+  Result.Size := A.Size;
+  for V in A.Size do
+    Result[V] := A[V] + B;
+end;
+
+class operator TMatrix.Add(A: Single; B: TMatrix): TMatrix;
+var
+  V: TIntVector2;
+begin
+  Result.Size := A.Size;
+  for V in B.Size do
+    Result[V] := A + B[V];
+end;
+
+class operator TMatrix.Subtract(A, B: TMatrix): TMatrix;
+var
+  V: TIntVector2;
+begin
+  DimensionCheck(A, B);
+  Result.Size := A.Size;
+  for V in A.Size do
+    Result[V] := A[V] - B[V];
+end;
+
+class operator TMatrix.Subtract(A: TMatrix; B: Single): TMatrix;
+var
+  V: TIntVector2;
+begin
+  Result.Size := A.Size;
+  for V in A.Size do
+    Result[V] := A[V] - B;
+end;
+
+class operator TMatrix.Subtract(A: Single; B: TMatrix): TMatrix;
+var
+  V: TIntVector2;
+begin
+  Result.Size := A.Size;
+  for V in B.Size do
+    Result[V] := A - B[V];
+end;
+
+class operator TMatrix.Multiply(A, B: TMatrix): TMatrix;
+var
+  V: TIntVector2;
+  I: Integer;
+begin
+  DimensionCheck(A, B);
+  Result.Size := IVec2(B.Cols, A.Rows);
+  for V in Result.Size do
+    for I := 0 to A.Cols - 1 do
+      Result[V.Y, V.X] := Result[V.Y, V.X] + A[I, V.X] * B[V.Y, I];
+end;
+
+class operator TMatrix.Multiply(A: TMatrix; B: Single): TMatrix;
+var
+  V: TIntVector2;
+begin
+  Result.Size := A.Size;
+  for V in A.Size do
+    Result[V] := A[V] * B;
+end;
+
+class operator TMatrix.Multiply(A: Single; B: TMatrix): TMatrix;
+var
+  V: TIntVector2;
+begin
+  Result.Size := A.Size;
+  for V in B.Size do
+    Result[V] := A * B[V];
+end;
+
+class operator TMatrix.Divide(A, B: TMatrix): TMatrix;
+begin
+  Result := A * B.Inverse;  
+end;
+
+class operator TMatrix.Divide(A: TMatrix; B: Single): TMatrix;
+var
+  V: TIntVector2;
+begin
+  Result.Size := A.Size;
+  for V in A.Size do
+    Result[V] := A[V] / B;
+end;
+
+class operator TMatrix.Divide(A: Single; B: TMatrix): TMatrix;
+var
+  V: TIntVector2;
+begin
+  Result.Size := A.Size;
+  for V in B.Size do
+    Result[V] := A / B[V];
+end;
+
+class operator TMatrix.Equal(A, B: TMatrix): Boolean;
+var
+  I: Integer;
+begin
+  DimensionCheck(A, B);
+  for I := 0 to A.Cols - 1 do
+    if not CompareMem(@A.Data[I, 0], @B.Data[I, 0], SizeOf(Single) * A.Rows) then
+      Exit(False);
+  Result := True;
+end;
+
+class operator TMatrix.NotEqual(A, B: TMatrix): Boolean;
+begin
+  Result := not (A = B);
 end;
 
 procedure TMatrix.Clear(Value: Single = 0);
 var
-  I, J: Integer;
+  I: Integer;
 begin
-  if Value = 0 then
-    for I := 0 to Cols - 1 do
-      FillChar(FElement[I, 0], Rows * SizeOf(Single), 0)
-  else
-    for I := 0 to Cols - 1 do
-      for J := 0 to Rows - 1 do
-        FElement[I, J] := Value;
-end;
-
-procedure TMatrix.SetElement(I, J: Byte; const Value: Single);
-begin
-  FElement[I, J] := Value;
-end;
-
-procedure TMatrix.SetSize(Cols, Rows: Byte);
-begin
-  SetLength(FElement, Cols, Rows);
-end;
-
-function TMatrix.Determinant: Single;
-var
-  S, R: Byte;
-begin
-  S := Min(Cols, Rows);
-  // 3x3/2x2(/1x1) direkt berechnen (schneller)
-  if S = 3 then
-    Exit(
-      E[0, 0] * E[1, 1] * E[2, 2] +
-      E[0, 1] * E[1, 2] * E[2, 0] +
-      E[0, 2] * E[1, 0] * E[2, 1] -
-      E[2, 0] * E[1, 1] * E[0, 2] -
-      E[2, 1] * E[1, 2] * E[0, 0] -
-      E[2, 2] * E[1, 0] * E[0, 1])
-  else if S = 2 then
-    Exit(
-      E[0, 0] * E[1, 1] -
-      E[1, 0] * E[0, 1])
-  else if S = 1 then
-    Exit(E[0, 0]);
-
-  Result := 0;
-  // rekursive Determinanten berechnung bis 3x3
-  for R := 0 to S - 1 do
-    if R mod 2 = 0 then
-      Result := Result + E[R, 0] * Minor(R, 0).Determinant
-    else
-      Result := Result - E[R, 0] * Minor(R, 0).Determinant
-end;
-
-function TMatrix.GetElement(I, J: Byte): Single;
-begin
-  Result := FElement[I, J];
-end;
-
-function TMatrix.Inverse: TMatrix;
-begin
-  Result := 1 / Determinant * Adjugate;
+  for I := 0 to Cols - 1 do
+    FillDWORD(Data[I, 0], Rows, PCardinal(@Value)^)
 end;
 
 procedure TMatrix.LoadIdentity;
@@ -433,12 +665,27 @@ var
 begin
   Clear;
   for I := 0 to Rows - 1 do
-    E[I, I] := 1;
+    Num[I, I] := 1;
 end;
 
-function TMatrix.Rows: Byte;
+procedure TMatrix.Swap(Col1, Col2: Byte);
+var
+  P: Pointer;
 begin
-  Result := Length(FElement[0]);
+  if Col1 = Col2 then
+    Exit;
+  P := Pointer(Data[Col1]);
+  Pointer(Data[Col1]) := Pointer(Data[Col2]);
+  Pointer(Data[Col2]) := P;
+end;
+
+function TMatrix.ColSum(Col: Byte): Single;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 0 to Cols do
+    Result := Result + Num[Col, I];
 end;
 
 function TMatrix.RowSum(Row: Byte): Single;
@@ -447,17 +694,22 @@ var
 begin
   Result := 0;
   for I := 0 to Cols do
-    Result := Result + E[I, Row];
+    Result := Result + Num[I, Row];
 end;
 
-class operator TMatrix.Multiply(V: Single; A: TMatrix): TMatrix;
+function TMatrix.SolveCol(Col: Byte; out R: Single): Boolean;
 var
-  I, J: Integer;
+  OldDet, NewDet: Single;
 begin
-  Result.SetSize(A.Cols, A.Rows);
-  for I := 0 to A.Cols - 1 do
-    for J := 0 to A.Rows - 1 do
-      Result[I, J] := A[I, J] * V;
+  OldDet := Determinant;
+  Swap(Col, Cols - 1);
+  NewDet := Determinant;
+  Swap(Col, Cols - 1);
+  R := NewDet / OldDet;
+  if OldDet = 0 then
+    Result := False
+  else
+    Result := True;
 end;
 
 function TMatrix.Solve(out R: array of Single): Boolean;
@@ -485,123 +737,799 @@ begin
   Result := Determinant <> 0;
 end;
 
-function TMatrix.SolveCol(Col: Byte; out R: Single): Boolean;
-var
-  OldDet, NewDet: Single;
-begin
-  OldDet := Determinant;
-  Swap(Col, Cols - 1);
-  NewDet := Determinant;
-  Swap(Col, Cols - 1);
-  R := NewDet / OldDet;
-  if OldDet = 0 then
-    Result := False
-  else
-    Result := True;
-end;
-
-procedure TMatrix.Swap(Col1, Col2: Byte);
-var
-  P: Pointer;
-begin
-  if Col1 = Col2 then
-    Exit;
-  P := Pointer(FElement[Col1]);
-  Pointer(FElement[Col1]) := Pointer(FElement[Col2]);
-  Pointer(FElement[Col2]) := P;
-end;
-
 function TMatrix.Transpose: TMatrix;
 var
-  I, J: Byte;
+  V: TIntVector2;
 begin
-  Result.SetSize(Rows, Cols);
-  for I := 0 to Cols - 1 do
-    for J := 0 to Rows - 1 do
-      Result[J, I] := E[I, J];
-end;
-
-function TMatrix.Cofactor(I, J: Integer): Single;
-begin
-  if ((I + J) mod 2) = 0 then
-    Result := Minor(I, J).Determinant
-  else
-    Result := -Minor(I, J).Determinant;
+  Result.Size := Size.YX;
+  for V in Size do
+    Result[V.YX] := Num[V];
 end;
 
 function TMatrix.CofactorMatrix: TMatrix;
 var
-  I, J: Integer;
+  V: TIntVector2;
 begin
-  Result.SetSize(Rows, Cols);
-  for I := 0 to Rows - 1 do
-    for J := 0 to Cols - 1 do
-      Result[I, J] := Cofactor(I, J);
+  Result.Size := Size;
+  for V in Size do
+    Result[V] := Cofactor[V];
 end;
 
-function TMatrix.Cols: Byte;
+function TMatrix.Adjugate: TMatrix;
 begin
-  Result := Length(FElement);
+  Result := CofactorMatrix.Transpose;
 end;
 
-function TMatrix.ColSum(Col: Byte): Single;
+function TMatrix.Inverse: TMatrix;
+begin
+  Result := Adjugate / Determinant;
+end;
+
+function TMatrix.Determinant: Single;
 var
-  I: Integer;
+  S, R: Byte;
 begin
+  S := Min(Cols, Rows);
+  // 3x3/2x2(/1x1) direkt berechnen (schneller)
+  if S = 3 then
+    Exit(
+      Num[0, 0] * Num[1, 1] * Num[2, 2] +
+      Num[0, 1] * Num[1, 2] * Num[2, 0] +
+      Num[0, 2] * Num[1, 0] * Num[2, 1] -
+      Num[2, 0] * Num[1, 1] * Num[0, 2] -
+      Num[2, 1] * Num[1, 2] * Num[0, 0] -
+      Num[2, 2] * Num[1, 0] * Num[0, 1])
+  else if S = 2 then
+    Exit(
+      Num[0, 0] * Num[1, 1] -
+      Num[1, 0] * Num[0, 1])
+  else if S = 1 then
+    Exit(Num[0, 0]);
+
   Result := 0;
-  for I := 0 to Cols do
-    Result := Result + E[Col, I];
+  // rekursive Determinanten berechnung bis 3x3
+  for R := 0 to S - 1 do
+    if R mod 2 = 0 then
+      Result := Result + Num[R, 0] * MinorIJ[R, 0].Determinant
+    else
+      Result := Result - Num[R, 0] * MinorIJ[R, 0].Determinant
 end;
 
 function TMatrix.Copy: TMatrix;
 var
   I: Integer;
 begin
-  Result.SetSize(Cols, Rows);
+  Result.Size := Size;
   for I := 0 to Cols - 1 do
-    Move(FElement[I, 0], Result.FElement[I, 0], SizeOf(Single) * Rows);
+    Move(Data[I, 0], Result.Data[I, 0], SizeOf(Single) * Rows);
 end;
 
-function TMatrix.Minor(I, J: Integer): TMatrix;
+function TMatrix.ToString: string;
 var
-  X1, Y1, X2, Y2: Integer;
+  I, J: Integer;
 begin
-  Result.SetSize(Cols - 1, Rows - 1);
-  X2 := 0;
-  for X1 := 0 to Rows - 1 do
+  if (Cols = 0) or (Rows = 0) then
+    Exit('');
+  for J := 0 to Rows - 1 do
   begin
-    if X1 = I then
-      Continue;
-    Y2 := 0;
-    for Y1 := 0 to Cols - 1 do
+    Result := Result + '' + Format('%f', [Self[0, J]]);  
+    for I := 1 to Cols - 1 do
     begin
-      if Y1 = J then
-        Continue;
-      Result[X2, Y2] := E[X1, Y1];
-      Y2 := Y2 + 1;
+      Result := Result + ' ' + Format('%f', [Self[I, J]]);
     end;
-    X2 := X2 + 1;
+    Result := Result + '';
+    if J <> Rows - 1 then
+      Result := Result + sLineBreak;       
   end;
 end;
 
-class operator TMatrix.Multiply(A, B: TMatrix): TMatrix;
-var
-  I, J, K: Integer;
+{ TMatrix2 }
+
+function TMatrix2.GetNum(I, J: Byte): Single;
 begin
-  if A.Cols = B.Rows then
-  begin
-    Result.SetSize(B.Cols, A.Rows);
-    for I := 0 to Result.Rows - 1 do
-      for J := 0 to Result.Cols - 1 do
-        for K := 0 to A.Cols - 1 do
-          Result[J, I] := Result[J, I] + A[K, I] * B[J, K];
-  end
+  Result := Num[IVec2(I, J)];
+end;
+
+procedure TMatrix2.SetNum(I, J: Byte; const Value: Single);
+begin
+  Num[IVec2(I, J)] := Value;
+end;
+
+function TMatrix2.GetNum(V: TIntVector2): Single;
+begin
+  RangeCheck(V);
+  Result := Data[V.X, V.Y];
+end;
+
+procedure TMatrix2.SetNum(V: TIntVector2; const Value: Single);
+begin
+  RangeCheck(V);
+  Data[V.X, V.Y] := Value;
+end;
+
+function TMatrix2.GetMinor(V: TIntVector2): Single;
+begin
+  RangeCheck(V);
+  Result := Num[1 - V];
+end;
+
+function TMatrix2.GetMinor(I, J: Integer): Single;
+begin
+  Result := Minor[IVec2(I, J)];
+end;
+
+procedure TMatrix2.SetMinor(V: TIntVector2; const Value: Single);
+begin
+  RangeCheck(V);
+  Num[1 - V] := Value;
+end;
+
+procedure TMatrix2.SetMinor(I, J: Integer; const Value: Single);
+begin
+  Minor[IVec2(I, J)] := Value;
+end;
+
+function TMatrix2.GetCofactor(V: TIntVector2): Single;
+begin
+  if (V.X + V.Y) mod 2 = 0 then
+    Result := +Minor[V]
   else
-    raise EMatrixMultiply.Create(A.Cols, B.Rows);
+    Result := -Minor[V];
+end;
+
+procedure TMatrix2.RangeCheck(V: TIntVector2);
+begin
+  if not (V in IBounds2(2)) then
+    raise EMatrixRangeError.Create;
+end;
+
+class operator TMatrix2.Add(A: TMatrix2; B: Single): TMatrix2;
+begin
+  Result[0, 0] := A[0, 0] + B;
+  Result[1, 0] := A[1, 0] + B;
+  Result[0, 1] := A[0, 1] + B;
+  Result[1, 1] := A[1, 1] + B;
+end;
+
+class operator TMatrix2.Add(A: Single; B: TMatrix2): TMatrix2;
+begin
+  Result[0, 0] := A + B[0, 0];
+  Result[1, 0] := A + B[1, 0];
+  Result[0, 1] := A + B[0, 1];
+  Result[1, 1] := A + B[1, 1];
+end;
+
+class operator TMatrix2.Add(A, B: TMatrix2): TMatrix2;
+begin
+  Result[0, 0] := A[0, 0] + B[0, 0];
+  Result[1, 0] := A[1, 0] + B[1, 0];
+  Result[0, 1] := A[0, 1] + B[0, 1];
+  Result[1, 1] := A[1, 1] + B[1, 1];
+end;
+
+class operator TMatrix2.Subtract(A: TMatrix2; B: Single): TMatrix2;
+begin
+  Result[0, 0] := A[0, 0] - B;
+  Result[1, 0] := A[1, 0] - B;
+  Result[0, 1] := A[0, 1] - B;
+  Result[1, 1] := A[1, 1] - B;
+end;
+
+class operator TMatrix2.Subtract(A: Single; B: TMatrix2): TMatrix2;
+begin
+  Result[0, 0] := A - B[0, 0];
+  Result[1, 0] := A - B[1, 0];
+  Result[0, 1] := A - B[0, 1];
+  Result[1, 1] := A - B[1, 1];
+end;
+
+class operator TMatrix2.Subtract(A, B: TMatrix2): TMatrix2;
+begin
+  Result[0, 0] := A[0, 0] - B[0, 0];
+  Result[1, 0] := A[1, 0] - B[1, 0];
+  Result[0, 1] := A[0, 1] - B[0, 1];
+  Result[1, 1] := A[1, 1] - B[1, 1];
+end;
+
+class operator TMatrix2.Divide(A: TMatrix2; B: Single): TMatrix2;
+begin
+  Result[0, 0] := A[0, 0] / B;
+  Result[1, 0] := A[1, 0] / B;
+  Result[0, 1] := A[0, 1] / B;
+  Result[1, 1] := A[1, 1] / B;
+end;
+
+class operator TMatrix2.Divide(A: Single; B: TMatrix2): TMatrix2;
+begin
+  Result[0, 0] := A / B[0, 0];
+  Result[1, 0] := A / B[1, 0];
+  Result[0, 1] := A / B[0, 1];
+  Result[1, 1] := A / B[1, 1];
+end;
+
+class operator TMatrix2.Divide(A, B: TMatrix2): TMatrix2;
+begin
+  Result := A * B.Inverse;
+end;
+
+class operator TMatrix2.Multiply(A: TMatrix2; B: Single): TMatrix2;
+begin
+  Result[0, 0] := A[0, 0] * B;
+  Result[1, 0] := A[1, 0] * B;
+  Result[0, 1] := A[0, 1] * B;
+  Result[1, 1] := A[1, 1] * B;
+end;
+
+class operator TMatrix2.Multiply(A: Single; B: TMatrix2): TMatrix2;
+begin
+  Result[0, 0] := A * B[0, 0];
+  Result[1, 0] := A * B[1, 0];
+  Result[0, 1] := A * B[0, 1];
+  Result[1, 1] := A * B[1, 1];
+end;
+
+class operator TMatrix2.Multiply(A, B: TMatrix2): TMatrix2;
+begin
+  Result[0, 0] := A[0, 0] * B[0, 0] + A[1, 0] * B[0, 1];
+  Result[1, 0] := A[0, 0] * B[1, 0] + A[1, 0] * B[1, 1];
+  Result[0, 1] := A[0, 1] * B[0, 0] + A[1, 1] * B[0, 1];
+  Result[1, 1] := A[0, 1] * B[1, 0] + A[1, 1] * B[1, 1];
+end;
+
+class operator TMatrix2.Equal(A, B: TMatrix2): Boolean;
+begin
+  Result := CompareMem(@A, @B, SizeOf(Single) * 2 * 2);
+end;
+
+class operator TMatrix2.NotEqual(A, B: TMatrix2): Boolean;
+begin
+  Result := not (A = B);
+end;
+
+class operator TMatrix2.Implicit(A: TMatrix): TMatrix2;
+begin
+  if A.Size <> 2 then
+    raise EMatrixDimension.Create;
+  Result[0, 0] := A[0, 0];
+  Result[1, 0] := A[1, 0];
+  Result[0, 1] := A[0, 1];
+  Result[1, 1] := A[1, 1];
+end;
+
+class operator TMatrix2.Implicit(A: TMatrix2): TMatrix;
+begin
+  Result.Size := 2;
+  Result[0, 0] := A[0, 0];
+  Result[1, 0] := A[1, 0];
+  Result[0, 1] := A[0, 1];
+  Result[1, 1] := A[1, 1];  
+end;
+
+procedure TMatrix2.Clear(Value: Single);
+begin
+  Data[0, 0] := Value;
+  Data[1, 0] := Value;
+  Data[0, 1] := Value;
+  Data[1, 1] := Value;
+end;
+
+procedure TMatrix2.LoadIdentity;
+begin
+  Self := Matrix2Identity;
+end;
+
+function TMatrix2.Transpose: TMatrix2;
+begin
+  Result[0, 0] := Data[0, 0];
+  Result[1, 0] := Data[0, 1];
+  Result[0, 1] := Data[1, 0];
+  Result[1, 1] := Data[1, 1];
+end;
+
+function TMatrix2.CofactorMatrix: TMatrix2;
+begin
+  Result[0, 0] := Cofactor[IVec2(0, 0)];
+  Result[1, 0] := Cofactor[IVec2(1, 0)];
+  Result[0, 1] := Cofactor[IVec2(0, 1)];
+  Result[1, 1] := Cofactor[IVec2(1, 1)];
+end;
+
+function TMatrix2.Adjugate: TMatrix2;
+begin
+  Result := CofactorMatrix.Transpose;
+end;
+
+function TMatrix2.Inverse: TMatrix2;
+begin
+  Result := Adjugate / Determinant;
+end;
+
+function TMatrix2.Determinant: Single;
+begin
+  Result := Num[0, 0] * Num[1, 1] - Num[1, 0] * Num[0, 1];
+end;
+
+function TMatrix2.ToString: string;
+begin
+  Result := TMatrix(Self).ToString;
+end;
+
+{ TMatrix3 }
+
+function TMatrix3.GetNum(I, J: Byte): Single;
+begin
+  Result := Num[IVec2(I, J)];
+end;
+
+procedure TMatrix3.SetNum(I, J: Byte; const Value: Single);
+begin
+  Num[IVec2(I, J)] := Value;
+end;
+
+function TMatrix3.GetNum(V: TIntVector2): Single;
+begin
+  RangeCheck(V);
+  Result := Data[V.X, V.Y];
+end;
+
+procedure TMatrix3.SetNum(V: TIntVector2; const Value: Single);
+begin
+  RangeCheck(V);
+  Data[V.X, V.Y] := Value;
+end;
+
+function TMatrix3.GetMinor(V: TIntVector2): TMatrix2;
+var
+  X1, Y1, X2, Y2: Integer;
+begin
+  X2 := 0;
+  for X1 := 0 to 2 do
+  begin
+    if X1 = V.X then
+      Continue;
+    Y2 := 0;
+    for Y1 := 0 to 2 do
+    begin
+      if Y1 = V.Y then
+        Continue;
+      Result[X2, Y2] := Num[X1, Y1];
+      Inc(Y2);
+    end;
+    Inc(X2);
+  end;
+end;
+
+function TMatrix3.GetMinor(I, J: Integer): TMatrix2;
+begin
+  Result := Minor[IVec2(I, J)];
+end;
+
+procedure TMatrix3.SetMinor(V: TIntVector2; const Value: TMatrix2);
+var
+  X1, Y1, X2, Y2: Integer;
+begin
+  X2 := 0;
+  for X1 := 0 to 2 do
+  begin
+    if X1 = V.X then
+      Continue;
+    Y2 := 0;
+    for Y1 := 0 to 2 do
+    begin
+      if Y1 = V.Y then
+        Continue;
+      Num[X2, Y2] := Value[X1, Y1];
+      Inc(Y2);
+    end;
+    Inc(X2);
+  end;
+end;
+
+procedure TMatrix3.SetMinor(I, J: Integer; const Value: TMatrix2);
+begin
+  Minor[IVec2(I, J)] := Value;
+end;
+
+function TMatrix3.GetCofactor(V: TIntVector2): Single;
+begin
+  if (V.X + V.Y) mod 2 = 0 then
+    Result := +Minor[V].Determinant
+  else
+    Result := -Minor[V].Determinant;
+end;
+
+procedure TMatrix3.RangeCheck(V: TIntVector2);
+begin
+  if not (V in IBounds2(3)) then
+    raise EMatrixRangeError.Create;
+end;
+
+class operator TMatrix3.Add(A: TMatrix3; B: Single): TMatrix3;
+begin
+  Result[0, 0] := A[0, 0] + B;
+  Result[1, 0] := A[1, 0] + B;
+  Result[2, 0] := A[2, 0] + B;
+  Result[0, 1] := A[0, 1] + B;
+  Result[1, 1] := A[1, 1] + B;
+  Result[2, 1] := A[2, 1] + B;
+  Result[0, 2] := A[0, 2] + B;
+  Result[1, 2] := A[1, 2] + B;
+  Result[2, 2] := A[2, 2] + B;
+end;
+
+class operator TMatrix3.Add(A: Single; B: TMatrix3): TMatrix3;
+begin
+  Result[0, 0] := A + B[0, 0];
+  Result[1, 0] := A + B[1, 0];
+  Result[2, 0] := A + B[2, 0];
+  Result[0, 1] := A + B[0, 1];
+  Result[1, 1] := A + B[1, 1];
+  Result[2, 1] := A + B[2, 1];
+  Result[0, 2] := A + B[0, 2];
+  Result[1, 2] := A + B[1, 2];
+  Result[2, 2] := A + B[2, 2];
+end;
+
+class operator TMatrix3.Add(A, B: TMatrix3): TMatrix3;
+begin
+  Result[0, 0] := A[0, 0] + B[0, 0];
+  Result[1, 0] := A[1, 0] + B[1, 0];
+  Result[2, 0] := A[2, 0] + B[2, 0];
+  Result[0, 1] := A[0, 1] + B[0, 1];
+  Result[1, 1] := A[1, 1] + B[1, 1];
+  Result[2, 1] := A[2, 1] + B[2, 1];
+  Result[0, 2] := A[0, 2] + B[0, 2];
+  Result[1, 2] := A[1, 2] + B[1, 2];
+  Result[2, 2] := A[2, 2] + B[2, 2];
+end;
+
+class operator TMatrix3.Subtract(A: TMatrix3; B: Single): TMatrix3;
+begin
+  Result[0, 0] := A[0, 0] - B;
+  Result[1, 0] := A[1, 0] - B;
+  Result[2, 0] := A[2, 0] - B;
+  Result[0, 1] := A[0, 1] - B;
+  Result[1, 1] := A[1, 1] - B;
+  Result[2, 1] := A[2, 1] - B;
+  Result[0, 2] := A[0, 2] - B;
+  Result[1, 2] := A[1, 2] - B;
+  Result[2, 2] := A[2, 2] - B;
+end;
+
+class operator TMatrix3.Subtract(A: Single; B: TMatrix3): TMatrix3;
+begin
+  Result[0, 0] := A - B[0, 0];
+  Result[1, 0] := A - B[1, 0];
+  Result[2, 0] := A - B[2, 0];
+  Result[0, 1] := A - B[0, 1];
+  Result[1, 1] := A - B[1, 1];
+  Result[2, 1] := A - B[2, 1];
+  Result[0, 2] := A - B[0, 2];
+  Result[1, 2] := A - B[1, 2];
+  Result[2, 2] := A - B[2, 2];
+end;
+
+class operator TMatrix3.Subtract(A, B: TMatrix3): TMatrix3;
+begin
+  Result[0, 0] := A[0, 0] - B[0, 0];
+  Result[1, 0] := A[1, 0] - B[1, 0];
+  Result[2, 0] := A[2, 0] - B[2, 0];
+  Result[0, 1] := A[0, 1] - B[0, 1];
+  Result[1, 1] := A[1, 1] - B[1, 1];
+  Result[2, 1] := A[2, 1] - B[2, 1];
+  Result[0, 2] := A[0, 2] - B[0, 2];
+  Result[1, 2] := A[1, 2] - B[1, 2];
+  Result[2, 2] := A[2, 2] - B[2, 2];
+end;
+
+class operator TMatrix3.Divide(A: TMatrix3; B: Single): TMatrix3;
+begin
+  Result[0, 0] := A[0, 0] / B;
+  Result[1, 0] := A[1, 0] / B;
+  Result[2, 0] := A[2, 0] / B;
+  Result[0, 1] := A[0, 1] / B;
+  Result[1, 1] := A[1, 1] / B;
+  Result[2, 1] := A[2, 1] / B;
+  Result[0, 2] := A[0, 2] / B;
+  Result[1, 2] := A[1, 2] / B;
+  Result[2, 2] := A[2, 2] / B;
+end;
+
+class operator TMatrix3.Divide(A: Single; B: TMatrix3): TMatrix3;
+begin
+  Result[0, 0] := A / B[0, 0];
+  Result[1, 0] := A / B[1, 0];
+  Result[2, 0] := A / B[2, 0];
+  Result[0, 1] := A / B[0, 1];
+  Result[1, 1] := A / B[1, 1];
+  Result[2, 1] := A / B[2, 1];
+  Result[0, 2] := A / B[0, 2];
+  Result[1, 2] := A / B[1, 2];
+  Result[2, 2] := A / B[2, 2];
+end;
+
+class operator TMatrix3.Divide(A, B: TMatrix3): TMatrix3;
+begin
+  Result := A * B.Inverse;
+end;
+
+class operator TMatrix3.Multiply(A: TMatrix3; B: Single): TMatrix3;
+begin
+  Result[0, 0] := A[0, 0] * B;
+  Result[1, 0] := A[1, 0] * B;
+  Result[2, 0] := A[2, 0] * B;
+  Result[0, 1] := A[0, 1] * B;
+  Result[1, 1] := A[1, 1] * B;
+  Result[2, 1] := A[2, 1] * B;
+  Result[0, 2] := A[0, 2] * B;
+  Result[1, 2] := A[1, 2] * B;
+  Result[2, 2] := A[2, 2] * B;
+end;
+
+class operator TMatrix3.Multiply(A: Single; B: TMatrix3): TMatrix3;
+begin
+  Result[0, 0] := A * B[0, 0];
+  Result[1, 0] := A * B[1, 0];
+  Result[2, 0] := A * B[2, 0];
+  Result[0, 1] := A * B[0, 1];
+  Result[1, 1] := A * B[1, 1];
+  Result[2, 1] := A * B[2, 1];
+  Result[0, 2] := A * B[0, 2];
+  Result[1, 2] := A * B[1, 2];
+  Result[2, 2] := A * B[2, 2];
+end;
+
+class operator TMatrix3.Multiply(A, B: TMatrix3): TMatrix3;
+begin
+  Result[0, 0] := A[0, 0] * B[0, 0] + A[1, 0] * B[0, 1] + A[2, 0] * B[0, 2];
+  Result[1, 0] := A[0, 0] * B[1, 0] + A[1, 0] * B[1, 1] + A[2, 0] * B[1, 2];
+  Result[2, 0] := A[0, 0] * B[2, 0] + A[1, 0] * B[2, 1] + A[2, 0] * B[2, 2];
+  Result[0, 1] := A[0, 1] * B[0, 0] + A[1, 1] * B[0, 1] + A[2, 1] * B[0, 2];
+  Result[1, 1] := A[0, 1] * B[1, 0] + A[1, 1] * B[1, 1] + A[2, 1] * B[1, 2];
+  Result[2, 1] := A[0, 1] * B[2, 0] + A[1, 1] * B[2, 1] + A[2, 1] * B[2, 2];
+  Result[0, 2] := A[0, 2] * B[0, 0] + A[1, 2] * B[0, 1] + A[2, 2] * B[0, 2];
+  Result[1, 2] := A[0, 2] * B[1, 0] + A[1, 2] * B[1, 1] + A[2, 2] * B[1, 2];
+  Result[2, 2] := A[0, 2] * B[2, 0] + A[1, 2] * B[2, 1] + A[2, 2] * B[2, 2];
+end;
+
+class operator TMatrix3.Equal(A, B: TMatrix3): Boolean;
+begin
+  Result := CompareMem(@A, @B, SizeOf(Single) * 3 * 3);
+end;
+
+class operator TMatrix3.NotEqual(A, B: TMatrix3): Boolean;
+begin
+  Result := not (A = B);
+end;
+
+class operator TMatrix3.Implicit(A: TMatrix): TMatrix3;
+begin
+  if A.Size <> 3 then
+    raise EMatrixDimension.Create;
+  Result[0, 0] := A[0, 0];
+  Result[1, 0] := A[1, 0];
+  Result[2, 0] := A[2, 0];
+  Result[0, 1] := A[0, 1];
+  Result[1, 1] := A[1, 1];
+  Result[2, 1] := A[2, 1];
+  Result[0, 2] := A[0, 2];
+  Result[1, 2] := A[1, 2];
+  Result[2, 2] := A[2, 2];   
+end;
+
+class operator TMatrix3.Implicit(A: TMatrix3): TMatrix;
+begin
+  Result.Size := 3;
+  Result[0, 0] := A[0, 0];
+  Result[1, 0] := A[1, 0];
+  Result[2, 0] := A[2, 0];
+  Result[0, 1] := A[0, 1];
+  Result[1, 1] := A[1, 1];
+  Result[2, 1] := A[2, 1];
+  Result[0, 2] := A[0, 2];
+  Result[1, 2] := A[1, 2];
+  Result[2, 2] := A[2, 2];
+end;
+
+procedure TMatrix3.Clear(Value: Single);
+begin
+  Self[0, 0] := Value;
+  Self[1, 0] := Value;
+  Self[2, 0] := Value;
+  Self[0, 1] := Value;
+  Self[1, 1] := Value;
+  Self[2, 1] := Value;
+  Self[0, 2] := Value;
+  Self[1, 2] := Value;
+  Self[2, 2] := Value;
+end;
+
+procedure TMatrix3.LoadIdentity;
+begin
+  Self := Matrix3Identity;
+end;
+
+function TMatrix3.Transpose: TMatrix3;
+begin
+  Result[0, 0] := Data[0, 0];
+  Result[1, 0] := Data[0, 1];
+  Result[2, 0] := Data[0, 2];
+  Result[0, 1] := Data[1, 0];
+  Result[1, 1] := Data[1, 1];
+  Result[2, 1] := Data[1, 2];
+  Result[0, 2] := Data[2, 0];
+  Result[1, 2] := Data[2, 1];
+  Result[2, 2] := Data[2, 2];
+end;
+
+function TMatrix3.CofactorMatrix: TMatrix3;
+begin
+  Result[0, 0] := Cofactor[IVec2(0, 0)];
+  Result[1, 0] := Cofactor[IVec2(1, 0)];
+  Result[2, 0] := Cofactor[IVec2(2, 0)];
+  Result[0, 1] := Cofactor[IVec2(0, 1)];
+  Result[1, 1] := Cofactor[IVec2(1, 1)];
+  Result[2, 1] := Cofactor[IVec2(2, 1)];
+  Result[0, 2] := Cofactor[IVec2(0, 2)];
+  Result[1, 2] := Cofactor[IVec2(1, 2)];
+  Result[2, 2] := Cofactor[IVec2(2, 2)];
+end;
+
+function TMatrix3.Adjugate: TMatrix3;
+begin
+  Result := CofactorMatrix.Transpose;
+end;
+
+function TMatrix3.Inverse: TMatrix3;
+begin
+  Result := Adjugate / Determinant;
+end;
+
+function TMatrix3.Determinant: Single;
+begin
+  Result :=
+    Num[0, 0] * Num[1, 1] * Num[2, 2] +
+    Num[0, 1] * Num[1, 2] * Num[2, 0] +
+    Num[0, 2] * Num[1, 0] * Num[2, 1] -
+    Num[2, 0] * Num[1, 1] * Num[0, 2] -
+    Num[2, 1] * Num[1, 2] * Num[0, 0] -
+    Num[2, 2] * Num[1, 0] * Num[0, 1];
+end;
+
+function TMatrix3.ToString: string;
+begin                              
+  Result := TMatrix(Self).ToString;
 end;
 
 { TMatrix4 }
-// most without loops for performance boooost
+
+function TMatrix4.GetNum(I, J: Byte): Single;
+begin
+  Result := Num[IVec2(I, J)];
+end;
+
+procedure TMatrix4.SetNum(I, J: Byte; const Value: Single);
+begin
+  Num[IVec2(I, J)] := Value;
+end;
+
+function TMatrix4.GetNum(V: TIntVector2): Single;
+begin
+  RangeCheck(V);
+  Result := Data[V.X, V.Y];
+end;
+
+procedure TMatrix4.SetNum(V: TIntVector2; const Value: Single);
+begin
+  RangeCheck(V);
+  Data[V.X, V.Y] := Value;
+end;
+
+function TMatrix4.GetMinor(V: TIntVector2): TMatrix3;
+var
+  X1, Y1, X2, Y2: Integer;
+begin
+  X2 := 0;
+  for X1 := 0 to 3 do
+  begin
+    if X1 = V.X then
+      Continue;
+    Y2 := 0;
+    for Y1 := 0 to 3 do
+    begin
+      if Y1 = V.Y then
+        Continue;
+      Result[X2, Y2] := Num[X1, Y1];
+      Inc(Y2);
+    end;
+    Inc(X2);
+  end;
+end;
+
+function TMatrix4.GetMinor(I, J: Integer): TMatrix3;
+begin
+  Result := Minor[IVec2(I, J)];
+end;
+
+procedure TMatrix4.SetMinor(V: TIntVector2; const Value: TMatrix3);
+var
+  X1, Y1, X2, Y2: Integer;
+begin
+  X2 := 0;
+  for X1 := 0 to 3 do
+  begin
+    if X1 = V.X then
+      Continue;
+    Y2 := 0;
+    for Y1 := 0 to 3 do
+    begin
+      if Y1 = V.Y then
+        Continue;
+      Num[X2, Y2] := Value[X1, Y1];
+      Inc(Y2);
+    end;
+    Inc(X2);
+  end;
+end;
+
+procedure TMatrix4.SetMinor(I, J: Integer; const Value: TMatrix3);
+begin
+  Minor[IVec2(I, J)] := Value;
+end;
+
+function TMatrix4.GetCofactor(V: TIntVector2): Single;
+begin
+  if (V.X + V.Y) mod 2 = 0 then
+    Result := +Minor[V].Determinant
+  else
+    Result := -Minor[V].Determinant;
+end;
+
+procedure TMatrix4.RangeCheck(V: TIntVector2);
+begin
+  if not (V in IBounds2(4)) then
+    raise EMatrixRangeError.Create;
+end;
+
+class operator TMatrix4.Add(A: TMatrix4; B: Single): TMatrix4;
+begin
+  Result[0, 0] := A[0, 0] + B;
+  Result[1, 0] := A[1, 0] + B;
+  Result[2, 0] := A[2, 0] + B;
+  Result[3, 0] := A[3, 0] + B;
+  Result[0, 1] := A[0, 1] + B;
+  Result[1, 1] := A[1, 1] + B;
+  Result[2, 1] := A[2, 1] + B;
+  Result[3, 1] := A[3, 1] + B;
+  Result[0, 2] := A[0, 2] + B;
+  Result[1, 2] := A[1, 2] + B;
+  Result[2, 2] := A[2, 2] + B;
+  Result[3, 2] := A[3, 2] + B;
+  Result[0, 3] := A[0, 3] + B;
+  Result[1, 3] := A[1, 3] + B;
+  Result[2, 3] := A[2, 3] + B;
+  Result[3, 3] := A[3, 3] + B;
+end;
+
+class operator TMatrix4.Add(A: Single; B: TMatrix4): TMatrix4;
+begin
+  Result[0, 0] := A + B[0, 0];
+  Result[1, 0] := A + B[1, 0];
+  Result[2, 0] := A + B[2, 0];
+  Result[3, 0] := A + B[3, 0];
+  Result[0, 1] := A + B[0, 1];
+  Result[1, 1] := A + B[1, 1];
+  Result[2, 1] := A + B[2, 1];
+  Result[3, 1] := A + B[3, 1];
+  Result[0, 2] := A + B[0, 2];
+  Result[1, 2] := A + B[1, 2];
+  Result[2, 2] := A + B[2, 2];
+  Result[3, 2] := A + B[3, 2];
+  Result[0, 3] := A + B[0, 3];
+  Result[1, 3] := A + B[1, 3];
+  Result[2, 3] := A + B[2, 3];
+  Result[3, 3] := A + B[3, 3];
+end;
 
 class operator TMatrix4.Add(A, B: TMatrix4): TMatrix4;
 begin
@@ -623,112 +1551,149 @@ begin
   Result[3, 3] := A[3, 3] + B[3, 3];
 end;
 
-function TMatrix4.Adjugate: TMatrix4;
+class operator TMatrix4.Subtract(A: TMatrix4; B: Single): TMatrix4;
 begin
-  Result := CofactorMatrix.Transpose;
+  Result[0, 0] := A[0, 0] - B;
+  Result[1, 0] := A[1, 0] - B;
+  Result[2, 0] := A[2, 0] - B;
+  Result[3, 0] := A[3, 0] - B;
+  Result[0, 1] := A[0, 1] - B;
+  Result[1, 1] := A[1, 1] - B;
+  Result[2, 1] := A[2, 1] - B;
+  Result[3, 1] := A[3, 1] - B;
+  Result[0, 2] := A[0, 2] - B;
+  Result[1, 2] := A[1, 2] - B;
+  Result[2, 2] := A[2, 2] - B;
+  Result[3, 2] := A[3, 2] - B;
+  Result[0, 3] := A[0, 3] - B;
+  Result[1, 3] := A[1, 3] - B;
+  Result[2, 3] := A[2, 3] - B;
+  Result[3, 3] := A[3, 3] - B;
 end;
 
-procedure TMatrix4.Clear(Value: Single);
+class operator TMatrix4.Subtract(A: Single; B: TMatrix4): TMatrix4;
 begin
-  if Value = 0 then
-    FillChar(FElement, 16 * SizeOf(Single), 0)
-  else
-  begin
-    FElement[0, 0] := Value;
-    FElement[1, 0] := Value;
-    FElement[2, 0] := Value;
-    FElement[3, 0] := Value;
-    FElement[0, 1] := Value;
-    FElement[1, 1] := Value;
-    FElement[2, 1] := Value;
-    FElement[3, 1] := Value;
-    FElement[0, 2] := Value;
-    FElement[1, 2] := Value;
-    FElement[2, 2] := Value;
-    FElement[3, 2] := Value;
-    FElement[0, 3] := Value;
-    FElement[1, 3] := Value;
-    FElement[2, 3] := Value;
-    FElement[3, 3] := Value;
-  end;
+  Result[0, 0] := A - B[0, 0];
+  Result[1, 0] := A - B[1, 0];
+  Result[2, 0] := A - B[2, 0];
+  Result[3, 0] := A - B[3, 0];
+  Result[0, 1] := A - B[0, 1];
+  Result[1, 1] := A - B[1, 1];
+  Result[2, 1] := A - B[2, 1];
+  Result[3, 1] := A - B[3, 1];
+  Result[0, 2] := A - B[0, 2];
+  Result[1, 2] := A - B[1, 2];
+  Result[2, 2] := A - B[2, 2];
+  Result[3, 2] := A - B[3, 2];
+  Result[0, 3] := A - B[0, 3];
+  Result[1, 3] := A - B[1, 3];
+  Result[2, 3] := A - B[2, 3];
+  Result[3, 3] := A - B[3, 3];
 end;
 
-function TMatrix4.Cofactor(I, J: Integer): Single;
+class operator TMatrix4.Subtract(A, B: TMatrix4): TMatrix4;
 begin
-  if ((I + J) mod 2) = 0 then
-    Result := Minor[I, J].Determinant
-  else
-    Result := -Minor[I, J].Determinant;
+  Result[0, 0] := A[0, 0] - B[0, 0];
+  Result[1, 0] := A[1, 0] - B[1, 0];
+  Result[2, 0] := A[2, 0] - B[2, 0];
+  Result[3, 0] := A[3, 0] - B[3, 0];
+  Result[0, 1] := A[0, 1] - B[0, 1];
+  Result[1, 1] := A[1, 1] - B[1, 1];
+  Result[2, 1] := A[2, 1] - B[2, 1];
+  Result[3, 1] := A[3, 1] - B[3, 1];
+  Result[0, 2] := A[0, 2] - B[0, 2];
+  Result[1, 2] := A[1, 2] - B[1, 2];
+  Result[2, 2] := A[2, 2] - B[2, 2];
+  Result[3, 2] := A[3, 2] - B[3, 2];
+  Result[0, 3] := A[0, 3] - B[0, 3];
+  Result[1, 3] := A[1, 3] - B[1, 3];
+  Result[2, 3] := A[2, 3] - B[2, 3];
+  Result[3, 3] := A[3, 3] - B[3, 3];
 end;
 
-function TMatrix4.CofactorMatrix: TMatrix4;
-var
-  I, J: Integer;
+class operator TMatrix4.Divide(A: TMatrix4; B: Single): TMatrix4;
 begin
-  for I := 0 to 3 do
-    for J := 0 to 3 do
-      Result[I, J] := Cofactor(I, J);
+  Result[0, 0] := A[0, 0] / B;
+  Result[1, 0] := A[1, 0] / B;
+  Result[2, 0] := A[2, 0] / B;
+  Result[3, 0] := A[3, 0] / B;
+  Result[0, 1] := A[0, 1] / B;
+  Result[1, 1] := A[1, 1] / B;
+  Result[2, 1] := A[2, 1] / B;
+  Result[3, 1] := A[3, 1] / B;
+  Result[0, 2] := A[0, 2] / B;
+  Result[1, 2] := A[1, 2] / B;
+  Result[2, 2] := A[2, 2] / B;
+  Result[3, 2] := A[3, 2] / B;
+  Result[0, 3] := A[0, 3] / B;
+  Result[1, 3] := A[1, 3] / B;
+  Result[2, 3] := A[2, 3] / B;
+  Result[3, 3] := A[3, 3] / B;
 end;
 
-function TMatrix4.Determinant: Single;
-var
-  R, X, Y: Byte;
-  Pos: Boolean;
-  T: TMatrix;
+class operator TMatrix4.Divide(A: Single; B: TMatrix4): TMatrix4;
 begin
-  Result := 0;
-  Pos := True;
-  T.SetSize(3, 3);
-  for R := 0 to 3 do
-  begin
-    for X := 0 to 2 do
-      for Y := 0 to 2 do
-        T[X, Y] := E[X + 1, Y + Ord(Y >= R)]; // Y >= R -> [+1] else -> [+0]
-    if E[0, R] <> 0 then
-      Result := Result + E[0, R] * T.Determinant * (Ord(Pos) * 2 - 1);
-    Pos := not Pos;
-  end;
+  Result[0, 0] := A / B[0, 0];
+  Result[1, 0] := A / B[1, 0];
+  Result[2, 0] := A / B[2, 0];
+  Result[3, 0] := A / B[3, 0];
+  Result[0, 1] := A / B[0, 1];
+  Result[1, 1] := A / B[1, 1];
+  Result[2, 1] := A / B[2, 1];
+  Result[3, 1] := A / B[3, 1];
+  Result[0, 2] := A / B[0, 2];
+  Result[1, 2] := A / B[1, 2];
+  Result[2, 2] := A / B[2, 2];
+  Result[3, 2] := A / B[3, 2];
+  Result[0, 3] := A / B[0, 3];
+  Result[1, 3] := A / B[1, 3];
+  Result[2, 3] := A / B[2, 3];
+  Result[3, 3] := A / B[3, 3];
 end;
 
-function TMatrix4.GetElement(I, J: Byte): Single;
+class operator TMatrix4.Divide(A, B: TMatrix4): TMatrix4;
 begin
-  Result := FElement[I, J];
+  Result := A * B.Inverse;
 end;
 
-function TMatrix4.GetMinor(I, J: Integer): TMatrix3;
-var
-  X1, Y1, X2, Y2: Integer;
+class operator TMatrix4.Multiply(A: TMatrix4; B: Single): TMatrix4;
 begin
-  X2 := 0;
-  for X1 := 0 to 3 do
-  begin
-    if X1 = I then
-      Continue;
-    Y2 := 0;
-    for Y1 := 0 to 3 do
-    begin
-      if Y1 = J then
-        Continue;
-      Result[X2, Y2] := E[X1, Y1];
-      Y2 := Y2 + 1;
-    end;
-    X2 := X2 + 1;
-  end;
+  Result[0, 0] := A[0, 0] * B;
+  Result[1, 0] := A[1, 0] * B;
+  Result[2, 0] := A[2, 0] * B;
+  Result[3, 0] := A[3, 0] * B;
+  Result[0, 1] := A[0, 1] * B;
+  Result[1, 1] := A[1, 1] * B;
+  Result[2, 1] := A[2, 1] * B;
+  Result[3, 1] := A[3, 1] * B;
+  Result[0, 2] := A[0, 2] * B;
+  Result[1, 2] := A[1, 2] * B;
+  Result[2, 2] := A[2, 2] * B;
+  Result[3, 2] := A[3, 2] * B;
+  Result[0, 3] := A[0, 3] * B;
+  Result[1, 3] := A[1, 3] * B;
+  Result[2, 3] := A[2, 3] * B;
+  Result[3, 3] := A[3, 3] * B;
 end;
 
-function TMatrix4.Inverse: TMatrix4;
+class operator TMatrix4.Multiply(A: Single; B: TMatrix4): TMatrix4;
 begin
-  Result := 1 / Determinant * Adjugate;
-end;
-
-function TMatrix4.DataPointer: Pointer;
-begin
-  Result := @FElement[0, 0];
-end;
-
-procedure TMatrix4.LoadIdentity;
-begin
-  Self := Matrix4Identity;
+  Result[0, 0] := A * B[0, 0];
+  Result[1, 0] := A * B[1, 0];
+  Result[2, 0] := A * B[2, 0];
+  Result[3, 0] := A * B[3, 0];
+  Result[0, 1] := A * B[0, 1];
+  Result[1, 1] := A * B[1, 1];
+  Result[2, 1] := A * B[2, 1];
+  Result[3, 1] := A * B[3, 1];
+  Result[0, 2] := A * B[0, 2];
+  Result[1, 2] := A * B[1, 2];
+  Result[2, 2] := A * B[2, 2];
+  Result[3, 2] := A * B[3, 2];
+  Result[0, 3] := A * B[0, 3];
+  Result[1, 3] := A * B[1, 3];
+  Result[2, 3] := A * B[2, 3];
+  Result[3, 3] := A * B[3, 3];
 end;
 
 class operator TMatrix4.Multiply(A, B: TMatrix4): TMatrix4;
@@ -753,184 +1718,162 @@ end;
 
 class operator TMatrix4.Equal(A, B: TMatrix4): Boolean;
 begin
-  Result := CompareMem(@A, @B, SizeOf(Single) * 16);
+  Result := CompareMem(@A, @B, SizeOf(Single) * 4 * 4);
 end;
 
 class operator TMatrix4.NotEqual(A, B: TMatrix4): Boolean;
 begin
-  Result := not(A = B);
+  Result := not (A = B);
 end;
 
-class operator TMatrix4.Multiply(V: Single; A: TMatrix4): TMatrix4;
+class operator TMatrix4.Implicit(A: TMatrix): TMatrix4;
 begin
-  Result[0, 0] := V * A[0, 0];
-  Result[1, 0] := V * A[1, 0];
-  Result[2, 0] := V * A[2, 0];
-  Result[3, 0] := V * A[3, 0];
-  Result[0, 1] := V * A[0, 1];
-  Result[1, 1] := V * A[1, 1];
-  Result[2, 1] := V * A[2, 1];
-  Result[3, 1] := V * A[3, 1];
-  Result[0, 2] := V * A[0, 2];
-  Result[1, 2] := V * A[1, 2];
-  Result[2, 2] := V * A[2, 2];
-  Result[3, 2] := V * A[3, 2];
-  Result[0, 3] := V * A[0, 3];
-  Result[1, 3] := V * A[1, 3];
-  Result[2, 3] := V * A[2, 3];
-  Result[3, 3] := V * A[3, 3];
+  if A.Size <> 4 then
+    raise EMatrixDimension.Create;
+  Result[0, 0] := A[0, 0];
+  Result[1, 0] := A[1, 0];
+  Result[2, 0] := A[2, 0];
+  Result[3, 0] := A[3, 0];
+  Result[0, 1] := A[0, 1];
+  Result[1, 1] := A[1, 1];
+  Result[2, 1] := A[2, 1];
+  Result[3, 1] := A[3, 1];
+  Result[0, 2] := A[0, 2];
+  Result[1, 2] := A[1, 2];
+  Result[2, 2] := A[2, 2];
+  Result[3, 2] := A[3, 2];
+  Result[0, 3] := A[0, 3];
+  Result[1, 3] := A[1, 3];
+  Result[2, 3] := A[2, 3];
+  Result[3, 3] := A[3, 3];
 end;
 
-procedure TMatrix4.SetElement(I, J: Byte; const Value: Single);
+class operator TMatrix4.Implicit(A: TMatrix4): TMatrix;
 begin
-  FElement[I, J] := Value;
+  Result.Size := 4;
+  Result[0, 0] := A[0, 0];
+  Result[1, 0] := A[1, 0];
+  Result[2, 0] := A[2, 0];
+  Result[3, 0] := A[3, 0];
+  Result[0, 1] := A[0, 1];
+  Result[1, 1] := A[1, 1];
+  Result[2, 1] := A[2, 1];
+  Result[3, 1] := A[3, 1];
+  Result[0, 2] := A[0, 2];
+  Result[1, 2] := A[1, 2];
+  Result[2, 2] := A[2, 2];
+  Result[3, 2] := A[3, 2];
+  Result[0, 3] := A[0, 3];
+  Result[1, 3] := A[1, 3];
+  Result[2, 3] := A[2, 3];
+  Result[3, 3] := A[3, 3];
 end;
 
-procedure TMatrix4.SetMinor(I, J: Integer; AValue: TMatrix3);
-var
-  X1, Y1, X2, Y2: Integer;
+procedure TMatrix4.Clear(Value: Single);
 begin
-  X2 := 0;
-  for X1 := 0 to 3 do
-  begin
-    if X1 = I then
-      Continue;
-    Y2 := 0;
-    for Y1 := 0 to 3 do
-    begin
-      if Y1 = J then
-        Continue;
-      E[X2, Y2] := AValue[X1, Y1];
-      Y2 := Y2 + 1;
-    end;
-    X2 := X2 + 1;
-  end;
+  Data[0, 0] := Value;
+  Data[1, 0] := Value;
+  Data[2, 0] := Value;
+  Data[3, 0] := Value;
+  Data[0, 1] := Value;
+  Data[1, 1] := Value;
+  Data[2, 1] := Value;
+  Data[3, 1] := Value;
+  Data[0, 2] := Value;
+  Data[1, 2] := Value;
+  Data[2, 2] := Value;
+  Data[3, 2] := Value;
+  Data[0, 3] := Value;
+  Data[1, 3] := Value;
+  Data[2, 3] := Value;
+  Data[3, 3] := Value;
+end;
+
+procedure TMatrix4.LoadIdentity;
+begin
+  Self := Matrix4Identity;
 end;
 
 function TMatrix4.Transpose: TMatrix4;
 begin
-  Result[0, 0] := FElement[0, 0];
-  Result[1, 0] := FElement[0, 1];
-  Result[2, 0] := FElement[0, 2];
-  Result[3, 0] := FElement[0, 3];
-  Result[0, 1] := FElement[1, 0];
-  Result[1, 1] := FElement[1, 1];
-  Result[2, 1] := FElement[1, 2];
-  Result[3, 1] := FElement[1, 3];
-  Result[0, 2] := FElement[2, 0];
-  Result[1, 2] := FElement[2, 1];
-  Result[2, 2] := FElement[2, 2];
-  Result[3, 2] := FElement[2, 3];
-  Result[0, 3] := FElement[3, 0];
-  Result[1, 3] := FElement[3, 1];
-  Result[2, 3] := FElement[3, 2];
-  Result[3, 3] := FElement[3, 3];
+  Result[0, 0] := Data[0, 0];
+  Result[1, 0] := Data[0, 1];
+  Result[2, 0] := Data[0, 2];
+  Result[3, 0] := Data[0, 3];
+  Result[0, 1] := Data[1, 0];
+  Result[1, 1] := Data[1, 1];
+  Result[2, 1] := Data[1, 2];
+  Result[3, 1] := Data[1, 3];
+  Result[0, 2] := Data[2, 0];
+  Result[1, 2] := Data[2, 1];
+  Result[2, 2] := Data[2, 2];
+  Result[3, 2] := Data[2, 3];
+  Result[0, 3] := Data[3, 0];
+  Result[1, 3] := Data[3, 1];
+  Result[2, 3] := Data[3, 2];
+  Result[3, 3] := Data[3, 3];
 end;
 
-{ TMatrix2 }
-
-function TMatrix2.GetElement(I, J: Byte): Single;
+function TMatrix4.CofactorMatrix: TMatrix4;
 begin
-  Result := FElement[I, J];
+  Result[0, 0] := Cofactor[IVec2(0, 0)];
+  Result[1, 0] := Cofactor[IVec2(1, 0)];
+  Result[2, 0] := Cofactor[IVec2(2, 0)];
+  Result[3, 0] := Cofactor[IVec2(3, 0)];
+  Result[0, 1] := Cofactor[IVec2(0, 1)];
+  Result[1, 1] := Cofactor[IVec2(1, 1)];
+  Result[2, 1] := Cofactor[IVec2(2, 1)];
+  Result[3, 1] := Cofactor[IVec2(3, 1)];
+  Result[0, 2] := Cofactor[IVec2(0, 2)];
+  Result[1, 2] := Cofactor[IVec2(1, 2)];
+  Result[2, 2] := Cofactor[IVec2(2, 2)];
+  Result[3, 2] := Cofactor[IVec2(3, 2)];
+  Result[0, 3] := Cofactor[IVec2(0, 3)];
+  Result[1, 3] := Cofactor[IVec2(1, 3)];
+  Result[2, 3] := Cofactor[IVec2(2, 3)];
+  Result[3, 3] := Cofactor[IVec2(3, 3)];
 end;
 
-procedure TMatrix2.SetElement(I, J: Byte; const Value: Single);
-begin
-  FElement[I, J] := Value;
-end;
-
-class operator TMatrix2.Add(A, B: TMatrix2): TMatrix2;
-begin
-  Result[0, 0] := A[0, 0] + B[0, 0];
-  Result[1, 0] := A[1, 0] + B[1, 0];
-  Result[0, 1] := A[0, 1] + B[0, 1];
-  Result[1, 1] := A[1, 1] + B[1, 1];
-end;
-
-class operator TMatrix2.Multiply(V: Single; A: TMatrix2): TMatrix2;
-begin
-  Result[0, 0] := A[0, 0] * V;
-  Result[1, 0] := A[1, 0] * V;
-  Result[0, 1] := A[0, 1] * V;
-  Result[1, 1] := A[1, 1] * V;
-  Result[0, 2] := A[0, 2] * V;
-end;
-
-class operator TMatrix2.Multiply(A, B: TMatrix2): TMatrix2;
-begin
-  Result[0, 0] := A[0, 0] * B[0, 0] + A[1, 0] * B[0, 1];
-  Result[1, 0] := A[0, 0] * B[1, 0] + A[1, 0] * B[1, 1];
-  Result[0, 1] := A[0, 1] * B[0, 0] + A[1, 1] * B[0, 1];
-  Result[1, 1] := A[0, 1] * B[1, 0] + A[1, 1] * B[1, 1];
-end;
-
-procedure TMatrix2.Clear(Value: Single);
-begin
-  if Value = 0 then
-    FillChar(FElement, SizeOf(Single) * 4, 0)
-  else
-  begin
-    FElement[0, 0] := Value;
-    FElement[1, 0] := Value;
-    FElement[0, 1] := Value;
-    FElement[1, 1] := Value;
-  end;
-end;
-
-procedure TMatrix2.LoadIdentity;
-begin
-  Self := Matrix2Identity;
-end;
-
-function TMatrix2.Transpose: TMatrix2;
-begin
-  Result[0, 0] := FElement[0, 0];
-  Result[1, 0] := FElement[0, 1];
-  Result[0, 1] := FElement[1, 0];
-  Result[1, 1] := FElement[1, 1];
-end;
-
-function TMatrix2.Determinant: Single;
-begin
-  Result := E[0, 0] * E[1, 1] - E[1, 0] * E[0, 1];
-end;
-
-function TMatrix2.Minor(I, J: Integer): Single;
-begin
-  Result := E[1 - I, 1 - J];
-end;
-
-function TMatrix2.Cofactor(I, J: Integer): Single;
-begin
-  if ((I + J) mod 2) = 0 then
-    Result := Minor(I, J)
-  else
-    Result := -Minor(I, J);
-end;
-
-function TMatrix2.CofactorMatrix: TMatrix2;
-var
-  I, J: Integer;
-begin
-  for I := 0 to 1 do
-    for J := 0 to 1 do
-      Result[I, J] := Cofactor(I, J);
-end;
-
-function TMatrix2.Adjugate: TMatrix2;
+function TMatrix4.Adjugate: TMatrix4;
 begin
   Result := CofactorMatrix.Transpose;
 end;
 
-function TMatrix2.Inverse: TMatrix2;
+function TMatrix4.Inverse: TMatrix4;
 begin
-  Result := 1 / Determinant * Adjugate;
+  Result := Adjugate / Determinant;
+end;
+
+function TMatrix4.Determinant: Single;
+var
+  R, X, Y: Byte;
+  Pos: Boolean;
+  T: TMatrix3;
+begin
+  Result := 0;
+  Pos := True;
+  for R := 0 to 3 do
+  begin
+    for X := 0 to 2 do
+      for Y := 0 to 2 do
+        T[X, Y] := Num[X + 1, Y + Ord(Y >= R)]; // Y >= R -> [+1] else -> [+0]
+
+    if Num[0, R] <> 0 then
+      Result := Result + Num[0, R] * T.Determinant * (Ord(Pos) * 2 - 1);
+    Pos := not Pos;
+  end;
+end;
+
+function TMatrix4.ToString: string;
+begin                              
+  Result := TMatrix(Self).ToString;
 end;
 
 initialization
-  M3x2.SetSize(3, 2);
-  M3x2.Clear;
-  M4x3.SetSize(4, 3);
-  M4x3.Clear;
+
+M3x2.Size := IVec2(3, 2);
+M3x2.Clear;
+M4x3.Size := IVec2(4, 3);
+M4x3.Clear;
 
 end.

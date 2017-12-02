@@ -3,8 +3,19 @@ unit Pengine.VAO;
 interface
 
 uses
-  dglOpenGL, GLEnums, SysUtils, Shaders, Matrix, VectorGeometry, GLObjectBase, Camera, IntfBase,
-  Lists;
+  dglOpenGL,
+
+  System.SysUtils,
+
+  Pengine.Camera,
+  Pengine.GLEnums,
+  Pengine.GLObject,
+  Pengine.Interfaces,
+  Pengine.Collections,
+  Pengine.CollectionInterfaces,
+  Pengine.Matrix,
+  Pengine.Shader,
+  Pengine.Vector;
 
 type
 
@@ -66,9 +77,9 @@ type
     FSize: Integer;
     FMaxSize: Integer;
 
-    class var
-      BoundVBO: TVBO;
-      BindLock: Boolean;
+  class var
+    BoundVBO: TVBO;
+    BindLock: Boolean;
 
   protected
     function GetObjectType: TGLObjectType; override;
@@ -87,7 +98,7 @@ type
     property MaxSize: Integer read FMaxSize;
     property Size: Integer read FSize;
 
-     // Mapped Access
+    // Mapped Access
     procedure Map(AAccess: TGLBufferAccess);
     procedure Unmap;
 
@@ -120,7 +131,6 @@ type
     procedure SetVisible(const Value: Boolean);
 
   protected
-
     procedure BeforeRender; virtual;
     procedure AfterRender; virtual;
 
@@ -370,12 +380,14 @@ end;
 
 procedure TVAO.GenAttributes;
 var
-  Attribute: TShaderAttribute;
+  I: Integer;
+  Attribute: TShader.TAttribute;
 begin
   Bind;
   FVBO.Bind;
-  for Attribute in Shader.Attributes do
+  for I := 0 to Shader.AttributeCount - 1 do
   begin
+    Attribute := Shader.Attributes[I];
     if Attribute.Location <> -1 then
     begin
       glEnableVertexAttribArray(Attribute.Location);

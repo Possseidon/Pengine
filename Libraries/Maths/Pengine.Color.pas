@@ -35,7 +35,6 @@ type
     class function Gray(V: Single; A: Single = 1): TColorRGBA; static;
     class function Rainbow(H: Single; A: Single = 1): TColorRGBA; static;
 
-    class operator Implicit(AValue: TColorRGBA): TVector4;
     class operator Implicit(AValue: TColor): TColorRGBA;
 
     function ToWinColor: TColor;
@@ -73,13 +72,15 @@ type
 
     class operator Implicit(AValue: TColorRGBA): TColorRGB;
     class operator Implicit(AValue: TColorRGB): TColorRGBA;
-    class operator Implicit(AValue: TColorRGB): TVector3;
     class operator Implicit(AValue: TColor): TColorRGB;
 
     function ToWinColor: TColor;
 
     function EnsureColor: TColorRGB;
   end;
+
+function ColorRGB(R, G, B: Single): TColorRGB;
+function ColorRGBA(R, G, B: Single; A: Single = 1): TColorRGBA;
 
 const
   ColorTransparent: TColorRGBA = (R: 0.0; G: 0.0; B: 0.0; A: 0.0);
@@ -275,13 +276,6 @@ begin
   Result := AValue.ToRGBA(1);
 end;
 
-class operator TColorRGB.Implicit(AValue: TColorRGB): TVector3;
-begin
-  Result.X := AValue.R;
-  Result.Y := AValue.G;
-  Result.Z := AValue.B;
-end;
-
 function TColorRGB.ToWinColor: TColor;
 begin
   Result := Floor(R * $FF) or Floor(G * $FF) shl 8 or Floor(B * $FF) shl 16;
@@ -416,14 +410,6 @@ begin
   Result.A := A.A;
 end;
 
-class operator TColorRGBA.Implicit(AValue: TColorRGBA): TVector4;
-begin
-  Result.X := AValue.R;
-  Result.Y := AValue.G;
-  Result.Z := AValue.B;
-  Result.W := AValue.A;
-end;
-
 class operator TColorRGBA.Implicit(AValue: TColor): TColorRGBA;
 begin
   Result := TColorRGBA.Create(AValue, 1);
@@ -448,6 +434,18 @@ begin
   Result.G := A.G - B.G;
   Result.B := A.B - B.B;
   Result.A := A.A;
+end;
+
+{ Shorthand constructors }
+
+function ColorRGB(R, G, B: Single): TColorRGB;
+begin
+  Result := TColorRGB.Create(R, G, B);
+end;
+
+function ColorRGBA(R, G, B: Single; A: Single = 1): TColorRGBA;
+begin
+  Result := TColorRGBA.Create(R, G, B, A);
 end;
 
 end.

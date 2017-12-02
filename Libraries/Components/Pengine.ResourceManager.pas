@@ -3,10 +3,24 @@ unit Pengine.ResourceManager;
 interface
 
 uses
-{$IFNDEF DebugConsole}
-  Dialogs, UITypes,
-{$ENDIF}
-  Shaders, TextureManager, VAOManager, GLEnums, VectorGeometry, Lists, SysUtils, DebugConsoleDefine;
+
+  {$IFNDEF DebugConsole}
+
+  Vcl.Dialogs,
+  System.UITypes,
+
+  {$ENDIF}
+
+  System.SysUtils,
+
+  Pengine.Shader,
+  Pengine.Texture,
+  Pengine.VAO,
+  Pengine.GLEnums,
+  Pengine.Vector,
+  Pengine.Collections,
+  Pengine.Hasher,
+  Pengine.DebugConsole;
 
 type
 
@@ -15,7 +29,7 @@ type
   TResourceBase = class abstract
   private
     class var
-      FData: TClassRefMap<TObject>;
+      FData: TClassMap<TObject>;
 
     class procedure Load; virtual; abstract;
     class procedure Unload; virtual; abstract;
@@ -55,19 +69,25 @@ type
     FRefCount: Integer;
 
   protected
-    function EqualTo(AOther: TResourceParameter): Boolean; virtual; abstract;
-    function GetHash(ARange: Cardinal): Cardinal; virtual; abstract;
+    function Equals(AOther: TResourceParameter): Boolean; reintroduce; virtual; abstract;
+    function GetHash: Cardinal; virtual; abstract;
 
   public
     constructor Create; virtual;
 
   end;
 
-  TResourceParameterMap<T: class> = class(TObjectObjectMap<TResourceParameter, T>)
-  protected
-    function GetKeyHash(AKey: TResourceParameter): Cardinal; override;
-    class function CantIndex(AKey: TResourceParameter): Boolean; override;
+  TResourceParameterHasher = class(TValueHasher<TResourceParameter>)
+  public
+    class function GetHash(AKey: TResourceParameter): Cardinal; override;
+    class function CanIndex(AKey: TResourceParameter): Boolean; override;
     class function KeysEqual(AKey1, AKey2: TResourceParameter): Boolean; override;
+  end;
+
+  TResourceParameterMap<T: class> = class(TValueMap<TResourceParameter, T, TResourceParameterHasher>)
+  protected
+    function CreateBucket: THashBase.TBucket; override;
+    function CreateCopy(AAutoRehash: Boolean): THashBase; override;
   end;
 
   { TParamResoruce<T> }
@@ -104,13 +124,13 @@ type
   TResourceManager = class
   private
     class procedure Add(AResourceClass: TResourceClass);
-{$IFDEF DEBUG}
+    {$IFDEF DEBUG}
     class procedure ShowUnfreedParamResources;
-{$ENDIF}
+    {$ENDIF}
   private
   class var
-    FResourceClasses: TGenericArray<TResourceClass>;
-    FUnloadResourceClasses: TGenericArray<TResourceClass>;
+    FResourceClasses: TArray<TResourceClass>;
+    FUnloadResourceClasses: TArray<TResourceClass>;
     FUnfreedParamResources: TRefSet<TResourceParameter>;
 
   public
@@ -127,7 +147,7 @@ type
   TShaderResource = class(TResource<TShader>)
   protected
     class function GetShaderSource: string; virtual; abstract;
-    class function GetAttributeOrder: TShaderAttributeOrder; virtual; abstract;
+    class function GetAttributeOrder: TShader.TAttributeOrder; virtual; abstract;
 
     class function CreateData: TShader; override;
   end;
@@ -138,7 +158,7 @@ implementation
 
 class constructor TResourceBase.Create;
 begin
-  FData := TClassRefMap<TObject>.Create;
+  FData := TClassMap<TObject>.Create;
 end;
 
 class destructor TResourceBase.Destroy;
@@ -165,8 +185,7 @@ end;
 
 class function TResource<T>.Data: T;
 begin
-  Result := T(FData.GetOrNil(Self));
-  if Result = nil then
+  if not FData.Get(Self, TObject(Result)) then   
   begin
     TResourceManager.FUnloadResourceClasses.Add(Self);
     Result := CreateData;
@@ -183,19 +202,14 @@ end;
 
 { TResourceParameterRefMap }
 
-function TResourceParameterMap<T>.GetKeyHash(AKey: TResourceParameter): Cardinal;
+function TResourceParameterMap<T>.CreateBucket: THashBase.TBucket;
 begin
-  Result := AKey.GetHash(InternalSize);
+
 end;
 
-class function TResourceParameterMap<T>.CantIndex(AKey: TResourceParameter): Boolean;
+function TResourceParameterMap<T>.CreateCopy(AAutoRehash: Boolean): THashBase;
 begin
-  Result := AKey = nil;
-end;
-
-class function TResourceParameterMap<T>.KeysEqual(AKey1, AKey2: TResourceParameter): Boolean;
-begin
-  Result := AKey1.EqualTo(AKey2);
+  raise ENotSupportedException.Create('A resource parameter map cannot be copied.');
 end;
 
 { TParamResource<T, P> }
@@ -221,7 +235,7 @@ var
 begin
   if FData.Get(AParams, Result) then
   begin
-    ActualKey := FData.ActualKey(AParams);
+    ActualKey := FData.ActualKeys[AParams];
     Inc(ActualKey.FRefCount);
     if ActualKey <> TResourceParameter(AParams) then
       AParams.Free;
@@ -244,14 +258,14 @@ end;
 
 class procedure TParamResource<T, P>.Release(AParams: P);
 var
-  ActualKey: TResourceParameter;
+  Key: TResourceParameter;
 begin
-  ActualKey := FData.ActualKey(AParams);
-  Dec(ActualKey.FRefCount);
-  if ActualKey <> TResourceParameter(AParams) then
+  Key := FData.ActualKeys[AParams];
+  Dec(Key.FRefCount);
+  if Key <> TResourceParameter(AParams) then
     AParams.Free;
-  if ActualKey.FRefCount = 0 then
-    FData.Del(ActualKey);
+  if Key.FRefCount = 0 then
+    FData.Del(Key);
 end;
 
 class procedure TParamResource<T, P>.Release;
@@ -263,15 +277,15 @@ end;
 
 class constructor TResourceManager.Create;
 begin
-  FResourceClasses := TGenericArray<TResourceClass>.Create;
+  FResourceClasses := TArray<TResourceClass>.Create;
 end;
 
 class destructor TResourceManager.Destroy;
 begin
   FUnloadResourceClasses.Free;
-{$IFDEF DEBUG}
+  {$IFDEF DEBUG}
   ShowUnfreedParamResources;
-{$ENDIF}
+  {$ENDIF}
   FUnfreedParamResources.Free;
 end;
 
@@ -279,7 +293,7 @@ class procedure TResourceManager.Init;
 var
   ResourceClass: TResourceClass;
 begin
-  FUnloadResourceClasses := TGenericArray<TResourceClass>.Create;
+  FUnloadResourceClasses := TArray<TResourceClass>.Create;
   for ResourceClass in FResourceClasses do
     ResourceClass.Load;
   FResourceClasses.Free;
@@ -295,6 +309,7 @@ begin
 end;
 
 {$IFDEF DEBUG}
+
 class procedure TResourceManager.ShowUnfreedParamResources;
 var
   ParamResource: TResourceParameter;
@@ -316,13 +331,20 @@ begin
         ErrorString := ErrorString + 's';
       ErrorString := ErrorString + sLineBreak;
     end;
-{$IFDEF CONSOLE}
+
+    {$IFDEF CONSOLE}
+
     DebugWriteLine(sLineBreak + ErrorString);
-{$ELSE}
+
+    {$ELSE}
+
     MessageDlg(ErrorString, mtError, [mbOk], 0);
-{$ENDIF}
+
+    {$ENDIF}
+
   end;
 end;
+
 {$ENDIF}
 
 class procedure TResourceManager.Add(AResourceClass: TResourceClass);
@@ -337,6 +359,23 @@ begin
   Result := TShader.Create;
   Result.LoadFromFile(GetShaderSource);
   Result.SetAttributeOrder(GetAttributeOrder);
+end;
+
+{ TResourceParameterHasher }
+
+class function TResourceParameterHasher.CanIndex(AKey: TResourceParameter): Boolean;
+begin
+  Result := AKey <> nil;
+end;
+
+class function TResourceParameterHasher.GetHash(AKey: TResourceParameter): Cardinal;
+begin
+  Result := AKey.GetHash;
+end;
+
+class function TResourceParameterHasher.KeysEqual(AKey1, AKey2: TResourceParameter): Boolean;
+begin
+  Result := AKey1.Equals(AKey2);
 end;
 
 end.
