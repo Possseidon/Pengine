@@ -120,6 +120,7 @@ type
 
     public
       constructor Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType; ACount: Integer); overload;
+      destructor Destroy; override;
 
       /// <summary>Creates a "dead" entry with a Location of -1</summary>
       constructor Create; overload;
@@ -189,7 +190,7 @@ type
 
     TUniformSampler = TUniform<Integer>;
 
-    TInterfaceVariableMap = TAnsiStringObjectMap<TVariable>;
+    TInterfaceVariableMap = TAnsiStringRefMap<TVariable>;
     TAttributes = TRefArray<TAttribute>;
 
     TType = (
@@ -399,7 +400,7 @@ end;
 constructor TShader.Create;
 begin
   FProgramObject := glCreateProgram;
-  FInterfaceVariables := TInterfaceVariableMap.Create;
+  FInterfaceVariables := TInterfaceVariableMap.Create(True);
 end;
 
 destructor TShader.Destroy;
@@ -626,8 +627,7 @@ end;
 
 { TShader.TVariable }
 
-constructor TShader.TVariable.Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType;
-  ACount: Integer);
+constructor TShader.TVariable.Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType; ACount: Integer);
 begin
   FShader := AShader;
   FName := AName;
@@ -643,6 +643,11 @@ end;
 constructor TShader.TVariable.Create;
 begin
   FLocation := -1;
+end;
+
+destructor TShader.TVariable.Destroy;
+begin
+  inherited;
 end;
 
 function TShader.TVariable.GetActive: Boolean;
@@ -801,35 +806,35 @@ end;
 
 constructor EAttribNotUsed.Create(AAttribute: AnsiString);
 begin
-  CreateFmt('Vertex Attribute "%s" is not used', [AAttribute]);
+  CreateFmt('Vertex Attribute "%s" is not used.', [AAttribute]);
 end;
 
 { EAttribOrderSetAlready }
 
 constructor EAttribOrderSetAlready.Create;
 begin
-  inherited Create('The Attribute-Order can not be modified');
+  inherited Create('The Attribute-Order can not be modified.');
 end;
 
 { EUnsupportedDataType }
 
 constructor EUniformDataTypeUnsupported.Create(ADataType: TGLDataType);
 begin
-  inherited CreateFmt('Uniform Data-Type "%s" is not supported', [GLDataTypeName(ADataType)]);
+  inherited CreateFmt('Uniform Data-Type "%s" is not supported.', [GLDataTypeName(ADataType)]);
 end;
 
 { EGetInactiveUniform }
 
 constructor EGetInactiveUniform.Create(AUniform: AnsiString);
 begin
-  inherited CreateFmt('Cannot get the Uniform "%s" as it does not exist', [AUniform]);
+  inherited CreateFmt('Cannot get the Uniform "%s" as it does not exist.', [AUniform]);
 end;
 
 { EAttribMissing }
 
 constructor EAttribMissing.Create(AAttribute: AnsiString);
 begin
-  CreateFmt('Vertex Attribute "%s" does not exist or got optimized away', [AAttribute]);
+  CreateFmt('Vertex Attribute "%s" does not exist or got optimized away.', [AAttribute]);
 end;
 
 end.

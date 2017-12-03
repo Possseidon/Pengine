@@ -8,6 +8,7 @@ uses
   System.UITypes,
   System.Classes,
   System.SysUtils,
+  System.Math,
 
   Vcl.Controls,
 
@@ -18,37 +19,58 @@ uses
 
 type
 
-  { TControlledCamera }
+  ECameraInvalidZoomLimit = class(Exception)
+  public
+    constructor Create;
+  end;
 
-  TControlledCamera = class (TCamera)
+  TControlledCamera = class(TCamera)
+  public const
+    DefaultMouseSensitivity = 200;
+    DefaultZoomSpeed = 0.1;
+
+    DefaultPosBounds: TBounds3 = (
+      C1: (X: -Infinity; Y: -Infinity; Z: -Infinity);
+      C2: (X: Infinity; Y: Infinity; Z: Infinity)
+      );
+    DefaultPitchLimit: TBounds1 = (C1: -90; C2: +90);
+    DefaultZoomLimit: TBounds1 = (C1: 0.1; C2: Infinity);
+
   private
     FInput: TInputHandler;
     FMoving: Boolean;
 
     FOldMousePos: TVector2;
 
-    FLowerLimit, FUpperLimit: TVector3;
-    FZoomLowerLimit: Single;
+    FMouseSensitivity: Single;
     FZoomSpeed: Single;
-    FZoomUpperLimit: Single;
-    FPitchLowerLimit: Single;
-    FPitchUpperLimit: Single;
 
-    procedure SetLowerLimit(AValue: TVector3);
-    procedure SetLowerLimitX(AValue: Single);
-    procedure SetLowerLimitY(AValue: Single);
-    procedure SetLowerLimitZ(AValue: Single);
-    procedure SetPitchLowerLimit(AValue: Single);
-    procedure SetPitchUpperLimit(AValue: Single);
-    procedure SetUpperLimit(AValue: TVector3);
-    procedure SetUpperLimitX(AValue: Single);
-    procedure SetUpperLimitY(AValue: Single);
-    procedure SetUpperLimitZ(AValue: Single);
-    procedure SetZoomLowerLimit(AValue: Single);
-    procedure SetZoomUpperLimit(AValue: Single);
+    FPosBounds: TBounds3;
+    FPitchLimit: TBounds1;
+    FZoomLimit: TBounds1;
 
     procedure RecordMovement;
     procedure EnsureLimits;
+
+    procedure SetPosBounds(const Value: TBounds3);
+
+    procedure SetPosLowerBound(const Value: TVector3);
+    procedure SetPosLowerBoundX(const Value: Single);
+    procedure SetPosLowerBoundY(const Value: Single);
+    procedure SetPosLowerBoundZ(const Value: Single);
+
+    procedure SetPosUpperBound(const Value: TVector3);
+    procedure SetPosUpperBoundX(const Value: Single);
+    procedure SetPosUpperBoundY(const Value: Single);
+    procedure SetPosUpperBoundZ(const Value: Single);
+
+    procedure SetPitchLimit(const Value: TBounds1);
+    procedure SetPitchLowerLimit(const Value: Single);
+    procedure SetPitchUpperLimit(const Value: Single);
+
+    procedure SetZoomLimit(const Value: TBounds1);
+    procedure SetZoomLowerLimit(const Value: Single);
+    procedure SetZoomUpperLimit(const Value: Single);
 
   protected
     FDeltaRotation: TVector3;
@@ -57,35 +79,43 @@ type
 
     procedure ProcessMovement; virtual;
 
-
   public
     constructor Create(AFOV, AAspect, ANearClip, AFarClip: Single; AInput: TInputHandler);
-    destructor Destroy; override;
 
     property Moving: Boolean read FMoving;
 
-    property PosLowerLimit: TVector3 read FLowerLimit write SetLowerLimit;
-    property PosLowerLimitX: Single read FLowerLimit.X write SetLowerLimitX;
-    property PosLowerLimitY: Single read FLowerLimit.Y write SetLowerLimitY;
-    property PosLowerLimitZ: Single read FLowerLimit.Z write SetLowerLimitZ;
-    property PosUpperLimit: TVector3 read FUpperLimit write SetUpperLimit;
-    property PosUpperLimitX: Single read FUpperLimit.X write SetUpperLimitX;
-    property PosUpperLimitY: Single read FUpperLimit.Y write SetUpperLimitY;
-    property PosUpperLimitZ: Single read FUpperLimit.Z write SetUpperLimitZ;
-    property PitchUpperLimit: Single read FPitchUpperLimit write SetPitchUpperLimit;
-    property PitchLowerLimit: Single read FPitchLowerLimit write SetPitchLowerLimit;
+    property MouseSensitivity: Single read FMouseSensitivity write FMouseSensitivity;
 
     property ZoomSpeed: Single read FZoomSpeed write FZoomSpeed;
 
-    property ZoomLowerLimit: Single read FZoomLowerLimit write SetZoomLowerLimit;
-    property ZoomUpperLimit: Single read FZoomUpperLimit write SetZoomUpperLimit;
+    property PosBounds: TBounds3 read FPosBounds write SetPosBounds;
+
+    property PosLowerBound: TVector3 read FPosBounds.C1 write SetPosLowerBound;
+    property PosLowerBoundX: Single read FPosBounds.C1.X write SetPosLowerBoundX;
+    property PosLowerBoundY: Single read FPosBounds.C1.Y write SetPosLowerBoundY;
+    property PosLowerBoundZ: Single read FPosBounds.C1.Z write SetPosLowerBoundZ;
+
+    property PosUpperBound: TVector3 read FPosBounds.C2 write SetPosUpperBound;
+    property PosUpperBoundX: Single read FPosBounds.C2.X write SetPosUpperBoundX;
+    property PosUpperBoundY: Single read FPosBounds.C2.Y write SetPosUpperBoundY;
+    property PosUpperBoundZ: Single read FPosBounds.C2.Z write SetPosUpperBoundZ;
+
+    property PitchLimit: TBounds1 read FPitchLimit write SetPitchLimit;
+    property PitchLowerLimit: Single read FPitchLimit.C1 write SetPitchLowerLimit;
+    property PitchUpperLimit: Single read FPitchLimit.C2 write SetPitchUpperLimit;
+
+    property ZoomLimit: TBounds1 read FZoomLimit write SetZoomLimit;
+    property ZoomLowerLimit: Single read FZoomLimit.C1 write SetZoomLowerLimit;
+    property ZoomUpperLimit: Single read FZoomLimit.C2 write SetZoomUpperLimit;
 
     procedure Update;
+
   end;
 
-  { TSmoothControlledCamera }
-
   TSmoothControlledCamera = class(TControlledCamera)
+  public const
+    DefaultSmoothSpeed = 42;
+
   private
     FGLForm: TGLForm;
     FSmoothSpeed: Single;
@@ -102,11 +132,12 @@ type
 
 implementation
 
-uses
-  Math;
+{ ECameraInvalidZoomLimit }
 
-const
-  MouseSensitivity = 200;
+constructor ECameraInvalidZoomLimit.Create;
+begin
+  inherited Create('The lower camera zoom-limit must be greater than zero!');
+end;
 
 { TControlledCamera }
 
@@ -114,59 +145,175 @@ procedure TControlledCamera.RecordMovement;
 var
   DeltaMouse: TVector2;
 begin
-  with FInput do
+  if FInput.ButtonPressed(mbRight) or FInput.ButtonPressed(mbLeft) then
+    FOldMousePos := FInput.MousePos;
+
+  DeltaMouse := FInput.MousePos - FOldMousePos;
+
+  if FInput.KeyDown(VK_SHIFT) then
   begin
-    if ButtonPressed(mbRight) or ButtonPressed(mbLeft) then
-      FOldMousePos := FInput.MousePos;
-
-    DeltaMouse := FInput.MousePos - FOldMousePos;
-
-    if KeyDown(VK_SHIFT) then
+    // Alt Mode
+    if FInput.ButtonDown(mbRight) then
     begin
-      // Alt Mode
-      if ButtonDown(mbRight) then
-      begin
-        FDeltaRotation.Y := FDeltaRotation.Y + MouseSensitivity * DeltaMouse.X;
-        FDeltaPos.Y := FDeltaPos.Y - Location.OffsetZ * DeltaMouse.Y;
-      end
-      else if ButtonDown(mbLeft) then
-      begin
-        FDeltaPos := FDeltaPos - Location.Right * Location.OffsetZ * DeltaMouse.X;
-        FDeltaPos := FDeltaPos - Location.Look * Location.OffsetZ * DeltaMouse.Y;
-      end;
+      FDeltaRotation.Y := FDeltaRotation.Y + MouseSensitivity * DeltaMouse.X;
+      FDeltaPos.Y := FDeltaPos.Y - Location.OffsetZ * DeltaMouse.Y;
     end
-    else
+    else if FInput.ButtonDown(mbLeft) then
     begin
-      // Normal Mode
-      if ButtonDown(mbRight) then
-        FDeltaRotation.YX := FDeltaRotation.YX + MouseSensitivity * DeltaMouse
-      else if ButtonDown(mbLeft) then
-      begin
-        FDeltaPos := FDeltaPos - Location.Right * Location.OffsetZ * DeltaMouse.X;
-        FDeltaPos := FDeltaPos - Location.Up * Location.OffsetZ * DeltaMouse.Y;
-      end;
+      FDeltaPos := FDeltaPos - Location.Right * Location.OffsetZ * DeltaMouse.X;
+      FDeltaPos := FDeltaPos - Location.Look * Location.OffsetZ * DeltaMouse.Y;
     end;
-
-    if ButtonDown(mbLeft) or buttonDown(mbRight) then
-      FOldMousePos := FInput.MousePos;
-
-    if ScrolledUp then
-      FDeltaOffset.Z := Location.OffsetZ - Location.OffsetZ * (1 + FZoomSpeed);
-    if ScrolledDown then
-      FDeltaOffset.Z := Location.OffsetZ - Location.OffsetZ / (1 + FZoomSpeed);
-
+  end
+  else
+  begin
+    // Normal Mode
+    if FInput.ButtonDown(mbRight) then
+      FDeltaRotation.YX := FDeltaRotation.YX + MouseSensitivity * DeltaMouse
+    else if FInput.ButtonDown(mbLeft) then
+    begin
+      FDeltaPos := FDeltaPos - Location.Right * Location.OffsetZ * DeltaMouse.X;
+      FDeltaPos := FDeltaPos - Location.Up * Location.OffsetZ * DeltaMouse.Y;
+    end;
   end;
+
+  if FInput.ButtonDown(mbLeft) or FInput.ButtonDown(mbRight) then
+    FOldMousePos := FInput.MousePos;
+
+  if FInput.ScrolledUp then
+    FDeltaOffset.Z := Location.OffsetZ - Location.OffsetZ * (1 + FZoomSpeed);
+  if FInput.ScrolledDown then
+    FDeltaOffset.Z := Location.OffsetZ - Location.OffsetZ / (1 + FZoomSpeed);
 end;
 
 procedure TControlledCamera.EnsureLimits;
 begin
-  Location.Pos := Vec3(
-    EnsureRange(Location.Pos.X, FLowerLimit.X, FUpperLimit.X),
-    EnsureRange(Location.Pos.Y, FLowerLimit.Y, FUpperLimit.Y),
-    EnsureRange(Location.Pos.Z, FLowerLimit.Z, FUpperLimit.Z)
-  );
-  Location.PitchAngle := EnsureRange(Location.PitchAngle, FPitchLowerLimit, FPitchUpperLimit);
-  Location.OffsetZ := EnsureRange(Location.OffsetZ, FZoomLowerLimit, FZoomUpperLimit);
+  Location.Pos := PosBounds.Clamp(Location.Pos);
+  Location.PitchAngle := PitchLimit.Clamp(Location.PitchAngle);
+  Location.OffsetZ := ZoomLimit.Clamp(Location.OffsetZ);
+end;
+
+procedure TControlledCamera.SetPosBounds(const Value: TBounds3);
+begin
+  if PosBounds = Value then
+    Exit;
+  FPosBounds := Value;
+  Location.Pos := PosBounds.Clamp(Location.Pos);
+end;
+
+procedure TControlledCamera.SetPosLowerBound(const Value: TVector3);
+begin
+  if PosLowerBound = Value then
+    Exit;
+  FPosBounds.C1 := Value;
+  Location.Pos := PosLowerBound.Max(Location.Pos);
+end;
+
+procedure TControlledCamera.SetPosLowerBoundX(const Value: Single);
+begin
+  if PosLowerBoundX = Value then
+    Exit;
+  FPosBounds.C1.X := Value;
+  Location.PosX := Max(PosLowerBoundX, Location.Pos.X);
+end;
+
+procedure TControlledCamera.SetPosLowerBoundY(const Value: Single);
+begin
+  if PosLowerBoundY = Value then
+    Exit;
+  FPosBounds.C1.Y := Value;
+  Location.PosY := Max(PosLowerBoundY, Location.Pos.Y);
+end;
+
+procedure TControlledCamera.SetPosLowerBoundZ(const Value: Single);
+begin
+  if PosLowerBoundZ = Value then
+    Exit;
+  FPosBounds.C1.Z := Value;
+  Location.PosZ := Max(PosLowerBoundZ, Location.Pos.Z);
+end;
+
+procedure TControlledCamera.SetPosUpperBound(const Value: TVector3);
+begin
+  if PosUpperBound = Value then
+    Exit;
+  FPosBounds.C2 := Value;
+  Location.Pos := PosLowerBound.Min(Location.Pos);
+end;
+
+procedure TControlledCamera.SetPosUpperBoundX(const Value: Single);
+begin
+  if PosUpperBoundX = Value then
+    Exit;
+  FPosBounds.C2.X := Value;
+  Location.PosX := Min(PosLowerBoundX, Location.Pos.X);
+end;
+
+procedure TControlledCamera.SetPosUpperBoundY(const Value: Single);
+begin
+  if PosUpperBoundY = Value then
+    Exit;
+  FPosBounds.C2.Y := Value;
+  Location.PosY := Min(PosLowerBoundY, Location.Pos.Y);
+end;
+
+procedure TControlledCamera.SetPosUpperBoundZ(const Value: Single);
+begin
+  if PosUpperBoundZ = Value then
+    Exit;
+  FPosBounds.C2.Z := Value;
+  Location.PosZ := Min(PosLowerBoundZ, Location.Pos.Z);
+end;
+
+procedure TControlledCamera.SetPitchLimit(const Value: TBounds1);
+begin
+  if PitchLimit = Value then
+    Exit;
+  FPitchLimit := Value;
+  Location.PitchAngle := PitchLimit.Clamp(Location.PitchAngle);
+end;
+
+procedure TControlledCamera.SetPitchLowerLimit(const Value: Single);
+begin
+  if PitchLowerLimit = Value then
+    Exit;
+  FPitchLimit.C1 := Value;
+  Location.PitchAngle := Max(Location.PitchAngle, PitchLowerLimit);
+end;
+
+procedure TControlledCamera.SetPitchUpperLimit(const Value: Single);
+begin
+  if PitchUpperLimit = Value then
+    Exit;
+  FPitchLimit.C2 := Value;
+  Location.PitchAngle := Min(Location.PitchAngle, PitchUpperLimit);
+end;
+
+procedure TControlledCamera.SetZoomLimit(const Value: TBounds1);
+begin
+  if Value.C1 <= 0 then
+    raise ECameraInvalidZoomLimit.Create;
+  if ZoomLimit = Value then
+    Exit;
+  FZoomLimit := Value;
+  Location.OffsetZ := ZoomLimit.Clamp(Location.OffsetZ);
+end;
+
+procedure TControlledCamera.SetZoomLowerLimit(const Value: Single);
+begin
+  if Value <= 0 then
+    raise ECameraInvalidZoomLimit.Create;
+  if ZoomLowerLimit = Value then
+    Exit;
+  FZoomLimit.C1 := Value;
+  Location.OffsetZ := Max(Location.OffsetZ, ZoomLowerLimit);
+end;
+
+procedure TControlledCamera.SetZoomUpperLimit(const Value: Single);
+begin
+  if ZoomUpperLimit = Value then
+    Exit;
+  FZoomLimit.C2 := Value;
+  Location.OffsetZ := Min(Location.OffsetZ, ZoomUpperLimit);
 end;
 
 procedure TControlledCamera.ProcessMovement;
@@ -180,132 +327,18 @@ begin
   FDeltaOffset := 0;
 end;
 
-procedure TControlledCamera.SetLowerLimit(AValue: TVector3);
-begin
-  if FLowerLimit = AValue then
-    Exit;
-  FLowerLimit := AValue;
-  Location.Pos := Vec3(
-    Max(Location.Pos.X, AValue.X),
-    Max(Location.Pos.Y, AValue.Y),
-    Max(Location.Pos.Z, AValue.Z)
-  );
-end;
-
-procedure TControlledCamera.SetLowerLimitX(AValue: Single);
-begin
-  if FLowerLimit.X = AValue then
-    Exit;
-  FLowerLimit.X := AValue;
-  Location.PosX := Max(Location.Pos.X, AValue);
-end;
-
-procedure TControlledCamera.SetLowerLimitY(AValue: Single);
-begin
-  if FLowerLimit.Y = AValue then
-    Exit;
-  FLowerLimit.Y := AValue;
-  Location.PosY := Max(Location.Pos.Y, AValue);
-end;
-
-procedure TControlledCamera.SetLowerLimitZ(AValue: Single);
-begin
-  if FLowerLimit.Z = AValue then
-    Exit;
-  FLowerLimit.Z := AValue;
-  Location.PosZ := Max(Location.Pos.Z, AValue);
-end;
-
-procedure TControlledCamera.SetPitchLowerLimit(AValue: Single);
-begin
-  if FPitchLowerLimit = AValue then
-    Exit;
-  FPitchLowerLimit := AValue;
-  Location.PitchAngle := Max(Location.PitchAngle, AValue);
-end;
-
-procedure TControlledCamera.SetPitchUpperLimit(AValue: Single);
-begin
-  if FPitchUpperLimit = AValue then
-    Exit;
-  FPitchUpperLimit := AValue;
-  Location.PitchAngle := Min(Location.PitchAngle, AValue);
-end;
-
-procedure TControlledCamera.SetUpperLimit(AValue: TVector3);
-begin
-  if FUpperLimit = AValue then
-    Exit;
-  FUpperLimit := AValue;
-  Location.Pos := Vec3(
-    Min(Location.Pos.X, AValue.X),
-    Min(Location.Pos.Y, AValue.Y),
-    Min(Location.Pos.Z, AValue.Z)
-  );
-end;
-
-procedure TControlledCamera.SetUpperLimitX(AValue: Single);
-begin
-  if FUpperLimit.X = AValue then
-    Exit;
-  FUpperLimit.X := AValue;
-  Location.PosX := Min(Location.Pos.X, AValue);
-end;
-
-procedure TControlledCamera.SetUpperLimitY(AValue: Single);
-begin
-  if FUpperLimit.Y = AValue then
-    Exit;
-  FUpperLimit.Y := AValue;
-  Location.PosY := Min(Location.Pos.Y, AValue);
-end;
-
-procedure TControlledCamera.SetUpperLimitZ(AValue: Single);
-begin
-  if FUpperLimit.Z = AValue then
-    Exit;
-  FUpperLimit.Z := AValue;
-  Location.PosZ := Min(Location.Pos.Z, AValue);
-end;
-
-procedure TControlledCamera.SetZoomLowerLimit(AValue: Single);
-begin
-  if AValue <= 0 then
-    raise Exception.Create('Zoom-Limit must be greater than zero!');
-  if FZoomLowerLimit = AValue then
-    Exit;
-  FZoomLowerLimit := AValue;
-  Location.OffsetZ := Max(Location.OffsetZ, AValue);
-end;
-
-procedure TControlledCamera.SetZoomUpperLimit(AValue: Single);
-begin
-  if FZoomUpperLimit = AValue then
-    Exit;
-  FZoomUpperLimit := AValue;
-  Location.OffsetZ := Min(Location.OffsetZ, AValue);
-end;
-
 constructor TControlledCamera.Create(AFOV, AAspect, ANearClip, AFarClip: Single; AInput: TInputHandler);
 begin
   inherited Create(AFOV, AAspect, ANearClip, AFarClip);
 
   FInput := AInput;
 
-  PosLowerLimit := -InfVec3;
-  PosUpperLimit := +InfVec3;
+  MouseSensitivity := DefaultMouseSensitivity;
+  ZoomSpeed := DefaultZoomSpeed;
 
-  PitchLowerLimit := -90;
-  PitchUpperLimit := +90;
-
-  ZoomLowerLimit := 0.1;
-  ZoomUpperLimit := Infinity;
-  ZoomSpeed := 0.1;
-end;
-
-destructor TControlledCamera.Destroy;
-begin
-  inherited;
+  PosBounds := DefaultPosBounds;
+  PitchLimit := DefaultPitchLimit;
+  ZoomLimit := DefaultZoomLimit;
 end;
 
 procedure TControlledCamera.Update;
@@ -320,7 +353,6 @@ begin
     RecordMovement;
 
   ProcessMovement;
-
   EnsureLimits;
 end;
 
@@ -350,7 +382,7 @@ constructor TSmoothControlledCamera.Create(AFOV, AAspect, ANearClip, AFarClip: S
 begin
   inherited Create(AFOV, AAspect, ANearClip, AFarClip, AGLForm.Input);
   FGLForm := AGLForm;
-  FSmoothSpeed := 42;
+  FSmoothSpeed := DefaultSmoothSpeed;
 end;
 
 end.

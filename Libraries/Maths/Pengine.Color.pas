@@ -73,6 +73,7 @@ type
     class operator Implicit(AValue: TColorRGBA): TColorRGB;
     class operator Implicit(AValue: TColorRGB): TColorRGBA;
     class operator Implicit(AValue: TColor): TColorRGB;
+    class operator Implicit(AValue: Single): TColorRGB;
 
     function ToWinColor: TColor;
 
@@ -291,6 +292,11 @@ end;
 class operator TColorRGB.Implicit(AValue: TColor): TColorRGB;
 begin
   Result := TColorRGB.Create(AValue);
+end;
+
+class operator TColorRGB.Implicit(AValue: Single): TColorRGB;
+begin
+  Result := TColorRGB.Gray(AValue);
 end;
 
 { TColorRGBA }

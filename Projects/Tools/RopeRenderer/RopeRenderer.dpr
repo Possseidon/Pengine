@@ -2,15 +2,18 @@ program RopeRenderer;
 
 uses
   Vcl.Forms,
-  Main in 'Main.pas' {Form3},
-  RopeDefine in 'RopeDefine.pas';
+  Main in 'Main.pas' {frmMain},
+  RopeDefine in 'RopeDefine.pas',
+  ModelShader in 'ModelShader.pas';
 
 {$R *.res}
 
 begin
+  ReportMemoryLeaksOnShutdown := True;
+
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
-  Application.CreateForm(TForm3, Form3);
+  Application.CreateForm(TfrmMain, frmMain);
   Application.Run;
 end.
 

@@ -52,11 +52,10 @@ type
   protected
     class function CreateData: T; virtual; abstract;
 
-    /// <summary>Call this in the class constructor of each non-abstract sub-class</summary>
+    /// <summary>Call this in the class constructor of each non-abstract sub-class.</summary>
     class procedure AddToResourceManager;
 
   public
-
     /// <summary>Query the Data behind the Resource</summary>
     class function Data: T;
 
@@ -87,7 +86,7 @@ type
   TResourceParameterMap<T: class> = class(TValueMap<TResourceParameter, T, TResourceParameterHasher>)
   protected
     function CreateBucket: THashBase.TBucket; override;
-    function CreateCopy(AAutoRehash: Boolean): THashBase; override;
+    function CreateCopy(AHashMode: THashMode): THashBase; override;
   end;
 
   { TParamResoruce<T> }
@@ -207,7 +206,7 @@ begin
 
 end;
 
-function TResourceParameterMap<T>.CreateCopy(AAutoRehash: Boolean): THashBase;
+function TResourceParameterMap<T>.CreateCopy(AHashMode: THashMode): THashBase;
 begin
   raise ENotSupportedException.Create('A resource parameter map cannot be copied.');
 end;

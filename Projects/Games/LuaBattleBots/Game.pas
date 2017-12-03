@@ -3,7 +3,14 @@ unit Game;
 interface
 
 uses
-  EntityDefine, Lists, Camera, VectorGeometry, Matrix, LuaDefine, GameLogicDefine;
+  Pengine.Collections,
+  Pengine.Camera,
+  Pengine.Vector,
+  Pengine.Matrix,
+  Pengine.Lua,
+
+  EntityDefine,
+  GameLogicDefine;
 
 type
 
@@ -12,7 +19,7 @@ type
     FGameLogic: TGameLogic;
 
     FCamera: TCamera;
-    FEntities: TObjectArray<TEntity>;
+    FEntities: TRefArray<TEntity>;
     FLuaUpdateTime: Single;
 
     FLua: TLua;
@@ -34,13 +41,13 @@ implementation
 procedure TGame.AddEntity(AEntity: TEntity);
 begin
   FEntities.Add(AEntity);
-  FCamera.AddRenderObject(AEntity);
+  FCamera.AddRenderable(AEntity);
 end;
 
 constructor TGame.Create(ACamera: TCamera);
 begin
   FCamera := ACamera;
-  FEntities := TObjectArray<TEntity>.Create;
+  FEntities := TRefArray<TEntity>.Create(True);
 
   FLua := TLua.Create;
 end;
@@ -50,7 +57,7 @@ var
   Entity: TEntity;
 begin
   for Entity in FEntities do
-    FCamera.DelRenderObject(Entity);
+    FCamera.DelRenderable(Entity);
   FEntities.Free;
 
   FLua.Free;

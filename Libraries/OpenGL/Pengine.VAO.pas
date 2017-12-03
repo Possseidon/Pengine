@@ -6,6 +6,7 @@ uses
   dglOpenGL,
 
   System.SysUtils,
+  System.Math,
 
   Pengine.Camera,
   Pengine.GLEnums,
@@ -15,7 +16,8 @@ uses
   Pengine.CollectionInterfaces,
   Pengine.Matrix,
   Pengine.Shader,
-  Pengine.Vector;
+  Pengine.Vector,
+  Pengine.IntMaths;
 
 type
 
@@ -109,8 +111,6 @@ type
     procedure SubVertex(const AData; AIndex: Integer);
   end;
 
-  { TVAO }
-
   TVAO = class(TGLObject, IRenderable)
   private
     FVBO: TVBO;
@@ -130,6 +130,9 @@ type
     function GetVisible: Boolean;
     procedure SetVisible(const Value: Boolean);
 
+    function GetLocation: TLocation;
+    procedure SetLocation(const Value: TLocation);
+
   protected
     procedure BeforeRender; virtual;
     procedure AfterRender; virtual;
@@ -146,15 +149,14 @@ type
     procedure Bind; override;
     class procedure Unbind; override;
 
-    procedure Render; virtual;
-    procedure RenderTo(ACount: Integer); virtual;
-    procedure RenderFrom(AFirst: Integer); virtual;
-    procedure RenderFromTo(AFirst, ACount: Integer); virtual;
-
     property Visible: Boolean read GetVisible write SetVisible;
-    function Location: TLocation; virtual;
-    function Bounds: PBounds3; virtual;
+    property Location: TLocation read GetLocation write SetLocation;
+    function CullPoints: IIterable<TVector3>; virtual;
+    function CullRadius: Single; virtual;
     function RenderableChildren: IIterable<IRenderable>; virtual;
+
+    procedure Render; virtual;
+    // procedure Render(const ABounds: TIntBounds1); virtual;
 
     property Shader: TShader read FShader;
 
@@ -177,16 +179,16 @@ type
 
   end;
 
-  { TVAOProxy }
-
-  TVAOProxy = class(TInterfaceBase, IRenderable)
+  TVAOProxy = class(TRenderable)
   private
     FVisible: Boolean;
     FSourceVAO: TVAO;
     FLocation: TLocation;
 
-    function GetVisible: Boolean;
     procedure SetVisible(const Value: Boolean);
+
+  protected
+    function GetVisible: Boolean; override;
 
   public
     constructor Create(ASourceVAO: TVAO);
@@ -194,18 +196,12 @@ type
 
     property Visible: Boolean read GetVisible write SetVisible;
 
-    function Bounds: PBounds3;
-    function Location: TLocation;
-
-    function RenderableChildren: IIterable<IRenderable>; virtual;
-
-    procedure Render;
+    procedure Render; override;
 
     property SourceVAO: TVAO read FSourceVAO write FSourceVAO;
 
   end;
 
-  { TAutoUpdateVAO }
   // Automatically calls BuildVAO if NotifyChanges got called or CheckForChanges returns true
   TAutoUpdateVAO = class abstract(TVAO)
   private
@@ -218,56 +214,11 @@ type
     procedure NotifyChanges;
 
     procedure Render; override;
-    procedure RenderTo(ACount: Integer); override;
-    procedure RenderFrom(AFirst: Integer); override;
-    procedure RenderFromTo(AFirst, ACount: Integer); override;
+    // procedure Render(const ABounds: TIntBounds1); override;
+
   end;
 
 implementation
-
-{ TAutoUpdateVAO }
-
-procedure TAutoUpdateVAO.Build;
-begin
-  if not CheckForChanges then
-    Exit;
-  BuildVAO;
-  FChanged := False;
-end;
-
-procedure TAutoUpdateVAO.NotifyChanges;
-begin
-  FChanged := True;
-end;
-
-function TAutoUpdateVAO.CheckForChanges: Boolean;
-begin
-  Result := FChanged;
-end;
-
-procedure TAutoUpdateVAO.Render;
-begin
-  Build;
-  inherited Render;
-end;
-
-procedure TAutoUpdateVAO.RenderTo(ACount: Integer);
-begin
-  Build;
-  inherited RenderTo(ACount);
-end;
-
-procedure TAutoUpdateVAO.RenderFrom(AFirst: Integer);
-begin
-  Build;
-  inherited RenderFrom(AFirst);
-end;
-
-procedure TAutoUpdateVAO.RenderFromTo(AFirst, ACount: Integer);
-begin
-  Build;
-  inherited RenderFromTo(AFirst, ACount);
-end;
 
 { EVBOUnmappable }
 
@@ -313,71 +264,6 @@ end;
 
 { TVAO }
 
-procedure TVAO.Bind;
-begin
-  if BoundVAO <> Self then
-  begin
-    glBindVertexArray(GLName);
-    BoundVAO := Self;
-  end;
-end;
-
-function TVAO.Bounds: PBounds3;
-begin
-  Result := nil;
-end;
-
-function TVAO.RenderableChildren: IIterable<IRenderable>;
-begin
-  Result := nil;
-end;
-
-procedure TVAO.BeforeRender;
-begin
-  FShader.Enable;
-end;
-
-procedure TVAO.AddVertex(const AData);
-begin
-  FVBO.AddVertex(AData);
-end;
-
-procedure TVAO.AddVertices(const AData; ACount: Integer);
-begin
-  FVBO.AddVertices(AData, ACount);
-end;
-
-procedure TVAO.AfterRender;
-begin
-  // do nothing after rendering at the moment by default
-end;
-
-constructor TVAO.Create(AShader: TShader; ABeginMode: TGLBeginMode);
-begin
-  inherited Create;
-  FShader := AShader;
-  FBeginMode := ABeginMode;
-  FVBO := TVBO.Create(FShader.AttributeStride);
-  GenAttributes;
-  FVisible := True;
-end;
-
-procedure TVAO.DeleteObject(var AGLName: Cardinal);
-begin
-  glDeleteVertexArrays(1, @AGLName);
-end;
-
-destructor TVAO.Destroy;
-begin
-  FVBO.Free;
-  inherited;
-end;
-
-procedure TVAO.GenObject(var AGLName: Cardinal);
-begin
-  glGenVertexArrays(1, @AGLName);
-end;
-
 procedure TVAO.GenAttributes;
 var
   I: Integer;
@@ -402,24 +288,14 @@ begin
   end;
 end;
 
-procedure TVAO.Generate(const AData; ADataSize: Integer; AUsage: TGLBufferUsage);
+function TVAO.GetLocation: TLocation;
 begin
-  FVBO.Generate(AData, ADataSize, AUsage);
-end;
-
-procedure TVAO.Generate(AMaxSize: Integer; AUsage: TGLBufferUsage);
-begin
-  FVBO.Generate(AMaxSize, AUsage);
+  Result := nil;
 end;
 
 function TVAO.GetMaxSize: Integer;
 begin
   Result := FVBO.MaxSize;
-end;
-
-function TVAO.GetObjectType: TGLObjectType;
-begin
-  Result := otVertexArray;
 end;
 
 function TVAO.GetSize: Integer;
@@ -432,12 +308,89 @@ begin
   Result := FVisible;
 end;
 
-procedure TVAO.Map(AAccess: TGLBufferAccess);
+procedure TVAO.SetVisible(const Value: Boolean);
 begin
-  FVBO.Map(AAccess);
+  FVisible := Value;
 end;
 
-function TVAO.Location: TLocation;
+procedure TVAO.BeforeRender;
+begin
+  FShader.Enable;
+end;
+
+procedure TVAO.AfterRender;
+begin
+  // do nothing after rendering at the moment by default
+end;
+
+procedure TVAO.GenObject(var AGLName: Cardinal);
+begin
+  glGenVertexArrays(1, @AGLName);
+end;
+
+procedure TVAO.DeleteObject(var AGLName: Cardinal);
+begin
+  glDeleteVertexArrays(1, @AGLName);
+end;
+
+function TVAO.GetObjectType: TGLObjectType;
+begin
+  Result := otVertexArray;
+end;
+
+procedure TVAO.SetGLLabel(const Value: AnsiString);
+begin
+  inherited;
+  FVBO.GLLabel := Value + ' [VBO]';
+end;
+
+procedure TVAO.SetLocation(const Value: TLocation);
+begin
+  Location.Assign(Value);
+end;
+
+constructor TVAO.Create(AShader: TShader; ABeginMode: TGLBeginMode);
+begin
+  inherited Create;
+  FShader := AShader;
+  FBeginMode := ABeginMode;
+  FVBO := TVBO.Create(FShader.AttributeStride);
+  GenAttributes;
+  FVisible := True;
+end;
+
+destructor TVAO.Destroy;
+begin
+  FVBO.Free;
+  inherited;
+end;
+
+procedure TVAO.Bind;
+begin
+  if BoundVAO <> Self then
+  begin
+    glBindVertexArray(GLName);
+    BoundVAO := Self;
+  end;
+end;
+
+class procedure TVAO.Unbind;
+begin
+  glBindVertexArray(0);
+  BoundVAO := nil;
+end;
+
+function TVAO.CullPoints: IIterable<TVector3>;
+begin
+  Result := nil;
+end;
+
+function TVAO.CullRadius: Single;
+begin
+  Result := Infinity;
+end;
+
+function TVAO.RenderableChildren: IIterable<IRenderable>;
 begin
   Result := nil;
 end;
@@ -452,69 +405,39 @@ begin
   AfterRender;
 end;
 
-procedure TVAO.RenderFrom(AFirst: Integer);
+procedure TVAO.Generate(AMaxSize: Integer; AUsage: TGLBufferUsage);
 begin
-  if (FVBO.Size = 0) or (Visible = False) then
-    Exit;
-  if AFirst >= FVBO.Size then
-    raise EVBOOutOfRange.Create(AFirst, FVBO.MaxSize);
-  BeforeRender;
-  Bind;
-  glDrawArrays(Ord(FBeginMode), AFirst, FVBO.Size);
-  AfterRender;
+  FVBO.Generate(AMaxSize, AUsage);
 end;
 
-procedure TVAO.RenderFromTo(AFirst, ACount: Integer);
+procedure TVAO.Generate(const AData; ADataSize: Integer; AUsage: TGLBufferUsage);
 begin
-  if (FVBO.Size = 0) or (Visible = False) then
-    Exit;
-  if AFirst >= FVBO.MaxSize then
-    raise EVBOOutOfRange.Create(AFirst, FVBO.MaxSize);
-  if AFirst + ACount > FVBO.MaxSize then
-    raise EVBOOutOfRange.Create(AFirst + ACount, FVBO.MaxSize);
-  BeforeRender;
-  Bind;
-  glDrawArrays(Ord(FBeginMode), AFirst, ACount);
-  AfterRender;
+  FVBO.Generate(AData, ADataSize, AUsage);
 end;
 
-procedure TVAO.RenderTo(ACount: Integer);
+procedure TVAO.Map(AAccess: TGLBufferAccess);
 begin
-  if (FVBO.Size = 0) or (Visible = False) then
-    Exit;
-  if ACount >= FVBO.Size then
-    raise EVBOOutOfRange.Create(ACount, FVBO.MaxSize);
-  BeforeRender;
-  Bind;
-  glDrawArrays(Ord(FBeginMode), 0, ACount);
-  AfterRender;
-end;
-
-procedure TVAO.SetGLLabel(const Value: AnsiString);
-begin
-  inherited;
-  FVBO.GLLabel := Value + ' [VBO]';
-end;
-
-procedure TVAO.SetVisible(const Value: Boolean);
-begin
-  FVisible := Value;
-end;
-
-procedure TVAO.SubVertex(const AData; AIndex: Integer);
-begin
-  FVBO.SubVertex(AData, AIndex);
-end;
-
-class procedure TVAO.Unbind;
-begin
-  glBindVertexArray(0);
-  BoundVAO := nil;
+  FVBO.Map(AAccess);
 end;
 
 procedure TVAO.Unmap;
 begin
   FVBO.Unmap;
+end;
+
+procedure TVAO.AddVertex(const AData);
+begin
+  FVBO.AddVertex(AData);
+end;
+
+procedure TVAO.AddVertices(const AData; ACount: Integer);
+begin
+  FVBO.AddVertices(AData, ACount);
+end;
+
+procedure TVAO.SubVertex(const AData; AIndex: Integer);
+begin
+  FVBO.SubVertex(AData, AIndex);
 end;
 
 { TVBO }
@@ -637,22 +560,33 @@ begin
   inherited Create('A VBO must stay bound as long as it is mapped');
 end;
 
+{ TAutoUpdateVAO }
+
+procedure TAutoUpdateVAO.Build;
+begin
+  if not CheckForChanges then
+    Exit;
+  BuildVAO;
+  FChanged := False;
+end;
+
+function TAutoUpdateVAO.CheckForChanges: Boolean;
+begin
+  Result := FChanged;
+end;
+
+procedure TAutoUpdateVAO.NotifyChanges;
+begin
+  FChanged := True;
+end;
+
+procedure TAutoUpdateVAO.Render;
+begin
+  Build;
+  inherited;
+end;
+
 { TVAOProxy }
-
-function TVAOProxy.Bounds: PBounds3;
-begin
-  Result := FSourceVAO.Bounds;
-end;
-
-function TVAOProxy.Location: TLocation;
-begin
-  Result := FLocation;
-end;
-
-function TVAOProxy.RenderableChildren: IIterable<IRenderable>;
-begin
-  Result := nil;
-end;
 
 constructor TVAOProxy.Create(ASourceVAO: TVAO);
 begin

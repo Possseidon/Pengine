@@ -277,7 +277,7 @@ type
 
   TTexturePage = class(TTexture2D)
   private
-    FTextures: TObjectArray<TTextureItem>;
+    FTextures: TRefArray<TTextureItem>;
     FTextureIDs: TStringMap<TTextureID>;
     FPxlSize: Integer;
 
@@ -776,35 +776,6 @@ const
     GetMem(Res, Size);
     FData[ATextureType] := Res;
 
-{$IFDEF FPC}
-    if Png.Transparent then
-    begin
-      P := Png.RawImage.Data + Png.RawImage.DataSize;
-      for Y := Png.Height - 1 downto 0 do
-      begin
-        Dec(P, Png.Width * 4);
-        Move(P^, Res^, Png.Width * 4);
-        Inc(Res, Png.Width * 4);
-      end;
-    end
-    else
-    begin
-      P := Png.RawImage.Data + Png.RawImage.DataSize;
-      for Y := Png.Height - 1 downto 0 do
-      begin
-        Dec(P, Png.Width * 4);
-        Move(P^, Res^, Png.Width * 4);
-        Inc(Res, 3);
-        for X := 0 to Png.Width - 1 do
-        begin
-          Res^ := $FF;
-          Inc(Res, 4);
-        end;
-        Dec(Res, 3);
-      end;
-    end;
-
-{$ELSE}
     for Y := Png.Height - 1 downto 0 do
     begin
       Alpha := Png.AlphaScanline[Y];
@@ -828,7 +799,6 @@ const
       end;
     end;
 
-{$ENDIF}
     Png.Free;
 
     if ATextureType = ttMain then
@@ -1106,7 +1076,7 @@ end;
 constructor TTexturePage.Create;
 begin
   inherited Create;
-  FTextures := TObjectArray<TTextureItem>.Create;
+  FTextures := TRefArray<TTextureItem>.Create(True);
   FTextureIDs := TStringMap<TTextureID>.Create;
 end;
 
@@ -1170,12 +1140,8 @@ begin
 end;
 
 function TTexturePage.HalfPixelInset(ABounds: TBounds2): TBounds2;
-var
-  Amount: Single;
 begin
-  Amount := 1 / (FPxlSize * 2);
-  Result.C1 := ABounds.C1 + Amount;
-  Result.C2 := ABounds.C2 - Amount;
+  Result := ABounds.Inset(1 / (FPxlSize * 2));
 end;
 
 function TTexturePage.GetBounds(ID: TTextureID): TBounds2;

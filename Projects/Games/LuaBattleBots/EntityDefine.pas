@@ -3,8 +3,20 @@ unit EntityDefine;
 interface
 
 uses
-  VAOManager, LuaHeader, Math, LuaDefine, VectorGeometry, DebugConsoleDefine, IntegerMaths, SysUtils, Resources,
-  Lists, Camera;
+  System.SysUtils,
+  System.Math,
+
+  Pengine.VAO,
+  Pengine.LuaHeader,
+  Pengine.Lua,
+  Pengine.Vector,
+  Pengine.DebugConsole,
+  Pengine.IntMaths,
+  Pengine.Collections,
+  Pengine.CollectionInterfaces,
+  Pengine.Camera,
+
+  Resources;
 
 type
 
@@ -124,7 +136,7 @@ type
       function GetCurrent: IRenderable; override;
     end;
 
-    TRenderableIterable = class(TRefCountedIterable<IRenderable>)
+    TRenderableIterable = class(TIterable<IRenderable>)
     private
       FBotCore: TBotCore;
     public
@@ -421,7 +433,7 @@ begin
   FParent := AParent;
   FSide := ASide;
   Location.Parent := FParent.Location;
-  Location.Pos := VecDir[ASide];
+  Location.Pos := Vec3Dir[ASide];
   {
   FLua.L.GetGlobal('modules');
   FLua.L.GetField(PPAnsiChar(@BasicPosNames[FSide])^, 1);
@@ -504,7 +516,7 @@ var
 begin
   FLua.L.CreateTable(0, 6);
 
-  for Name in BasicPosNames do
+  for Name in BasicPrepositionNames do
   begin
     FLua.L.NewTable;
     FLua.L.SetField(PPAnsiChar(@Name)^, 1);

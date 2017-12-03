@@ -116,6 +116,7 @@ type
 
     property Key: K read FKey;
     property Value: V read FValue;
+
   end;
 
   // TODO: XmlDoc
@@ -369,11 +370,11 @@ type
     function FindIndexAsArray(AFunc: TFindFunc<T>): TIntArray; overload;
 
     // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>; overload; virtual;
+    function FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>; overload;
     // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFuncRef<T>): TArray<T>; overload; virtual;
+    function FindAsArray(AFunc: TFindFuncRef<T>): TArray<T>; overload;
     // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFunc<T>): TArray<T>; overload; virtual;
+    function FindAsArray(AFunc: TFindFunc<T>): TArray<T>; overload;
 
     {$ENDREGION} //
 
@@ -538,67 +539,251 @@ type
 
   end;
 
-  // TODO: XmlDoc
-  TRefArray<T: class> = class(TArray<T>)
+  TFindableArray<T> = class abstract(TArray<T>)
   public
     // TODO: XmlDoc
-    function FindAsRefArray(AFunc: TFindFuncStatic<T>): TRefArray<T>; overload; inline;
-    // TODO: XmlDoc
-    function FindAsRefArray(AFunc: TFindFuncRef<T>): TRefArray<T>; overload; inline;
-    // TODO: XmlDoc
-    function FindAsRefArray(AFunc: TFindFunc<T>): TRefArray<T>; overload; inline;
-
-    // TODO: XmlDoc
-    function Copy: TRefArray<T>; reintroduce; inline;
-
-    // TODO: XmlDoc
-    function Find(AItem: T): Integer; inline;
+    function Find(AItem: T): Integer; virtual; abstract;
     // TODO: XmlDoc
     procedure Del(AItem: T);
+
+  end;
+
+  // TODO: XmlDoc
+  TBaseRefArray<T: class> = class abstract(TFindableArray<T>)
+  protected
+    function GetOwnsObjects: Boolean; virtual; abstract;
+
+    function ShouldFreeItems: Boolean; override;
+    procedure ItemRemoved(AIndex: Integer); override;
+
+  public
+    // TODO: XmlDoc
+    function Find(AItem: T): Integer; override;
 
     // TODO: XmlDoc
     class function ItemToString(AItem: T): string; override;
 
+    property OwnsObjects: Boolean read GetOwnsObjects;
+
+  end;
+
+  TRefArray<T: class> = class(TBaseRefArray<T>)
+  private
+    FOwnsObjects: Boolean;
+
+    procedure SetOwnsObjects(const Value: Boolean);
+
+  protected
+    function GetOwnsObjects: Boolean; override;
+
+  public
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+    constructor Create(AOwnsObjects: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+      overload;
+
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncStatic<T>): TRefArray<T>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncRef<T>): TRefArray<T>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFunc<T>): TRefArray<T>; overload; inline;
+
+    // TODO: XmlDoc
+    function Copy: TRefArray<T>; reintroduce; inline;
+
+    property OwnsObjects: Boolean read GetOwnsObjects write SetOwnsObjects;
+
+  end;
+
+  // TODO: XmlDoc DO NOT COPY THIS, IT WON'T KEEP ITS LINK (probably)
+  TRefArrayOwnLinked<T: class> = class(TBaseRefArray<T>)
+  private
+    FOwnsObjectsLink: PBoolean;
+
+  protected
+    function GetOwnsObjects: Boolean; override;
+
+  public
+    constructor Create(AOwnsObjectsLink: PBoolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+
   end;
 
   // TODO: XmlDoc
-  TObjectArray<T: class> = class(TRefArray<T>)
+  TBaseRefPairArray<K: class; V> = class abstract(TArray<TPair<K, V>>)
   protected
+    function GetOwnsKeys: Boolean; virtual; abstract;
+
     function ShouldFreeItems: Boolean; override;
     procedure ItemRemoved(AIndex: Integer); override;
+
   public
-    function CreateCopy: TArray; override;
+    property OwnsKeys: Boolean read GetOwnsKeys;
+
+  end;
+
+  TRefPairArray<K: class; V> = class(TBaseRefPairArray<K, V>)
+  private
+    FOwnsKeys: Boolean;
+
+    procedure SetOwnsKeys(const Value: Boolean);
+
+  protected
+    function GetOwnsKeys: Boolean; override;
+
+  public
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+    constructor Create(AOwnsKeys: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+      overload;
+
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefPairArray<K, V>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TRefPairArray<K, V>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TRefPairArray<K, V>; overload; inline;
+
+    // TODO: XmlDoc
+    function Copy: TRefPairArray<K, V>; reintroduce; inline;
+
+    property OwnsKeys: Boolean read GetOwnsKeys write SetOwnsKeys;
+
+  end;
+
+  // TODO: XmlDoc DO NOT COPY THIS, IT WON'T KEEP ITS LINK (probably)
+  TRefPairArrayOwnLinked<K: class; V> = class(TBaseRefPairArray<K, V>)
+  private
+    FOwnsKeysLink: PBoolean;
+
+  protected
+    function GetOwnsKeys: Boolean; override;
+
+  public
+    constructor Create(AOwnsKeysLink: PBoolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+
   end;
 
   // TODO: XmlDoc
-  TObjectPairArray<K: class; V> = class(TArray<TPair<K, V>>)
+  TBaseToRefPairArray<K; V: class> = class abstract(TArray<TPair<K, V>>)
   protected
+    function GetOwnsValues: Boolean; virtual; abstract;
+
     function ShouldFreeItems: Boolean; override;
     procedure ItemRemoved(AIndex: Integer); override;
+
   public
-    function Copy: TObjectPairArray<K, V>; reintroduce; inline;
+    property OwnsValues: Boolean read GetOwnsValues;
+
+  end;
+
+  TToRefPairArray<K; V: class> = class(TBaseToRefPairArray<K, V>)
+  private
+    FOwnsValues: Boolean;
+
+    procedure SetOwnsValues(const Value: Boolean);
+
+  protected
+    function GetOwnsValues: Boolean; override;
+
+  public
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+    constructor Create(AOwnsValues: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+      overload;
+
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TToRefPairArray<K, V>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TToRefPairArray<K, V>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TToRefPairArray<K, V>; overload; inline;
+
+    // TODO: XmlDoc
+    function Copy: TToRefPairArray<K, V>; reintroduce; inline;
+
+    property OwnsValues: Boolean read GetOwnsValues write SetOwnsValues;
+
+  end;
+
+  // TODO: XmlDoc DO NOT COPY THIS, IT WON'T KEEP ITS LINK (probably)
+  TToRefPairArrayOwnLinked<K; V: class> = class(TBaseToRefPairArray<K, V>)
+  private
+    FOwnsValuesLink: PBoolean;
+
+  protected
+    function GetOwnsValues: Boolean; override;
+
+  public
+    constructor Create(AOwnsValuesLink: PBoolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+
   end;
 
   // TODO: XmlDoc
-  TToObjectPairArray<K; V: class> = class(TArray<TPair<K, V>>)
+  TBaseRefRefPairArray<K, V: class> = class abstract(TArray<TPair<K, V>>)
   protected
+    function GetOwnsKeys: Boolean; virtual; abstract;
+    function GetOwnsValues: Boolean; virtual; abstract;
+
     function ShouldFreeItems: Boolean; override;
     procedure ItemRemoved(AIndex: Integer); override;
+
   public
-    function Copy: TToObjectPairArray<K, V>; reintroduce; inline;
+    // TODO: XmlDoc
+    class function ItemToString(AItem: TPair<K, V>): string; override;
+
+    property OwnsKeys: Boolean read GetOwnsKeys;
+    property OwnsValues: Boolean read GetOwnsValues;
+
   end;
 
-  // TODO: XmlDoc
-  TObjectObjectPairArray<K, V: class> = class(TArray<TPair<K, V>>)
+  TRefRefPairArray<K, V: class> = class(TBaseRefRefPairArray<K, V>)
+  private
+    FOwnsKeys: Boolean;
+    FOwnsValues: Boolean;
+
+    procedure SetOwnsKeys(const Value: Boolean);
+    procedure SetOwnsValues(const Value: Boolean);
+
   protected
-    function ShouldFreeItems: Boolean; override;
-    procedure ItemRemoved(AIndex: Integer); override;
+    function GetOwnsKeys: Boolean; override;
+    function GetOwnsValues: Boolean; override;
+
   public
-    function Copy: TObjectObjectPairArray<K, V>; reintroduce; inline;
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+    constructor Create(AOwnsKeys, AOwnsValues: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8);
+      reintroduce; overload;
+
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefRefPairArray<K, V>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TRefRefPairArray<K, V>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TRefRefPairArray<K, V>; overload; inline;
+
+    // TODO: XmlDoc
+    function Copy: TRefRefPairArray<K, V>; reintroduce; inline;
+
+    property OwnsKeys: Boolean read GetOwnsKeys write SetOwnsKeys;
+    property OwnsValues: Boolean read GetOwnsValues write SetOwnsValues;
+
+  end;
+
+  // TODO: XmlDoc DO NOT COPY THIS, IT WON'T KEEP ITS LINK (probably)
+  TRefRefPairArrayOwnLinked<K, V: class> = class(TBaseRefRefPairArray<K, V>)
+  private
+    FOwnsKeysLink: PBoolean;
+    FOwnsValuesLink: PBoolean;
+
+  protected
+    function GetOwnsKeys: Boolean; override;
+    function GetOwnsValues: Boolean; override;
+
+  public
+    constructor Create(AOwnsKeysLink, AOwnsValuesLink: PBoolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8);
+      reintroduce;
+
   end;
 
   // TODO: XmlDoc
-  TInterfaceArray<T: IUnknown> = class(TArray<T>)
+  TInterfaceArray<T: IInterface> = class(TArray<T>)
   public
     // TODO: XmlDoc
     function FindAsInterfaceArray(AFunc: TFindFuncStatic<T>): TInterfaceArray<T>; overload; inline;
@@ -624,6 +809,34 @@ type
 
   end;
 
+  TLinkedInterfaceArray<I: IInterface; T: I> = class(TIterable<I>)
+  public type
+
+    TIterator = class(TIterator<I>)
+    private
+      FLinkedArray: TArray<T>;
+      FIndex: Integer;
+
+    public
+      constructor Create(ALinkedArray: TArray<T>);
+
+      function MoveNext: Boolean; override;
+      function GetCurrent: I; override;
+
+    end;
+
+  private
+    FLinkedArray: TArray<T>;
+
+  public
+    constructor Create(ALinkedArray: TArray<T>);
+
+    function Count: Integer; override;
+    function CountOptimized: Boolean; override;
+    function GetEnumerator: IIterator<I>; override;
+
+  end;
+
   // TODO: XmlDoc
   TStack = class
   private
@@ -639,10 +852,10 @@ type
     procedure SetShrinkRetain(const Value: Integer); inline;
 
   protected
-    function CreateSame(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8): TStack;
+    function CreateSame(AGrowAmount: Integer; AShrinkRetain: Integer): TStack;
 
     // TODO: XmlDoc
-    function CreateArray(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8): TArray; virtual; abstract;
+    function CreateArray(AGrowAmount: Integer; AShrinkRetain: Integer): TArray; virtual; abstract;
 
     function CreateCopy: TStack; virtual;
 
@@ -696,16 +909,31 @@ type
   // TODO: TQueue<T> using a linked list
 
   // TODO: XmlDoc
-  TObjectStack<T: class> = class(TStack<T>)
+  TRefStack<T: class> = class(TStack<T>)
+  private
+    function GetOwnsObjects: Boolean;
+    procedure SetOwnsObjects(const Value: Boolean);
   protected
     // TODO: XmlDoc
     function CreateArray(AGrowAmount, AShrinkRetain: Integer): TArray; override;
 
   public
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+    constructor Create(AOwnsObjects: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+      overload;
+
     // TODO: XmlDoc
-    function Copy: TObjectStack<T>; reintroduce; inline;
-    
+    function Copy: TRefStack<T>; reintroduce; inline;
+
+    property OwnsObjects: Boolean read GetOwnsObjects write SetOwnsObjects;
+
   end;
+
+  // TODO: XmlDoc
+  THashMode = (
+    hmManual,
+    hmAuto
+    );
 
   // TODO: XmlDoc
   THashBase = class(TInterfaceBase)
@@ -746,10 +974,10 @@ type
     end;
 
   private
-    FAutoRehash: Boolean;
+    FHashMode: THashMode;
     FBuckets: TBuckets;
 
-    procedure SetAutoRehash(const Value: Boolean);
+    procedure SetHashMode(const Value: THashMode);
 
   protected
     FCount: Integer;
@@ -758,28 +986,28 @@ type
     procedure SetBuckets(const Value: Integer); virtual; abstract;
     procedure SetBucketsDirect(Value: Integer); virtual; abstract;
 
-    procedure ClearBuckets; virtual; abstract;
-    // TODO: XmlDoc not only copy the reference, but also nil the other reference
-    procedure OwnBuckets(AFrom: THashBase); virtual; abstract;
+    procedure UnownObjects; virtual;
+    procedure ReownObjects; virtual;
+    procedure ClearBuckets;
     procedure CopyBuckets(AFrom: THashBase); virtual; abstract;
 
     // TODO: XmlDoc
-    function CreateSame(AAutoRehash: Boolean = True): THashBase; inline;
+    function CreateSame(AHashMode: THashMode = hmAuto): THashBase; inline;
 
     procedure CopyTo(AHashBase: THashBase);
 
     function CreateBucket: TBucket; virtual; abstract;
 
-    function CreateCopy(AAutoRehash: Boolean): THashBase; virtual;
+    function CreateCopy(AHashMode: THashMode): THashBase; virtual;
 
   public
-    constructor Create(AAutoRehash: Boolean = True); virtual;
+    constructor Create(AHashMode: THashMode = hmAuto); virtual;
     destructor Destroy; override;
 
     class function GetHashBuckets(ACount: Integer): Integer; static;
 
     property Buckets: Integer read GetBuckets write SetBuckets;
-    property AutoRehash: Boolean read FAutoRehash write SetAutoRehash;
+    property HashMode: THashMode read FHashMode write SetHashMode;
 
     function Count: Integer;
     function CountOptimized: Boolean;
@@ -789,7 +1017,7 @@ type
     procedure Clear;
     function Empty: Boolean; inline;
 
-    function Copy(AAutoRehash: Boolean = True): THashBase;
+    function Copy(AHashMode: THashMode = hmAuto): THashBase;
 
   end;
 
@@ -807,7 +1035,7 @@ type
     // TODO: XmlDoc
     function GetCappedHash(AKey: K): Integer;
 
-    function Copy(AAutoRehash: Boolean = True): THashBase<K>; reintroduce; inline;
+    function Copy(AHashMode: THashMode = hmAuto): THashBase<K>; reintroduce; inline;
 
   end;
 
@@ -846,8 +1074,6 @@ type
 
     procedure SetBucketsDirect(Value: Integer); override;
 
-    procedure ClearBuckets; override;
-    procedure OwnBuckets(AFrom: THashBase); override;
     procedure CopyBuckets(AFrom: THashBase); override;
 
   public
@@ -863,7 +1089,7 @@ type
 
     function GetEnumerator: IIterator<T>;
 
-    function Copy(AAutoRehash: Boolean = True): TSet<T>; reintroduce; inline;
+    function Copy(AHashMode: THashMode = hmAuto): TSet<T>; reintroduce; inline;
 
     function Union(ASet: TSet<T>): TSet<T>;
     function Intersection(ASet: TSet<T>): TSet<T>;
@@ -915,8 +1141,6 @@ type
 
     procedure SetBucketsDirect(Value: Integer); override;
 
-    procedure ClearBuckets; override;
-    procedure OwnBuckets(AFrom: THashBase); override;
     procedure CopyBuckets(AFrom: THashBase); override;
 
   public
@@ -938,9 +1162,9 @@ type
 
     function BucketCounts: TIntArray;
 
-    function KeySet(AAutoRehash: Boolean = False): TSet<K>;
+    function KeySet(AHashMode: THashMode = hmManual): TSet<K>;
 
-    function Copy(AAutoRehash: Boolean = True): TMap<K, V>; reintroduce; inline;
+    function Copy(AHashMode: THashMode = hmAuto): TMap<K, V>; reintroduce; inline;
 
   end;
 
@@ -959,7 +1183,7 @@ type
     class function KeysEqual(AKey1, AKey2: K): Boolean; override;
     class function CanIndex(AKey: K): Boolean; override;
   public
-    function Copy(AAutoRehash: Boolean = True): TValueMap<K, V, H>; reintroduce; inline;
+    function Copy(AHashMode: THashMode = hmAuto): TValueMap<K, V, H>; reintroduce; inline;
   end;
 
   // TODO: XmlDoc
@@ -969,7 +1193,7 @@ type
     class function KeysEqual(AKey1, AKey2: T): Boolean; override;
     class function CanIndex(AKey: T): Boolean; override;
   public
-    function Copy(AAutoRehash: Boolean = True): TValueSet<T, H>; reintroduce; inline;
+    function Copy(AHashMode: THashMode = hmAuto): TValueSet<T, H>; reintroduce; inline;
   end;
 
 implementation
@@ -1600,32 +1824,32 @@ end;
 
 function TArray<T>.FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>;
 var
-  I: Integer;
+  Item: T;
 begin
-  Result := TArray<T>(TArrayClass(ClassType).Create);
-  for I := 0 to MaxIndex do
-    if AFunc(FItems[I]) then
-      Result.Add(FItems[I]);
+  Result := TArray<T>(CreateSame);
+  for Item in Self do
+    if AFunc(Item) then
+      Result.Add(Item);
 end;
 
 function TArray<T>.FindAsArray(AFunc: TFindFuncRef<T>): TArray<T>;
 var
-  I: Integer;
+  Item: T;
 begin
-  Result := TArray<T>(TArrayClass(ClassType).Create);
-  for I := 0 to MaxIndex do
-    if AFunc(FItems[I]) then
-      Result.Add(FItems[I]);
+  Result := TArray<T>(CreateSame);
+  for Item in Self do
+    if AFunc(Item) then
+      Result.Add(Item);
 end;
 
 function TArray<T>.FindAsArray(AFunc: TFindFunc<T>): TArray<T>;
 var
-  I: Integer;
+  Item: T;
 begin
-  Result := TArray<T>(TArrayClass(ClassType).Create);
-  for I := 0 to MaxIndex do
-    if AFunc(FItems[I]) then
-      Result.Add(FItems[I]);
+  Result := TArray<T>(CreateSame);
+  for Item in Self do
+    if AFunc(Item) then
+      Result.Add(Item);
 end;
 
 procedure TArray<T>.Sort(AFunc: TCompareFuncStatic<T>);
@@ -1695,7 +1919,8 @@ end;
 
 procedure TArray<T>.CopyTo(AArray: TArray);
 begin
-  AArray.Capacity := Capacity;
+  AArray.Capacity := Count;
+  AArray.FCount := Count;
   Move(FItems[0], TArray<T>(AArray).FItems[0], SizeOf(T) * Count);
 end;
 
@@ -1979,27 +2204,7 @@ end;
 
 { TRefArray<T> }
 
-function TRefArray<T>.FindAsRefArray(AFunc: TFindFuncStatic<T>): TRefArray<T>;
-begin
-  Result := TRefArray<T>(FindAsArray(AFunc));
-end;
-
-function TRefArray<T>.FindAsRefArray(AFunc: TFindFuncRef<T>): TRefArray<T>;
-begin
-  Result := TRefArray<T>(FindAsArray(AFunc));
-end;
-
-function TRefArray<T>.FindAsRefArray(AFunc: TFindFunc<T>): TRefArray<T>;
-begin
-  Result := TRefArray<T>(FindAsArray(AFunc));
-end;
-
-function TRefArray<T>.Copy: TRefArray<T>;
-begin
-  Result := TRefArray<T>(CreateCopy);
-end;
-
-function TRefArray<T>.Find(AItem: T): Integer;
+function TBaseRefArray<T>.Find(AItem: T): Integer;
 begin
   Result := FindFirstIndex(
     function(ACurrent: T): Boolean
@@ -2008,89 +2213,62 @@ begin
     end);
 end;
 
-procedure TRefArray<T>.Del(AItem: T);
-var
-  I: Integer;
-begin
-  I := Find(AItem);
-  if I = -1 then
-    raise EArrayItemNotFound.Create;
-  DelAt(I);
-end;
-
-class function TRefArray<T>.ItemToString(AItem: T): string;
-begin
-  Result := AItem.ToString;
-end;
-
-{ TObjectArray<T> }
-
-function TObjectArray<T>.ShouldFreeItems: Boolean;
-begin
-  Result := True;
-end;
-
-procedure TObjectArray<T>.ItemRemoved(AIndex: Integer);
+procedure TBaseRefArray<T>.ItemRemoved(AIndex: Integer);
 begin
   Self[AIndex].Free;
 end;
 
-function TObjectArray<T>.CreateCopy: TArray;
+class function TBaseRefArray<T>.ItemToString(AItem: T): string;
 begin
-  Result := TRefArray<T>.Create(GrowAmount, ShrinkRetain);
-  CopyTo(Result);
+  Result := AItem.ToString;
 end;
 
-{ TObjectPairArray<K, V> }
-
-function TObjectPairArray<K, V>.ShouldFreeItems: Boolean;
+function TBaseRefArray<T>.ShouldFreeItems: Boolean;
 begin
-  Result := True;
+  Result := OwnsObjects;
 end;
 
-procedure TObjectPairArray<K, V>.ItemRemoved(AIndex: Integer);
+{ TRefArray<T> }
+
+constructor TRefArray<T>.Create(AGrowAmount, AShrinkRetain: Integer);
 begin
-  Self[AIndex].Key.Free;
+  inherited;
 end;
 
-function TObjectPairArray<K, V>.Copy: TObjectPairArray<K, V>;
+function TRefArray<T>.Copy: TRefArray<T>;
 begin
-  Result := TObjectPairArray<K, V>(CreateCopy);
+  Result := TRefArray<T>(CreateCopy);
 end;
 
-{ TToObjectPairArray<K, V> }
-
-function TToObjectPairArray<K, V>.ShouldFreeItems: Boolean;
+constructor TRefArray<T>.Create(AOwnsObjects: Boolean; AGrowAmount, AShrinkRetain: Integer);
 begin
-  Result := True;
+  inherited Create(AGrowAmount, AShrinkRetain);
+  OwnsObjects := AOwnsObjects;
 end;
 
-procedure TToObjectPairArray<K, V>.ItemRemoved(AIndex: Integer);
+function TRefArray<T>.FindAsArray(AFunc: TFindFuncStatic<T>): TRefArray<T>;
 begin
-  Self[AIndex].Value.Free;
+
 end;
 
-function TToObjectPairArray<K, V>.Copy: TToObjectPairArray<K, V>;
+function TRefArray<T>.FindAsArray(AFunc: TFindFunc<T>): TRefArray<T>;
 begin
-  Result := TToObjectPairArray<K, V>(CreateCopy);
+
 end;
 
-{ TObjectObjectPairArray<K, V> }
-
-function TObjectObjectPairArray<K, V>.ShouldFreeItems: Boolean;
+function TRefArray<T>.FindAsArray(AFunc: TFindFuncRef<T>): TRefArray<T>;
 begin
-  Result := True;
+
 end;
 
-procedure TObjectObjectPairArray<K, V>.ItemRemoved(AIndex: Integer);
+function TRefArray<T>.GetOwnsObjects: Boolean;
 begin
-  Self[AIndex].Key.Free;
-  Self[AIndex].Value.Free;
+  Result := FOwnsObjects;
 end;
 
-function TObjectObjectPairArray<K, V>.Copy: TObjectObjectPairArray<K, V>;
+procedure TRefArray<T>.SetOwnsObjects(const Value: Boolean);
 begin
-  Result := TObjectObjectPairArray<K, V>(CreateCopy);
+  FOwnsObjects := Value;
 end;
 
 { TInterfaceArray<T> }
@@ -2264,18 +2442,6 @@ begin
   Result := TStack<T>(CreateCopy);
 end;
 
-{ TObjectStack<T> }
-
-function TObjectStack<T>.Copy: TObjectStack<T>;
-begin
-  Result := TObjectStack<T>(CreateCopy);
-end;
-
-function TObjectStack<T>.CreateArray(AGrowAmount, AShrinkRetain: Integer): TArray;
-begin
-  Result := TObjectArray<T>.Create(AGrowAmount, AShrinkRetain);
-end;
-
 { THashBase.TIterator<T> }
 
 constructor THashBase.TIterator<T>.Create;
@@ -2310,19 +2476,24 @@ end;
 
 { THashBase }
 
-procedure THashBase.SetAutoRehash(const Value: Boolean);
+procedure THashBase.SetHashMode(const Value: THashMode);
 begin
-  if FAutoRehash = Value then
+  if FHashMode = Value then
     Exit;
-  FAutoRehash := Value;
+  FHashMode := Value;
   Buckets := Buckets;
+end;
+
+procedure THashBase.UnownObjects;
+begin
+  // nothing to unown by default
 end;
 
 procedure THashBase.Clear;
 begin
   ClearBuckets;
   FCount := 0;
-  Buckets := 0;
+  SetBucketsDirect(0);
 end;
 
 function THashBase.Count: Integer;
@@ -2335,20 +2506,20 @@ begin
   Result := True;
 end;
 
-constructor THashBase.Create(AAutoRehash: Boolean);
+constructor THashBase.Create(AHashMode: THashMode);
 begin
-  FAutoRehash := AAutoRehash;
+  FHashMode := AHashMode;
 end;
 
-function THashBase.CreateCopy(AAutoRehash: Boolean): THashBase;
+function THashBase.CreateCopy(AHashMode: THashMode): THashBase;
 begin
-  Result := CreateSame(AAutoRehash);
+  Result := CreateSame(AHashMode);
   CopyTo(Result);
 end;
 
-function THashBase.CreateSame(AAutoRehash: Boolean): THashBase;
+function THashBase.CreateSame(AHashMode: THashMode): THashBase;
 begin
-  Result := THashBaseClass(ClassType).Create(AAutoRehash);
+  Result := THashBaseClass(ClassType).Create(AHashMode);
 end;
 
 destructor THashBase.Destroy;
@@ -2379,28 +2550,49 @@ end;
 
 procedure THashBase.Rehash(ABuckets: Integer);
 var
-  New: THashBase;
+  Tmp: THashBase;
 begin
   if Count = 0 then
   begin
     SetBucketsDirect(ABuckets);
     Exit;
   end;
-  New := CreateSame(False);
-  try
-    New.SetBucketsDirect(ABuckets);
-    New.CopyBuckets(Self);
-    Clear;
-    FCount := New.Count;
-    OwnBuckets(New);
-  finally
-    New.Free;
-  end;
+  Tmp := CreateSame(hmManual);
+  Tmp.FBuckets := FBuckets;
+  Tmp.FCount := Count;
+  FBuckets := nil;
+  FCount := 0;
+  SetBucketsDirect(ABuckets);
+  if HashMode = hmAuto then
+  begin
+    FHashMode := hmManual;
+    CopyBuckets(Tmp);
+    FHashMode := hmAuto; // use FHashMode, it doesn't test for rehashing
+  end
+  else
+    CopyBuckets(Tmp);
+  UnownObjects; // also linked to references in Tmp
+  Tmp.Free;
+  ReownObjects;
 end;
 
-function THashBase.Copy(AAutoRehash: Boolean): THashBase;
+procedure THashBase.ReownObjects;
 begin
-  Result := CreateCopy(AAutoRehash);
+  // nothing to reown by default
+end;
+
+procedure THashBase.ClearBuckets;
+var
+  I: Integer;
+begin
+  if not Empty then
+    for I := 0 to Length(FBuckets) - 1 do
+      FreeAndNil(FBuckets[I]);
+end;
+
+function THashBase.Copy(AHashMode: THashMode): THashBase;
+begin
+  Result := CreateCopy(AHashMode);
 end;
 
 procedure THashBase.CopyTo(AHashBase: THashBase);
@@ -2420,9 +2612,9 @@ begin
   Result := True;
 end;
 
-function THashBase<K>.Copy(AAutoRehash: Boolean): THashBase<K>;
+function THashBase<K>.Copy(AHashMode: THashMode): THashBase<K>;
 begin
-  Result := THashBase<K>(CreateCopy(AAutoRehash));
+  Result := THashBase<K>(CreateCopy(AHashMode));
 end;
 
 function THashBase<K>.GetCappedHash(AKey: K): Integer;
@@ -2471,17 +2663,9 @@ begin
     TryAdd(Element);
 end;
 
-procedure TSet<T>.ClearBuckets;
-var
-  I: Integer;
+function TSet<T>.Copy(AHashMode: THashMode): TSet<T>;
 begin
-  for I := 0 to Length(FBuckets) - 1 do
-    FreeAndNil(FBuckets[I]);
-end;
-
-function TSet<T>.Copy(AAutoRehash: Boolean): TSet<T>;
-begin
-  Result := TSet<T>(CreateCopy(AAutoRehash));
+  Result := TSet<T>(CreateCopy(AHashMode));
 end;
 
 procedure TSet<T>.CopyBuckets(AFrom: THashBase);
@@ -2539,7 +2723,7 @@ function TSet<T>.Intersection(ASet: TSet<T>): TSet<T>;
 var
   Element: T;
 begin
-  Result := TSet<T>(CreateSame(False));
+  Result := TSet<T>(CreateSame(hmManual));
   Result.Buckets := (Buckets + ASet.Buckets) div 2;
   for Element in Self do
     if ASet[Element] then
@@ -2583,17 +2767,11 @@ begin
   Result := False;
 end;
 
-procedure TSet<T>.OwnBuckets(AFrom: THashBase);
-begin
-  FBuckets := TSet<T>(AFrom).FBuckets;
-  TSet<T>(AFrom).FBuckets := nil;
-end;
-
 function TSet<T>.Remove(ASet: TSet<T>): TSet<T>;
 var
   Element: T;
 begin
-  Result := TSet<T>(CreateSame(False));
+  Result := TSet<T>(CreateSame(hmManual));
   for Element in Self do
     if not ASet[Element] then
       TryAdd(Element);
@@ -2601,7 +2779,7 @@ end;
 
 procedure TSet<T>.SetBuckets(const Value: Integer);
 var
-  NewCapacity: Integer;
+  NewBuckets: Integer;
 begin
   if Value = 0 then
   begin
@@ -2612,11 +2790,11 @@ begin
     Exit;
   end;
 
-  NewCapacity := GetHashBuckets(Value);
-  if NewCapacity > Buckets then
-    Rehash(NewCapacity)
-  else if NewCapacity < Buckets div 2 then // only shrink if bucket count halved
-    Rehash(NewCapacity);
+  NewBuckets := GetHashBuckets(Value);
+  if NewBuckets > Buckets then
+    Rehash(NewBuckets)
+  else if NewBuckets < Buckets div 2 then // only shrink if bucket count halved
+    Rehash(NewBuckets);
 end;
 
 procedure TSet<T>.SetBucketsDirect(Value: Integer);
@@ -2638,7 +2816,7 @@ var
 begin
   if Buckets = 0 then
   begin
-    if AutoRehash then
+    if HashMode = hmAuto then
       Buckets := 1
     else
       raise EHashBucketRequired.Create;
@@ -2650,7 +2828,7 @@ begin
     FBuckets[H] := CreateBucket;
     TBucket(FBuckets[H]).Add(AElement);
     Inc(FCount);
-    if AutoRehash then
+    if HashMode = hmAuto then
       Buckets := Count;
     Exit;
   end;
@@ -2660,7 +2838,7 @@ begin
       Exit(False);
   TBucket(FBuckets[H]).Add(AElement);
   Inc(FCount);
-  if AutoRehash then
+  if HashMode = hmAuto then
     Buckets := Count;
 end;
 
@@ -2685,7 +2863,7 @@ begin
   Dec(FCount);
   if FBuckets[H].Count = 0 then
     FreeAndNil(FBuckets[H]);
-  if AutoRehash then
+  if HashMode = hmAuto then
     Buckets := Count;
   Result := True;
 end;
@@ -2694,11 +2872,11 @@ function TSet<T>.Union(ASet: TSet<T>): TSet<T>;
 var
   Element: T;
 begin
-  Result := TSet<T>(CreateSame(False));
+  Result := TSet<T>(CreateSame(hmManual));
   Result.Buckets := (Buckets + ASet.Buckets) div 2;
   Result.Add(Self);
   Result.Add(ASet);
-  Result.AutoRehash := True;
+  Result.HashMode := hmAuto;
 end;
 
 { TMap<K, V>.TIterator }
@@ -2742,17 +2920,9 @@ begin
       Result.Add(FBuckets[I].Count);
 end;
 
-procedure TMap<K, V>.ClearBuckets;
-var
-  I: Integer;
+function TMap<K, V>.Copy(AHashMode: THashMode): TMap<K, V>;
 begin
-  for I := 0 to Length(FBuckets) - 1 do
-    FreeAndNil(FBuckets[I]);
-end;
-
-function TMap<K, V>.Copy(AAutoRehash: Boolean): TMap<K, V>;
-begin
-  Result := TMap<K, V>(CreateCopy(AAutoRehash));
+  Result := TMap<K, V>(CreateCopy(AHashMode));
 end;
 
 procedure TMap<K, V>.CopyBuckets(AFrom: THashBase);
@@ -2815,7 +2985,7 @@ begin
       Exit(True);
     end;
   end;
-  Result := False;    
+  Result := False;
 end;
 
 function TMap<K, V>.GetActualKey(AKey: K; out AActualKey: K): Boolean;
@@ -2857,7 +3027,7 @@ var
 begin
   if Empty then
 
-  H := GetCappedHash(AKey);
+    H := GetCappedHash(AKey);
   if FBuckets[H] = nil then
     Exit(False);
   for I := 0 to FBuckets[H].MaxIndex do
@@ -2910,7 +3080,7 @@ var
 begin
   if Buckets = 0 then
   begin
-    if AutoRehash then
+    if HashMode = hmAuto then
       Buckets := 1
     else
       raise EHashBucketRequired.Create;
@@ -2922,7 +3092,7 @@ begin
     FBuckets[H] := CreateBucket;
     TBucket(FBuckets[H]).Add(TPair.Create(AKey, Value));
     Inc(FCount);
-    if AutoRehash then
+    if HashMode = hmAuto then
       Buckets := Count;
     Exit;
   end;
@@ -2937,7 +3107,7 @@ begin
   end;
   TBucket(FBuckets[H]).Add(TPair.Create(AKey, Value));
   Inc(FCount);
-  if AutoRehash then
+  if HashMode = hmAuto then
     Buckets := Count;
 end;
 
@@ -2962,7 +3132,7 @@ begin
   Dec(FCount);
   if FBuckets[H].Count = 0 then
     FreeAndNil(FBuckets[H]);
-  if AutoRehash then
+  if HashMode = hmAuto then
     Buckets := Count;
   Result := True;
 end;
@@ -2984,12 +3154,6 @@ begin
     raise EMapKeyNotFound.Create;
 end;
 
-procedure TMap<K, V>.OwnBuckets(AFrom: THashBase);
-begin
-  Self.FBuckets := TMap<K, V>(AFrom).FBuckets;
-  TMap<K, V>(AFrom).FBuckets := nil;
-end;
-
 function TMap<K, V>.KeyExists(AKey: K): Boolean;
 var
   H: Integer;
@@ -3009,15 +3173,15 @@ begin
   Result := False;
 end;
 
-function TMap<K, V>.KeySet(AAutoRehash: Boolean): TSet<K>;
+function TMap<K, V>.KeySet(AHashMode: THashMode): TSet<K>;
 var
   Pair: TPair;
 begin
-  Result := TSet<K>(CreateSame(False));
+  Result := TSet<K>(CreateSame(hmManual));
   Result.Rehash(Buckets);
   for Pair in Self do
     Result.TryAdd(Pair.Key);
-  Result.AutoRehash := AAutoRehash;
+  Result.HashMode := AHashMode;
 end;
 
 { TValueHasher<K> }
@@ -3044,9 +3208,9 @@ begin
   Result := H.CanIndex(AKey);
 end;
 
-function TValueMap<K, V, H>.Copy(AAutoRehash: Boolean): TValueMap<K, V, H>;
+function TValueMap<K, V, H>.Copy(AHashMode: THashMode): TValueMap<K, V, H>;
 begin
-  Result := TValueMap<K, V, H>(CreateCopy(AAutoRehash));
+  Result := TValueMap<K, V, H>(CreateCopy(AHashMode));
 end;
 
 { TValueSet<T, H> }
@@ -3056,9 +3220,9 @@ begin
   Result := H.CanIndex(AKey);
 end;
 
-function TValueSet<T, H>.Copy(AAutoRehash: Boolean): TValueSet<T, H>;
+function TValueSet<T, H>.Copy(AHashMode: THashMode): TValueSet<T, H>;
 begin
-  Result := TValueSet<T, H>(CreateCopy(AAutoRehash));
+  Result := TValueSet<T, H>(CreateCopy(AHashMode));
 end;
 
 class function TValueSet<T, H>.GetHash(AKey: T): Cardinal;
@@ -3069,6 +3233,335 @@ end;
 class function TValueSet<T, H>.KeysEqual(AKey1, AKey2: T): Boolean;
 begin
   Result := H.KeysEqual(AKey1, AKey2);
+end;
+
+{ TRefStack<T> }
+
+function TRefStack<T>.Copy: TRefStack<T>;
+begin
+  Result := TRefStack<T>(CreateCopy);
+end;
+
+constructor TRefStack<T>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited;
+end;
+
+constructor TRefStack<T>.Create(AOwnsObjects: Boolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  OwnsObjects := AOwnsObjects;
+end;
+
+function TRefStack<T>.CreateArray(AGrowAmount, AShrinkRetain: Integer): TArray;
+begin
+  Result := TRefArray<T>.Create(AGrowAmount, AShrinkRetain);
+end;
+
+function TRefStack<T>.GetOwnsObjects: Boolean;
+begin
+  Result := TRefArray<T>(FArray).OwnsObjects;
+end;
+
+procedure TRefStack<T>.SetOwnsObjects(const Value: Boolean);
+begin
+  TRefArray<T>(FArray).OwnsObjects := Value;
+end;
+
+{ TRefArrayOwnLinked<T> }
+
+constructor TRefArrayOwnLinked<T>.Create(AOwnsObjectsLink: PBoolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  FOwnsObjectsLink := AOwnsObjectsLink;
+end;
+
+function TRefArrayOwnLinked<T>.GetOwnsObjects: Boolean;
+begin
+  Result := FOwnsObjectsLink^;
+end;
+
+{ TFindableArray<T> }
+
+procedure TFindableArray<T>.Del(AItem: T);
+var
+  I: Integer;
+begin
+  I := Find(AItem);
+  if I = -1 then
+    raise EArrayItemNotFound.Create;
+  DelAt(I);
+end;
+
+{ TBaseRefPairArray<K, V> }
+
+procedure TBaseRefPairArray<K, V>.ItemRemoved(AIndex: Integer);
+begin
+  Self[AIndex].Key.Free;
+end;
+
+function TBaseRefPairArray<K, V>.ShouldFreeItems: Boolean;
+begin
+  Result := OwnsKeys;
+end;
+
+{ TBaseToRefPairArray<K, V> }
+
+procedure TBaseToRefPairArray<K, V>.ItemRemoved(AIndex: Integer);
+begin
+  Self[AIndex].Value.Free;
+end;
+
+function TBaseToRefPairArray<K, V>.ShouldFreeItems: Boolean;
+begin
+  Result := OwnsValues;
+end;
+
+{ TRefPairArray<K, V> }
+
+constructor TRefPairArray<K, V>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited;
+end;
+
+function TRefPairArray<K, V>.Copy: TRefPairArray<K, V>;
+begin
+  Result := TRefPairArray<K, V>(CreateCopy);
+end;
+
+constructor TRefPairArray<K, V>.Create(AOwnsKeys: Boolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  OwnsKeys := AOwnsKeys;
+end;
+
+function TRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefPairArray<K, V>;
+begin
+  Result := TRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TRefPairArray<K, V>.FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TRefPairArray<K, V>;
+begin
+  Result := TRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TRefPairArray<K, V>;
+begin
+  Result := TRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TRefPairArray<K, V>.GetOwnsKeys: Boolean;
+begin
+  Result := FOwnsKeys;
+end;
+
+procedure TRefPairArray<K, V>.SetOwnsKeys(const Value: Boolean);
+begin
+  FOwnsKeys := Value;
+end;
+
+{ TRefPairArrayOwnLinked<K, V> }
+
+constructor TRefPairArrayOwnLinked<K, V>.Create(AOwnsKeysLink: PBoolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  FOwnsKeysLink := AOwnsKeysLink;
+end;
+
+function TRefPairArrayOwnLinked<K, V>.GetOwnsKeys: Boolean;
+begin
+  Result := FOwnsKeysLink^;
+end;
+
+{ TToRefPairArray<K, V> }
+
+constructor TToRefPairArray<K, V>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited;
+end;
+
+function TToRefPairArray<K, V>.Copy: TToRefPairArray<K, V>;
+begin
+  Result := TToRefPairArray<K, V>(CreateCopy);
+end;
+
+constructor TToRefPairArray<K, V>.Create(AOwnsValues: Boolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  OwnsValues := AOwnsValues;
+end;
+
+function TToRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TToRefPairArray<K, V>;
+begin
+  Result := TToRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TToRefPairArray<K, V>.FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TToRefPairArray<K, V>;
+begin
+  Result := TToRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TToRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TToRefPairArray<K, V>;
+begin
+  Result := TToRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TToRefPairArray<K, V>.GetOwnsValues: Boolean;
+begin
+  Result := FOwnsValues;
+end;
+
+procedure TToRefPairArray<K, V>.SetOwnsValues(const Value: Boolean);
+begin
+  FOwnsValues := Value;
+end;
+
+{ TToRefPairArrayOwnLinked<K, V> }
+
+constructor TToRefPairArrayOwnLinked<K, V>.Create(AOwnsValuesLink: PBoolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  FOwnsValuesLink := AOwnsValuesLink;
+end;
+
+function TToRefPairArrayOwnLinked<K, V>.GetOwnsValues: Boolean;
+begin
+  Result := FOwnsValuesLink^;
+end;
+
+{ TBaseRefRefPairArray<K, V> }
+
+procedure TBaseRefRefPairArray<K, V>.ItemRemoved(AIndex: Integer);
+begin
+  if OwnsKeys then
+    Self[AIndex].Key.Free;
+  if OwnsValues then
+    Self[AIndex].Value.Free;
+end;
+
+class function TBaseRefRefPairArray<K, V>.ItemToString(AItem: TPair<K, V>): string;
+begin
+  Result := AItem.Key.ToString + ' = ' + AItem.Value.ToString;
+end;
+
+function TBaseRefRefPairArray<K, V>.ShouldFreeItems: Boolean;
+begin
+  Result := OwnsKeys or OwnsValues;
+end;
+
+{ TRefRefPairArray<K, V> }
+
+constructor TRefRefPairArray<K, V>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited;
+end;
+
+function TRefRefPairArray<K, V>.Copy: TRefRefPairArray<K, V>;
+begin
+  Result := TRefRefPairArray<K, V>(CreateCopy);
+end;
+
+constructor TRefRefPairArray<K, V>.Create(AOwnsKeys, AOwnsValues: Boolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  OwnsKeys := AOwnsKeys;
+  OwnsValues := AOwnsValues;
+end;
+
+function TRefRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefRefPairArray<K, V>;
+begin
+  Result := TRefRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TRefRefPairArray<K, V>.FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TRefRefPairArray<K, V>;
+begin
+  Result := TRefRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TRefRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TRefRefPairArray<K, V>;
+begin
+  Result := TRefRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TRefRefPairArray<K, V>.GetOwnsKeys: Boolean;
+begin
+  Result := FOwnsKeys;
+end;
+
+function TRefRefPairArray<K, V>.GetOwnsValues: Boolean;
+begin
+  Result := FOwnsValues;
+end;
+
+procedure TRefRefPairArray<K, V>.SetOwnsKeys(const Value: Boolean);
+begin
+  FOwnsKeys := Value;
+end;
+
+procedure TRefRefPairArray<K, V>.SetOwnsValues(const Value: Boolean);
+begin
+  FOwnsValues := Value;
+end;
+
+{ TRefRefPairArrayOwnLinked<K, V> }
+
+constructor TRefRefPairArrayOwnLinked<K, V>.Create(AOwnsKeysLink, AOwnsValuesLink: PBoolean;
+AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  FOwnsKeysLink := AOwnsKeysLink;
+  FOwnsValuesLink := AOwnsValuesLink;
+end;
+
+function TRefRefPairArrayOwnLinked<K, V>.GetOwnsKeys: Boolean;
+begin
+  Result := FOwnsKeysLink^;
+end;
+
+function TRefRefPairArrayOwnLinked<K, V>.GetOwnsValues: Boolean;
+begin
+  Result := FOwnsValuesLink^;
+end;
+
+{ TLinkedInterfaceArray<I, T> }
+
+function TLinkedInterfaceArray<I, T>.Count: Integer;
+begin
+  Result := FLinkedArray.Count;
+end;
+
+function TLinkedInterfaceArray<I, T>.CountOptimized: Boolean;
+begin
+  Result := FLinkedArray.CountOptimized;
+end;
+
+constructor TLinkedInterfaceArray<I, T>.Create(ALinkedArray: TArray<T>);
+begin
+  FLinkedArray := ALinkedArray;
+end;
+
+function TLinkedInterfaceArray<I, T>.GetEnumerator: IIterator<I>;
+begin
+  Result := TIterator.Create(FLinkedArray);
+end;
+
+{ TLinkedInterfaceArray<I, T>.TIterator }
+
+constructor TLinkedInterfaceArray<I, T>.TIterator.Create(ALinkedArray: TArray<T>);
+begin
+  FLinkedArray := ALinkedArray;
+  FIndex := -1;
+end;
+
+function TLinkedInterfaceArray<I, T>.TIterator.GetCurrent: I;
+begin
+  Result := FLinkedArray[FIndex];
+end;
+
+function TLinkedInterfaceArray<I, T>.TIterator.MoveNext: Boolean;
+begin
+  Inc(FIndex);
+  Result := FIndex < FLinkedArray.Count;
 end;
 
 end.

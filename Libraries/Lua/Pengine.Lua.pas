@@ -3,7 +3,18 @@ unit Pengine.Lua;
 interface
 
 uses
-  LuaHeader, Lists, LuaConf, SyncObjs, Classes, Windows, TimeManager, SysUtils, DebugConsoleDefine;
+  Winapi.Windows,
+
+  System.SysUtils,
+  System.SyncObjs,
+  System.Classes,
+
+  Pengine.LuaHeader,
+  Pengine.Collections,
+  Pengine.LuaConf,
+  Pengine.TimeManager,
+  Pengine.DebugConsole,
+  Pengine.Hasher;
 
 type
 
@@ -37,7 +48,7 @@ type
       FFunc: TLuaCFunction;
 
       class function WrapperFunc(L: TLuaState): Integer; static; cdecl;
-      
+
     public
       constructor Create(AName: TLuaString; AFunc: TLuaCFunction);
 
@@ -58,7 +69,7 @@ type
       constructor Create(AName, AValue: TLuaString);
 
       property Value: TLuaString read FValue;
-      
+
       procedure RegisterEntry(AL: TLuaState); override;
     end;
 
@@ -71,10 +82,10 @@ type
       constructor Create(AName: TLuaString; AValue: TLuaNumber);
 
       property Value: TLuaNumber read FValue;
-      
+
       procedure RegisterEntry(AL: TLuaState); override;
     end;
-    
+
     { TIntegerEntry }
 
     TIntegerEntry = class(TEntry)
@@ -84,7 +95,7 @@ type
       constructor Create(AName: TLuaString; AValue: TLuaInteger);
 
       property Value: TLuaInteger read FValue;
-      
+
       procedure RegisterEntry(AL: TLuaState); override;
     end;
 
@@ -94,14 +105,15 @@ type
 
     TTableEntry = class(TEntry)
     private
-      FEntries: TObjectArray<TEntry>;
-      FEntryReader: TRefArrayReader<TEntry>;
+      FEntries: TRefArray<TEntry>;
+        function GetEntry(AIndex: Integer): TEntry;
 
     public
       constructor Create(AName: TLuaString = '');
       destructor Destroy; override;
 
-      property Entries: TRefArrayReader<TEntry> read FEntryReader;
+      function EntryCount: Integer;
+      property Entries[AIndex: Integer]: TEntry read GetEntry;
 
       procedure Add(AEntry: TEntry); overload;
       procedure Add(AName: TLuaString; AFunc: TLuaCFunction); overload;
@@ -186,11 +198,7 @@ type
 
     { TAllocationList }
 
-    TAllocationList = class(TSet<Pointer>)
-    protected
-      function GetKeyHash(AKey: Pointer): Cardinal; override;
-      class function CantIndex(AKey: Pointer): Boolean; override;
-      class function KeysEqual(AKey1, AKey2: Pointer): Boolean; override;
+    TAllocationList = class(TPointerSet)
     public
       destructor Destroy; override;
 
@@ -205,7 +213,7 @@ type
     FLock: TCriticalSection;
     FLockCounter, A: Integer;
     FThread: TLuaThread;
-    FLibs: TClassObjectMap<TLuaLib>;
+    FLibs: TClassRefMap<TLuaLib>;
 
     class function Alloc(ud, ptr: Pointer; osize, nsize: NativeUInt): Pointer; static; cdecl;
 
@@ -240,7 +248,7 @@ implementation
 
 procedure TLua.AddLib(ALib: TLuaLibClass);
 begin
-  if FLibs.HasKey(ALib) then
+  if FLibs.KeyExists(ALib) then
     raise Exception.Create('LuaLib is registered already');
   FLibs[ALib] := ALib.Create(L);
 end;
@@ -298,10 +306,10 @@ end;
 constructor TLua.Create;
 begin
   FLock := TCriticalSection.Create;
-  FAllocations := TAllocationList.Create(12289);
+  FAllocations := TAllocationList.Create;
   FThread := TLuaThread.Create(Self);
   MakeLuaState;
-  FLibs := TClassObjectMap<TLuaLib>.Create;
+  FLibs := TClassRefMap<TLuaLib>.Create(True);
 end;
 
 procedure TLua.DelLib(ALib: TLuaLibClass);
@@ -310,8 +318,8 @@ begin
 end;
 
 destructor TLua.Destroy;
-begin          
-  FLibs.Free;  
+begin
+  FLibs.Free;
   L.Close;
   FThread.Free;
   FAllocations.Free;
@@ -327,7 +335,7 @@ end;
 function TLua.CallTimeout(AParams, AResults: Integer; ATimeout: Single; out AError: TLuaPCallError): Boolean;
 var
   StopWatch: TStopWatch;
-  Lib: TPair<TClass, TLuaLib>;
+  Pair: TPair<TClass, TLuaLib>;
 begin
   StopWatch.Start;
   Result := False;
@@ -352,9 +360,8 @@ begin
 
   MakeLuaState;
 
-  for Lib in FLibs do
-    Lib.Data.ChangeLuaState(L);
-
+  for Pair in FLibs do
+    Pair.Value.ChangeLuaState(L);
 end;
 
 procedure TLua.CallUnlocked(AParams, AResults: Integer);
@@ -392,7 +399,7 @@ begin
 end;
 
 procedure TLua.Unlock;
-begin                  
+begin
   Dec(FLockCounter);
   if FLockCounter = 0 then
   begin
@@ -404,25 +411,10 @@ end;
 
 { TLua.TAllocationList }
 
-class function TLua.TAllocationList.CantIndex(AKey: Pointer): Boolean;
-begin
-  Result := AKey = nil;
-end;
-
 destructor TLua.TAllocationList.Destroy;
 begin
   PerformCleanup;
   inherited;
-end;
-
-function TLua.TAllocationList.GetKeyHash(AKey: Pointer): Cardinal;
-begin
-  Result := NativeUInt(AKey) mod FInternalSize;
-end;
-
-class function TLua.TAllocationList.KeysEqual(AKey1, AKey2: Pointer): Boolean;
-begin
-  Result := AKey1 = AKey2;
 end;
 
 procedure TLua.TAllocationList.PerformCleanup;
@@ -431,7 +423,6 @@ var
 begin
   for P in Self do
     FreeMemory(P);
-  Clear;
 end;
 
 { TLua.TLuaThread }
@@ -584,7 +575,7 @@ begin
   Lua.Interlock;
   try
     Result := TLuaCFunction(L.ToUserdata(L.UpvalueIndex(1)))(L);
-  finally    
+  finally
     Lua.Unlock;
   end;
 end;
@@ -631,15 +622,23 @@ end;
 constructor TLuaLib.TTableEntry.Create(AName: AnsiString);
 begin
   inherited;
-  FEntries := TObjectArray<TEntry>.Create;
-  FEntryReader := TRefArrayReader<TEntry>.Create(FEntries);
+  FEntries := TRefArray<TEntry>.Create(True);
 end;
 
 destructor TLuaLib.TTableEntry.Destroy;
 begin
-  FEntryReader.Free;
   FEntries.Free;
   inherited;
+end;
+
+function TLuaLib.TTableEntry.EntryCount: Integer;
+begin
+  Result := FEntries.Count;
+end;
+
+function TLuaLib.TTableEntry.GetEntry(AIndex: Integer): TEntry;
+begin
+  Result := FEntries[AIndex];
 end;
 
 procedure TLuaLib.TTableEntry.RegisterEntry(AL: TLuaState);
@@ -706,16 +705,16 @@ end;
 { TLuaLib.TNumberEntry }
 
 constructor TLuaLib.TNumberEntry.Create(AName: AnsiString; AValue: TLuaNumber);
-begin              
+begin
   inherited Create(AName);
   FValue := AValue;
 end;
 
 procedure TLuaLib.TNumberEntry.RegisterEntry(AL: TLuaState);
 begin
-  inherited;  
+  inherited;
   AL.PushNumber(Value);
-  AL.SetTable(-3);  
+  AL.SetTable(-3);
 end;
 
 { TLuaLib.TIntegerEntry }
@@ -723,14 +722,14 @@ end;
 constructor TLuaLib.TIntegerEntry.Create(AName: AnsiString; AValue: TLuaInteger);
 begin
   inherited Create(AName);
-  FValue := AValue;  
+  FValue := AValue;
 end;
 
 procedure TLuaLib.TIntegerEntry.RegisterEntry(AL: TLuaState);
 begin
-  inherited;  
+  inherited;
   AL.PushInteger(Value);
-  AL.SetTable(-3); 
+  AL.SetTable(-3);
 end;
 
 { ELibNotLoaded }

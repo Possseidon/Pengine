@@ -3,7 +3,7 @@ unit GameLogicDefine;
 interface
 
 uses
-  LuaDefine;
+  Pengine.Lua;
 
 type
 

@@ -3,7 +3,10 @@ unit Pengine.LuaHeader;
 interface
 
 uses
-  LuaConf, SysUtils, AnsiStrings;
+  System.SysUtils,
+  System.AnsiStrings,
+
+  Pengine.LuaConf;
 
 const
 
@@ -102,10 +105,10 @@ const
 
 type
 
-  lua_Number = LuaConf.lua_Number;
-  lua_Integer = LuaConf.lua_Integer;
-  lua_Unsigned = LuaConf.lua_Unsigned;
-  lua_KContext = LuaConf.lua_KContext;
+  lua_Number = Pengine.LuaConf.lua_Number;
+  lua_Integer = Pengine.LuaConf.lua_Integer;
+  lua_Unsigned = Pengine.LuaConf.lua_Unsigned;
+  lua_KContext = Pengine.LuaConf.lua_KContext;
 
   TLuaState = ^TLuaStateRec;
 
@@ -969,7 +972,7 @@ begin
   for I := Top downto 1 do
   begin
     PushValue(I);
-    Result := Result + AnsiStrings.Format('[%d/-%d] %s', [I, Top - I, ToString]) + #10;
+    Result := Result + System.AnsiStrings.Format('[%d/-%d] %s', [I, Top - I, ToString]) + #10;
     Pop;
   end;
 end;

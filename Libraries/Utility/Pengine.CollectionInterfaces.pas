@@ -13,7 +13,7 @@ uses
 
 type
 
-  /// <summary>A generic Interface for an Iterator. Used by <see cref="Pengine.Collections|IIterable`1"/>.</summary>
+  /// <summary>A generic Interface for an Iterator.</summary>
   IIterator<T> = interface
     ['{01FA5E8D-FB71-4D60-B113-429284B8B8F7}']
     function MoveNext: Boolean;
@@ -29,12 +29,13 @@ type
     property Current: T read GetCurrent;
   end;
 
-  /// <summary>A generic interface for an iteratable type. Uses <see cref="Pengine.Collections|IIterator`1"/>.</summary>
+  /// <summary>A generic interface for an iteratable type.</summary>
   IIterable<T> = interface
     ['{86380564-F207-4B73-A40D-F10AD12B5B98}']
     function GetEnumerator: IIterator<T>;
     function Count: Integer;
     function CountOptimized: Boolean;
+    function Empty: Boolean;
   end;
 
   /// <summary>A generic interface, for searchable objects.</summary>
@@ -67,39 +68,7 @@ type
     function Count: Integer; virtual;
     // TODO: XmlDoc
     function CountOptimized: Boolean; virtual;
-  end;
-
-  // TODO: XmlDoc
-  TIterableFromArray<T> = class(TIterable<T>)
-  public type
-
-    TIterator = class(TInterfacedObject, IIterator<T>)
-    private
-      FArray: ^System.TArray<T>;
-      FIndex: Integer;
-
-      function GetCurrent: T;
-
-    public
-      constructor Create(var AArray: array of T);
-
-      function MoveNext: Boolean;
-      property Current: T read GetCurrent;
-    end;
-
-  private
-    FArray: ^System.TArray<T>;
-
-  public
-    constructor Create(var AArray: array of T);
-
-    function GetEnumerator: IIterator<T>; override;
-
-    // TODO: XmlDoc
-    function Count: Integer; override;
-    // TODO: XmlDoc
-    function CountOptimized: Boolean; override;
-
+    function Empty: Boolean; inline;
   end;
 
 implementation
@@ -120,45 +89,9 @@ begin
   Result := False;
 end;
 
-{ TIterableFromArray<T>.TIterator }
-
-constructor TIterableFromArray<T>.TIterator.Create(var AArray: array of T);
+function TIterable<T>.Empty: Boolean;
 begin
-  FArray := @AArray;
-  FIndex := -1;
-end;
-
-function TIterableFromArray<T>.TIterator.GetCurrent: T;
-begin
-  Result := FArray^[FIndex];
-end;
-
-function TIterableFromArray<T>.TIterator.MoveNext: Boolean;
-begin
-  Inc(FIndex);
-  Result := FIndex < Length(FArray^);
-end;
-
-{ TIterableFromArray<T> }
-
-function TIterableFromArray<T>.Count: Integer;
-begin
-  Result := Length(FArray^);
-end;
-
-function TIterableFromArray<T>.CountOptimized: Boolean;
-begin
-  Result := True;
-end;
-
-constructor TIterableFromArray<T>.Create(var AArray: array of T);
-begin
-  FArray := @AArray;
-end;
-
-function TIterableFromArray<T>.GetEnumerator: IIterator<T>;
-begin
-  Result := TIterator.Create(FArray^);
+  Result := Count = 0;
 end;
 
 end.

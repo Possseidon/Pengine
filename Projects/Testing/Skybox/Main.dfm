@@ -1,9 +1,9 @@
-object Form5: TForm5
+object frmMain: TfrmMain
   Left = 0
   Top = 0
-  Caption = 'Form5'
-  ClientHeight = 299
-  ClientWidth = 635
+  Caption = 'Pengine Testing'
+  ClientHeight = 720
+  ClientWidth = 1280
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -11,6 +11,7 @@ object Form5: TForm5
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  Position = poDesktopCenter
   PixelsPerInch = 96
   TextHeight = 13
 end

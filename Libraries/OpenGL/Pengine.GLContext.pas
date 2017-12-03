@@ -118,7 +118,7 @@ type
   TGLForm = class(TForm)
   public type
 
-    TStateStack = TObjectStack<TOpenGLState>;
+    TStateStack = TRefStack<TOpenGLState>;
 
   private
     FFullscreen: Boolean;
@@ -507,7 +507,7 @@ begin
 
   glDebugMessageCallback(DebugCallback, Self);
 
-  FStateStack := TStateStack.Create(1, 2);
+  FStateStack := TStateStack.Create(True);
   FStateStack.Push(TOpenGLState.Create);
   InitDefaults;
 end;

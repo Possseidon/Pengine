@@ -3,7 +3,7 @@ program LuaBattleBots;
 uses
   Vcl.Forms,
   Windows,
-  DebugConsoleDefine,
+  Pengine.DebugConsole,
   Main in 'Main.pas' {frmMain},
   Game in 'Game.pas',
   CustomModules in 'CustomModules.pas',

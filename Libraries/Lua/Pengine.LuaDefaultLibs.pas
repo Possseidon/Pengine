@@ -3,7 +3,14 @@ unit Pengine.LuaDefaultLibs;
 interface
 
 uses
-  LuaDefine, LuaHeader, SysUtils, Sorting, Math, AnsiStrings;
+  System.Math,
+  System.AnsiStrings,
+  System.SysUtils,
+
+  Pengine.Lua,
+  Pengine.LuaHeader,
+  Pengine.Sorting,
+  Pengine.IntMaths;
 
 type
 
@@ -44,12 +51,13 @@ type
       property L: TLuaState read GetL;
 
     protected
-      function Low: Integer; override;
-      function High: Integer; override;
+      function Bounds: TIntBounds1; override;
 
       procedure SavePivot(I: Integer); override;
       procedure DiscardPivot; override;
-      function CompareToPivot(I: Integer; ADir: TQuickSorter.TCompareDirection): Boolean; override;
+
+      function BeforePivot(I: Integer): Boolean; override;
+      function AfterPivot(I: Integer): Boolean; override;
 
       procedure Swap(A, B: Integer); override;
 
@@ -321,7 +329,7 @@ begin
   L.CheckType(1, ltString);
   Base := L.CheckInteger(2);
   L.CheckEnd(3);
-  S := AnsiStrings.StrUpper(L.ToString(1));
+  S := System.AnsiStrings.StrUpper(L.ToString(1));
   INum := 0;
   AddBase := 1;
   if not InRange(Base, 2, 36) then
@@ -584,7 +592,7 @@ begin
     L.PushCFunction(LuaDefaultCompare);
   end;
 
-  if not TableLib.FSorter.Sort then
+  if not TableLib.FSorter.TrySort then
     L.Error('invalid sort function');
 
   Result := 0;
@@ -760,9 +768,11 @@ begin
   Result := FParent.L;
 end;
 
-function TLuaLibTable.TLuaSorter.Low: Integer;
+function TLuaLibTable.TLuaSorter.Bounds: TIntBounds1;
 begin
-  Result := 1;
+  L.Len(1);
+  Result := IBounds1(1, L.ToInteger);
+  L.Pop;
 end;
 
 procedure TLuaLibTable.TLuaSorter.DiscardPivot;
@@ -770,26 +780,21 @@ begin
   L.Pop;
 end;
 
-function TLuaLibTable.TLuaSorter.High: Integer;
+function TLuaLibTable.TLuaSorter.BeforePivot(I: Integer): Boolean;
 begin
-  L.Len(1);
-  Result := L.ToInteger;
+  L.PushValue(2); // function
+  L.GetI(I, 1);   // tested element
+  L.PushValue(3); // pivot element
+  FLua.CallUnlocked(2, 1);
+  Result := L.ToBoolean;
   L.Pop;
 end;
 
-function TLuaLibTable.TLuaSorter.CompareToPivot(I: Integer; ADir: TQuickSorter.TCompareDirection): Boolean;
+function TLuaLibTable.TLuaSorter.AfterPivot(I: Integer): Boolean;
 begin
   L.PushValue(2); // function
-  if ADir = cdBeforePivot then
-  begin
-    L.GetI(I, 1);   // tested element
-    L.PushValue(3); // pivot element
-  end
-  else
-  begin
-    L.PushValue(3); // pivot element
-    L.GetI(I, 1);   // tested element
-  end;
+  L.PushValue(3); // pivot element
+  L.GetI(I, 1);   // tested element
   FLua.CallUnlocked(2, 1);
   Result := L.ToBoolean;
   L.Pop;

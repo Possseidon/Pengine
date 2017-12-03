@@ -89,7 +89,7 @@ end;
 
 procedure TUBO.Bind;
 begin
-  if Pointer(BoundUBO) <> Pointer(Self) then
+  if BoundUBO <> Self then
   begin
     glBindBuffer(GL_UNIFORM_BUFFER, FUBO);
     BoundUBO := Self;

@@ -54,7 +54,7 @@ type
 
   TSkyboxShaderClass = class of TSkyboxShaderBase;
 
-  TSkybox = class(TInterfaceBase, IRenderable)
+  TSkybox = class(TRenderable)
   public const
 
     MaxStripes = 16;
@@ -78,11 +78,12 @@ type
   private
     FVAO: TSkyboxVAO;
     FUBO: TUBO;
-    FStripes: TObjectArray<TStripe>;
+    FStripes: TRefArray<TStripe>;
 
     procedure BuildVAO;
 
-    function GetVisible: Boolean;
+  protected
+    function GetVisible: Boolean; override;
     procedure SetVisible(const Value: Boolean);
 
   public
@@ -91,10 +92,8 @@ type
 
     procedure AddStripe(AColor: TColorRGB; AAngle: Single);
 
-    function Bounds: PBounds3;
-    function Location: TLocation;
-    procedure Render;
-    function RenderableChildren: IIterable<IRenderable>;
+    procedure Render; override;
+
     property Visible: Boolean read GetVisible write SetVisible;
 
   end;
@@ -125,9 +124,7 @@ end;
 
 class function TSkyboxShaderBase.GetAttributeOrder: TShader.TAttributeOrder;
 begin
-  Result := TShader.TAttributeOrder.Create(
-    'vpos'
-    );
+  Result := ['vpos'];
 end;
 
 { TSkybox }
@@ -170,11 +167,6 @@ begin
 end;
 }
 
-function TSkybox.Bounds: PBounds3;
-begin
-  Result := nil;
-end;
-
 procedure TSkybox.BuildVAO;
 var
   Data: TSkyboxShaderBase.TData;
@@ -207,7 +199,7 @@ begin
   FUBO.SubData(SizeOf(TStripeData) * MaxStripes, SizeOf(Integer), Zero);
   FUBO.BindToShader(FVAO.Shader, 'stripedata');
 
-  FStripes := TObjectArray<TStripe>.Create;
+  FStripes := TRefArray<TStripe>.Create(True);
 
   BuildVAO;
 end;
@@ -225,19 +217,9 @@ begin
   Result := FVAO.Visible;
 end;
 
-function TSkybox.Location: TLocation;
-begin
-  Result := nil;
-end;
-
 procedure TSkybox.Render;
 begin
   FVAO.Render;
-end;
-
-function TSkybox.RenderableChildren: IIterable<IRenderable>;
-begin
-  Result := nil;
 end;
 
 procedure TSkybox.SetVisible(const Value: Boolean);

@@ -166,6 +166,9 @@ type
     /// <summary>Creates a <see cref="Pengine.Vector|TVector2"/> with both components being the same, given value.</summary>
     constructor Create(V: Single); overload;
 
+    /// <returns>A <see cref="Pengine.Vector|TVector2"/>, with a specified <see cref="Pengine.Vector|TVector2.Slope"/>.</returns>
+    class function FromSlope(ASlope: Single): TVector2; static;
+
     /// <returns>A <see cref="Pengine.Vector|TVector2"/>, with each component being a random value in the interval: <c>[0, 1)</c></returns>
     class function Random: TVector2; static;
     /// <returns>A <see cref="Pengine.Vector|TVector2"/>, with each component being a random value in the interval: <c>[-1, 1)</c></returns>
@@ -174,8 +177,8 @@ type
     /// <remarks>The probability is homogeneous.</remarks>
     class function RandomNormal: TVector2; static;
 
-    class operator Implicit(V: Single): TVector2; inline;
-    class operator Implicit(const AVector: TIntVector2): TVector2; inline;
+    class operator Implicit(V: Single): TVector2;
+    class operator Implicit(const AVector: TIntVector2): TVector2;
 
     {$REGION 'All versions of rearrangement TVector2'}
 
@@ -246,10 +249,24 @@ type
     function Floor: TIntVector2;
     /// <returns>The vector, with each component being rounded up.</returns>
     function Ceil: TIntVector2;
+    /// <returns>A vector with the smaller components of both vectors.</returns>
+    function Min(const A: TVector2): TVector2;
+    /// <returns>A vector with the greater components of both vectors.</returns>
+    function Max(const A: TVector2): TVector2;
 
     /// <returns>A set of all basic directions, that the vector is pointing to.</returns>
     /// <remarks>Therefore bdLeft and bdRight etc. are mutually exclusive, as each axis can have only one direction.</remarks>
     function Dirs: TBasicDirs2;
+
+    /// <returns>The slope of the line:<code>
+    /// X | Y | slope <p/>
+    /// --|---|-------<p/>
+    /// 1 | 0 |     0 <p/>
+    /// 1 | 1 |     1 <p/>
+    /// 0 | 1 |  +inf
+    /// </code></returns>
+    /// <remarks>Make sure to check, if X &lt; 0, which means that the line is flipped.</remarks>
+    function Slope: Single;
 
   end;
 
@@ -336,8 +353,8 @@ type
     /// <remarks>The probability is homogeneous.</remarks>
     class function RandomNormal: TVector3; static;
 
-    class operator Implicit(V: Single): TVector3; inline;
-    class operator Implicit(const A: TIntVector3): TVector3; inline;
+    class operator Implicit(V: Single): TVector3;
+    class operator Implicit(const A: TIntVector3): TVector3;
 
     {$REGION 'All versions of rearrangement TIntVector2'}
 
@@ -458,6 +475,10 @@ type
     function Floor: TIntVector3;
     /// <returns>The vector, with each component being rounded up.</returns>
     function Ceil: TIntVector3;
+    /// <returns>A vector with the smaller components of both vectors.</returns>
+    function Min(const A: TVector3): TVector3;
+    /// <returns>A vector with the greater components of both vectors.</returns>
+    function Max(const A: TVector3): TVector3;
 
     /// <returns>A set of all basic directions, that the vector is pointing to.</returns>
     /// <remarks>Therefore bdLeft and bdRight etc. are mutually exclusive, as each axis can have only one direction.</remarks>
@@ -495,9 +516,13 @@ type
   /// The <c>in</c>-operator is inclusive: <c>C1 &lt;= A &lt;= C2</c>
   /// </remarks>
   TBounds1 = record
+  public const
+
+    CornerCount = 2 shl 1;
+
   public type
 
-    TCornerIndex = TIntBounds1.TCornerIndex;
+    TCornerIndex = 0 .. CornerCount - 1;
 
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
@@ -627,9 +652,13 @@ type
   /// The <c>in</c>-operator is inclusive: <c>C1 &lt;= A &lt;= C2</c>
   /// </remarks>
   TBounds2 = record
+  public const
+
+    CornerCount = 2 shl 2;
+
   public type
 
-    TCornerIndex = 0 .. 3;
+    TCornerIndex = 0 .. CornerCount - 1;
 
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
@@ -778,9 +807,13 @@ type
   /// The <c>in</c>-operator is inclusive: <c>C1 &lt;= A &lt;= C2</c>
   /// </remarks>
   TBounds3 = record
+  public const
+
+    CornerCount = 2 shl 3;
+
   public type
 
-    TCornerIndex = 0 .. 7;
+    TCornerIndex = 0 .. CornerCount - 1;
 
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
@@ -1073,16 +1106,6 @@ type
     /// <remarks>Will be positive on the left and negative on the right</remarks>
     function Height(const A: TVector2): Single;
 
-    /// <returns>The slope of the line:<code>
-    /// X | Y | slope <p/>
-    /// ---|---|-------<p/>
-    /// 1 | 0 |     0 <p/>
-    /// 1 | 1 |     1 <p/>
-    /// 0 | 1 |  +inf
-    /// </code></returns>
-    /// <remarks>Make sure to check, if D.X &lt; 0, which means that the line is flipped.</remarks>
-    function Slope: Single;
-
     /// <returns>The side of the line, on which the given point is, while looking in the direction of D.</summary>
     function Side(A: TVector2): TLineSide;
 
@@ -1278,7 +1301,13 @@ type
   /// <summary>Record helper for <see cref="Pengine.Vector|TVector2"/></summary>
   TVector2Helper = record helper for TVector2
     /// <returns>Creates a <see cref="Pengine.Vector|TLine2"/> between two vectors.</returns>
-    function LineTo(A: TVector2): TLine2;
+    function LineTo(const A: TVector2): TLine2;
+  end;
+
+  /// <summary>Record helper for <see cref="Pengine.Vector|TVector3"/></summary>
+  TVector3Helper = record helper for TVector3
+    /// <returns>Creates a <see cref="Pengine.Vector|TLine3"/> between two vectors.</returns>
+    function LineTo(const A: TVector3): TLine3;
   end;
 
   /// <summary>...</summary>
@@ -1548,14 +1577,19 @@ type
       bdUp
       );
 
+  private
+    FFaceNormals: array [TBasicDir3] of TLine3;
+    function GetFaceNormal(ADir: TBasicDir3): TLine3; inline;
+    procedure SetFaceNormal(ADir: TBasicDir3; const Value: TLine3); inline;
+
   public
-    FaceNormals: array [TBasicDir3] of TLine3;
-
     /// <returns>False, if there is at least one face, where all points are on the outside.</retruns>
-    function AnyVisible(APoints: IIterable<TVector3>): Boolean; overload;
-    function AnyVisible(APoints: array of TVector3): Boolean; overload;
+    function AnyVisible(APoints: IIterable<TVector3>): Boolean;
+    function SphereVisible(const ACenter: TVector3; ARadius: Single): Boolean;
 
-    class operator in (APoint: TVector3; const AHexahedron: THexahedron): Boolean;
+    class operator in(APoint: TVector3; const AHexahedron: THexahedron): Boolean;
+
+    property FaceNormals[ADir: TBasicDir3]: TLine3 read GetFaceNormal write SetFaceNormal; default;
 
   end;
 
@@ -1578,6 +1612,10 @@ const
 
   InfVec3: TVector3 = (X: Infinity; Y: Infinity; Z: Infinity);
   NaNVec3: TVector3 = (X: NaN; Y: NaN; Z: NaN);
+
+  InfBounds1: TBounds1 = (C1: -Infinity; C2: +Infinity);
+  InfBounds2: TBounds2 = (C1: (X: -Infinity; Y: -Infinity); C2: (X: Infinity; Y: Infinity));
+  InfBounds3: TBounds3 = (C1: (X: -Infinity; Y: -Infinity; Z: -Infinity); C2: (X: Infinity; Y: Infinity; Z: Infinity));
 
   Vec1Dir: array [TBasicDir1Nonable] of Integer = (
     0,
@@ -1844,6 +1882,11 @@ begin
   Y := V;
 end;
 
+class function TVector2.FromSlope(ASlope: Single): TVector2;
+begin
+  Result.Create(1, ASlope);
+end;
+
 class function TVector2.Random: TVector2;
 begin
   Result.X := System.Random;
@@ -2041,6 +2084,18 @@ begin
   Result.Y := System.Math.Ceil(Y);
 end;
 
+function TVector2.Min(const A: TVector2): TVector2;
+begin
+  Result.X := System.Math.Min(X, A.X);
+  Result.Y := System.Math.Min(X, A.Y);
+end;
+
+function TVector2.Max(const A: TVector2): TVector2;
+begin
+  Result.X := System.Math.Max(X, A.X);
+  Result.Y := System.Math.Max(X, A.Y);
+end;
+
 function TVector2.Dirs: TBasicDirs2;
 begin
   Result := [];
@@ -2052,6 +2107,13 @@ begin
     Include(Result, bdDown);
   if Y > 0 then
     Include(Result, bdUp);
+end;
+
+function TVector2.Slope: Single;
+begin
+  if X = 0 then
+    Exit(Infinity * Sign(Y));
+  Exit(Y / X);
 end;
 
 { TVector3 }
@@ -2648,6 +2710,20 @@ begin
   Result.Z := System.Math.Ceil(Z);
 end;
 
+function TVector3.Min(const A: TVector3): TVector3;
+begin
+  Result.X := System.Math.Min(X, A.X);
+  Result.Y := System.Math.Min(X, A.Y);
+  Result.Z := System.Math.Min(X, A.Z);
+end;
+
+function TVector3.Max(const A: TVector3): TVector3;
+begin
+  Result.X := System.Math.Max(X, A.X);
+  Result.Y := System.Math.Max(X, A.Y);
+  Result.Z := System.Math.Max(X, A.Z);
+end;
+
 function TVector3.Dirs: TBasicDirs3;
 begin
   Result := [];
@@ -3163,7 +3239,7 @@ end;
 
 function TBounds3.GetPointLeft(APos: TVector3): TVector3;
 begin
-
+  Result := C1 + Size * (APos + 1);
 end;
 
 function TBounds3.GetInvPoint(Value: TVector3): TVector3;
@@ -3178,7 +3254,7 @@ end;
 
 function TBounds3.GetInvPointLeft(APos: TVector3): TVector3;
 begin
-
+  Result := (APos - C1) / Size - 1;
 end;
 
 function TBounds3.GetLineX: TBounds1;
@@ -3390,12 +3466,14 @@ function TBounds3.Clamp(ARange: TBounds3): TBounds3;
 begin
   Result.LineX := LineX.Clamp(ARange.LineX);
   Result.LineY := LineY.Clamp(ARange.LineY);
+  Result.LineZ := LineZ.Clamp(ARange.LineZ);
 end;
 
 function TBounds3.Clamp(AValue: TVector3): TVector3;
 begin
   Result.X := LineX.Clamp(AValue.X);
   Result.Y := LineY.Clamp(AValue.Y);
+  Result.Z := LineZ.Clamp(AValue.Z);
 end;
 
 function TBounds3.Normalized: Boolean;
@@ -3407,6 +3485,7 @@ function TBounds3.Normalize: TBounds3;
 begin
   Result.LineX := LineX.Normalize;
   Result.LineY := LineY.Normalize;
+  Result.LineZ := LineZ.Normalize;
 end;
 
 function TBounds3.Inset(AAmount: TVector3): TBounds3;
@@ -3657,13 +3736,6 @@ begin
   if D = 0 then
     Exit(S.DistanceTo(A));
   Result := TLine2.Create(S, D.Cross.Normalize).OrthoProj(A);
-end;
-
-function TLine2.Slope: Single;
-begin
-  if D.X = 0 then
-    Exit(Infinity);
-  Exit(D.Y / D.X);
 end;
 
 function TLine2.Side(A: TVector2): TLineSide;
@@ -3963,7 +4035,14 @@ end;
 
 { TVector2Helper }
 
-function TVector2Helper.LineTo(A: TVector2): TLine2;
+function TVector2Helper.LineTo(const A: TVector2): TLine2;
+begin
+  Result.Create(Self, VectorTo(A));
+end;
+
+{ TVector3Helper }
+
+function TVector3Helper.LineTo(const A: TVector3): TLine3;
 begin
   Result.Create(Self, VectorTo(A));
 end;
@@ -4880,6 +4959,16 @@ end;
 
 { TGHexahedron }
 
+function THexahedron.GetFaceNormal(ADir: TBasicDir3): TLine3;
+begin
+  Result := FFaceNormals[ADir];
+end;
+
+procedure THexahedron.SetFaceNormal(ADir: TBasicDir3; const Value: TLine3);
+begin
+  FFaceNormals[ADir] := Line3(Value.S, Value.D.Normalize);
+end;
+
 function THexahedron.AnyVisible(APoints: IIterable<TVector3>): Boolean;
 var
   Direction: TBasicDir3;
@@ -4892,28 +4981,29 @@ begin
     // are all points on the outside of the given plane
     SingleFaceAllOutside := True;
     for Point in APoints do
-    begin  
+    begin
       // Dot-Product > 0 means outside
-      if FaceNormals[Direction].D.Dot(FaceNormals[Direction].S.VectorTo(Point)) < 0 then
+      if Self[Direction].D.Dot(Self[Direction].S.VectorTo(Point)) < 0 then
       begin
         SingleFaceAllOutside := False;
         Break;
       end;
-    end;   
+    end;
     // If for one face, all points where on the outside, instantly return false
     if SingleFaceAllOutside then
-      Exit(False);    
+      Exit(False);
   end;
   Result := True;
 end;
 
-function THexahedron.AnyVisible(APoints: array of TVector3): Boolean;
+function THexahedron.SphereVisible(const ACenter: TVector3; ARadius: Single): Boolean;
 var
-  Iterable: TIterableFromArray<TVector3>;
+  Direction: TBasicDir3;
 begin
-  Iterable := TIterableFromArray<TVector3>.Create(APoints);
-  Result := AnyVisible(Iterable);
-  Iterable.Free;
+  for Direction in CheckOrder do
+    if Self[Direction].D.Dot(Self[Direction].S.VectorTo(ACenter - Self[Direction].D * ARadius)) >= 0 then
+      Exit(False);
+  Result := True;
 end;
 
 class operator THexahedron.in(APoint: TVector3; const AHexahedron: THexahedron): Boolean;
@@ -4921,7 +5011,7 @@ var
   Dir: TBasicDir3;
 begin
   for Dir := Low(TBasicDir3) to High(TBasicDir3) do
-    if AHexahedron.FaceNormals[Dir].D.Dot(AHexahedron.FaceNormals[Dir].S.VectorTo(APoint)) < 0 then
+    if AHexahedron.FaceNormals[Dir].D.Dot(AHexahedron.FaceNormals[Dir].S.VectorTo(APoint)) > 0 then
       Exit(False);
   Result := True;
 end;

@@ -79,6 +79,13 @@ type
 
     function GetEnumerator: TIntBounds2Iterator;
 
+    /// <returns>The vector, with each negative component being positive.</returns>
+    function Abs: TIntVector2;
+    /// <returns>A vector with the smaller components of both vectors.</returns>
+    function Min(const A: TIntVector2): TIntVector2;
+    /// <returns>A vector with the greater components of both vectors.</returns>
+    function Max(const A: TIntVector2): TIntVector2;
+
   end;
 
   /// <summary>A three component vector of type <see cref="System|Integer"/>.</summary>
@@ -219,6 +226,13 @@ type
     class operator Implicit(const A: TIntVector3): string; inline;
 
     function GetEnumerator: TIntBounds3Iterator;
+
+    /// <returns>The vector, with each negative component being positive.</returns>
+    function Abs: TIntVector3;
+    /// <returns>A vector with the smaller components of both vectors.</returns>
+    function Min(const A: TIntVector3): TIntVector3;
+    /// <returns>A vector with the greater components of both vectors.</returns>
+    function Max(const A: TIntVector3): TIntVector3;
 
   end;
 
@@ -817,6 +831,24 @@ begin
   Result := A.ToString;
 end;
 
+function TIntVector2.Abs: TIntVector2;
+begin
+  Result.X := System.Abs(X);
+  Result.Y := System.Abs(Y);
+end;
+
+function TIntVector2.Min(const A: TIntVector2): TIntVector2;
+begin
+  Result.X := System.Math.Min(X, A.X);
+  Result.Y := System.Math.Min(Y, A.Y);
+end;
+
+function TIntVector2.Max(const A: TIntVector2): TIntVector2;
+begin
+  Result.X := System.Math.Max(X, A.X);
+  Result.Y := System.Math.Max(Y, A.Y);
+end;
+
 { TIntVector3 }
 
 {$REGION 'All version of rearrangement TIntVector2'}
@@ -1194,11 +1226,6 @@ begin
   Result.Z := A.Z * B.Z;
 end;
 
-class operator TIntVector3.In(A: Integer; const B: TIntVector3): Boolean;
-begin
-  Result := A in IBounds3(B);
-end;
-
 class operator TIntVector3.IntDivide(const A, B: TIntVector3): TIntVector3;
 begin
   Result.X := A.X div B.X;
@@ -1248,6 +1275,11 @@ begin
   Result := (A.X >= B.X) and (A.Y >= B.Y) and (A.Z >= B.Z);
 end;
 
+class operator TIntVector3.In(A: Integer; const B: TIntVector3): Boolean;
+begin
+  Result := A in IBounds3(B);
+end;
+
 function TIntVector3.ToString: string;
 begin
   Result := Format('[%d|%d|%d]', [X, Y, Z]);
@@ -1256,6 +1288,27 @@ end;
 class operator TIntVector3.Implicit(const A: TIntVector3): string;
 begin
   Result := A.ToString;
+end;
+
+function TIntVector3.Abs: TIntVector3;
+begin
+  Result.X := System.Abs(X);
+  Result.Y := System.Abs(Y);
+  Result.Z := System.Abs(Z);
+end;
+
+function TIntVector3.Min(const A: TIntVector3): TIntVector3;
+begin
+  Result.X := System.Math.Min(X, A.X);
+  Result.Y := System.Math.Min(Y, A.Y);
+  Result.Z := System.Math.Min(Z, A.Z);
+end;
+
+function TIntVector3.Max(const A: TIntVector3): TIntVector3;
+begin
+  Result.X := System.Math.Max(X, A.X);
+  Result.Y := System.Math.Max(Y, A.Y);
+  Result.Z := System.Math.Max(Z, A.Z);
 end;
 
 { TIntBounds1 }

@@ -1,7 +1,7 @@
-object Form3: TForm3
+object frmMain: TfrmMain
   Left = 0
   Top = 0
-  Caption = 'frmMain'
+  Caption = 'Rope Renderer'
   ClientHeight = 299
   ClientWidth = 635
   Color = clBtnFace
@@ -11,6 +11,7 @@ object Form3: TForm3
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  Position = poDesktopCenter
   PixelsPerInch = 96
   TextHeight = 13
 end

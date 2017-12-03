@@ -3,8 +3,22 @@ unit Pengine.Light;
 interface
 
 uses
-  Lists, UBOManager, Shaders, Color, VectorGeometry, Matrix, SysUtils, GLEnums, TextureManager, Camera, FBOManager,
-  VAOManager, dglOpenGL, OpenGLContext;
+  dglOpenGL,
+
+  System.SysUtils,
+
+  Pengine.Collections,
+  Pengine.UBO,
+  Pengine.Shader,
+  Pengine.Color,
+  Pengine.Vector,
+  Pengine.Matrix,
+  Pengine.GLEnums,
+  Pengine.Texture,
+  Pengine.Camera,
+  Pengine.FBO,
+  Pengine.VAO,
+  Pengine.GLContext;
 
 type
 
@@ -184,8 +198,8 @@ type
     constructor Create(ALightSystem: TLightSystem);
     destructor Destroy; override;
 
-    procedure AddOccluder(ARenderObject: IRenderable);
-    procedure DelOccluder(ARenderObject: IRenderable);
+    procedure AddOccluder(ARenderable: IRenderable);
+    procedure DelOccluder(ARenderable: IRenderable);
 
     procedure AddShader(AShader: TShader);
     procedure DelShader(AShader: TShader);
@@ -223,8 +237,8 @@ type
     constructor Create(ALightSystem: TLightSystem);
     destructor Destroy; override;
 
-    procedure AddOccluder(ARenderObject: IRenderable);
-    procedure DelOccluder(ARenderObejct: IRenderable);
+    procedure AddOccluder(ARenderable: IRenderable);
+    procedure DelOccluder(ARenderable: IRenderable);
 
     procedure AddShader(AShader: TShader);
     procedure DelShader(AShader: TShader);
@@ -261,8 +275,8 @@ type
     constructor Create(ALightSystem: TLightSystem);
     destructor Destroy; override;
 
-    procedure AddOccluder(ARenderObject: IRenderable);
-    procedure DelOccluder(ARenderObject: IRenderable);
+    procedure AddOccluder(ARenderable: IRenderable);
+    procedure DelOccluder(ARenderable: IRenderable);
 
     procedure AddShader(AShader: TShader);
     procedure DelShader(AShader: TShader);
@@ -283,7 +297,7 @@ type
 
     FAmbient: TColorRGB;
 
-    FDepthOnlyUniform: TShaderUniform<Boolean>;
+    FDepthOnlyUniform: TShader.TUniform<Boolean>;
 
     FDirectionalLights: TRefArray<TDirectionalLight>;
     FPointLights: TRefArray<TPointLight>;
@@ -421,14 +435,14 @@ begin
   FCamera.Free;
 end;
 
-procedure TDirectionalLightShaded.AddOccluder(ARenderObject: IRenderable);
+procedure TDirectionalLightShaded.AddOccluder(ARenderable: IRenderable);
 begin
-  FCamera.AddRenderObject(ARenderObject);
+  FCamera.AddRenderable(ARenderable);
 end;
 
-procedure TDirectionalLightShaded.DelOccluder(ARenderObject: IRenderable);
+procedure TDirectionalLightShaded.DelOccluder(ARenderable: IRenderable);
 begin
-  FCamera.DelRenderObject(ARenderObject);
+  FCamera.DelRenderable(ARenderable);
 end;
 
 procedure TDirectionalLightShaded.AddShader(AShader: TShader);
@@ -445,9 +459,9 @@ procedure TDirectionalLightShaded.RenderShadows;
 begin
   FFBO.Bind;
   glClear(Ord(amDepth));
-  FCamera.Render;
   if FCameraChanged then
     SendCamera;
+  FCamera.Render;
 end;
 
 { TPointLightShaded }
@@ -552,20 +566,20 @@ begin
   end;
 end;
 
-procedure TPointLightShaded.AddOccluder(ARenderObject: IRenderable);
+procedure TPointLightShaded.AddOccluder(ARenderable: IRenderable);
 var
   Side: TGLCubeMapSide;
 begin
   for Side := Low(TGLCubeMapSide) to High(TGLCubeMapSide) do
-    FCameras[Side].AddRenderObject(ARenderObject);
+    FCameras[Side].AddRenderable(ARenderable);
 end;
 
-procedure TPointLightShaded.DelOccluder(ARenderObejct: IRenderable);
+procedure TPointLightShaded.DelOccluder(ARenderable: IRenderable);
 var
   Side: TGLCubeMapSide;
 begin
   for Side := Low(TGLCubeMapSide) to High(TGLCubeMapSide) do
-    FCameras[Side].DelRenderObject(ARenderObejct);
+    FCameras[Side].DelRenderable(ARenderable);
 end;
 
 procedure TPointLightShaded.AddShader(AShader: TShader);
@@ -662,14 +676,14 @@ begin
   FCamera.Free;
 end;
 
-procedure TSpotLightShaded.AddOccluder(ARenderObject: IRenderable);
+procedure TSpotLightShaded.AddOccluder(ARenderable: IRenderable);
 begin
-  FCamera.AddRenderObject(ARenderObject);
+  FCamera.AddRenderable(ARenderable);
 end;
 
-procedure TSpotLightShaded.DelOccluder(ARenderObject: IRenderable);
+procedure TSpotLightShaded.DelOccluder(ARenderable: IRenderable);
 begin
-  FCamera.DelRenderObject(ARenderObject);
+  FCamera.DelRenderable(ARenderable);
 end;
 
 procedure TSpotLightShaded.AddShader(AShader: TShader);
@@ -896,7 +910,7 @@ end;
 
 procedure TDirectionalLight.SetDirection(AValue: TVector3);
 begin
-  AValue := AValue.Normalize;
+  AValue := AValue.Normalize; // yes, necessary
   if FDirection = AValue then
     Exit;
   FDirection := AValue;
@@ -1075,6 +1089,8 @@ begin
 
   FUBO := TUBO.Create;
   FUBO.Generate(TSpotLight.MajorOffset + 16 + TSpotLight.DataSize * TSpotLight.MaxLights, buStreamDraw);
+
+  Ambient := 0.1;
 end;
 
 destructor TLightSystem.Destroy;
