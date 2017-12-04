@@ -17,6 +17,7 @@ uses
   Vcl.Forms,
   Vcl.Graphics,
 
+  Pengine.GLState,
   Pengine.ResourceManager,
   Pengine.Color,
   Pengine.FBO,
@@ -111,9 +112,8 @@ type
     procedure UpdateDepthClamp;
     procedure UpdateDebugOutput;
     procedure UpdateDebugOutputSynced;
-  end;
 
-  { TGLForm }
+  end;
 
   TGLForm = class(TForm)
   public type

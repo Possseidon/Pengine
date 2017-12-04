@@ -1,15 +1,47 @@
-unit Pengine.Hasher;
+unit Pengine.ValueHasher;
 
 interface
+
+// TODO: Add TValueComparer<T> and inherite TValueHasher<T> from it
+// TODO: Rename AKey in THasher to AValue
 
 uses
   System.SysUtils,
 
   Pengine.Collections,
   Pengine.IntMaths,
-  Pengine.Vector;
+  Pengine.Vector,
+  Pengine.ValueEqualler;
 
 type
+
+  // TODO: XmlDoc
+  TValueHasher<V; E: TValueEqualler> = class abstract
+  public
+    class function GetHash(AKey: V): Cardinal; virtual; abstract;
+    class function Equal(const AValue1, AValue2: V);
+    class function CanIndex(AKey: V): Boolean; virtual;
+  end;
+
+  // TODO: XmlDoc
+  TValueMap<K, V; H: TValueHasher<K>> = class(TMap<K, V>)
+  protected
+    class function GetHash(AKey: K): Cardinal; override;
+    class function KeysEqual(AKey1, AKey2: K): Boolean; override;
+    class function CanIndex(AKey: K): Boolean; override;
+  public
+    function Copy(AHashMode: THashMode = hmAuto): TValueMap<K, V, H>; reintroduce; inline;
+  end;
+
+  // TODO: XmlDoc
+  TValueSet<T; H: TValueHasher<T>> = class(TSet<T>)
+  protected
+    class function GetHash(AKey: T): Cardinal; override;
+    class function KeysEqual(AKey1, AKey2: T): Boolean; override;
+    class function CanIndex(AKey: T): Boolean; override;
+  public
+    function Copy(AHashMode: THashMode = hmAuto): TValueSet<T, H>; reintroduce; inline;
+  end;
 
   // TODO: XmlDoc
   TPointerHasher = class(TValueHasher<Pointer>)
@@ -41,7 +73,7 @@ type
 
     procedure UnownObjects; override;
     procedure ReownObjects; override;
-    
+
   public
     constructor Create(AHashMode: THashMode = hmAuto); overload; override;
     constructor Create(AOwnsObjects: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
