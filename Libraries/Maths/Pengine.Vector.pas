@@ -2,16 +2,6 @@ unit Pengine.Vector;
 
 interface
 
-{ TODO 5 -oPossseidon -cUnitTest :
-  Unit-Tests for TBounds1.RangeModL and RangeModR }
-
-{ TODO 4 -oPossseidon -cFunction :
-  Add GetCorners to all Bounds (Int) }
-
-{ TODO 3 -oPossseidon -cXmlDoc :
-  Add XML-Doc <returns> to ortho projection and intersection
-  => true means exactly one solution (which is in Data now) and false means none or infinite }
-
 { TODO 3 -oPossseidon -cFunction :
   Line Intsec with other Line as normal for Plane }
 
@@ -23,12 +13,6 @@ interface
 
 { TODO 3 -oPossseidon -cInline :
   Add various inline to functions with different compiler switches. }
-
-{ TODO 5 -oPossseidon -cRefactoring :
-  Shorthand constructors for Plane and Line.
-  Rename FRange to Bounds.
-  Renanme all constructors to CreateX, to mark, that only the
-  shorthanded ones should be used. }
 
 { TODO 5 -oPossseidon -cXmlDoc :
   TLocation XmlDoc }
@@ -1310,7 +1294,8 @@ type
     function LineTo(const A: TVector3): TLine3;
   end;
 
-  /// <summary>...</summary>
+  // TODO: Remove the constructor parameter and calculate invmatrix with the current inverted calculation
+  /// <summary>A class for an oriented position in 3D space.</summary>
   TLocation = class
   public type
 
@@ -1407,9 +1392,14 @@ type
     procedure SetParent(const Value: TLocation);
 
   public
+    /// <summary>Creates a <see cref="Pengine.Vector|TLocation"/>.</summary>
+    /// <param name="AInverted">Output matrix is inverse, mainly used for cameras.</param>
     constructor Create(AInverted: Boolean = False);
 
+    /// <summary>The 4x4 output transformation-matrix.</summary>
     property Matrix: TMatrix4 read GetMatrix;
+    /// <summary>The inverse of <see cref="Pengine.Vector|TLocation.Matrix"/>.</summary>
+    /// <remarks>If only the inverse matrix is used, flip both matrices with the constructor parameter.</remarks>
     property InvMatrix: TMatrix4 read GetInvMatrix;
 
     property RotMatrix: TMatrix3 read GetRotMatrix;

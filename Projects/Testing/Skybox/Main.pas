@@ -89,7 +89,7 @@ type
     FCamera: TSmoothControlledCamera;
     FCubes: TRefArray<TCube>;
     FLightSystem: TLightSystem;
-    FSun: TDirectionalLightShaded;
+    FSun: TDirectionalLight;
 
   public
     procedure Init; override;
@@ -144,10 +144,10 @@ begin
   FLightSystem.BindToShader(TModelShader.Data);
 
   FSun := TDirectionalLightShaded.Create(FLightSystem);
-  FSun.Direction := Vec3(-0.3, -1, -0.3);
-  FSun.Size := 20;
+  FSun.Direction := -Vec3(0.3, 1, 0.3);
+  // FSun.Size := 20;
 
-  FCubes.Capacity := 100;
+  FCubes.Capacity := 10;
   for I := 0 to FCubes.Capacity - 1 do
   begin
     Cube := FCubes.Add(TCube.Create(TModelShader.Data));
@@ -155,7 +155,7 @@ begin
     Cube.Location.Pos := TVector3.RandomNormal * 5;
 
     FCamera.AddRenderable(Cube);
-    FSun.AddOccluder(Cube);
+    // FSun.AddOccluder(Cube);
 
     for J := 0 to -1 do
     begin

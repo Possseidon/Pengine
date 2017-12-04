@@ -31,6 +31,9 @@ type
     FPoint1: TVector3;
     FPoint2: TVector3;
     FOsculatingRadius: Single;
+    FStepsX: Integer;
+    FRadius: TBounds1;
+    FStepsR: Integer;
 
     procedure SetPoint1(const Value: TVector3);
     procedure SetPoint2(const Value: TVector3);
@@ -48,6 +51,13 @@ type
     procedure BuildVAO;
 
     procedure Changed;
+    function GetInnerPoint(APos, AAngle: Single): TVector3;
+    procedure SetStepsR(const Value: Integer);
+    procedure SetInnerRadius(const Value: Single);
+    procedure SetOuterRadius(const Value: Single);
+    procedure SetStepsX(const Value: Integer);
+    procedure SetRadius(const Value: TBounds1);
+    function GetHangDistance(APos: Single): Single;
 
   public
     constructor Create(APoint1, APoint2: TVector3; AOsculatingRadius: Single);
@@ -58,19 +68,36 @@ type
     property OsculatingRadius: Single read FOsculatingRadius write SetOsculatingRadius;
     property Length: Single read GetLength write SetLength;
 
-    /// <summary>Converts from <c>[0, +1]</c> to a point on the center of the rope.</summary>
-    property Point[APos: Single]: TVector3 read GetPoint; default;
-    property Point[APos, AAngle: Single]: TVector3 read GetPoint; default;
+    property Radius: TBounds1 read FRadius write SetRadius;
+    property InnerRadius: Single read FRadius.C1 write SetInnerRadius;
+    property OuterRadius: Single read FRadius.C2 write SetOuterRadius;
+
+    property StepsX: Integer read FStepsX write SetStepsX;
+    property StepsR: Integer read FStepsR write SetStepsR;
+
     property Line: TLine3 read GetLine;
     property Derivative[APos: Single]: Single read GetDerivative;
     property Tangent[APos: Single]: TVector3 read GetTangent;
     property Normal[APos, AAngle: Single]: TVector3 read GetNormal;
+    property HangDistance[APos: Single]: Single read GetHangDistance;
+
+    /// <summary>Converts from <c>[0, +1]</c> to a point on the center of the rope.</summary>
+    property Point[APos: Single]: TVector3 read GetPoint; default;
+    property Point[APos, AAngle: Single]: TVector3 read GetPoint; default;
+    property InnerPoint[APos, AAngle: Single]: TVector3 read GetInnerPoint;
 
     procedure Render; override;
 
   end;
 
 implementation
+
+{ ERopePointsSamePosition }
+
+constructor ERopePointsSamePosition.Create;
+begin
+  inherited Create('The two points X or Z coordinates must be different.');
+end;
 
 { TRope }
 
@@ -90,6 +117,30 @@ begin
   Changed;
 end;
 
+procedure TRope.SetRadius(const Value: TBounds1);
+begin
+  if Radius = Value then
+    Exit;
+  FRadius := Value;
+  Changed;
+end;
+
+procedure TRope.SetStepsR(const Value: Integer);
+begin
+  if StepsR = Value then
+    Exit;
+  FStepsR := Value;
+  Changed;
+end;
+
+procedure TRope.SetStepsX(const Value: Integer);
+begin
+  if StepsX = Value then
+    Exit;
+  FStepsX := Value;
+  Changed;
+end;
+
 procedure TRope.SetOsculatingRadius(const Value: Single);
 begin
   if OsculatingRadius = Value then
@@ -98,32 +149,44 @@ begin
   Changed;
 end;
 
-function TRope.GetLength: Single;
+procedure TRope.SetOuterRadius(const Value: Single);
 begin
-  raise ENotImplemented.Create('Length conversion is not implemented.');
+  if OuterRadius = Value then
+    Exit;
+  FRadius.C1 := Value;
+  Changed;
+end;
+
+function TRope.GetLength: Single;
+var
+  A: Single;
+begin
+  A := OsculatingRadius;
+  Result := 2 * A * Sinh(Line.D.Length / (2 * A));
+end;
+
+procedure TRope.SetInnerRadius(const Value: Single);
+begin
+  FRadius.C1 := Value;
 end;
 
 procedure TRope.SetLength(const Value: Single);
 begin
-  raise ENotImplemented.Create('Length conversion is not implemented.');
+  raise ENotSupportedException.Create('Setting length is not supported.');  
 end;
 
 function TRope.GetPoint(APos: Single): TVector3;
-var
-  A, Y: Single;
 begin
   if Point1.XZ = Point2.XZ then
     raise ERopePointsSamePosition.Create;
 
-  A := OsculatingRadius;
-  Y := A * Cosh((APos * 2 - 1) / A) - A * Cosh(1 / A);
   Result := Line[APos];
-  Result.Y := Result.Y + Y * Line.D.Length * 2;
+  Result.Y := Result.Y + HangDistance[APos];
 end;
 
 function TRope.GetPoint(APos, AAngle: Single): TVector3;
 begin
-  Result := Point[APos] + Normal[APos, AAngle] * 0.5;
+  Result := Point[APos] + Normal[APos, AAngle] * OuterRadius;
 end;
 
 function TRope.GetLine: TLine3;
@@ -139,20 +202,33 @@ begin
     raise ERopePointsSamePosition.Create;
 
   A := OsculatingRadius;
-  Result := 2 * Sinh((2 * (APos * 2 - 1)) / A);
+  //Result := 2 * Sinh((2 * (APos * 2 - 1)) / A);
+  Result := Cos(APos * 16) * 1.6;
+end;
+
+function TRope.GetHangDistance(APos: Single): Single;
+var
+  A: Single;
+begin
+  A := OsculatingRadius;
+  //Result := A * Cosh((APos * 2 - 1) / A) - A * Cosh(1 / A);
+  Result := Sin(APos * 16) * 0.1;
+  Result := Result * Line.D.Length * 2;
+end;
+
+function TRope.GetInnerPoint(APos, AAngle: Single): TVector3;
+begin
+  Result := Point[APos] + Normal[APos, AAngle] * InnerRadius;
 end;
 
 procedure TRope.BuildVAO;
-const
-  StepsX = 200;
-  StepsR = 90;
 var
   Data: TModelShader.TData;
   XInt, RInt: Integer;
   T: TVector2;
   X, R: TBounds1;
 begin
-  FVAO.Generate(StepsX * StepsR * 6 * 2, buStaticDraw);
+  FVAO.Generate(StepsX * StepsR * 6 * 2 + StepsR * 6 * 2, buStaticDraw);
   FVAO.Map(baWriteOnly);
 
   // Rope
@@ -161,29 +237,50 @@ begin
     for RInt := 0 to StepsR - 1 do
     begin
       X := Bounds1(XInt / StepsX, (XInt + 1) / StepsX);
-      R := Bounds1(RInt / StepsR, (RInt + 1) / StepsR) * 360;       
+      R := Bounds1(RInt / StepsR, (RInt + 1) / StepsR) * 360;
+      // Outer
       for T in QuadTexCoords do
       begin
         Data.Color := X[T.X] * ColorRGB(0, 0.3, 1) + (1 - X[T.X]) * ColorRGB(1, 0.3, 0);
-        Data.Pos := Point[X[T.X], R[T.Y]];
         Data.Normal := Normal[X[T.X], R[T.Y]];
+        Data.Pos := Point[X[T.X], R[T.Y]];
         FVAO.AddVertex(Data);
       end;
+      // Inner
       for T in QuadTexCoords do
       begin
-        Data.Color := X[1 - T.X] * ColorRGB(0, 0.3, 1) + (1 - X[1 - T.X]) * ColorRGB(1, 0.3, 0);
-        Data.Pos := Point[X[1 - T.X], R[T.Y]];
-        Data.Normal := -Normal[X[1 - T.X], R[T.Y]];
+        Data.Color := X[T.X] * ColorRGB(0, 0.3, 1) + (1 - X[T.X]) * ColorRGB(1, 0.3, 0);
+        Data.Normal := -Normal[X[T.X], R[1 - T.Y]];
+        Data.Pos := InnerPoint[X[T.X], R[1 - T.Y]];
         FVAO.AddVertex(Data);
       end;
     end;
   end;
 
-  // Point1-Cap
-  // TODO
+  // Point-Caps
+  for RInt := 0 to StepsR - 1 do
+  begin
+    R := Bounds1(RInt / StepsR, (RInt + 1) / StepsR) * 360;
+      
+    // Point1
+    Data.Color := ColorRGB(1, 0.3, 0);
+    Data.Normal := -Tangent[0];
+    for T in QuadTexCoords do
+    begin
+      Data.Pos := Point[0] + Normal[0, R[T.Y]] * Radius[T.X];
+      FVAO.AddVertex(Data);
+    end;
 
-  // Point2-Cap
-  // TODO
+    // Point2
+    Data.Color := ColorRGB(0, 0.3, 1);
+    Data.Normal := Tangent[1];
+    for T in QuadTexCoords do
+    begin
+      Data.Pos := Point[1] + Normal[1, R[1 - T.Y]] * Radius[T.X];
+      FVAO.AddVertex(Data);
+    end;
+
+  end;
 
   FVAO.Unmap;
 
@@ -218,6 +315,9 @@ begin
   Point1 := APoint1;
   Point2 := APoint2;
   OsculatingRadius := AOsculatingRadius;
+  Radius := Bounds1(0.5, 1);
+  StepsX := 16;
+  StepsR := 8;
 end;
 
 destructor TRope.Destroy;
@@ -231,13 +331,6 @@ begin
   if FChanged then
     BuildVAO;
   FVAO.Render;
-end;
-
-{ ERopePointsSamePosition }
-
-constructor ERopePointsSamePosition.Create;
-begin
-  inherited Create('The two points X or Z coordinates must be different.');
 end;
 
 end.
