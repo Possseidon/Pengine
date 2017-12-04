@@ -202,8 +202,7 @@ begin
     raise ERopePointsSamePosition.Create;
 
   A := OsculatingRadius;
-  //Result := 2 * Sinh((2 * (APos * 2 - 1)) / A);
-  Result := Cos(APos * 16) * 1.6;
+  Result := 2 * Sinh((2 * (APos * 2 - 1)) / A);
 end;
 
 function TRope.GetHangDistance(APos: Single): Single;
@@ -211,8 +210,7 @@ var
   A: Single;
 begin
   A := OsculatingRadius;
-  //Result := A * Cosh((APos * 2 - 1) / A) - A * Cosh(1 / A);
-  Result := Sin(APos * 16) * 0.1;
+  Result := A * Cosh((APos * 2 - 1) / A) - A * Cosh(1 / A);
   Result := Result * Line.D.Length * 2;
 end;
 

@@ -24,68 +24,13 @@ uses
 
 type
 
-  TTextureType = (
-    ttMain,
-    ttSpecular,
-    ttNormal
-    );
-  TSubTextureType = ttSpecular .. High(TTextureType);
-  TSubTextureTypes = set of TSubTextureType;
-
-  { TTextureData }
-
-  TTextureData = class
-  private
-    FWidth, FHeight: Word;
-    FBpp: Byte;
-    FData: array [TTextureType] of PByte;
-    FName: string;
-
-  const
-    FileExtension = '.png';
-    FileTypeMarker: array [TSubTextureType] of string = (
-      'specularmap',
-      'normalmap'
-      );
-
-    function GetData(T: TTextureType): PByte;
-  public
-    constructor Create(AFileName: string; AResource: Boolean = False); overload;
-    constructor Create(AWidth, AHeight: Word; ABpp: Byte; AName: string); overload;
-
-    destructor Destroy; override;
-    procedure FreeData;
-
-    property Width: Word read FWidth;
-    property Height: Word read FHeight;
-    property Bpp: Byte read FBpp;
-    property Data[T: TTextureType]: PByte read GetData;
-    property Name: string read FName;
-
-  end;
-
-  { TTextureItem }
-
-  TTextureItem = class(TTextureData)
-  private
-    FTexCoord: TTexCoord2;
-  public
-    constructor Create(ATextureData: TTextureData); overload;
-    // constructor Create(AFileName: String; AResource: Boolean = False); overload;
-    // constructor Create(AWidth, AHeight: Word; ABpp: Byte; AName: String); overload;
-
-    property TexCoord: TTexCoord2 read FTexCoord write FTexCoord;
-  end;
-
-  { ETooManyTextureUnits }
-
+  /// <summary>Only a limited amount of textures can be bound at a single time.</summary>
   ETooManyTextureUnits = class(Exception)
   public
     constructor Create;
   end;
 
-  { TTexture }
-
+  /// <summary>The base class for all textures, which itself inherites from <see cref="Pengine.GLObject|TGLObject"/>.</summary>
   TTexture = class abstract(TGLObject)
   private
     FUnitID: Integer; // Unit-ID for GL_TEXTURE0 + I
@@ -118,11 +63,82 @@ type
 
     procedure Uniform(AUniform: TShader.TUniformSampler);
 
+    /// <summary>The texture unit, used by the shader.</summary>
+    /// <remarks>Only <see cref="Pengine.Texture|TTexture.MaxUnits"/> textures can be used in a shader at once.</remarks>
     property UnitID: Integer read FUnitID;
 
     function TargetType: Cardinal; virtual; abstract;
 
+    /// <returns>The maximum number of texture units in a shader.</returns>
+    /// <remarks>Must be at least 8.</remarks>
     class function MaxUnits: Integer;
+
+  end;
+  
+  /// <summary>Contains the data (main and sub types) and some additional information for a texture.</summary>
+  TTextureData = class
+  public type
+    /// <summary>There are mutilple different types of textures. Whenever a <c>ttMain</c> texture gets loaded,
+    /// it checks for the existence of other types and adds those as well.</summary>
+    TType = (
+      ttMain,
+      ttSpecular,
+      ttNormal
+      );
+    /// <summary>All texture types except for <c>ttMain</c>.</summary>
+    TSubType = ttSpecular .. High(TType);
+    /// <summary>A set of sub textures.</summary>
+    TSubTypes = set of TSubType;
+
+  public const
+    /// <summary>Only portable network graphics are supported by the loader currently.</summary>
+    FileExtension = '.png';
+    /// <summary>The file markers, to look for when loading a main texture.</summary>
+    /// <remarks>Format is: <c>"path\texture_marker.png"</c></remarks>
+    FileTypeMarker: array [TSubType] of string = (
+      'specularmap',
+      'normalmap'
+      );
+
+  private
+    FSize: TIntVector2;
+    FBytesPerPixel: Integer;
+    FData: array [TType] of PByte;
+    
+    function GetAvailableSubTypes: TSubTypes;
+
+    procedure SetAvailableSubTypes(const Value: TSubTypes);
+
+    function GetData(T: TType): PByte;
+    function GetDataSize: Integer;
+
+  public
+    /// <summary>Load the data from a file or resource-path</summary>
+    constructor Create(APath: string; AResource: Boolean = False); overload;
+    /// <summary>Create an empty texture for the specified values</summary>
+    constructor Create(AWidth, AHeight: Word; ABpp: Byte; AName: string); overload;
+
+    destructor Destroy; override;
+
+    /// <summary>The width and height of the texture in pixels.</summary>
+    property Size: TIntVector2 read FSize;
+    /// <summary>The width of the texture in pixels.</summary>
+    property Width: Integer read FSize.X;
+    /// <summary>The height of the texture in pixels.</summary>
+    property Height: Integer read FSize.Y;
+
+    /// <summary>How many bytes are used for a single pixel.</summary>
+    /// <remarks>This is usually 3 for RGB and 4 if there is an alpha.</remarks>
+    property BytesPerPixel: Integer read FBytesPerPixel;
+
+    /// <summary>Which sub types are currently in use.</summary>
+    /// <remarks>Setting automatically clears or requires data for subtypes.</remarks>
+    property AvailableSubTypes: TSubTypes read GetAvailableSubTypes write SetAvailableSubTypes;
+
+    /// <summary>A byte pointer to the data of the main texture or a specific subtype texture.</summary>
+    property Data[T: TType]: PByte read GetData;
+    /// <summary>The total size of a single texture in bytes.</summary>
+    property DataSize: Integer read GetDataSize;
 
   end;
 
@@ -281,10 +297,10 @@ type
     FTextureIDs: TStringMap<TTextureID>;
     FPxlSize: Integer;
 
-    FSubTextures: array [TSubTextureType] of TTexture2D;
+    FSubTextures: array [TTextureData.TSubType] of TTexture2D;
     FSizeChanged: Boolean;
 
-    function GetSubTexture(ASubTextureType: TSubTextureType): TTexture2D;
+    function GetSubTexture(ASubTextureType: TTextureData.TSubType): TTexture2D;
     function GetTexture(ID: TTextureID): TTextureItem;
     function GetTextureID(AName: string): TTextureID;
     function GetTextureName(ID: TTextureID): string;
@@ -293,7 +309,7 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    procedure EnableSubType(ASubType: TSubTextureType);
+    procedure EnableSubType(ASubType: TTextureData.TSubType);
 
     procedure AddTexture(const ATexture: TTextureItem; const AName: string); overload;
     procedure AddTexture(const ATexture: TTextureItem); overload; inline;
@@ -326,14 +342,14 @@ type
 
     property TextureIDs[AName: string]: TTextureID read GetTextureID;
     property TextureNames[ID: TTextureID]: string read GetTextureName;
-    property SubTexture[ASubTextureType: TSubTextureType]: TTexture2D read GetSubTexture;
+    property SubTexture[ASubTextureType: TTextureData.TSubType]: TTexture2D read GetSubTexture;
 
     function TextureExists(const AName: string): Boolean;
 
     property SizeChanged: Boolean read FSizeChanged;
     procedure NotifySizeChange;
 
-    procedure Uniform(AUniform: TShader.TUniformSampler; ATextureType: TTextureType);
+    procedure Uniform(AUniform: TShader.TUniformSampler; ATextureType: TTextureData.TType);
     procedure UniformDefaults(AShader: TShader);
   end;
 
@@ -533,15 +549,15 @@ end;
 
 constructor TTextureItem.Create(ATextureData: TTextureData);
 var
-  T: TTextureType;
+  T: TType;
   DataSize: Cardinal;
 begin
-  FWidth := ATextureData.Width;
-  FHeight := ATextureData.Height;
-  FBpp := ATextureData.Bpp;
+  FSize.X := ATextureData.Width;
+  FSize.Y := ATextureData.Height;
+  FBytesPerPixel := ATextureData.BytesPerPixel;
   FName := ATextureData.Name;
-  DataSize := ATextureData.Bpp * ATextureData.Width * ATextureData.Height;
-  for T := Low(TTextureType) to High(TTextureType) do
+  DataSize := ATextureData.BytesPerPixel * ATextureData.Width * ATextureData.Height;
+  for T := Low(TType) to High(TType) do
     if ATextureData.Data[T] <> nil then
     begin
       GetMem(FData[T], DataSize);
@@ -708,19 +724,49 @@ end;
 
 constructor ETooManyTextureUnits.Create;
 begin
-  inherited CreateFmt('Too many Texture Units! Maximum: %d', [TTexturePage.MaxUnits]);
+  inherited CreateFmt('Too many texture units created.');
 end;
 
-function TTextureData.GetData(T: TTextureType): PByte;
+{ TTextureData }
+
+function TTextureData.GetAvailableSubTypes: TSubTypes;
+var
+  T: TSubType;
+begin
+  Result := [];
+  for T := Low(TSubType) to High(TSubType) do
+    if Data[T] <> nil then
+      Include(Result, T);
+end;
+
+procedure TTextureData.SetAvailableSubTypes(const Value: TSubTypes);
+var
+  T: TSubType;
+begin
+  for T := Low(TSubType) to High(TSubType) do
+  begin
+    if T in Value and (Data[T] = nil) then
+      GetMem(Data[T], DataSize)
+    else if not T in Value and (Data[T] <> nil) then
+      FreeMem(Data[T]);
+  end;
+end;
+
+function TTextureData.GetData(T: TType): PByte;
 begin
   Result := FData[T];
 end;
 
-constructor TTextureData.Create(AFileName: string; AResource: Boolean);
+function TTextureData.GetDataSize: Integer;
+begin
+
+end;
+
+constructor TTextureData.Create(APath: string; AResource: Boolean);
 const
   Normal: Cardinal = $007F7FFF;
 
-  function ConvertFileName(AFileName: string; ATextureType: TSubTextureType): string;
+  function ConvertFileName(AFileName: string; ATextureType: TSubType): string;
   begin
     // test.png > test_MARKER.png
     Result := StringReplace(
@@ -731,18 +777,18 @@ const
       );
   end;
 
-  function ConvertResourceName(AName: string; ATextureType: TSubTextureType): string;
+  function ConvertResourceName(AName: string; ATextureType: TSubType): string;
   begin
     Result := AName + '_' + UpperCase(FileTypeMarker[ATextureType]);
   end;
 
-  procedure LoadTexture(AName: string; AResource: Boolean = False; ATextureType: TTextureType = ttMain);
+  procedure LoadTexture(AName: string; AResource: Boolean = False; ATextureType: TType = ttMain);
   var
     Res: PByte;
     X, Y: Integer;
     NoSubTexture: Boolean;
     Size, I: Integer;
-    T: TTextureType;
+    T: TType;
     Name: string;
     Png: TPngImage;
     Alpha: PByteArray;
@@ -767,12 +813,12 @@ const
     begin
       FWidth := Png.Width;
       FHeight := Png.Height;
-      FBpp := 4;
+      FBytesPerPixel := 4;
     end
     else if (FWidth <> Png.Width) or (FHeight <> Png.Height) then
       raise Exception.Create('Texture size for sub textures must be equal to main texture!');
 
-    Size := Png.Width * Png.Height * FBpp;
+    Size := Png.Width * Png.Height * FBytesPerPixel;
     GetMem(Res, Size);
     FData[ATextureType] := Res;
 
@@ -802,7 +848,7 @@ const
     Png.Free;
 
     if ATextureType = ttMain then
-      for T := Low(TSubTextureType) to High(TSubTextureType) do
+      for T := Low(TSubType) to High(TSubType) do
       begin
         NoSubTexture := False;
         if AResource then
@@ -835,37 +881,23 @@ const
   end;
 
 begin
-  FName := ExtractFileName(AFileName);
-  LoadTexture(AFileName, AResource);
+  FName := ExtractFileName(APath);
+  LoadTexture(APath, AResource);
 end;
 
 constructor TTextureData.Create(AWidth, AHeight: Word; ABpp: Byte; AName: string);
 begin
   FWidth := AWidth;
   FHeight := AHeight;
-  FBpp := ABpp;
+  FBytesPerPixel := ABpp;
   FName := AName;
   GetMem(FData[ttMain], AWidth * AHeight * ABpp);
 end;
 
 destructor TTextureData.Destroy;
-var
-  P: PByte;
 begin
-  for P in FData do
-    if P <> nil then
-      FreeMem(P);
-end;
-
-procedure TTextureData.FreeData;
-var
-  T: TTextureType;
-begin
-  for T := Low(TTextureType) to High(TTextureType) do
-  begin
-    FreeMem(FData[T]);
-    FData[T] := nil;
-  end;
+  AvailableSubTypes := [];
+  FreeMem(FData[ttMain]);
 end;
 
 { TTexturePage }

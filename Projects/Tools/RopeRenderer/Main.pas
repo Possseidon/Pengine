@@ -34,7 +34,7 @@ type
     FSkybox: TSkybox;
     FRopes: TRefArray<TRope>;
     FLightSystem: TLightSystem;
-    FSun: TDirectionalLight;
+    FSun: TDirectionalLightShaded;
 
   public
     procedure Init; override;
@@ -69,7 +69,7 @@ begin
   FSkybox.AddStripe(ColorRGB(0.1, 0.2, 0.9), +90);
 
   FCamera := TSmoothControlledCamera.Create(60, Aspect, 0.01, 100, Self);
-  FCamera.Location.OffsetZ := 0;
+  FCamera.Location.OffsetZ := 5;
   FCamera.Location.TurnAngle := -30;
   FCamera.Location.PitchAngle := -20;
   FCamera.AddUniforms(TSkyboxShader.Data);
@@ -77,26 +77,26 @@ begin
 
   FCamera.AddRenderable(FSkybox);
 
+  FLightSystem := TLightSystem.Create(Self);
+  FLightSystem.BindToShader(TModelShader.Data);
+  FLightSystem.Ambient := 0.2;
+
+  FSun := TDirectionalLightShaded.Create(FLightSystem);
+  FSun.Size := 10;
+  FSun.Direction := -Vec3(0.2, 1, 0.2);
+
   FRopes := TRefArray<TRope>.Create(True);
 
   FRopes.Capacity := 10;
   for I := 1 to FRopes.Capacity do
   begin
-    Rope := FRopes.Add(TRope.Create(Vec3(-3, 2, -I), Vec3(3, 2, -I), (I + 1) / 2));
+    Rope := FRopes.Add(TRope.Create(Vec3(-3, 2, 4.5 - I), Vec3(3, 2, 4.5 - I), (I + 1) / 2));
     Rope.Radius := Bounds1(0.3, 0.4);
-    Rope.StepsX := 200;
-    Rope.StepsR := 90;
+    Rope.StepsX := 16;
+    Rope.StepsR := 16;
     FCamera.AddRenderable(Rope);
+    FSun.AddOccluder(Rope);
   end;
-
-  FLightSystem := TLightSystem.Create(Self);
-  FLightSystem.BindToShader(TModelShader.Data);
-  FLightSystem.Ambient := 0.2;
-
-  FSun := TDirectionalLight.Create(FLightSystem);
-  // FSun.Size := 10;
-  FSun.Direction := -Vec3(0.2, 1, 0.2);
-  // FSun.AddOccluder(FRope);
 end;
 
 procedure TfrmMain.Finalize;
@@ -114,13 +114,14 @@ begin
     Caption := Format('Rope Renderer - FPS: %d', [FPSInt]);
 
   FCamera.Update;
-  FSun.Direction := FCamera.Location.Look;
+  if Input.KeyDown(' ') then
+    FSun.Direction := FCamera.Location.Look;
 
 end;
 
 procedure TfrmMain.RenderGL;
 begin
-  // FLightSystem.RenderShadows;
+  FLightSystem.RenderShadows;
   FCamera.Render;
 end;
 
