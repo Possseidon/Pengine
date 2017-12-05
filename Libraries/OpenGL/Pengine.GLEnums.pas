@@ -56,7 +56,7 @@ type
     cfAlways
     );
 
-  TGLBlendingFactorSrc = (
+  TGLBlendFactorSrc = (
     bfsZero = GL_ZERO,
     bfsOne,
     bfsSrcColor = GL_SRC_COLOR,
@@ -74,7 +74,7 @@ type
     bfsOneMinusConstantAlpha
     );
 
-  TGLBlendingFactorDest = (
+  TGLBlendFactorDest = (
     bfdZero = GL_ZERO,
     bfdOne,
     bfdSrcColor = GL_SRC_COLOR,
@@ -91,9 +91,12 @@ type
     bfdOneMinusConstantAlpha
     );
 
-  TGLBlendingFunc = record
-    Src: TGLBlendingFactorSrc;
-    Dest: TGLBlendingFactorDest;
+  TGLBlendFunc = record
+    Src: TGLBlendFactorSrc;
+    Dest: TGLBlendFactorDest;
+
+    class function Make(ASrc: TGLBlendFactorSrc = bfsOne; ADest: TGLBlendFactorDest = bfdZero): TGLBlendFunc; static;
+
   end;
 
   TGLDrawBufferMode = (
@@ -673,6 +676,14 @@ begin
   ErrorCode := glGetError;
   if TGLErrorCode(ErrorCode) <> ecNoError then
     raise Exception.Create('OpenGL Error: ' + gluErrorString(ErrorCode));
+end;
+
+{ TGLBlendFunc }
+
+class function TGLBlendFunc.Make(ASrc: TGLBlendFactorSrc; ADest: TGLBlendFactorDest): TGLBlendFunc;
+begin
+  Result.Src := ASrc;
+  Result.Dest := ADest;
 end;
 
 end.

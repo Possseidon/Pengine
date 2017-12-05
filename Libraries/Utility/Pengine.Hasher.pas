@@ -1,4 +1,4 @@
-unit Pengine.ValueHasher;
+unit Pengine.Hasher;
 
 interface
 
@@ -7,183 +7,164 @@ uses
 
   Pengine.IntMaths,
   Pengine.Vector,
-  Pengine.ValueEqualler;
+  Pengine.Equaller;
 
 type
 
-  TValueHasher = class abstract;
-  TValueHasherClass = class of TValueHasher;
-
-  /// <summary>A generic, abstract class assistant, to calculate a hash for a specific value type V.</summary>
-  /// <remarks>A <see cref="Pengine.ValueEqualler|TValueEqualler{V}"/> E is required, to counter hash collisions.<p/>
-  /// A complex calculation is usually not necessary, as the modulus with a prime is taken by the hash collections.<p/>
-  /// The main thing to look out for is, that for same values, <c>xor</c> will always calculate to zero.</remarks>
-  TValueHasher<V> = class abstract(TValueHasher)
+  THasher<V> = class abstract
   public
-    class function Equaller: TValueEquallerClass; virtual; abstract;
-    class function Equal(const AValue1, AValue2: V): Boolean;
+    class function Equal(const AValue1, AValue2: V): Boolean; virtual; abstract;    
     class function GetHash(const AValue: V): Cardinal; virtual; abstract;
     class function CanIndex(const AValue: V): Boolean; virtual;
   end;
 
+  /// <summary>A generic, abstract class assistant, to calculate a hash for a specific value type V.</summary>
+  /// <remarks>A <see cref="Pengine.ValueEqualler|TEqualler{V}"/> E is required, to counter hash collisions.<p/>
+  /// A complex calculation is usually not necessary, as the modulus with a prime is taken by the hash collections.<p/>
+  /// The main thing to look out for is, that for same values, <c>xor</c> will always calculate to zero.</remarks>
+  THasher<V; E: TEqualler<V>> = class abstract(THasher<V>)
+  public      
+    class function Equal(const AValue1, AValue2: V): Boolean; override;
+  end;
+
   /// <summary>Directly casts 32-Bit-Pointers to hashes, while taking the <c>xor</c> of low and upper half of
   /// 64-Bit-Pointers.</summary>
-  TPointerHasher = class(TValueHasher<Pointer>)
+  TPointerHasher = class(THasher<Pointer, TPointerEqualler>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: Pointer): Cardinal; override;
     class function CanIndex(const AValue: Pointer): Boolean; override;
   end;
 
   /// <summary>Hashes the reference of any descendant of <see cref="System|TObject"/>.</summary>
   /// <remarks>Uses <see cref="Pengine.ValueHasher|TPointerHasher"/> internally.</remarks>
-  TRefHasher<V: class> = class(TValueHasher<V>)
+  TRefHasher<V: class> = class(THasher<V, TRefEqualler<V>>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: V): Cardinal; override;
     class function CanIndex(const AValue: V): Boolean; override;
   end;
 
   /// <summary>Directly uses the unsigned Integer as hash.</summary>
-  TUIntHasher = class(TValueHasher<Cardinal>)
+  TUIntHasher = class(THasher<Cardinal, TUIntEqualler>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: Cardinal): Cardinal; override;
   end;
 
   /// <summary>Directly cast from <see cref="System|Integer"/> to the hash.</summary>
   /// <remarks>This means, small negative values turn into huge hashes.</remarks>
-  TIntHasher = class(TValueHasher<Integer>)
+  TIntHasher = class(THasher<Integer, TIntEqualler>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: Integer): Cardinal; override;
   end;
 
   /// <summary>Takes the <c>xor</c> of both components, after rotating the bits differently for each component.</summary>
   /// <remarks>The bit rotation makes it likely for vectors with same components, to not just calculate to zero.</remarks>
-  TIntVector2Hasher = class(TValueHasher<TIntVector2>)
+  TIntVector2Hasher = class(THasher<TIntVector2, TIntVector2Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TIntVector2): Cardinal; override;
   end;
 
   /// <summary>Takes the <c>xor</c> of all components, after rotating the bits differently for each component.</summary>
   /// <remarks>The bit rotation makes it likely for vectors with same components, to not just calculate to zero.</remarks>
-  TIntVector3Hasher = class(TValueHasher<TIntVector3>)
+  TIntVector3Hasher = class(THasher<TIntVector3, TIntVector3Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TIntVector3): Cardinal; override;
   end;
 
   /// <summary>Takes the <c>xor</c> of both components.</summary>
   /// <remarks>No further bit rotation is performed, as the bounds are usually different from each other anyway.</remarks>
-  TIntBounds1Hasher = class(TValueHasher<TIntBounds1>)
+  TIntBounds1Hasher = class(THasher<TIntBounds1, TIntBounds1Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TIntBounds1): Cardinal; override;
   end;
 
   /// <summary>Uses <see cref="Pengine.ValueHasher|TIntVector2Hasher"/> and takes the <c>xor</c> of both components.</summary>
   /// <remarks>No further bit rotation is performed, as the bounds are usually different from each other anyway.</remarks>
-  TIntBounds2Hasher = class(TValueHasher<TIntBounds2>)
+  TIntBounds2Hasher = class(THasher<TIntBounds2, TIntBounds2Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TIntBounds2): Cardinal; override;
   end;
 
   /// <summary>Uses <see cref="Pengine.ValueHasher|TIntVector3Hasher"/> and takes the <c>xor</c> of both components.</summary>
   /// <remarks>No further bit rotation is performed, as the bounds are usually different from each other anyway.</remarks>
-  TIntBounds3Hasher = class(TValueHasher<TIntBounds3>)
+  TIntBounds3Hasher = class(THasher<TIntBounds3, TIntBounds3Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TIntBounds3): Cardinal; override;
   end;
 
   /// <summary>Directly uses the existing single bit pattern and converts it to a hash.</summary>
-  TSingleHasher = class(TValueHasher<Single>)
+  TSingleHasher = class(THasher<Single, TSingleEqualler>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: Single): Cardinal; override;
   end;
 
   /// <summary>Uses <see cref="Pengine.ValueHasher|TSingleHasher"/> and takes the <c>xor</c> of all components, after
   /// rotating the bits differently for each component.</summary>
   /// <remarks>The bit rotation makes it likely for vectors with same components, to not just calculate to zero.</remarks>
-  TVector2Hasher = class(TValueHasher<TVector2>)
+  TVector2Hasher = class(THasher<TVector2, TVector2Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TVector2): Cardinal; override;
   end;
 
   /// <summary>Takes the <c>xor</c> of all components, after rotating the bits differently for each component.</summary>
   /// <remarks>The bit rotation makes it likely for vectors with same components, to not just calculate to zero.</remarks>
-  TVector3Hasher = class(TValueHasher<TVector3>)
+  TVector3Hasher = class(THasher<TVector3, TVector3Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TVector3): Cardinal; override;
   end;
 
   /// <summary>Uses <see cref="Pengine.ValueHasher|TSingleHasher"/> and takes the <c>xor</c> of both components.</summary>
   /// <remarks>No further bit rotation is performed, as the bounds are usually different from each other anyway.</remarks>
-  TBounds1Hasher = class(TValueHasher<TBounds1>)
+  TBounds1Hasher = class(THasher<TBounds1, TBounds1Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TBounds1): Cardinal; override;
   end;
 
   /// <summary>Uses <see cref="Pengine.ValueHasher|TVector2Hasher"/> and takes the <c>xor</c> of both components.</summary>
   /// <remarks>No further bit rotation is performed, as the bounds are usually different from each other anyway.</remarks>
-  TBounds2Hasher = class(TValueHasher<TBounds2>)
+  TBounds2Hasher = class(THasher<TBounds2, TBounds2Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TBounds2): Cardinal; override;
   end;
 
   /// <summary>Uses <see cref="Pengine.ValueHasher|TVector3Hasher"/> and takes the <c>xor</c> of both components.</summary>
   /// <remarks>No further bit rotation is performed, as the bounds are usually different from each other anyway.</remarks>
-  TBounds3Hasher = class(TValueHasher<TBounds3>)
+  TBounds3Hasher = class(THasher<TBounds3, TBounds3Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TBounds3): Cardinal; override;
   end;
 
   /// <summary>Uses <see cref="Pengine.ValueHasher|TVector2Hasher"/> and takes the <c>xor</c> of S and D.</summary>
   /// <remarks>No further bit rotation is performed, as S and D are usually different from each other anyway.</remarks>
-  TLine2Hasher = class(TValueHasher<TLine2>)
+  TLine2Hasher = class(THasher<TLine2, TLine2Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TLine2): Cardinal; override;
   end;
 
   /// <summary>Uses <see cref="Pengine.ValueHasher|TVector3Hasher"/> and takes the <c>xor</c> of S and D.</summary>
   /// <remarks>No further bit rotation is performed, as S and D are usually different from each other anyway.</remarks>
-  TLine3Hasher = class(TValueHasher<TLine3>)
+  TLine3Hasher = class(THasher<TLine3, TLine3Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TLine3): Cardinal; override;
   end;
 
   /// <summary>Uses <see cref="Pengine.ValueHasher|TVector2Hasher"/> and takes the <c>xor</c> of S, D1 and D2.</summary>
   /// <remarks>No further bit rotation is performed, as S, D1 and D2 are usually different from each other anyway.</remarks>
-  TPlane2Hasher = class(TValueHasher<TPlane2>)
+  TPlane2Hasher = class(THasher<TPlane2, TPlane2Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TPlane2): Cardinal; override;
   end;
 
   /// <summary>Uses <see cref="Pengine.ValueHasher|TVector3Hasher"/> and takes the <c>xor</c> of S, D1 and D2.</summary>
   /// <remarks>No further bit rotation is performed, as S, D1 and D2 are usually different from each other anyway.</remarks>
-  TPlane3Hasher = class(TValueHasher<TPlane3>)
+  TPlane3Hasher = class(THasher<TPlane3, TPlane3Equaller>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TPlane3): Cardinal; override;
   end;
 
   /// <summary>Uses <see cref="Pengine.ValueHasher|TSingleHasher"/> and takes the <c>xor</c> of Turn and Pitch.</summary>
   /// <remarks>No further bit rotation is performed, as Turn and Pitch are usually different from each other anyway.</remarks>
-  TVectorDirHasher = class(TValueHasher<TVectorDir>)
+  TVectorDirHasher = class(THasher<TVectorDir, TVectorDirEqualler>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TVectorDir): Cardinal; override;
   end;
 
@@ -191,9 +172,8 @@ type
   /// <remarks>The used characters are spreaded equally between the first and last character.<p/>
   /// If the string is shorter than 4 characters, characters will be taken multiple times.<p/>
   /// An empty string can, by my definition, not be indexed, and getting a hash is therefore not supported in any way.</remarks>
-  TStringHasher = class(TValueHasher<string>)
+  TStringHasher = class(THasher<string, TStringEqualler>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: string): Cardinal; override;
     class function CanIndex(const AValue: string): Boolean; override;
   end;
@@ -202,18 +182,16 @@ type
   /// <remarks>The used characters are spreaded equally between the first and last character.<p/>
   /// If the string is shorter than 4 characters, characters will be taken multiple times.<p/>
   /// An empty string can, by my definition, not be indexed, and getting a hash is therefore not supported in any way.</remarks>
-  TAnsiStringHasher = class(TValueHasher<AnsiString>)
+  TAnsiStringHasher = class(THasher<AnsiString, TAnsiStringEqualler>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: AnsiString): Cardinal; override;
     class function CanIndex(const AValue: AnsiString): Boolean; override;
   end;
 
   /// <summary>Calulates a hash from any class type.</summary>
   /// <remarks>Internally uses <see cref="Pengine.ValueHasher|TPointerHasher"/>.</remarks>
-  TClassHasher = class(TValueHasher<TClass>)
+  TClassHasher = class(THasher<TClass, TClassEqualler>)
   public
-    class function Equaller: TValueEquallerClass; override;
     class function GetHash(const AValue: TClass): Cardinal; override;
     class function CanIndex(const AValue: TClass): Boolean; override;
   end;
@@ -413,25 +391,20 @@ end;
 
 {$IFDEF OVERFLOWCHECKSON}{$Q+}
 {$ENDIF}
+           
+{ THasher<V, E> }
 
-{ TValueHasher<V> }
-
-class function TValueHasher<V>.Equal(const AValue1, AValue2: V): Boolean;
-begin
-  Result := TValueEqualler<V>(Equaller).Equal(AValue1, AValue2);
-end;
-
-class function TValueHasher<V>.CanIndex(const AValue: V): Boolean;
+class function THasher<V>.CanIndex(const AValue: V): Boolean;
 begin
   Result := True;
 end;
+           
+class function THasher<V, E>.Equal(const AValue1, AValue2: V): Boolean;
+begin
+  Result := E.Equal(AValue1, AValue2);
+end;
 
 { TPointerHasher }
-
-class function TPointerHasher.Equaller: TValueEquallerClass;
-begin
-  Result := TPointerEqualler;
-end;
 
 class function TPointerHasher.GetHash(const AValue: Pointer): Cardinal;
 begin
@@ -455,11 +428,6 @@ end;
 
 { TRefHasher<T> }
 
-class function TRefHasher<V>.Equaller: TValueEquallerClass;
-begin
-  Result := TRefEqualler<V>;
-end;
-
 class function TRefHasher<V>.GetHash(const AValue: V): Cardinal;
 begin
   Result := TPointerHasher.GetHash(Pointer(AValue));
@@ -472,22 +440,12 @@ end;
 
 { TUIntHasher }
 
-class function TUIntHasher.Equaller: TValueEquallerClass;
-begin
-  Result := TUIntEqualler;
-end;
-
 class function TUIntHasher.GetHash(const AValue: Cardinal): Cardinal;
 begin
   Result := AValue;
 end;
 
 { TIntHasher }
-
-class function TIntHasher.Equaller: TValueEquallerClass;
-begin
-  Result := TIntEqualler;
-end;
 
 class function TIntHasher.GetHash(const AValue: Integer): Cardinal;
 begin
@@ -496,22 +454,12 @@ end;
 
 { TIntVector2Hasher }
 
-class function TIntVector2Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TIntVector2Equaller;
-end;
-
 class function TIntVector2Hasher.GetHash(const AValue: TIntVector2): Cardinal;
 begin
   Result := Cardinal(R(AValue.X, 8) xor R(AValue.Y, 24));
 end;
 
 { TIntVector3Hasher }
-
-class function TIntVector3Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TIntVector3Equaller;
-end;
 
 class function TIntVector3Hasher.GetHash(const AValue: TIntVector3): Cardinal;
 begin
@@ -520,22 +468,12 @@ end;
 
 { TIntBounds1Hasher }
 
-class function TIntBounds1Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TIntBounds1Equaller;
-end;
-
 class function TIntBounds1Hasher.GetHash(const AValue: TIntBounds1): Cardinal;
 begin
   Result := Cardinal(AValue.C1) xor Cardinal(AValue.C2);
 end;
 
 { TIntBounds2Hasher }
-
-class function TIntBounds2Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TIntBounds2Equaller;
-end;
 
 class function TIntBounds2Hasher.GetHash(const AValue: TIntBounds2): Cardinal;
 begin
@@ -544,22 +482,12 @@ end;
 
 { TIntBounds3Hasher }
 
-class function TIntBounds3Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TIntBounds3Equaller;
-end;
-
 class function TIntBounds3Hasher.GetHash(const AValue: TIntBounds3): Cardinal;
 begin
   Result := HashOf(AValue.C1) xor HashOf(AValue.C2);
 end;
 
 { TSingleHasher }
-
-class function TSingleHasher.Equaller: TValueEquallerClass;
-begin
-  Result := TSingleEqualler;
-end;
 
 class function TSingleHasher.GetHash(const AValue: Single): Cardinal;
 begin
@@ -568,22 +496,12 @@ end;
 
 { TVector2Hasher }
 
-class function TVector2Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TVector2Equaller;
-end;
-
 class function TVector2Hasher.GetHash(const AValue: TVector2): Cardinal;
 begin
   Result := R(HashOf(AValue.X), 8) xor R(HashOf(AValue.Y), 24);
 end;
 
 { TVector3Hasher }
-
-class function TVector3Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TVector3Equaller;
-end;
 
 class function TVector3Hasher.GetHash(const AValue: TVector3): Cardinal;
 begin
@@ -592,22 +510,12 @@ end;
 
 { TBounds1Hasher }
 
-class function TBounds1Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TBounds1Equaller;
-end;
-
 class function TBounds1Hasher.GetHash(const AValue: TBounds1): Cardinal;
 begin
   Result := HashOf(AValue.C1) xor HashOf(AValue.C2);
 end;
 
 { TBounds2Hasher }
-
-class function TBounds2Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TBounds2Equaller;
-end;
 
 class function TBounds2Hasher.GetHash(const AValue: TBounds2): Cardinal;
 begin
@@ -616,22 +524,12 @@ end;
 
 { TBounds3Hasher }
 
-class function TBounds3Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TBounds3Equaller;
-end;
-
 class function TBounds3Hasher.GetHash(const AValue: TBounds3): Cardinal;
 begin
   Result := HashOf(AValue.C1) xor HashOf(AValue.C2);
 end;
 
 { TLine2Hasher }
-
-class function TLine2Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TLine2Equaller;
-end;
 
 class function TLine2Hasher.GetHash(const AValue: TLine2): Cardinal;
 begin
@@ -640,22 +538,12 @@ end;
 
 { TLine3Hasher }
 
-class function TLine3Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TLine3Equaller;
-end;
-
 class function TLine3Hasher.GetHash(const AValue: TLine3): Cardinal;
 begin
   Result := HashOf(AValue.S) xor HashOf(AValue.D);
 end;
 
 { TPlane2Hasher }
-
-class function TPlane2Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TPlane2Equaller;
-end;
 
 class function TPlane2Hasher.GetHash(const AValue: TPlane2): Cardinal;
 begin
@@ -664,11 +552,6 @@ end;
 
 { TPlane3Hasher }
 
-class function TPlane3Hasher.Equaller: TValueEquallerClass;
-begin
-  Result := TPlane3Equaller;
-end;
-
 class function TPlane3Hasher.GetHash(const AValue: TPlane3): Cardinal;
 begin
   Result := HashOf(AValue.S) xor HashOf(AValue.D1) xor HashOf(AValue.D2);
@@ -676,22 +559,12 @@ end;
 
 { TVectorDirHasher }
 
-class function TVectorDirHasher.Equaller: TValueEquallerClass;
-begin
-  Result := TVectorDirEqualler;
-end;
-
 class function TVectorDirHasher.GetHash(const AValue: TVectorDir): Cardinal;
 begin
   Result := HashOf(AValue.TurnAngleRad) xor HashOf(AValue.PitchAngleRad);
 end;
 
 { TStringHasher }
-
-class function TStringHasher.Equaller: TValueEquallerClass;
-begin
-  Result := TStringEqualler;
-end;
 
 class function TStringHasher.GetHash(const AValue: string): Cardinal;
 var
@@ -712,11 +585,6 @@ end;
 
 { TAnsiStringHasher }
 
-class function TAnsiStringHasher.Equaller: TValueEquallerClass;
-begin
-  Result := TAnsiStringEqualler;
-end;
-
 class function TAnsiStringHasher.GetHash(const AValue: AnsiString): Cardinal;
 var
   L: Integer;
@@ -735,11 +603,6 @@ begin
 end;
 
 { TClassHasher }
-
-class function TClassHasher.Equaller: TValueEquallerClass;
-begin
-  Result := TClassEqualler;
-end;
 
 class function TClassHasher.GetHash(const AValue: TClass): Cardinal;
 begin

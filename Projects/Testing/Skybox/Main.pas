@@ -16,6 +16,7 @@ uses
   Vcl.Forms,
   Vcl.Dialogs,
 
+  Pengine.GLState,
   Pengine.GLContext,
   Pengine.ControlledCamera,
   Pengine.Skybox,
@@ -89,7 +90,7 @@ type
     FCamera: TSmoothControlledCamera;
     FCubes: TRefArray<TCube>;
     FLightSystem: TLightSystem;
-    FSun: TDirectionalLight;
+    FSun: TDirectionalLightShaded;
 
   public
     procedure Init; override;
@@ -117,7 +118,7 @@ var
   J: Integer;
   SubCube: TCube;
 begin
-  VSync := True;
+  VSync := False;
 
   RandSeed := 0;
 
@@ -130,7 +131,7 @@ begin
   FCamera.AddUniforms(TSkyboxShader.Data);
   FCamera.AddUniforms(TModelShader.Data);
 
-  FSkybox := TSkybox.Create(Self, TSkyboxShader);
+  FSkybox := TSkybox.Create(State, TSkyboxShader);
 
   FSkybox.AddStripe(ColorRGB(0.7, 1.0, 0.9), -90);
   FSkybox.AddStripe(ColorRGB(0.4, 0.6, 0.9), 0);
@@ -145,17 +146,16 @@ begin
 
   FSun := TDirectionalLightShaded.Create(FLightSystem);
   FSun.Direction := -Vec3(0.3, 1, 0.3);
-  // FSun.Size := 20;
+  FSun.Size := 20;
 
-  FCubes.Capacity := 10;
+  FCubes.Capacity := 1000;
   for I := 0 to FCubes.Capacity - 1 do
   begin
     Cube := FCubes.Add(TCube.Create(TModelShader.Data));
-    Cube.Location.Offset := TVector3.RandomNormal * 1;
     Cube.Location.Pos := TVector3.RandomNormal * 5;
 
     FCamera.AddRenderable(Cube);
-    // FSun.AddOccluder(Cube);
+    FSun.AddOccluder(Cube);
 
     for J := 0 to -1 do
     begin
@@ -192,10 +192,9 @@ begin
     FCubes[Random(FCubes.Count)].Texture := 'stone.png';
   if Input.KeyTyped('F') then
     FCubes[Random(FCubes.Count)].Texture := 'wooden_planks.png';
-  {
-  for Cube in FCubes do
-    Cube.Location.Rotate(Vec3(DeltaTime * 10, DeltaTime * 90, DeltaTime * 30));
-  }
+
+  //for Cube in FCubes do
+  //  Cube.Location.Rotate(Vec3(DeltaTime * 10, DeltaTime * 90, DeltaTime * 30));
 
   FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0), DeltaTime * 20);
 

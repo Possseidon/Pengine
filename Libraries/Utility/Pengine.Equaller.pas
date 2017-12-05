@@ -1,138 +1,166 @@
-unit Pengine.ValueEqualler;
+unit Pengine.Equaller;
 
 interface
 
 uses
+  System.SysUtils,
+
   Pengine.IntMaths,
-  Pengine.Vector;
+  Pengine.Vector,
+  Pengine.Color;
 
 type
 
-  TValueEqualler = class abstract;
-  TValueEquallerClass = class of TValueEqualler;
-
   /// <summary>A generic, abstract class assistant, to test a specific value type V for equality.</summary>
-  TValueEqualler<T> = class abstract(TValueEqualler)
+  TEqualler<T> = class abstract
+  public
     class function Equal(const AValue1, AValue2: T): Boolean; virtual; abstract;
   end;
 
+  TBoolEqualler = class(TEqualler<Boolean>)
+  public
+    class function Equal(const AValue1, AValue2: Boolean): Boolean; override;
+  end;
 
-  TPointerEqualler = class(TValueEqualler<Pointer>)
+  TPointerEqualler = class(TEqualler<Pointer>)
   public
     class function Equal(const AValue1, AValue2: Pointer): Boolean; override;
   end;
 
-  TRefEqualler<T: class> = class(TValueEqualler<T>)
+  TRefEqualler<T: class> = class(TEqualler<T>)
   public
     class function Equal(const AValue1, AValue2: T): Boolean; override;
   end;
 
-  TUIntEqualler = class(TValueEqualler<Cardinal>)
+  TUIntEqualler = class(TEqualler<Cardinal>)
   public
     class function Equal(const AValue1, AValue2: Cardinal): Boolean; override;
   end;
 
-  TIntEqualler = class(TValueEqualler<Integer>)
+  TIntEqualler = class(TEqualler<Integer>)
   public
     class function Equal(const AValue1, AValue2: Integer): Boolean; override;
   end;
 
-  TIntVector2Equaller = class(TValueEqualler<TIntVector2>)
+  TIntVector2Equaller = class(TEqualler<TIntVector2>)
   public
     class function Equal(const AValue1, AValue2: TIntVector2): Boolean; override;
   end;
 
-  TIntVector3Equaller = class(TValueEqualler<TIntVector3>)
+  TIntVector3Equaller = class(TEqualler<TIntVector3>)
   public
     class function Equal(const AValue1, AValue2: TIntVector3): Boolean; override;
   end;
 
-  TIntBounds1Equaller = class(TValueEqualler<TIntBounds1>)
+  TIntBounds1Equaller = class(TEqualler<TIntBounds1>)
   public
     class function Equal(const AValue1, AValue2: TIntBounds1): Boolean; override;
   end;
 
-  TIntBounds2Equaller = class(TValueEqualler<TIntBounds2>)
+  TIntBounds2Equaller = class(TEqualler<TIntBounds2>)
   public
     class function Equal(const AValue1, AValue2: TIntBounds2): Boolean; override;
   end;
 
-  TIntBounds3Equaller = class(TValueEqualler<TIntBounds3>)
+  TIntBounds3Equaller = class(TEqualler<TIntBounds3>)
   public
     class function Equal(const AValue1, AValue2: TIntBounds3): Boolean; override;
   end;
 
-  TSingleEqualler = class(TValueEqualler<Single>)
+  TSingleEqualler = class(TEqualler<Single>)
   public
     class function Equal(const AValue1, AValue2: Single): Boolean; override;
   end;
 
-  TVector2Equaller = class(TValueEqualler<TVector2>)
+  TVector2Equaller = class(TEqualler<TVector2>)
   public
     class function Equal(const AValue1, AValue2: TVector2): Boolean; override;
   end;
 
-  TVector3Equaller = class(TValueEqualler<TVector3>)
+  TVector3Equaller = class(TEqualler<TVector3>)
   public
     class function Equal(const AValue1, AValue2: TVector3): Boolean; override;
   end;
 
-  TBounds1Equaller = class(TValueEqualler<TBounds1>)
+  TBounds1Equaller = class(TEqualler<TBounds1>)
   public
     class function Equal(const AValue1, AValue2: TBounds1): Boolean; override;
   end;
 
-  TBounds2Equaller = class(TValueEqualler<TBounds2>)
+  TBounds2Equaller = class(TEqualler<TBounds2>)
   public
     class function Equal(const AValue1, AValue2: TBounds2): Boolean; override;
   end;
 
-  TBounds3Equaller = class(TValueEqualler<TBounds3>)
+  TBounds3Equaller = class(TEqualler<TBounds3>)
   public
     class function Equal(const AValue1, AValue2: TBounds3): Boolean; override;
   end;
 
-  TLine2Equaller = class(TValueEqualler<TLine2>)
+  TLine2Equaller = class(TEqualler<TLine2>)
   public
     class function Equal(const AValue1, AValue2: TLine2): Boolean; override;
   end;
 
-  TLine3Equaller = class(TValueEqualler<TLine3>)
+  TLine3Equaller = class(TEqualler<TLine3>)
   public
     class function Equal(const AValue1, AValue2: TLine3): Boolean; override;
   end;
 
-  TPlane2Equaller = class(TValueEqualler<TPlane2>)
+  TPlane2Equaller = class(TEqualler<TPlane2>)
   public
     class function Equal(const AValue1, AValue2: TPlane2): Boolean; override;
   end;
 
-  TPlane3Equaller = class(TValueEqualler<TPlane3>)
+  TPlane3Equaller = class(TEqualler<TPlane3>)
   public
     class function Equal(const AValue1, AValue2: TPlane3): Boolean; override;
   end;
 
-  TVectorDirEqualler = class(TValueEqualler<TVectorDir>)
+  TVectorDirEqualler = class(TEqualler<TVectorDir>)
   public
     class function Equal(const AValue1, AValue2: TVectorDir): Boolean; override;
   end;
 
-  TStringEqualler = class(TValueEqualler<string>)
+  TColorRGBEqualler = class(TEqualler<TColorRGB>)
+  public
+    class function Equal(const AValue1, AValue2: TColorRGB): Boolean; override;
+  end;
+
+  TColorRGBAEqualler = class(TEqualler<TColorRGBA>)
+  public
+    class function Equal(const AValue1, AValue2: TColorRGBA): Boolean; override;
+  end;
+
+  TStringEqualler = class(TEqualler<string>)
   public
     class function Equal(const AValue1, AValue2: string): Boolean; override;
   end;
 
-  TAnsiStringEqualler = class(TValueEqualler<AnsiString>)
+  TAnsiStringEqualler = class(TEqualler<AnsiString>)
   public
     class function Equal(const AValue1, AValue2: AnsiString): Boolean; override;
   end;
 
-  TClassEqualler = class(TValueEqualler<TClass>)
+  TClassEqualler = class(TEqualler<TClass>)
   public
     class function Equal(const AValue1, AValue2: TClass): Boolean; override;
   end;
 
+  /// <remarks>/!\ Not type checked! You could give this any type, but should only give it an enum.</remarks>
+  TEnumEqualler<T> = class(TEqualler<T>)
+  public
+    class function Equal(const AValue1, AValue2: T): Boolean; override;
+  end;
+
 implementation
+
+{ TBoolEqualler }
+
+class function TBoolEqualler.Equal(const AValue1, AValue2: Boolean): Boolean;
+begin
+  Result := AValue1 = AValue2;
+end;
 
 { TPointerEqualler }
 
@@ -274,6 +302,20 @@ begin
   Result := AValue1 = AValue2;
 end;
 
+{ TColorRGBEqualler }
+
+class function TColorRGBEqualler.Equal(const AValue1, AValue2: TColorRGB): Boolean;
+begin
+  Result := AValue1 = AValue2;
+end;
+
+{ TColorRGBAEqualler }
+
+class function TColorRGBAEqualler.Equal(const AValue1, AValue2: TColorRGBA): Boolean;
+begin
+  Result := AValue1 = AValue2;
+end;
+
 { TStringEqualler }
 
 class function TStringEqualler.Equal(const AValue1, AValue2: string): Boolean;
@@ -293,6 +335,13 @@ end;
 class function TClassEqualler.Equal(const AValue1, AValue2: TClass): Boolean;
 begin
   Result := AValue1 = AValue2;
+end;
+
+{ TEnumEqualler<T> }
+
+class function TEnumEqualler<T>.Equal(const AValue1, AValue2: T): Boolean;
+begin
+  Result := CompareMem(@AValue1, @AValue2, SizeOf(T));
 end;
 
 end.

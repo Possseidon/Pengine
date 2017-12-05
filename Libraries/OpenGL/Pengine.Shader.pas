@@ -17,6 +17,7 @@ uses
   Winapi.Windows,
 
   Pengine.Collections,
+  Pengine.HashCollections,
   Pengine.Hasher,
   Pengine.Matrix,
   Pengine.Vector,
@@ -190,7 +191,7 @@ type
 
     TUniformSampler = TUniform<Integer>;
 
-    TInterfaceVariableMap = TAnsiStringRefMap<TVariable>;
+    TInterfaceVariableMap = TToRefMap<AnsiString, TVariable, TAnsiStringHasher>;
     TAttributes = TRefArray<TAttribute>;
 
     TType = (
@@ -211,14 +212,15 @@ type
     procedure CheckShaderErrors(AShader: GLHandle);
     procedure CheckProgramErrors;
 
-    class var ActiveShader: TShader;
-
     procedure LoadAttributeLocations;
     procedure LoadUniformLocations;
 
     procedure AddShaderFromStream(AShaderType: TType; AStream: TStream);
     function GetAttribute(I: Integer): TAttribute;
     function GetAttributeCount: Integer;
+
+  public
+    class var ActiveShader: TShader;
 
   public
     constructor Create;

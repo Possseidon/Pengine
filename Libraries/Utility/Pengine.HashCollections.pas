@@ -9,8 +9,8 @@ uses
   Pengine.CollectionInterfaces,
   Pengine.Interfaces,
   Pengine.Collections,
-  Pengine.ValueEqualler,
-  Pengine.ValueHasher,
+  Pengine.Equaller,
+  Pengine.Hasher,
   Pengine.Vector,
   Pengine.IntMaths;
 
@@ -159,9 +159,8 @@ type
   THashBaseClass = class of THashBase;
 
   // TODO: XmlDoc
-  THashBase<K> = class abstract(THashBase)
+  THashBase<K; H: THasher<K>> = class abstract(THashBase)
   protected
-    class function Hasher: TValueHasherClass; virtual; abstract;
     class function KeysEqual(const AKey1, AKey2: K): Boolean;
     class function GetHash(const AKey: K): Cardinal;
     class function CanIndex(const AKey: K): Boolean;
@@ -170,12 +169,12 @@ type
     // TODO: XmlDoc
     function GetCappedHash(AKey: K): Integer;
 
-    function Copy(AHashMode: THashMode = hmAuto): THashBase<K>; reintroduce; inline;
+    function Copy(AHashMode: THashMode = hmAuto): THashBase<K, H>; reintroduce; inline;
 
   end;
 
   // TODO: XmlDoc
-  TSet<T> = class abstract(THashBase<T>, IIterable<T>)
+  TSet<T; H: THasher<T>> = class abstract(THashBase<T, H>, IIterable<T>)
   public type
 
     // TODO: XmlDoc
@@ -184,14 +183,14 @@ type
     // TODO: XmlDoc
     TIterator = class(THashBase.TIterator<T>, IIterator<T>)
     private
-      FSet: TSet<T>;
+      FSet: TSet<T, H>;
 
     protected
       function GetBuckets: Integer; override;
       function GetBucketSize(AIndex: Integer): Integer; override;
 
     public
-      constructor Create(ASet: TSet<T>);
+      constructor Create(ASet: TSet<T, H>);
 
       function GetCurrent: T; override;
 
@@ -216,28 +215,28 @@ type
 
     function TryAdd(AElement: T): Boolean;
     procedure Add(AElement: T); overload;
-    procedure Add(ASet: TSet<T>); overload;
+    procedure Add(ASet: TSet<T, H>); overload;
 
     function TryDel(AElement: T): Boolean;
     procedure Del(AElement: T); overload;
-    procedure Del(ASet: TSet<T>); overload;
+    procedure Del(ASet: TSet<T, H>); overload;
 
     function GetEnumerator: IIterator<T>;
 
-    function Copy(AHashMode: THashMode = hmAuto): TSet<T>; reintroduce; inline;
+    function Copy(AHashMode: THashMode = hmAuto): TSet<T, H>; reintroduce; inline;
 
-    function Union(ASet: TSet<T>): TSet<T>;
-    function Intersection(ASet: TSet<T>): TSet<T>;
-    function Remove(ASet: TSet<T>): TSet<T>;
+    function Union(ASet: TSet<T, H>): TSet<T, H>;
+    function Intersection(ASet: TSet<T, H>): TSet<T, H>;
+    function Remove(ASet: TSet<T, H>): TSet<T, H>;
 
-    function IsSupersetOf(ASet: TSet<T>): Boolean;
-    function IsSubsetOf(ASet: TSet<T>): Boolean;
-    function Equals(ASet: TSet<T>): Boolean; reintroduce;
+    function IsSupersetOf(ASet: TSet<T, H>): Boolean;
+    function IsSubsetOf(ASet: TSet<T, H>): Boolean;
+    function Equals(ASet: TSet<T, H>): Boolean; reintroduce;
 
   end;
 
   // TODO: XmlDoc
-  TMap<K, V> = class abstract(THashBase<K>, IIterable<TPair<K, V>>)
+  TMap<K, V; H: THasher<K>> = class abstract(THashBase<K, H>, IIterable<TPair<K, V>>)
   public type
     // TODO: XmlDoc
     TPair = TPair<K, V>;
@@ -247,14 +246,14 @@ type
     // TODO: XmlDoc
     TIterator = class(THashBase.TIterator<TPair>, IIterator<TPair>)
     private
-      FMap: TMap<K, V>;
+      FMap: TMap<K, V, H>;
 
     protected
       function GetBuckets: Integer; override;
       function GetBucketSize(AIndex: Integer): Integer; override;
 
     public
-      constructor Create(AMap: TMap<K, V>);
+      constructor Create(AMap: TMap<K, V, H>);
 
       function GetCurrent: TPair; override;
 
@@ -297,21 +296,19 @@ type
 
     function BucketCounts: TIntArray;
 
-    function KeySet(AHashMode: THashMode = hmManual): TSet<K>;
+    function KeySet(AHashMode: THashMode = hmManual): TSet<K, H>;
 
-    function Copy(AHashMode: THashMode = hmAuto): TMap<K, V>; reintroduce; inline;
+    function Copy(AHashMode: THashMode = hmAuto): TMap<K, V, H>; reintroduce; inline;
 
   end;
 
   // TODO: XmlDoc
-  TRefSet<T: class> = class(TSet<T>)
+  TRefSet<T: class> = class(TSet<T, TRefHasher<T>>)
   private
     FOwnsObjects: Boolean;
     FStoredOwnsObjects: Boolean;
 
   protected
-    class function Hasher: TValueHasherClass; override;
-
     function CreateBucket: THashBase.TBucket; override;
 
     procedure UnownObjects; override;
@@ -328,14 +325,12 @@ type
   end;
 
   // TODO: XmlDoc
-  TRefMap<K: class; V> = class(TMap<K, V>)
+  TRefMap<K: class; V> = class(TMap<K, V, TRefHasher<K>>)
   private
     FOwnsKeys: Boolean;
     FStoredOwnsKeys: Boolean;
 
   protected
-    class function Hasher: TValueHasherClass; override;
-
     function CreateBucket: THashBase.TBucket; override;
 
     procedure UnownObjects; override;
@@ -375,7 +370,7 @@ type
   end;
 
   // TODO: XmlDoc
-  TToRefMap<K; V: class> = class abstract(TMap<K, V>)
+  TToRefMap<K; V: class; H: THasher<K>> = class abstract(TMap<K, V, H>)
   private
     FOwnsValues: Boolean;
     FStoredOwnsValues: Boolean;
@@ -390,40 +385,11 @@ type
     constructor Create(AHashMode: THashMode = hmAuto); overload; override;
     constructor Create(AOwnsValues: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
 
-    function Copy(AHashMode: THashMode = hmAuto): TToRefMap<K, V>; reintroduce; inline;
+    function Copy(AHashMode: THashMode = hmAuto): TToRefMap<K, V, H>; reintroduce; inline;
 
     property OwnsValues: Boolean read FOwnsValues write FOwnsValues;
 
   end;
-
-  TSetWithHasher<T; H: TValueHasher<T>> = class(TSet<T>)
-  protected
-    class function Hasher: TValueHasherClass; override;
-  end;
-
-  TPointerSet = TSetWithHasher<Pointer, TPointerHasher>;
-  TUIntSet = TSetWithHasher<Cardinal, TUIntHasher>;
-  TIntSet = TSetWithHasher<Integer, TIntHasher>;
-  TIntVector2Set = TSetWithHasher<TIntVector2, TIntVector2Hasher>;
-  TIntVector3Set = TSetWithHasher<TIntVector3, TIntVector3Hasher>;
-  TIntBounds1Set = TSetWithHasher<TIntBounds1, TIntBounds1Hasher>;
-  TIntBounds2Set = TSetWithHasher<TIntBounds2, TIntBounds2Hasher>;
-  TIntBounds3Set = TSetWithHasher<TIntBounds3, TIntBounds3Hasher>;
-  TSingleSet = TSetWithHasher<Single, TSingleHasher>;
-  TVector2Set = TSetWithHasher<TVector2, TVector2Hasher>;
-  TVector3Set = TSetWithHasher<TVector3, TVector3Hasher>;
-  TBounds1Set = TSetWithHasher<TBounds1, TBounds1Hasher>;
-  TBounds2Set = TSetWithHasher<TBounds2, TBounds2Hasher>;
-  TBounds3Set = TSetWithHasher<TBounds3, TBounds3Hasher>;
-  TLine2Set = TSetWithHasher<TLine2, TLine2Hasher>;
-  TLine3Set = TSetWithHasher<TLine3, TLine3Hasher>;
-  TPlane2Set = TSetWithHasher<TPlane2, TPlane2Hasher>;
-  TPlane3Set = TSetWithHasher<TPlane3, TPlane3Hasher>;
-  TVectorDirSet = TSetWithHasher<TVectorDir, TVectorDirHasher>;
-  TStringSet = TSetWithHasher<string, TStringHasher>;
-  TAnsiStringSet = TSetWithHasher<AnsiString, TAnsiStringHasher>;
-  TClassSet = TSetWithHasher<TClass, TClassHasher>;
-
 
 implementation
 
@@ -646,67 +612,67 @@ begin
       AHashBase.FBuckets[I] := FBuckets[I].Copy;
 end;
 
-{ THashBase<K> }
+{ THashBase<K, H> }
 
-class function THashBase<K>.KeysEqual(const AKey1, AKey2: K): Boolean;
+class function THashBase<K, H>.KeysEqual(const AKey1, AKey2: K): Boolean;
 begin
-  Result := TValueHasher<K>(Hasher).Equal(AKey1, AKey2);
+  Result := H.Equal(AKey1, AKey2);
 end;
 
-class function THashBase<K>.GetHash(const AKey: K): Cardinal;
+class function THashBase<K, H>.GetHash(const AKey: K): Cardinal;
 begin
-  Result := TValueHasher<K>(Hasher).GetHash(AKey);
+  Result := H.GetHash(AKey);
 end;
 
-class function THashBase<K>.CanIndex(const AKey: K): Boolean;
+class function THashBase<K, H>.CanIndex(const AKey: K): Boolean;
 begin
-  Result := TValueHasher<K>(Hasher).CanIndex(AKey);
+  Result := H.CanIndex(AKey);
 end;
 
-function THashBase<K>.GetCappedHash(AKey: K): Integer;
+function THashBase<K, H>.GetCappedHash(AKey: K): Integer;
 begin
   Result := Integer(GetHash(AKey) mod Cardinal(Buckets));
 end;
 
-function THashBase<K>.Copy(AHashMode: THashMode): THashBase<K>;
+function THashBase<K, H>.Copy(AHashMode: THashMode): THashBase<K, H>;
 begin
-  Result := THashBase<K>(CreateCopy(AHashMode));
+  Result := THashBase<K, H>(CreateCopy(AHashMode));
 end;
 
-{ TSet<T>.TIterator }
+{ TSet<T, H>.TIterator }
 
-constructor TSet<T>.TIterator.Create(ASet: TSet<T>);
+constructor TSet<T, H>.TIterator.Create(ASet: TSet<T, H>);
 begin
   inherited Create;
   FSet := ASet;
 end;
 
-function TSet<T>.TIterator.GetBuckets: Integer;
+function TSet<T, H>.TIterator.GetBuckets: Integer;
 begin
   Result := FSet.Buckets;
 end;
 
-function TSet<T>.TIterator.GetBucketSize(AIndex: Integer): Integer;
+function TSet<T, H>.TIterator.GetBucketSize(AIndex: Integer): Integer;
 begin
   if FSet.FBuckets[AIndex] = nil then
     Exit(0);
   Result := FSet.FBuckets[AIndex].Count;
 end;
 
-function TSet<T>.TIterator.GetCurrent: T;
+function TSet<T, H>.TIterator.GetCurrent: T;
 begin
   Result := TBucket(FSet.FBuckets[Index])[BucketIndex];
 end;
 
-{ TSet<T> }
+{ TSet<T, H> }
 
-procedure TSet<T>.Add(AElement: T);
+procedure TSet<T, H>.Add(AElement: T);
 begin
   if not TryAdd(AElement) then
     raise ESetKeyExistsAlready.Create;
 end;
 
-procedure TSet<T>.Add(ASet: TSet<T>);
+procedure TSet<T, H>.Add(ASet: TSet<T, H>);
 var
   Element: T;
 begin
@@ -714,31 +680,31 @@ begin
     TryAdd(Element);
 end;
 
-function TSet<T>.Copy(AHashMode: THashMode): TSet<T>;
+function TSet<T, H>.Copy(AHashMode: THashMode): TSet<T, H>;
 begin
-  Result := TSet<T>(CreateCopy(AHashMode));
+  Result := TSet<T, H>(CreateCopy(AHashMode));
 end;
 
-procedure TSet<T>.CopyBuckets(AFrom: THashBase);
+procedure TSet<T, H>.CopyBuckets(AFrom: THashBase);
 var
   Key: T;
 begin
-  for Key in TSet<T>(AFrom) do
+  for Key in TSet<T, H>(AFrom) do
     TryAdd(Key);
 end;
 
-function TSet<T>.CreateBucket: THashBase.TBucket;
+function TSet<T, H>.CreateBucket: THashBase.TBucket;
 begin
   Result := TBucket.Create(4, 2);
 end;
 
-procedure TSet<T>.Del(AElement: T);
+procedure TSet<T, H>.Del(AElement: T);
 begin
   if not TryDel(AElement) then
     raise ESetKeyNotFound.Create;
 end;
 
-procedure TSet<T>.Del(ASet: TSet<T>);
+procedure TSet<T, H>.Del(ASet: TSet<T, H>);
 var
   Element: T;
 begin
@@ -746,7 +712,7 @@ begin
     TryDel(Element);
 end;
 
-function TSet<T>.Equals(ASet: TSet<T>): Boolean;
+function TSet<T, H>.Equals(ASet: TSet<T, H>): Boolean;
 var
   Element: T;
 begin
@@ -760,28 +726,28 @@ begin
   Result := True;
 end;
 
-function TSet<T>.GetBuckets: Integer;
+function TSet<T, H>.GetBuckets: Integer;
 begin
   Result := Length(FBuckets);
 end;
 
-function TSet<T>.GetEnumerator: IIterator<T>;
+function TSet<T, H>.GetEnumerator: IIterator<T>;
 begin
   Result := TIterator.Create(Self);
 end;
 
-function TSet<T>.Intersection(ASet: TSet<T>): TSet<T>;
+function TSet<T, H>.Intersection(ASet: TSet<T, H>): TSet<T, H>;
 var
   Element: T;
 begin
-  Result := TSet<T>(CreateSame(hmManual));
+  Result := TSet<T, H>(CreateSame(hmManual));
   Result.Buckets := (Buckets + ASet.Buckets) div 2;
   for Element in Self do
     if ASet[Element] then
       Result.TryAdd(Element);
 end;
 
-function TSet<T>.IsSubsetOf(ASet: TSet<T>): Boolean;
+function TSet<T, H>.IsSubsetOf(ASet: TSet<T, H>): Boolean;
 var
   Element: T;
 begin
@@ -791,7 +757,7 @@ begin
   Result := True;
 end;
 
-function TSet<T>.IsSupersetOf(ASet: TSet<T>): Boolean;
+function TSet<T, H>.IsSupersetOf(ASet: TSet<T, H>): Boolean;
 var
   Element: T;
 begin
@@ -801,7 +767,7 @@ begin
   Result := True;
 end;
 
-function TSet<T>.GetElement(AElement: T): Boolean;
+function TSet<T, H>.GetElement(AElement: T): Boolean;
 var
   H: Integer;
   Key: T;
@@ -818,17 +784,17 @@ begin
   Result := False;
 end;
 
-function TSet<T>.Remove(ASet: TSet<T>): TSet<T>;
+function TSet<T, H>.Remove(ASet: TSet<T, H>): TSet<T, H>;
 var
   Element: T;
 begin
-  Result := TSet<T>(CreateSame(hmManual));
+  Result := TSet<T, H>(CreateSame(hmManual));
   for Element in Self do
     if not ASet[Element] then
       TryAdd(Element);
 end;
 
-procedure TSet<T>.SetBuckets(const Value: Integer);
+procedure TSet<T, H>.SetBuckets(const Value: Integer);
 var
   NewBuckets: Integer;
 begin
@@ -848,12 +814,12 @@ begin
     Rehash(NewBuckets);
 end;
 
-procedure TSet<T>.SetBucketsDirect(Value: Integer);
+procedure TSet<T, H>.SetBucketsDirect(Value: Integer);
 begin
   SetLength(FBuckets, Value);
 end;
 
-procedure TSet<T>.SetElement(AElement: T; const Value: Boolean);
+procedure TSet<T, H>.SetElement(AElement: T; const Value: Boolean);
 begin
   if Value then
     TryAdd(AElement)
@@ -861,7 +827,7 @@ begin
     TryDel(AElement);
 end;
 
-function TSet<T>.TryAdd(AElement: T): Boolean;
+function TSet<T, H>.TryAdd(AElement: T): Boolean;
 var
   H, I: Integer;
 begin
@@ -881,7 +847,7 @@ begin
     Inc(FCount);
     if HashMode = hmAuto then
       Buckets := Count;
-    Exit;
+    Exit(True);
   end;
 
   for I := 0 to FBuckets[H].MaxIndex do
@@ -891,9 +857,10 @@ begin
   Inc(FCount);
   if HashMode = hmAuto then
     Buckets := Count;
+  Result := True;
 end;
 
-function TSet<T>.TryDel(AElement: T): Boolean;
+function TSet<T, H>.TryDel(AElement: T): Boolean;
 var
   H, I: Integer;
 begin
@@ -919,46 +886,46 @@ begin
   Result := True;
 end;
 
-function TSet<T>.Union(ASet: TSet<T>): TSet<T>;
+function TSet<T, H>.Union(ASet: TSet<T, H>): TSet<T, H>;
 var
   Element: T;
 begin
-  Result := TSet<T>(CreateSame(hmManual));
+  Result := TSet<T, H>(CreateSame(hmManual));
   Result.Buckets := (Buckets + ASet.Buckets) div 2;
   Result.Add(Self);
   Result.Add(ASet);
   Result.HashMode := hmAuto;
 end;
 
-{ TMap<K, V>.TIterator }
+{ TMap<K, V, H>.TIterator }
 
-constructor TMap<K, V>.TIterator.Create(AMap: TMap<K, V>);
+constructor TMap<K, V, H>.TIterator.Create(AMap: TMap<K, V, H>);
 begin
   FMap := AMap;
   FIndex := 0;
   FBucketIndex := -1;
 end;
 
-function TMap<K, V>.TIterator.GetBuckets: Integer;
+function TMap<K, V, H>.TIterator.GetBuckets: Integer;
 begin
   Result := FMap.Buckets;
 end;
 
-function TMap<K, V>.TIterator.GetBucketSize(AIndex: Integer): Integer;
+function TMap<K, V, H>.TIterator.GetBucketSize(AIndex: Integer): Integer;
 begin
   if FMap.FBuckets[AIndex] = nil then
     Exit(0);
   Result := FMap.FBuckets[AIndex].Count;
 end;
 
-function TMap<K, V>.TIterator.GetCurrent: TPair;
+function TMap<K, V, H>.TIterator.GetCurrent: TPair;
 begin
   Result := TBucket(FMap.FBuckets[Index])[BucketIndex];
 end;
 
-{ TMap<K, V> }
+{ TMap<K, V, H> }
 
-function TMap<K, V>.BucketCounts: TIntArray;
+function TMap<K, V, H>.BucketCounts: TIntArray;
 var
   I: Integer;
 begin
@@ -971,31 +938,31 @@ begin
       Result.Add(FBuckets[I].Count);
 end;
 
-function TMap<K, V>.Copy(AHashMode: THashMode): TMap<K, V>;
+function TMap<K, V, H>.Copy(AHashMode: THashMode): TMap<K, V, H>;
 begin
-  Result := TMap<K, V>(CreateCopy(AHashMode));
+  Result := TMap<K, V, H>(CreateCopy(AHashMode));
 end;
 
-procedure TMap<K, V>.CopyBuckets(AFrom: THashBase);
+procedure TMap<K, V, H>.CopyBuckets(AFrom: THashBase);
 var
   Pair: TPair;
 begin
-  for Pair in TMap<K, V>(AFrom) do
+  for Pair in TMap<K, V, H>(AFrom) do
     Self[Pair.Key] := Pair.Value;
 end;
 
-function TMap<K, V>.CreateBucket: THashBase.TBucket;
+function TMap<K, V, H>.CreateBucket: THashBase.TBucket;
 begin
   Result := TBucket.Create(4, 2);
 end;
 
-procedure TMap<K, V>.Del(AKey: K);
+procedure TMap<K, V, H>.Del(AKey: K);
 begin
   if not TryDel(AKey) then
     raise EMapKeyNotFound.Create;
 end;
 
-function TMap<K, V>.Get(AKey: K; out AValue: V): Boolean;
+function TMap<K, V, H>.Get(AKey: K; out AValue: V): Boolean;
 var
   H: Integer;
   Pair: TPair;
@@ -1017,7 +984,7 @@ begin
   Result := False;
 end;
 
-function TMap<K, V>.Get(AKey: K; out APair: TPair): Boolean;
+function TMap<K, V, H>.Get(AKey: K; out APair: TPair): Boolean;
 var
   H: Integer;
   Pair: TPair;
@@ -1039,7 +1006,7 @@ begin
   Result := False;
 end;
 
-function TMap<K, V>.GetActualKey(AKey: K; out AActualKey: K): Boolean;
+function TMap<K, V, H>.GetActualKey(AKey: K; out AActualKey: K): Boolean;
 var
   H: Integer;
   Pair: TPair;
@@ -1061,18 +1028,18 @@ begin
   Result := False;
 end;
 
-function TMap<K, V>.GetActualKeyE(AKey: K): K;
+function TMap<K, V, H>.GetActualKeyE(AKey: K): K;
 begin
   if not GetActualKey(AKey, Result) then
     raise EMapKeyNotFound.Create;
 end;
 
-function TMap<K, V>.GetBuckets: Integer;
+function TMap<K, V, H>.GetBuckets: Integer;
 begin
   Result := Length(FBuckets);
 end;
 
-function TMap<K, V>.SetActualKey(AKey, AActualKey: K): Boolean;
+function TMap<K, V, H>.SetActualKey(AKey, AActualKey: K): Boolean;
 var
   H, I: Integer;
 begin
@@ -1093,13 +1060,13 @@ begin
   Result := False;
 end;
 
-procedure TMap<K, V>.SetActualKeyE(AKey: K; const Value: K);
+procedure TMap<K, V, H>.SetActualKeyE(AKey: K; const Value: K);
 begin
   if not SetActualKey(AKey, Value) then
     raise EMapKeyNotFound.Create;
 end;
 
-procedure TMap<K, V>.SetBuckets(const Value: Integer);
+procedure TMap<K, V, H>.SetBuckets(const Value: Integer);
 var
   NewCapacity: Integer;
 begin
@@ -1119,12 +1086,12 @@ begin
     Rehash(NewCapacity);
 end;
 
-procedure TMap<K, V>.SetBucketsDirect(Value: Integer);
+procedure TMap<K, V, H>.SetBucketsDirect(Value: Integer);
 begin
   SetLength(FBuckets, Value);
 end;
 
-procedure TMap<K, V>.SetValue(AKey: K; const Value: V);
+procedure TMap<K, V, H>.SetValue(AKey: K; const Value: V);
 var
   H, I: Integer;
   Pair: TPair;
@@ -1162,7 +1129,7 @@ begin
     Buckets := Count;
 end;
 
-function TMap<K, V>.TryDel(AKey: K): Boolean;
+function TMap<K, V, H>.TryDel(AKey: K): Boolean;
 var
   H, I: Integer;
 begin
@@ -1188,24 +1155,24 @@ begin
   Result := True;
 end;
 
-function TMap<K, V>.GetEnumerator: IIterator<TPair>;
+function TMap<K, V, H>.GetEnumerator: IIterator<TPair>;
 begin
   Result := TIterator.Create(Self);
 end;
 
-function TMap<K, V>.GetValue(AKey: K): V;
+function TMap<K, V, H>.GetValue(AKey: K): V;
 begin
   if not Get(AKey, Result) then
     raise EMapKeyNotFound.Create;
 end;
 
-function TMap<K, V>.GetPair(AKey: K): TPair;
+function TMap<K, V, H>.GetPair(AKey: K): TPair;
 begin
   if not Get(AKey, Result) then
     raise EMapKeyNotFound.Create;
 end;
 
-function TMap<K, V>.KeyExists(AKey: K): Boolean;
+function TMap<K, V, H>.KeyExists(AKey: K): Boolean;
 var
   H: Integer;
   Pair: TPair;
@@ -1224,11 +1191,11 @@ begin
   Result := False;
 end;
 
-function TMap<K, V>.KeySet(AHashMode: THashMode): TSet<K>;
+function TMap<K, V, H>.KeySet(AHashMode: THashMode): TSet<K, H>;
 var
   Pair: TPair;
 begin
-  Result := TSet<K>(CreateSame(hmManual));
+  Result := TSet<K, H>(CreateSame(hmManual));
   Result.Rehash(Buckets);
   for Pair in Self do
     Result.TryAdd(Pair.Key);
@@ -1240,11 +1207,6 @@ end;
 function TRefSet<T>.CreateBucket: THashBase.TBucket;
 begin
   Result := TRefArrayOwnLinked<T>.Create(@FOwnsObjects, 4, 2);
-end;
-
-class function TRefSet<T>.Hasher: TValueHasherClass;
-begin
-  Result := TRefHasher<T>;
 end;
 
 procedure TRefSet<T>.UnownObjects;
@@ -1279,11 +1241,6 @@ end;
 function TRefMap<K, V>.CreateBucket: THashBase.TBucket;
 begin
   Result := TRefPairArrayOwnLinked<K, V>.Create(@FOwnsKeys, 4, 2);
-end;
-
-class function TRefMap<K, V>.Hasher: TValueHasherClass;
-begin
-  Result := TRefHasher<K>;
 end;
 
 procedure TRefMap<K, V>.UnownObjects;
@@ -1355,45 +1312,38 @@ begin
   Result := TRefRefMap<K, V>(CreateCopy(AHashMode));
 end;
 
-{ TToRefMap<K, V> }
+{ TToRefMap<K, V, H> }
 
-function TToRefMap<K, V>.CreateBucket: THashBase.TBucket;
+function TToRefMap<K, V, H>.CreateBucket: THashBase.TBucket;
 begin
   Result := TToRefPairArrayOwnLinked<K, V>.Create(@FOwnsValues, 4, 2);
 end;
 
-procedure TToRefMap<K, V>.UnownObjects;
+procedure TToRefMap<K, V, H>.UnownObjects;
 begin
   FStoredOwnsValues := OwnsValues;
   OwnsValues := False;
 end;
 
-procedure TToRefMap<K, V>.ReownObjects;
+procedure TToRefMap<K, V, H>.ReownObjects;
 begin
   OwnsValues := FStoredOwnsValues;
 end;
 
-constructor TToRefMap<K, V>.Create(AHashMode: THashMode);
+constructor TToRefMap<K, V, H>.Create(AHashMode: THashMode);
 begin
   inherited;
 end;
 
-constructor TToRefMap<K, V>.Create(AOwnsValues: Boolean; AHashMode: THashMode);
+constructor TToRefMap<K, V, H>.Create(AOwnsValues: Boolean; AHashMode: THashMode);
 begin
   inherited Create(AHashMode);
   OwnsValues := AOwnsValues;
 end;
 
-function TToRefMap<K, V>.Copy(AHashMode: THashMode): TToRefMap<K, V>;
+function TToRefMap<K, V, H>.Copy(AHashMode: THashMode): TToRefMap<K, V, H>;
 begin
-  Result := TToRefMap<K, V>(CreateCopy(AHashMode));
-end;
-
-{ TSetWithHasher<T, H> }
-
-class function TSetWithHasher<T, H>.Hasher: TValueHasherClass;
-begin
-  Result := H;
+  Result := TToRefMap<K, V, H>(CreateCopy(AHashMode));
 end;
 
 end.

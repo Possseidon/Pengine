@@ -19,7 +19,9 @@ uses
   Pengine.GLEnums,
   Pengine.Vector,
   Pengine.Collections,
+  Pengine.HashCollections,
   Pengine.Hasher,
+  Pengine.Equaller,
   Pengine.DebugConsole;
 
 type
@@ -27,9 +29,12 @@ type
   { TResourceBase }
 
   TResourceBase = class abstract
+  public type
+    TDataMap = TToRefMap<TClass, TObject, TClassHasher>;
+
   private
     class var
-      FData: TClassMap<TObject>;
+      FData: TDataMap;
 
     class procedure Load; virtual; abstract;
     class procedure Unload; virtual; abstract;
@@ -76,14 +81,17 @@ type
 
   end;
 
-  TResourceParameterHasher = class(TValueHasher<TResourceParameter>)
-  public
-    class function GetHash(AKey: TResourceParameter): Cardinal; override;
-    class function CanIndex(AKey: TResourceParameter): Boolean; override;
-    class function KeysEqual(AKey1, AKey2: TResourceParameter): Boolean; override;
+  TResourceParameterEqualler = class(TEqualler<TResourceParameter>)
+    class function Equal(const AValue1, AValue2: TResourceParameter): Boolean; override;
   end;
 
-  TResourceParameterMap<T: class> = class(TValueMap<TResourceParameter, T, TResourceParameterHasher>)
+  TResourceParameterHasher = class(THasher<TResourceParameter, TResourceParameterEqualler>)
+  public
+    class function GetHash(const AValue: TResourceParameter): Cardinal; override;
+    class function CanIndex(const AValue: TResourceParameter): Boolean; override;
+  end;
+
+  TResourceParameterMap<T: class> = class(TMap<TResourceParameter, T, TResourceParameterHasher>)
   protected
     function CreateBucket: THashBase.TBucket; override;
     function CreateCopy(AHashMode: THashMode): THashBase; override;
@@ -157,7 +165,7 @@ implementation
 
 class constructor TResourceBase.Create;
 begin
-  FData := TClassMap<TObject>.Create;
+  FData := TDataMap.Create;
 end;
 
 class destructor TResourceBase.Destroy;
@@ -362,19 +370,21 @@ end;
 
 { TResourceParameterHasher }
 
-class function TResourceParameterHasher.CanIndex(AKey: TResourceParameter): Boolean;
+class function TResourceParameterHasher.CanIndex(const AValue: TResourceParameter): Boolean;
 begin
-  Result := AKey <> nil;
+  Result := AValue <> nil;
 end;
 
-class function TResourceParameterHasher.GetHash(AKey: TResourceParameter): Cardinal;
+class function TResourceParameterHasher.GetHash(const AValue: TResourceParameter): Cardinal;
 begin
-  Result := AKey.GetHash;
+  Result := AValue.GetHash;
 end;
 
-class function TResourceParameterHasher.KeysEqual(AKey1, AKey2: TResourceParameter): Boolean;
+{ TResourceParameterEqualler }
+
+class function TResourceParameterEqualler.Equal(const AValue1, AValue2: TResourceParameter): Boolean;
 begin
-  Result := AKey1.Equals(AKey2);
+  Result := AValue1.Equals(AValue2);
 end;
 
 end.

@@ -3,16 +3,29 @@ unit Main;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs;
+  Winapi.Windows,
+  Winapi.Messages,
+
+  System.SysUtils,
+  System.Variants,
+  System.Classes,
+
+  Vcl.Graphics,
+  Vcl.Controls,
+  Vcl.Forms,
+  Vcl.Dialogs,
+
+  Pengine.GLContext,
+  Pengine.GLState,
+  Pengine.Equaller,
+  Pengine.Color,
+  Pengine.GLEnums;
 
 type
 
-  TForm1 = class(TForm)
-  private
-    { Private-Deklarationen }
+  TForm1 = class(TGLForm)
   public
-    { Public-Deklarationen }
+    procedure Init; override;
   end;
 
 var
@@ -22,5 +35,11 @@ implementation
 
 {$R *.dfm}
 
-end.
+{ TForm1 }
 
+procedure TForm1.Init;
+begin
+
+end;
+
+end.

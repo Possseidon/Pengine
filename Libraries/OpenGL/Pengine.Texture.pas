@@ -16,6 +16,7 @@ uses
   Pengine.BitField,
   Pengine.Collections,
   Pengine.Hasher,
+  Pengine.HashCollections,
   Pengine.GLEnums,
   Pengine.GLObject,
   Pengine.Shader,
@@ -276,9 +277,13 @@ type
   { TTexturePage }
 
   TTexturePage = class(TTexture2D)
+  private type
+    TTextures = TRefArray<TTextureItem>;
+    TTextureIDs = TMap<string, TTextureID, TStringHasher>;
+
   private
-    FTextures: TRefArray<TTextureItem>;
-    FTextureIDs: TStringMap<TTextureID>;
+    FTextures: TTextures;
+    FTextureIDs: TTextureIDs;
     FPxlSize: Integer;
 
     FSubTextures: array [TSubTextureType] of TTexture2D;
@@ -1076,8 +1081,8 @@ end;
 constructor TTexturePage.Create;
 begin
   inherited Create;
-  FTextures := TRefArray<TTextureItem>.Create(True);
-  FTextureIDs := TStringMap<TTextureID>.Create;
+  FTextures := TTextures.Create(True);
+  FTextureIDs := TTextureIDs.Create;
 end;
 
 procedure TTexturePage.DelTexture(const AName: string);

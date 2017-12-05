@@ -13,7 +13,7 @@ uses
   Pengine.Vector,
   Pengine.UBO,
   Pengine.Camera,
-  Pengine.GLContext,
+  Pengine.GLState,
   Pengine.ResourceManager,
   Pengine.Interfaces,
   Pengine.CollectionInterfaces;
@@ -64,14 +64,14 @@ type
 
     TSkyboxVAO = class(TVAO)
     private
-      FGLForm: TGLForm;
+      FGLState: TGLState;
 
     protected
       procedure BeforeRender; override;
       procedure AfterRender; override;
 
     public
-      constructor Create(AShader: TShader; AGLForm: TGLForm);
+      constructor Create(AShader: TShader; AGLState: TGLState);
 
     end;
 
@@ -87,7 +87,7 @@ type
     procedure SetVisible(const Value: Boolean);
 
   public
-    constructor Create(AGLForm: TGLForm; AShaderClass: TSkyboxShaderClass);
+    constructor Create(AGLState: TGLState; AShaderClass: TSkyboxShaderClass);
     destructor Destroy; override;
 
     procedure AddStripe(AColor: TColorRGB; AAngle: Single);
@@ -188,11 +188,11 @@ begin
   FVAO.Unmap;
 end;
 
-constructor TSkybox.Create(AGLForm: TGLForm; AShaderClass: TSkyboxShaderClass);
+constructor TSkybox.Create(AGLState: TGLState; AShaderClass: TSkyboxShaderClass);
 const
   Zero: Integer = 0;
 begin
-  FVAO := TSkyboxVAO.Create(AShaderClass.Data, AGLForm);
+  FVAO := TSkyboxVAO.Create(AShaderClass.Data, AGLState);
 
   FUBO := TUBO.Create;
   FUBO.Generate(UBOSize, buStaticDraw);
@@ -243,21 +243,21 @@ end;
 procedure TSkybox.TSkyboxVAO.BeforeRender;
 begin
   inherited;
-  FGLForm.PushState;
-  FGLForm.State.DepthTest := False;
-  FGLForm.State.DepthMask := False;
+  FGLState.Push;
+  FGLState[stDepthTest] := False;
+  FGLState[stDepthMask] := False;
 end;
 
 procedure TSkybox.TSkyboxVAO.AfterRender;
 begin
-  FGLForm.PopState;
+  FGLState.Pop;
   inherited;
 end;
 
-constructor TSkybox.TSkyboxVAO.Create(AShader: TShader; AGLForm: TGLForm);
+constructor TSkybox.TSkyboxVAO.Create(AShader: TShader; AGLState: TGLState);
 begin
   inherited Create(AShader);
-  FGLForm := AGLForm;
+  FGLState := AGLState;
 end;
 
 end.

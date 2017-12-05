@@ -30,96 +30,7 @@ uses
 
 type
 
-  { TOpenGLState }
-
-  // steps to add state:
-  // 1) TState enum
-  // 2) property
-  // 3) Update Function
-  // 4) Pop
-  // 5) Copy
-  // 6) InitDefaults
-
-  TOpenGLState = class
-  public type
-    TState = (
-      stClearColor,
-      stDepthFunc,
-      stCullFace,
-      stDepthTest,
-      stBlend,
-      stBlendFunc,
-      stDepthMask,
-      stSeamlessCubemap,
-      stDepthClamp,
-      stDebugOutput,
-      stDebugOutputSynced
-      );
-    TStates = set of TState;
-
-  private
-    FBlend: Boolean;
-    FBlendFunc: TGLBlendingFunc;
-    FClearColor: TColorRGBA;
-    FCullFace: TGLCullFace;
-    FDepthFunc: TGLCompareFunction;
-    FChanges: TStates;
-    FDepthMask: Boolean;
-    FDepthTest: Boolean;
-    FSeamlessCubemap: Boolean;
-    FDepthClamp: Boolean;
-    FDebugOutput: Boolean;
-    FDebugOutputSynced: Boolean;
-
-    procedure SetBlend(const Value: Boolean);
-    procedure SetBlendFactorDest(const Value: TGLBlendingFactorDest);
-    procedure SetBlendFactorSrc(const Value: TGLBlendingFactorSrc);
-    procedure SetClearColor(const Value: TColorRGBA);
-    procedure SetCullFace(const Value: TGLCullFace);
-    procedure SetDepthFunc(const Value: TGLCompareFunction);
-    procedure SetDepthMask(const Value: Boolean);
-    procedure SetDepthTest(const Value: Boolean);
-    procedure SetSeamlessCubemap(const Value: Boolean);
-    procedure SetDepthClamp(const Value: Boolean);
-    procedure SetDebugOutput(const Value: Boolean);
-    procedure SetDebugOutputSynced(const Value: Boolean);
-
-  public
-    function Copy: TOpenGLState;
-    property Changes: TStates read FChanges;
-
-    property ClearColor: TColorRGBA read FClearColor write SetClearColor;
-    property DepthFunc: TGLCompareFunction read FDepthFunc write SetDepthFunc;
-    property CullFace: TGLCullFace read FCullFace write SetCullFace;
-    property DepthTest: Boolean read FDepthTest write SetDepthTest;
-    property Blend: Boolean read FBlend write SetBlend;
-    property BlendFactorSrc: TGLBlendingFactorSrc read FBlendFunc.Src write SetBlendFactorSrc;
-    property BlendFactorDest: TGLBlendingFactorDest read FBlendFunc.Dest write SetBlendFactorDest;
-    property DepthMask: Boolean read FDepthMask write SetDepthMask;
-    property SeamlessCubemap: Boolean read FSeamlessCubemap write SetSeamlessCubemap;
-    property DepthClamp: Boolean read FDepthClamp write SetDepthClamp;
-    property DebugOutput: Boolean read FDebugOutput write SetDebugOutput;
-    property DebugOutputSynced: Boolean read FDebugOutputSynced write SetDebugOutputSynced;
-
-    procedure UpdateClearColor;
-    procedure UpdateDepthFunc;
-    procedure UpdateCullFace;
-    procedure UpdateDepthTest;
-    procedure UpdateBlend;
-    procedure UpdateBlendFunc;
-    procedure UpdateDepthMask;
-    procedure UpdateSeamlessCubemap;
-    procedure UpdateDepthClamp;
-    procedure UpdateDebugOutput;
-    procedure UpdateDebugOutputSynced;
-
-  end;
-
   TGLForm = class(TForm)
-  public type
-
-    TStateStack = TRefStack<TOpenGLState>;
-
   private
     FFullscreen: Boolean;
     FMustUpdateFPS: Boolean;
@@ -135,7 +46,7 @@ type
 
     FClearMask: TGLAttribMask;
 
-    FStateStack: TStateStack;
+    FState: TGLState;
 
     FDC: HDC;
     FRC: HGLRC;
@@ -156,7 +67,6 @@ type
     function GetFPSInt: Cardinal;
     function GetSeconds: Single;
     function GetCursorVisible: Boolean;
-    function GetState: TOpenGLState;
 
     procedure InitGL;
     procedure FinalizeGL;
@@ -167,8 +77,6 @@ type
     procedure SetSamples(Value: Cardinal);
     procedure SetVSync(Value: Boolean);
     procedure SetFPSLimit(Value: Single);
-
-    procedure InitDefaults;
 
     procedure WaitForFPSLimit;
 
@@ -204,14 +112,11 @@ type
     property Seconds: Single read GetSeconds;
     property MustUpdateFPS: Boolean read FMustUpdateFPS;
 
-    property State: TOpenGLState read GetState;
+    property State: TGLState read FState;
 
     procedure WndProc(var AMessage: TMessage); override;
 
     procedure ForceFPSUpdate;
-
-    procedure PushState;
-    procedure PopState;
 
     procedure Pause;
     procedure Resume;
@@ -240,206 +145,6 @@ uses
 
 const
   TaskbarWindowClass = 'Shell_TrayWnd';
-
-{ TOpenGLState }
-
-procedure TOpenGLState.SetBlend(const Value: Boolean);
-begin
-  if FBlend = Value then
-    Exit;
-  FBlend := Value;
-  Include(FChanges, stBlend);
-  UpdateBlend;
-end;
-
-procedure TOpenGLState.SetBlendFactorDest(const Value: TGLBlendingFactorDest);
-begin
-  if FBlendFunc.Dest = Value then
-    Exit;
-  FBlendFunc.Dest := Value;
-  Include(FChanges, stBlendFunc);
-  UpdateBlendFunc;
-end;
-
-procedure TOpenGLState.SetBlendFactorSrc(const Value: TGLBlendingFactorSrc);
-begin
-  if FBlendFunc.Src = Value then
-    Exit;
-  FBlendFunc.Src := Value;
-  Include(FChanges, stBlendFunc);
-  UpdateBlendFunc;
-end;
-
-procedure TOpenGLState.SetClearColor(const Value: TColorRGBA);
-begin
-  if FClearColor = Value then
-    Exit;
-  FClearColor := Value;
-  Include(FChanges, stClearColor);
-  UpdateClearColor;
-end;
-
-procedure TOpenGLState.SetCullFace(const Value: TGLCullFace);
-begin
-  if FCullFace = Value then
-    Exit;
-  FCullFace := Value;
-  Include(FChanges, stCullFace);
-  UpdateCullFace;
-end;
-
-procedure TOpenGLState.SetDepthFunc(const Value: TGLCompareFunction);
-begin
-  if FDepthFunc = Value then
-    Exit;
-  FDepthFunc := Value;
-  Include(FChanges, stDepthFunc);
-  UpdateDepthFunc;
-end;
-
-procedure TOpenGLState.SetDepthMask(const Value: Boolean);
-begin
-  if FDepthMask = Value then
-    Exit;
-  FDepthMask := Value;
-  Include(FChanges, stDepthMask);
-  UpdateDepthMask;
-end;
-
-procedure TOpenGLState.SetDepthTest(const Value: Boolean);
-begin
-  if FDepthTest = Value then
-    Exit;
-  FDepthTest := Value;
-  Include(FChanges, stDepthTest);
-  UpdateDepthTest;
-end;
-
-procedure TOpenGLState.SetSeamlessCubemap(const Value: Boolean);
-begin
-  if FSeamlessCubemap = Value then
-    Exit;
-  FSeamlessCubemap := Value;
-  Include(FChanges, stSeamlessCubemap);
-  UpdateSeamlessCubemap;
-end;
-
-procedure TOpenGLState.SetDepthClamp(const Value: Boolean);
-begin
-  if FDepthClamp = Value then
-    Exit;
-  FDepthClamp := Value;
-  Include(FChanges, stDepthClamp);
-  UpdateDepthClamp;
-end;
-
-procedure TOpenGLState.SetDebugOutput(const Value: Boolean);
-begin
-  if FDebugOutput = Value then
-    Exit;
-  FDebugOutput := Value;
-  Include(FChanges, stDebugOutput);
-  UpdateDebugOutput;
-end;
-
-procedure TOpenGLState.SetDebugOutputSynced(const Value: Boolean);
-begin
-  if FDebugOutputSynced = Value then
-    Exit;
-  FDebugOutputSynced := Value;
-  Include(FChanges, stDebugOutputSynced);
-  UpdateDebugOutput;
-end;
-
-function TOpenGLState.Copy: TOpenGLState;
-begin
-  Result := TOpenGLState.Create;
-
-  Result.FClearColor := FClearColor;
-  Result.FDepthFunc := FDepthFunc;
-  Result.FBlend := FBlend;
-  Result.FBlendFunc := FBlendFunc;
-  Result.FDepthTest := FDepthTest;
-  Result.FCullFace := FCullFace;
-  Result.FDepthMask := FDepthMask;
-  Result.FSeamlessCubemap := FSeamlessCubemap;
-  Result.FDepthClamp := FDepthClamp;
-  Result.FDebugOutput := FDebugOutput;
-  Result.FDebugOutputSynced := FDebugOutputSynced;
-end;
-
-procedure TOpenGLState.UpdateClearColor;
-begin
-  glClearColor(ClearColor.R, ClearColor.G, ClearColor.B, ClearColor.A);
-end;
-
-procedure TOpenGLState.UpdateDepthFunc;
-begin
-  glDepthFunc(Ord(DepthFunc));
-end;
-
-procedure TOpenGLState.UpdateCullFace;
-begin
-  glCullFace(Ord(CullFace));
-end;
-
-procedure TOpenGLState.UpdateDepthTest;
-begin
-  if DepthTest then
-    glEnable(GL_DEPTH_TEST)
-  else
-    glDisable(GL_DEPTH_TEST);
-end;
-
-procedure TOpenGLState.UpdateBlend;
-begin
-  if Blend then
-    glEnable(GL_BLEND)
-  else
-    glDisable(GL_BLEND);
-end;
-
-procedure TOpenGLState.UpdateBlendFunc;
-begin
-  glBlendFunc(Ord(BlendFactorSrc), Ord(BlendFactorDest));
-end;
-
-procedure TOpenGLState.UpdateDepthMask;
-begin
-  glDepthMask(DepthMask);
-end;
-
-procedure TOpenGLState.UpdateSeamlessCubemap;
-begin
-  if SeamlessCubemap then
-    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS)
-  else
-    glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-end;
-
-procedure TOpenGLState.UpdateDepthClamp;
-begin
-  if DepthClamp then
-    glEnable(GL_DEPTH_CLAMP)
-  else
-    glDisable(GL_DEPTH_CLAMP);
-end;
-
-procedure TOpenGLState.UpdateDebugOutput;
-begin
-  if DebugOutput then
-    glEnable(GL_DEBUG_OUTPUT)
-  else
-    glDisable(GL_DEBUG_OUTPUT);
-end;
-
-procedure TOpenGLState.UpdateDebugOutputSynced;
-begin
-  if DebugOutputSynced then
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS)
-  else
-    glDisable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-end;
 
 { TGLForm }
 
@@ -494,11 +199,6 @@ begin
   Result := Cursor <> -1;
 end;
 
-function TGLForm.GetState: TOpenGLState;
-begin
-  Result := FStateStack.Top;
-end;
-
 procedure TGLForm.InitGL;
 begin
   FDC := GetDC(Handle);
@@ -507,14 +207,12 @@ begin
 
   glDebugMessageCallback(DebugCallback, Self);
 
-  FStateStack := TStateStack.Create(True);
-  FStateStack.Push(TOpenGLState.Create);
-  InitDefaults;
+  FState := TGLState.Create;
 end;
 
 procedure TGLForm.FinalizeGL;
 begin
-  FStateStack.Free;
+  FState.Free;
 
   DeactivateRenderingContext;
   DestroyRenderingContext(FRC);
@@ -605,24 +303,6 @@ begin
   if FFPSLimit = Value then
     Exit;
   FFPSLimit := Value;
-end;
-
-procedure TGLForm.InitDefaults;
-begin
-  glEnable(GL_CULL_FACE); // Disable can be achieved with CullFace to cfBoth
-
-  State.DepthFunc := cfLess; // default
-  State.ClearColor := ColorTransparent; // default
-  State.DepthTest := True;
-  State.CullFace := cfBack; // default
-  State.Blend := True;
-  State.BlendFactorSrc := bfsSrcAlpha;
-  State.BlendFactorDest := bfdOneMinusSrcAlpha;
-  State.DepthMask := True; // default
-  State.SeamlessCubemap := True;
-  State.DepthClamp := True;
-  State.DebugOutput := False; // default
-  State.DebugOutputSynced := False; // default
 end;
 
 procedure TGLForm.WaitForFPSLimit;
@@ -828,49 +508,6 @@ end;
 procedure TGLForm.ForceFPSUpdate;
 begin
   FTimer.ForceFPSUpdate;
-end;
-
-procedure TGLForm.PushState;
-begin
-  FStateStack.Push(State.Copy);
-end;
-
-procedure TGLForm.PopState;
-var
-  S: TOpenGLState.TState;
-  Changes: TOpenGLState.TStates;
-begin
-  Changes := State.Changes;
-  FStateStack.Pop;
-  for S in Changes do
-  begin
-    case S of
-      stClearColor:
-        State.UpdateClearColor;
-      stDepthFunc:
-        State.UpdateDepthFunc;
-      stCullFace:
-        State.UpdateCullFace;
-      stDepthTest:
-        State.UpdateDepthTest;
-      stBlend:
-        State.UpdateBlend;
-      stBlendFunc:
-        State.UpdateBlendFunc;
-      stDepthMask:
-        State.UpdateDepthMask;
-      stSeamlessCubemap:
-        State.UpdateSeamlessCubemap;
-      stDepthClamp:
-        State.UpdateDepthClamp;
-      stDebugOutput:
-        State.UpdateDebugOutput;
-      stDebugOutputSynced:
-        State.UpdateDebugOutputSynced;
-    else
-      Assert(False);
-    end;
-  end;
 end;
 
 procedure TGLForm.Pause;

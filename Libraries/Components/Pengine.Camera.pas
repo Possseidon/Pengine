@@ -14,7 +14,8 @@ uses
   Pengine.Collections,
   Pengine.Vector,
   Pengine.IntMaths,
-  Pengine.Interfaces;
+  Pengine.Interfaces,
+  Pengine.TimeManager;
 
   // TODO: camera aspect via resize event
 
@@ -521,6 +522,7 @@ end;
 procedure TCamera.Render;
 var
   Frustum: THexahedron;
+  S: string;
 
   procedure RenderList(AList: IIterable<IRenderable>);
   var
@@ -669,7 +671,14 @@ begin
   R := ARenderable.CullRadius;
   if IsInfinite(R) then
     Exit(True);
-  Point := ARenderable.Location.Matrix * Vec3(0);
+  if ARenderable.Location <> nil then
+  begin
+    Point.X := ARenderable.Location.Matrix[3, 0];
+    Point.Y := ARenderable.Location.Matrix[3, 1];
+    Point.Z := ARenderable.Location.Matrix[3, 2];
+  end
+  else
+    Point := Vec3(0);
   Result := AFrustum.SphereVisible(Point, R);
 end;
 
@@ -698,12 +707,14 @@ end;
 
 procedure TCamera.TUniform.AddUniform(AUniform: TShader.TUniform<TMatrix3>);
 begin
-  FRotationUniforms.Add(AUniform);
+  if AUniform.Active then
+    FRotationUniforms.Add(AUniform);
 end;
 
 procedure TCamera.TUniform.AddUniform(AUniform: TShader.TUniform<TMatrix4>);
 begin
-  FUniforms.Add(AUniform);
+  if AUniform.Active then
+    FUniforms.Add(AUniform);
 end;
 
 constructor TCamera.TUniform.Create;
@@ -714,12 +725,14 @@ end;
 
 procedure TCamera.TUniform.DelUniform(AUniform: TShader.TUniform<TMatrix3>);
 begin
-  FRotationUniforms.Del(AUniform);
+  if AUniform.Active then
+    FRotationUniforms.Del(AUniform);
 end;
 
 procedure TCamera.TUniform.DelUniform(AUniform: TShader.TUniform<TMatrix4>);
 begin
-  FUniforms.Del(AUniform);
+  if AUniform.Active then
+    FUniforms.Del(AUniform);
 end;
 
 destructor TCamera.TUniform.Destroy;
@@ -746,13 +759,13 @@ end;
 
 procedure TCamera.TUniform.SendToUniforms;
 var
-  Uniform: TShader.TUniform<TMatrix4>;
-  RotationUniform: TShader.TUniform<TMatrix3>;
+  I: Integer;
 begin
-  for Uniform in FUniforms do
-    Uniform.Value := Data;
-  for RotationUniform in FRotationUniforms do
-    RotationUniform.Value := Data.Minor[3];
+  // Use normal for loop for better performance
+  for I := 0 to FUniforms.MaxIndex do
+    FUniforms[I].Value := Data;
+  for I := 0 to FRotationUniforms.MaxIndex do
+    FRotationUniforms[I].Value := Data.Minor[3];
 end;
 
 procedure TCamera.TUniform.Invalidate;

@@ -853,6 +853,9 @@ type
     // TODO: XmlDoc
     function Pop: T; inline;
 
+    function Count: Integer; inline;
+    function Empty: Boolean; inline;
+
     // TODO: XmlDoc
     function Copy: TStack<T>; reintroduce; inline;
 
@@ -2066,6 +2069,16 @@ end;
 function TStack<T>.Pop: T;
 begin
   FArray.DelLast;
+end;
+
+function TStack<T>.Count: Integer;
+begin
+  Result := FArray.Count;
+end;
+
+function TStack<T>.Empty: Boolean;
+begin
+  Result := FArray.Empty;
 end;
 
 function TStack<T>.Copy: TStack<T>;
