@@ -4,13 +4,65 @@ interface
 
 uses
   System.SysUtils,
+  System.Math,
 
   Pengine.CollectionInterfaces,
   Pengine.Interfaces,
   Pengine.Collections,
-  Pengine.ValueHasher;
+  Pengine.ValueEqualler,
+  Pengine.ValueHasher,
+  Pengine.Vector,
+  Pengine.IntMaths;
 
 type
+
+  // TODO: XmlDoc
+  ETooManyHashBuckets = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  // TODO: XmlDoc
+  EInvalidHashBucketCount = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  // TODO: XmlDoc
+  EHashBucketRequired = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  // TODO: XmlDoc
+  EMapKeyNotFound = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  // TODO: XmlDoc
+  ESetKeyNotFound = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  // TODO: XmlDoc
+  ESetKeyExistsAlready = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  // TODO: XmlDoc
+  EHashEmpty = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  // TODO: XmlDoc
+  EHashKeyNotIndexable = class(Exception)
+  public
+    constructor Create;
+  end;
 
   // TODO: XmlDoc
   THashMode = (
@@ -109,10 +161,10 @@ type
   // TODO: XmlDoc
   THashBase<K> = class abstract(THashBase)
   protected
-    class function GetHash(AKey: K): Cardinal; virtual; abstract;
-
-    class function CanIndex(AKey: K): Boolean; virtual;
-    class function KeysEqual(AKey1, AKey2: K): Boolean; virtual; abstract;
+    class function Hasher: TValueHasherClass; virtual; abstract;
+    class function KeysEqual(const AKey1, AKey2: K): Boolean;
+    class function GetHash(const AKey: K): Cardinal;
+    class function CanIndex(const AKey: K): Boolean;
 
   public
     // TODO: XmlDoc
@@ -185,16 +237,6 @@ type
   end;
 
   // TODO: XmlDoc
-  TValueSet<T; H: TValueHasher<T>> = class(TSet<T>)
-  protected
-    class function GetHash(AKey: T): Cardinal; override;
-    class function KeysEqual(AKey1, AKey2: T): Boolean; override;
-    class function CanIndex(AKey: T): Boolean; override;
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TValueSet<T, H>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
   TMap<K, V> = class abstract(THashBase<K>, IIterable<TPair<K, V>>)
   public type
     // TODO: XmlDoc
@@ -262,16 +304,184 @@ type
   end;
 
   // TODO: XmlDoc
-  TValueMap<K, V; H: TValueHasher<K>> = class(TMap<K, V>)
+  TRefSet<T: class> = class(TSet<T>)
+  private
+    FOwnsObjects: Boolean;
+    FStoredOwnsObjects: Boolean;
+
   protected
-    class function GetHash(AKey: K): Cardinal; override;
-    class function KeysEqual(AKey1, AKey2: K): Boolean; override;
-    class function CanIndex(AKey: K): Boolean; override;
+    class function Hasher: TValueHasherClass; override;
+
+    function CreateBucket: THashBase.TBucket; override;
+
+    procedure UnownObjects; override;
+    procedure ReownObjects; override;
+
   public
-    function Copy(AHashMode: THashMode = hmAuto): TValueMap<K, V, H>; reintroduce; inline;
+    constructor Create(AHashMode: THashMode = hmAuto); overload; override;
+    constructor Create(AOwnsObjects: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
+
+    function Copy(AHashMode: THashMode = hmAuto): TRefSet<T>; reintroduce; inline;
+
+    property OwnsObjects: Boolean read FOwnsObjects write FOwnsObjects;
+
   end;
 
+  // TODO: XmlDoc
+  TRefMap<K: class; V> = class(TMap<K, V>)
+  private
+    FOwnsKeys: Boolean;
+    FStoredOwnsKeys: Boolean;
+
+  protected
+    class function Hasher: TValueHasherClass; override;
+
+    function CreateBucket: THashBase.TBucket; override;
+
+    procedure UnownObjects; override;
+    procedure ReownObjects; override;
+
+  public
+    constructor Create(AHashMode: THashMode = hmAuto); overload; override;
+    constructor Create(AOwnsKeys: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
+
+    function Copy(AHashMode: THashMode = hmAuto): TRefMap<K, V>; reintroduce; inline;
+
+    property OwnsKeys: Boolean read FOwnsKeys write FOwnsKeys;
+
+  end;
+
+  // TODO: XmlDoc
+  TRefRefMap<K, V: class> = class(TRefMap<K, V>)
+  private
+    FOwnsValues: Boolean;
+    FStoredOwnsValues: Boolean;
+
+  protected
+    function CreateBucket: THashBase.TBucket; override;
+
+    procedure UnownObjects; override;
+    procedure ReownObjects; override;
+
+  public
+    constructor Create(AHashMode: THashMode = hmAuto); overload; override;
+    constructor Create(AOwnsObjects: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
+    constructor Create(AOwnsKeys, AOwnsValues: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
+
+    function Copy(AHashMode: THashMode = hmAuto): TRefRefMap<K, V>; reintroduce; inline;
+
+    property OwnsValues: Boolean read FOwnsValues write FOwnsValues;
+
+  end;
+
+  // TODO: XmlDoc
+  TToRefMap<K; V: class> = class abstract(TMap<K, V>)
+  private
+    FOwnsValues: Boolean;
+    FStoredOwnsValues: Boolean;
+
+  protected
+    function CreateBucket: THashBase.TBucket; override;
+
+    procedure UnownObjects; override;
+    procedure ReownObjects; override;
+
+  public
+    constructor Create(AHashMode: THashMode = hmAuto); overload; override;
+    constructor Create(AOwnsValues: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
+
+    function Copy(AHashMode: THashMode = hmAuto): TToRefMap<K, V>; reintroduce; inline;
+
+    property OwnsValues: Boolean read FOwnsValues write FOwnsValues;
+
+  end;
+
+  TSetWithHasher<T; H: TValueHasher<T>> = class(TSet<T>)
+  protected
+    class function Hasher: TValueHasherClass; override;
+  end;
+
+  TPointerSet = TSetWithHasher<Pointer, TPointerHasher>;
+  TUIntSet = TSetWithHasher<Cardinal, TUIntHasher>;
+  TIntSet = TSetWithHasher<Integer, TIntHasher>;
+  TIntVector2Set = TSetWithHasher<TIntVector2, TIntVector2Hasher>;
+  TIntVector3Set = TSetWithHasher<TIntVector3, TIntVector3Hasher>;
+  TIntBounds1Set = TSetWithHasher<TIntBounds1, TIntBounds1Hasher>;
+  TIntBounds2Set = TSetWithHasher<TIntBounds2, TIntBounds2Hasher>;
+  TIntBounds3Set = TSetWithHasher<TIntBounds3, TIntBounds3Hasher>;
+  TSingleSet = TSetWithHasher<Single, TSingleHasher>;
+  TVector2Set = TSetWithHasher<TVector2, TVector2Hasher>;
+  TVector3Set = TSetWithHasher<TVector3, TVector3Hasher>;
+  TBounds1Set = TSetWithHasher<TBounds1, TBounds1Hasher>;
+  TBounds2Set = TSetWithHasher<TBounds2, TBounds2Hasher>;
+  TBounds3Set = TSetWithHasher<TBounds3, TBounds3Hasher>;
+  TLine2Set = TSetWithHasher<TLine2, TLine2Hasher>;
+  TLine3Set = TSetWithHasher<TLine3, TLine3Hasher>;
+  TPlane2Set = TSetWithHasher<TPlane2, TPlane2Hasher>;
+  TPlane3Set = TSetWithHasher<TPlane3, TPlane3Hasher>;
+  TVectorDirSet = TSetWithHasher<TVectorDir, TVectorDirHasher>;
+  TStringSet = TSetWithHasher<string, TStringHasher>;
+  TAnsiStringSet = TSetWithHasher<AnsiString, TAnsiStringHasher>;
+  TClassSet = TSetWithHasher<TClass, TClassHasher>;
+
+
 implementation
+
+{ ETooManyHashBuckets }
+
+constructor ETooManyHashBuckets.Create;
+begin
+  inherited Create('Hash Buckets cannot exceed 1610612741.');
+end;
+
+{ EInvalidHashBucketCount }
+
+constructor EInvalidHashBucketCount.Create;
+begin
+  inherited Create('At least zero hash buckets are required.');
+end;
+
+{ EHashBucketRequired }
+
+constructor EHashBucketRequired.Create;
+begin
+  inherited Create('At least one hash bucket is required, as the collection contains at least one element.');
+end;
+
+{ EMapKeyNotFound }
+
+constructor EMapKeyNotFound.Create;
+begin
+  inherited Create('The map does not contain the specified key.');
+end;
+
+{ ESetKeyNotFound }
+
+constructor ESetKeyNotFound.Create;
+begin
+  inherited Create('The map does not contain the specified key.');
+end;
+
+{ ESetKeyExistsAlready }
+
+constructor ESetKeyExistsAlready.Create;
+begin
+  inherited Create('The set key exists already.');
+end;
+
+{ EHashEmpty }
+
+constructor EHashEmpty.Create;
+begin
+  inherited Create('The operation requires the hash collection to have at least one item.');
+end;
+
+{ EHashKeyNotIndexable }
+
+constructor EHashKeyNotIndexable.Create;
+begin
+  inherited Create('Hash key is not indexable.');
+end;
 
 { THashBase.TIterator<T> }
 
@@ -433,24 +643,34 @@ begin
   AHashBase.SetBucketsDirect(Buckets);
   for I := 0 to Buckets - 1 do
     if FBuckets[I] <> nil then
-      AHashBase.FBuckets[I] := FBuckets[I].CreateCopy;
+      AHashBase.FBuckets[I] := FBuckets[I].Copy;
 end;
 
 { THashBase<K> }
 
-class function THashBase<K>.CanIndex(AKey: K): Boolean;
+class function THashBase<K>.KeysEqual(const AKey1, AKey2: K): Boolean;
 begin
-  Result := True;
+  Result := TValueHasher<K>(Hasher).Equal(AKey1, AKey2);
+end;
+
+class function THashBase<K>.GetHash(const AKey: K): Cardinal;
+begin
+  Result := TValueHasher<K>(Hasher).GetHash(AKey);
+end;
+
+class function THashBase<K>.CanIndex(const AKey: K): Boolean;
+begin
+  Result := TValueHasher<K>(Hasher).CanIndex(AKey);
+end;
+
+function THashBase<K>.GetCappedHash(AKey: K): Integer;
+begin
+  Result := Integer(GetHash(AKey) mod Cardinal(Buckets));
 end;
 
 function THashBase<K>.Copy(AHashMode: THashMode): THashBase<K>;
 begin
   Result := THashBase<K>(CreateCopy(AHashMode));
-end;
-
-function THashBase<K>.GetCappedHash(AKey: K): Integer;
-begin
-  Result := GetHash(AKey) mod Cardinal(Buckets);
 end;
 
 { TSet<T>.TIterator }
@@ -708,28 +928,6 @@ begin
   Result.Add(Self);
   Result.Add(ASet);
   Result.HashMode := hmAuto;
-end;
-
-{ TValueSet<T, H> }
-
-class function TValueSet<T, H>.CanIndex(AKey: T): Boolean;
-begin
-  Result := H.CanIndex(AKey);
-end;
-
-function TValueSet<T, H>.Copy(AHashMode: THashMode): TValueSet<T, H>;
-begin
-  Result := TValueSet<T, H>(CreateCopy(AHashMode));
-end;
-
-class function TValueSet<T, H>.GetHash(AKey: T): Cardinal;
-begin
-  Result := H.GetHash(AKey);
-end;
-
-class function TValueSet<T, H>.KeysEqual(AKey1, AKey2: T): Boolean;
-begin
-  Result := H.KeysEqual(AKey1, AKey2);
 end;
 
 { TMap<K, V>.TIterator }
@@ -1037,26 +1235,165 @@ begin
   Result.HashMode := AHashMode;
 end;
 
-{ TValueMap<K, V, H> }
+{ TRefSet<T> }
 
-class function TValueMap<K, V, H>.GetHash(AKey: K): Cardinal;
+function TRefSet<T>.CreateBucket: THashBase.TBucket;
 begin
-  Result := H.GetHash(AKey);
+  Result := TRefArrayOwnLinked<T>.Create(@FOwnsObjects, 4, 2);
 end;
 
-class function TValueMap<K, V, H>.KeysEqual(AKey1, AKey2: K): Boolean;
+class function TRefSet<T>.Hasher: TValueHasherClass;
 begin
-  Result := H.KeysEqual(AKey1, AKey2);
+  Result := TRefHasher<T>;
 end;
 
-class function TValueMap<K, V, H>.CanIndex(AKey: K): Boolean;
+procedure TRefSet<T>.UnownObjects;
 begin
-  Result := H.CanIndex(AKey);
+  FStoredOwnsObjects := OwnsObjects;
+  OwnsObjects := False;
 end;
 
-function TValueMap<K, V, H>.Copy(AHashMode: THashMode): TValueMap<K, V, H>;
+procedure TRefSet<T>.ReownObjects;
 begin
-  Result := TValueMap<K, V, H>(CreateCopy(AHashMode));
+  OwnsObjects := FStoredOwnsObjects;
+end;
+
+constructor TRefSet<T>.Create(AHashMode: THashMode);
+begin
+  inherited;
+end;
+
+constructor TRefSet<T>.Create(AOwnsObjects: Boolean; AHashMode: THashMode);
+begin
+  inherited Create(AHashMode);
+  OwnsObjects := AOwnsObjects;
+end;
+
+function TRefSet<T>.Copy(AHashMode: THashMode): TRefSet<T>;
+begin
+  Result := TRefSet<T>(CreateCopy(AHashMode));
+end;
+
+{ TRefMap<K, V> }
+
+function TRefMap<K, V>.CreateBucket: THashBase.TBucket;
+begin
+  Result := TRefPairArrayOwnLinked<K, V>.Create(@FOwnsKeys, 4, 2);
+end;
+
+class function TRefMap<K, V>.Hasher: TValueHasherClass;
+begin
+  Result := TRefHasher<K>;
+end;
+
+procedure TRefMap<K, V>.UnownObjects;
+begin
+  FStoredOwnsKeys := OwnsKeys;
+  OwnsKeys := False;
+end;
+
+procedure TRefMap<K, V>.ReownObjects;
+begin
+  OwnsKeys := FStoredOwnsKeys;
+end;
+
+constructor TRefMap<K, V>.Create(AHashMode: THashMode);
+begin
+  inherited;
+end;
+
+constructor TRefMap<K, V>.Create(AOwnsKeys: Boolean; AHashMode: THashMode);
+begin
+  inherited Create(AHashMode);
+  OwnsKeys := AOwnsKeys;
+end;
+
+function TRefMap<K, V>.Copy(AHashMode: THashMode): TRefMap<K, V>;
+begin
+  Result := TRefMap<K, V>(CreateCopy(AHashMode));
+end;
+
+{ TRefRefMap<K, V> }
+
+function TRefRefMap<K, V>.CreateBucket: THashBase.TBucket;
+begin
+  Result := TRefRefPairArrayOwnLinked<K, V>.Create(@FOwnsKeys, @FOwnsValues, 4, 2);
+end;
+
+procedure TRefRefMap<K, V>.UnownObjects;
+begin
+  inherited;
+  FStoredOwnsValues := OwnsValues;
+  OwnsValues := False;
+end;
+
+procedure TRefRefMap<K, V>.ReownObjects;
+begin
+  inherited;
+  OwnsValues := FStoredOwnsValues;
+end;
+
+constructor TRefRefMap<K, V>.Create(AHashMode: THashMode);
+begin
+  inherited;
+end;
+
+constructor TRefRefMap<K, V>.Create(AOwnsObjects: Boolean; AHashMode: THashMode);
+begin
+  inherited Create(AOwnsObjects, AHashMode);
+  OwnsValues := AOwnsObjects;
+end;
+
+constructor TRefRefMap<K, V>.Create(AOwnsKeys, AOwnsValues: Boolean; AHashMode: THashMode);
+begin
+  inherited Create(AOwnsKeys, AHashMode);
+  OwnsValues := AOwnsValues;
+end;
+
+function TRefRefMap<K, V>.Copy(AHashMode: THashMode): TRefRefMap<K, V>;
+begin
+  Result := TRefRefMap<K, V>(CreateCopy(AHashMode));
+end;
+
+{ TToRefMap<K, V> }
+
+function TToRefMap<K, V>.CreateBucket: THashBase.TBucket;
+begin
+  Result := TToRefPairArrayOwnLinked<K, V>.Create(@FOwnsValues, 4, 2);
+end;
+
+procedure TToRefMap<K, V>.UnownObjects;
+begin
+  FStoredOwnsValues := OwnsValues;
+  OwnsValues := False;
+end;
+
+procedure TToRefMap<K, V>.ReownObjects;
+begin
+  OwnsValues := FStoredOwnsValues;
+end;
+
+constructor TToRefMap<K, V>.Create(AHashMode: THashMode);
+begin
+  inherited;
+end;
+
+constructor TToRefMap<K, V>.Create(AOwnsValues: Boolean; AHashMode: THashMode);
+begin
+  inherited Create(AHashMode);
+  OwnsValues := AOwnsValues;
+end;
+
+function TToRefMap<K, V>.Copy(AHashMode: THashMode): TToRefMap<K, V>;
+begin
+  Result := TToRefMap<K, V>(CreateCopy(AHashMode));
+end;
+
+{ TSetWithHasher<T, H> }
+
+class function TSetWithHasher<T, H>.Hasher: TValueHasherClass;
+begin
+  Result := H;
 end;
 
 end.

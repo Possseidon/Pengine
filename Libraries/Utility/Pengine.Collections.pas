@@ -30,7 +30,7 @@ type
   /// <summary>Raised, if an array-index was out of bounds.</summary>
   EArrayRangeError = class(Exception)
   public
-    constructor Create(AIndex, ACount: Integer);
+    constructor Create;
   end;
 
   /// <summary>Raised, if an array-item does not have a string-representative.</summary>
@@ -53,54 +53,6 @@ type
 
   // TODO: XmlDoc
   EArrayInvalidShrinkRetain = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  // TODO: XmlDoc
-  ETooManyHashBuckets = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  // TODO: XmlDoc
-  EInvalidHashBucketCount = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  // TODO: XmlDoc
-  EHashBucketRequired = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  // TODO: XmlDoc
-  EMapKeyNotFound = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  // TODO: XmlDoc
-  ESetKeyNotFound = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  // TODO: XmlDoc
-  ESetKeyExistsAlready = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  // TODO: XmlDoc
-  EHashEmpty = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  // TODO: XmlDoc
-  EHashKeyNotIndexable = class(Exception)
   public
     constructor Create;
   end;
@@ -190,7 +142,7 @@ type
     // TODO: XmlDoc
     procedure Swap(A, B: Integer);
     // TODO: XmlDoc
-    procedure SwapUnchecked(A, B: Integer); virtual;
+    procedure SwapUnchecked(A, B: Integer); virtual; abstract;
 
     // TODO: XmlDoc
     function DataPointer: Pointer; virtual; abstract;
@@ -955,10 +907,9 @@ end;
 
 { EArrayRangeError }
 
-constructor EArrayRangeError.Create(AIndex, ACount: Integer);
+constructor EArrayRangeError.Create;
 begin
-  inherited CreateFmt('The array-index "%d" is out of bounds, as the collection only has %d items.',
-    [AIndex, ACount]);
+  inherited Create('The array-index is out of bounds.');
 end;
 
 { EArrayItemNoStringRepresentative }
@@ -987,62 +938,6 @@ end;
 constructor EArrayInvalidShrinkRetain.Create;
 begin
   inherited Create('The array shrink retain must be at least zero.');
-end;
-
-{ ETooManyHashBuckets }
-
-constructor ETooManyHashBuckets.Create;
-begin
-  inherited Create('Hash Buckets cannot exceed 1610612741.');
-end;
-
-{ EInvalidHashBucketCount }
-
-constructor EInvalidHashBucketCount.Create;
-begin
-  inherited Create('At least zero hash buckets are required.');
-end;
-
-{ EHashBucketRequired }
-
-constructor EHashBucketRequired.Create;
-begin
-  inherited Create('At least one hash bucket is required, as the collection contains at least one element.');
-end;
-
-{ EMapKeyNotFound }
-
-constructor EMapKeyNotFound.Create;
-begin
-  inherited Create('The map does not contain the specified key.');
-end;
-
-{ ESetKeyNotFound }
-
-constructor ESetKeyNotFound.Create;
-begin
-  inherited Create('The map does not contain the specified key.');
-end;
-
-{ ESetKeyExistsAlready }
-
-constructor ESetKeyExistsAlready.Create;
-begin
-  inherited Create('The set key exists already.');
-end;
-
-{ EHashEmpty }
-
-constructor EHashEmpty.Create;
-begin
-  inherited Create('The operation requires the hash collection to have at least one item.');
-end;
-
-{ EHashKeyNotIndexable }
-
-constructor EHashKeyNotIndexable.Create;
-begin
-  inherited Create('Hash key is not indexable.');
 end;
 
 { TPair<K, V> }
@@ -1131,15 +1026,10 @@ begin
   SwapUnchecked(A, B);
 end;
 
-procedure TArray.SwapUnchecked(A, B: Integer);
-begin
-
-end;
-
 procedure TArray.RangeCheckException(AIndex: Integer);
 begin
   if not RangeCheck(AIndex) then
-    raise EArrayRangeError.Create(AIndex, Count);
+    raise EArrayRangeError.Create;
 end;
 
 procedure TArray.SetGrowAmount(const Value: Integer);
