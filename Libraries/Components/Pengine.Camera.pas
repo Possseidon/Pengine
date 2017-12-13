@@ -105,6 +105,8 @@ type
 
   // TODO: XmlDoc
   // Important: free renderables AFTER camera
+  // Using the same location for objects rendered in succession speeds up the rendering significantly
+  // as the model matrix doesn'T change and no matrix calculations/uniform sending have to be done at all
   TCamera = class
   public type
 
@@ -527,6 +529,7 @@ var
   procedure RenderList(AList: IIterable<IRenderable>);
   var
     RenderObject: IRenderable;
+    NewModelLocation: TLocation;
   begin
     for RenderObject in AList do
     begin
@@ -534,9 +537,13 @@ var
       begin
         if RenderableVisible(Frustum, RenderObject) then
         begin
-          FModelLocation := RenderObject.Location;
-          FMat[mtModel].Invalidate;
-          FMat[mtMVP].SendAllMatrices;
+          NewModelLocation := RenderObject.Location;
+          if FModelLocation <> NewModelLocation then
+          begin
+            FModelLocation := NewModelLocation;
+            FMat[mtModel].Invalidate;
+            FMat[mtMVP].SendAllMatrices;
+          end;
           RenderObject.Render;
         end;
         if RenderObject.RenderableChildren <> nil then
@@ -548,6 +555,7 @@ var
 
 begin
   Frustum := GetViewFrustum;
+  FMat[mtMVP].SendAllMatrices;
   RenderList(FRenderObjects);
 end;
 

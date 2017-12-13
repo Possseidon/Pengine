@@ -21,7 +21,8 @@ uses
   Pengine.Hasher,
   Pengine.Matrix,
   Pengine.Vector,
-  Pengine.GLEnums;
+  Pengine.GLEnums,
+  Pengine.GLObject;
 
 type
 
@@ -100,7 +101,7 @@ type
 
   { TShader }
 
-  TShader = class
+  TShader = class(TGLHandleObject)
   public type
 
     TVariable = class abstract
@@ -203,8 +204,20 @@ type
 
     TAttributeOrder = array of AnsiString;
 
+  public const
+
+    GLShaderTypes: array [TType] of TGLShaderType = (
+      TGLShaderType.stFragment,
+      TGLShaderType.stVertex,
+      TGLShaderType.stGeometry,
+      TGLShaderType.stCompute
+      );
+
+    FileExtensions: array [TType] of string = ('.fs', '.vs', '.gs', '.cs');
+
+    ResourceExtensions: array [TType] of string = ('_FS', '_VS', '_GS', '_CS');
+
   private
-    FProgramObject: GLHandle;
     FInterfaceVariables: TInterfaceVariableMap;
     FAttributes: TAttributes;
     FAttributeStride: Integer;
@@ -219,8 +232,11 @@ type
     function GetAttribute(I: Integer): TAttribute;
     function GetAttributeCount: Integer;
 
-  public
-    class var ActiveShader: TShader;
+  protected
+    procedure GenObject(out AGLName: GLHandle); override;
+    procedure DeleteObject(const AGLName: GLHandle); override;
+
+    function GetObjectType: TGLObjectType; override;
 
   public
     constructor Create;
@@ -244,23 +260,8 @@ type
     procedure Enable;
     class procedure Disable;
 
-    property ProgramObject: GLHandle read FProgramObject;
-
     function Uniform<T>(AName: AnsiString): TUniform<T>;
     function UniformSampler(AName: AnsiString): TUniformSampler;
-
-  const
-
-    GLShaderTypes: array [TType] of TGLShaderType = (
-      TGLShaderType.stFragment,
-      TGLShaderType.stVertex,
-      TGLShaderType.stGeometry,
-      TGLShaderType.stCompute
-      );
-
-    FileExtensions: array [TType] of string = ('.fs', '.vs', '.gs', '.cs');
-
-    ResourceExtensions: array [TType] of string = ('_FS', '_VS', '_GS', '_CS');
 
   end;
 
@@ -401,15 +402,19 @@ end;
 
 constructor TShader.Create;
 begin
-  FProgramObject := glCreateProgram;
+  inherited;
   FInterfaceVariables := TInterfaceVariableMap.Create(True);
+end;
+
+procedure TShader.DeleteObject(const AGLName: GLHandle);
+begin
+  glDeleteProgram(AGLName);
 end;
 
 destructor TShader.Destroy;
 begin
   FAttributes.Free;
   FInterfaceVariables.Free;
-  glDeleteProgram(FProgramObject);
   inherited;
 end;
 
@@ -429,6 +434,11 @@ begin
     glUseProgram(FProgramObject);
     ActiveShader := Self;
   end;
+end;
+
+procedure TShader.GenObject(out AGLName: GLHandle);
+begin
+  AGLName := glCreateProgram;
 end;
 
 function TShader.GetAttribute(I: Integer): TAttribute;
@@ -695,7 +705,7 @@ begin
     bdtDouble:
       glGetUniformdv(Shader.ProgramObject, Location, PGLdouble(@Result));
   else
-    Assert(False, 'Missing BaseDataType for Uniform GetValue');
+    raise ENotImplemented.Create('Missing BaseDataType for Uniform GetValue');
   end;
 end;
 

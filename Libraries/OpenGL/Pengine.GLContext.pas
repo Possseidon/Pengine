@@ -11,6 +11,7 @@ uses
   System.Classes,
   System.SysUtils,
   System.UITypes,
+  System.Math,
 
   Vcl.Controls,
   Vcl.Dialogs,
@@ -20,6 +21,7 @@ uses
   Pengine.GLState,
   Pengine.ResourceManager,
   Pengine.Color,
+  Pengine.Texture,
   Pengine.FBO,
   Pengine.GLEnums,
   Pengine.InputHandler,
@@ -30,53 +32,36 @@ uses
 
 type
 
-  TGLForm = class(TForm)
+  TGLContext = class
   private
-    FFullscreen: Boolean;
     FMustUpdateFPS: Boolean;
     FVSync: Boolean;
-
     FRunning: Boolean;
-
     FMaxDeltaTime: Single;
-
     FInput: TInputHandler;
     FTimer: TDeltaTimer;
     FFPSLimit: Single;
-
     FClearMask: TGLAttribMask;
-
     FState: TGLState;
-
     FDC: HDC;
     FRC: HGLRC;
-
-    FOldWindowState: TWindowState;
-
     FFBO: TFBO;
-
     FMultiSampling: Boolean;
     FSamples: Cardinal;
     FMaxSamples: Cardinal;
 
-    procedure ActivateHandler(Sender: TObject);
-    procedure DeactivateHandler(Sender: TObject);
-    function GetAspect: Single;
     function GetDeltaTime: Single;
     function GetFPS: Single;
     function GetFPSInt: Cardinal;
     function GetSeconds: Single;
-    function GetCursorVisible: Boolean;
 
-    procedure InitGL;
-    procedure FinalizeGL;
-
-    procedure SetFullscreen(Value: Boolean);
-    procedure SetCursorVisible(Value: Boolean);
     procedure SetMultiSampling(Value: Boolean);
     procedure SetSamples(Value: Cardinal);
     procedure SetVSync(Value: Boolean);
     procedure SetFPSLimit(Value: Single);
+
+    procedure InitGL;
+    procedure FinalizeGL;
 
     procedure WaitForFPSLimit;
 
@@ -89,18 +74,18 @@ type
     class procedure DebugCallback(ASource, AType, AID, ASeverity: Cardinal; ALength: Integer; const AMessage: PAnsiChar;
       AUserdata: Pointer); static; stdcall;
 
-  protected
-    procedure Resize; override;
-    procedure Paint; override;
-
   public
-    constructor Create(TheOwner: TComponent); override;
-    destructor Destroy; override;
+    constructor Create(ADC: HDC);
+
+    procedure ForceFPSUpdate;
+
+    procedure Pause;
+    procedure Resume;
+
+    procedure Render;
 
     property VSync: Boolean read FVSync write SetVSync;
-    property Fullscreen: Boolean read FFullscreen write SetFullscreen;
     property ClearMask: TGLAttribMask read FClearMask write FClearMask;
-    property CursorVisible: Boolean read GetCursorVisible write SetCursorVisible;
     property MaxDeltaTime: Single read FMaxDeltaTime write FMaxDeltaTime;
 
     property Input: TInputHandler read FInput;
@@ -114,14 +99,38 @@ type
 
     property State: TGLState read FState;
 
+    property MultiSampling: Boolean read FMultiSampling write SetMultiSampling;
+    property MaxSamples: Cardinal read FMaxSamples;
+    property Samples: Cardinal read FSamples write SetSamples;
+
+  end;
+
+  TGLForm = class(TForm)
+  private
+    FContext: TGLContext;
+    FFullscreen: Boolean;
+    FOldWindowState: TWindowState;
+
+    procedure ActivateHandler(Sender: TObject);
+    procedure DeactivateHandler(Sender: TObject);
+    function GetAspect: Single;
+    function GetCursorVisible: Boolean;
+
+    procedure SetFullscreen(Value: Boolean);
+    procedure SetCursorVisible(Value: Boolean);
+
+  protected
+    procedure Resize; override;
+    procedure Paint; override;
+
+  public
+    constructor Create(TheOwner: TComponent); override;
+    destructor Destroy; override;
+
+    property Fullscreen: Boolean read FFullscreen write SetFullscreen;
+    property CursorVisible: Boolean read GetCursorVisible write SetCursorVisible;
+
     procedure WndProc(var AMessage: TMessage); override;
-
-    procedure ForceFPSUpdate;
-
-    procedure Pause;
-    procedure Resume;
-
-    procedure Render;
 
     procedure Init; virtual;
     procedure Finalize; virtual;
@@ -130,18 +139,11 @@ type
     procedure UpdateGL; virtual;
     procedure ResizeGL; virtual;
 
-    property MultiSampling: Boolean read FMultiSampling write SetMultiSampling;
-    property MaxSamples: Cardinal read FMaxSamples;
-    property Samples: Cardinal read FSamples write SetSamples;
-
     property Aspect: Single read GetAspect;
 
   end;
 
 implementation
-
-uses
-  Math;
 
 const
   TaskbarWindowClass = 'Shell_TrayWnd';

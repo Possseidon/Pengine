@@ -4,7 +4,8 @@ interface
 
 uses
   dglOpenGL, 
-  
+
+  Pengine.GLContext,
   Pengine.Interfaces;
 
 type
@@ -29,48 +30,98 @@ type
     otTransformFeedback = GL_TRANSFORM_FEEDBACK
   );
 
-  { TGLObject }
-  
-  TGLObject = class abstract (TInterfaceBase)
+  TGLObject = class abstract(TInterfaceBase)
   private
-    FGLName: GLuint;
     FGLLabel: AnsiString;
+    FGLContext: TGLContext;
 
   protected
-    procedure GenObject(var AGLName: GLuint); virtual; abstract;
-    procedure DeleteObject(var AGLName: GLuint); virtual; abstract;
-
     function GetObjectType: TGLObjectType; virtual; abstract;
 
-    procedure SetGLLabel(const Value: AnsiString); virtual;
+    procedure SetGLLabel(const Value: AnsiString); virtual; abstract;
+
+  public
+    procedure Bind; virtual; abstract;
+    procedure Unbind; virtual; abstract;
+
+    property GLLabel: AnsiString read FGLLabel write SetGLLabel;
+
+    property ObjectType: TGLObjectType read GetObjectType;
+
+  end;
+
+  TGLUIntObject = class(TGLObject)
+  private
+    FGLName: GLuint;
+
+  protected
+    procedure GenObject(out AGLName: GLuint); virtual; abstract;
+    procedure DeleteObject(const AGLName: GLuint); virtual; abstract;
+
+    procedure SetGLLabel(const Value: AnsiString); override;
 
   public
     constructor Create;
     destructor Destroy; override;
 
-    procedure Bind; virtual; abstract;
-    class procedure Unbind; virtual; abstract;
-
     property GLName: GLuint read FGLName;
-    property GLLabel: AnsiString read FGLLabel write SetGLLabel;
+
+  end;
+
+  TGLHandleObject = class(TGLObject)
+  private
+    FGLName: GLHandle;
+
+  protected
+    procedure GenObject(out AGLName: GLHandle); virtual; abstract;
+    procedure DeleteObject(const AGLName: GLHandle); virtual; abstract;
+
+    procedure SetGLLabel(const Value: AnsiString); override;
+
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    property GLName: GLHandle read FGLName;
 
   end;
 
 implementation
 
-{ TGLObject }
+{ TGLUIntObject }
 
-constructor TGLObject.Create;
+constructor TGLUIntObject.Create;
 begin
   GenObject(FGLName);
 end;
 
-destructor TGLObject.Destroy;
+destructor TGLUIntObject.Destroy;
 begin
   DeleteObject(FGLName);
 end;
 
-procedure TGLObject.SetGLLabel(const Value: AnsiString);
+procedure TGLUIntObject.SetGLLabel(const Value: AnsiString);
+begin
+  FGLLabel := Value;
+  if Value = '' then
+    glObjectLabel(Ord(GetObjectType), GLName, -1, nil)
+  else
+    glObjectLabel(Ord(GetObjectType), GLName, Length(Value), @Value[1]);
+end;
+
+{ TGLHandleObject }
+
+constructor TGLHandleObject.Create;
+begin
+  GenObject(FGLName);
+end;
+
+destructor TGLHandleObject.Destroy;
+begin
+  DeleteObject(FGLName);
+end;
+
+procedure TGLHandleObject.SetGLLabel(const Value: AnsiString);
 begin
   FGLLabel := Value;
   if Value = '' then

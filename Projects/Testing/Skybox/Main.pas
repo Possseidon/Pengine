@@ -118,7 +118,7 @@ var
   J: Integer;
   SubCube: TCube;
 begin
-  VSync := False;
+  VSync := True;
 
   RandSeed := 0;
 
@@ -127,7 +127,7 @@ begin
   FCamera.Location.OffsetZ := 10;
   FCamera.Location.TurnAngle := -30;
   FCamera.Location.PitchAngle := -20;
-  
+
   FCamera.AddUniforms(TSkyboxShader.Data);
   FCamera.AddUniforms(TModelShader.Data);
 
@@ -148,11 +148,11 @@ begin
   FSun.Direction := -Vec3(0.3, 1, 0.3);
   FSun.Size := 20;
 
-  FCubes.Capacity := 1000;
+  FCubes.Capacity := 100;
   for I := 0 to FCubes.Capacity - 1 do
   begin
     Cube := FCubes.Add(TCube.Create(TModelShader.Data));
-    Cube.Location.Pos := TVector3.RandomNormal * 5;
+    // Cube.Location.Pos := TVector3.RandomNormal * 5;
 
     FCamera.AddRenderable(Cube);
     FSun.AddOccluder(Cube);
@@ -164,7 +164,6 @@ begin
       Cube.AddChild(SubCube);
     end;
   end;
-
 end;
 
 procedure TfrmMain.Finalize;
@@ -241,11 +240,13 @@ var
   P: TPlane3;
   T: TTexCoord2;
   Data: TData;
+  Offset: TVector3;
 begin
   FVAO.Generate(6 * 2 * 3, buStaticDraw);
   FVAO.Map(baWriteOnly);
 
   Data.Border := TTextureAtlas.Data.GetBounds(Texture);
+  Offset := TVector3.RandomNormal * 5;
   for P in CubePlanes do
   begin
     Data.Normal := P.Normal;
@@ -253,7 +254,8 @@ begin
     Data.Bitangent := P.D2;
     for T in QuadTexCoords do
     begin
-      Data.Pos := P[T] - 0.5;
+      Data.Pos := P[T] - 0.5 + Offset;
+      Data.Pos := Data.Pos;
       Data.TexCoord := Data.Border[T];
 
       FVAO.AddVertex(Data);
@@ -293,7 +295,7 @@ end;
 
 function TCube.GetLocation: TLocation;
 begin
-  Result := FLocation;
+  Result := nil//FLocation;
 end;
 
 function TCube.CullPoints: IIterable<TVector3>;

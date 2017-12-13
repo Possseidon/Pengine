@@ -194,9 +194,9 @@ class function TResource<T>.Data: T;
 begin
   if not FData.Get(Self, TObject(Result)) then   
   begin
-    TResourceManager.FUnloadResourceClasses.Add(Self);
     Result := CreateData;
     FData[Self] := Result;
+    TResourceManager.FUnloadResourceClasses.Add(Self);
   end;
 end;
 
@@ -364,8 +364,13 @@ end;
 class function TShaderResource.CreateData: TShader;
 begin
   Result := TShader.Create;
-  Result.LoadFromFile(GetShaderSource);
-  Result.SetAttributeOrder(GetAttributeOrder);
+  try
+    Result.LoadFromFile(GetShaderSource);
+    Result.SetAttributeOrder(GetAttributeOrder);
+  except
+    Result.Free;
+    raise;
+  end;
 end;
 
 { TResourceParameterHasher }
