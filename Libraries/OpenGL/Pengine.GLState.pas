@@ -277,13 +277,14 @@ type
 
   private
     FBindings: TBindingMap;
+    function GetBinding(AObjectType: TGLObjectBaseClass): TGLObjectBinding;
     function GetBindings: TBindingMap.TReader;
 
   public
     constructor Create;
     destructor Destroy; override;
 
-    property Bindings: TBindingMap.TReader read GetBindings;
+    property Bindings[AObjectType: TGLObjectBaseClass]: TGLObjectBinding read GetBinding;
 
   end;
 
@@ -720,6 +721,14 @@ destructor TBoundGLObjects.Destroy;
 begin
   FBindings.Free;
   inherited;
+end;
+
+function TBoundGLObjects.GetBinding(AObjectType: TGLObjectBaseClass): TGLObjectBinding;
+begin
+  if not FBindings.Get(AObjectType, Result) then
+  begin
+
+  end;
 end;
 
 function TBoundGLObjects.GetBindings: TBindingMap.TReader;

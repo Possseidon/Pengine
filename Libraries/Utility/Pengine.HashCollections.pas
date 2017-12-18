@@ -472,6 +472,8 @@ type
   end;
 
   TToObjectMap<K; V: class; H: THasher<K>> = class(TToRefMap<K, V, H>)
+  protected
+    function CreateCopy: THashBase; override;
   public
     constructor Create(AHashMode: THashMode = hmAuto); override;
   end;
@@ -482,6 +484,13 @@ type
   public
     function Copy(AHashMode: THashMode = hmAuto): TClassMap<T>; reintroduce; inline;
   end;
+
+  TClassRefMap<T: class> = class(TToRefMap<TClass, T, TClassHasher>)
+  public
+    function Copy(AHashMode: THashMode = hmAuto): TClassRefMap<T>; reintroduce; inline;
+  end;
+
+  TClassObjectMap<T: class> = class(TToObjectMap<TClass, T, TClassHasher>);
 
 implementation
 
