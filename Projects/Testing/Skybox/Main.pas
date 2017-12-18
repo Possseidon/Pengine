@@ -26,7 +26,7 @@ uses
   Pengine.CollectionInterfaces,
   Pengine.Collections,
   Pengine.Vector,
-  Pengine.Shader,
+  Pengine.GLProgram,
   Pengine.GLEnums,
   Pengine.ResourceManager,
   Pengine.Light,
@@ -36,20 +36,20 @@ uses
 
 type
 
-  TSkyboxShader = class(TSkyboxShaderBase)
+  TSkyboxGLProgram = class(TSkyboxGLProgramBase)
   protected
-    class function GetShaderSource: string; override;
+    class function GetFileName: string; override;
   end;
 
-  TModelShader = class(TShaderResource)                                   
+  TModelGLProgram = class(TGLProgramResource)
   protected
-    class function GetAttributeOrder: TShader.TAttributeOrder; override;
-    class function GetShaderSource: string; override;
+    class function GetAttributeOrder: TGLProgram.TAttributeOrder; override;
+    class function GetFileName: string; override;
   end;
 
-  TTextureAtlas = class(TResource<TTexturePage>)
+  TTextureAtlas = class(TParamResource<TTexturePage, TGLObjectParam>)
   protected
-    class function CreateData: TTexturePage; override;
+    class function CreateData(AParam: TGLObjectParam): TTexturePage; override;
   end;
   
   TCube = class(TRenderable)
@@ -69,7 +69,7 @@ type
     function GetLocation: TLocation; override;
 
   public
-    constructor Create(AShader: TShader);
+    constructor Create(AGLProgram: TGLProgram);
     destructor Destroy; override;
 
     function CullPoints: IIterable<TVector3>; override;
@@ -113,12 +113,11 @@ implementation
 
 procedure TfrmMain.Init;
 var
-  I: Integer;
+  I, J: Integer;
   Cube: TCube;
-  J: Integer;
   SubCube: TCube;
 begin
-  VSync := True;
+  Context.VSync := True;
 
   RandSeed := 0;
 
@@ -128,10 +127,10 @@ begin
   FCamera.Location.TurnAngle := -30;
   FCamera.Location.PitchAngle := -20;
 
-  FCamera.AddUniforms(TSkyboxShader.Data);
-  FCamera.AddUniforms(TModelShader.Data);
+  FCamera.AddUniforms(TSkyboxGLProgram.Make(GLState.ResourceParam));
+  FCamera.AddUniforms(TModelGLProgram.Make(GLState.ResourceParam));
 
-  FSkybox := TSkybox.Create(State, TSkyboxShader);
+  FSkybox := TSkybox.Create(GLState, TSkyboxGLProgram);
 
   FSkybox.AddStripe(ColorRGB(0.7, 1.0, 0.9), -90);
   FSkybox.AddStripe(ColorRGB(0.4, 0.6, 0.9), 0);
@@ -141,17 +140,18 @@ begin
 
   FCamera.AddRenderable(FSkybox);
 
-  FLightSystem := TLightSystem.Create(Self);
-  FLightSystem.BindToShader(TModelShader.Data);
+  FLightSystem := TLightSystem.Create(GLState);
+  FLightSystem.BindToGLProgram(TModelGLProgram.Make(GLState.ResourceParam));
 
   FSun := TDirectionalLightShaded.Create(FLightSystem);
   FSun.Direction := -Vec3(0.3, 1, 0.3);
   FSun.Size := 20;
 
   FCubes.Capacity := 100;
+
   for I := 0 to FCubes.Capacity - 1 do
   begin
-    Cube := FCubes.Add(TCube.Create(TModelShader.Data));
+    Cube := FCubes.Add(TCube.Create(TModelGLProgram.Make(GLState.ResourceParam)));
     // Cube.Location.Pos := TVector3.RandomNormal * 5;
 
     FCamera.AddRenderable(Cube);
@@ -159,7 +159,7 @@ begin
 
     for J := 0 to -1 do
     begin
-      SubCube := TCube.Create(TModelShader.Data);
+      SubCube := TCube.Create(TModelGLProgram.Make(GLState.ResourceParam));
       SubCube.Location.Offset := TVector3.RandomNormal * 1;
       Cube.AddChild(SubCube);
     end;
@@ -179,8 +179,8 @@ procedure TfrmMain.UpdateGL;
 var
   Cube: TCube;
 begin
-  if MustUpdateFPS then
-    Caption := Format('FPS: %d', [FPSInt]);
+  if Context.MustUpdateFPS then
+    Caption := Format('FPS: %d', [Context.FPSInt]);
   FCamera.Update;
 
   if Input.KeyTyped('A') then
@@ -195,7 +195,7 @@ begin
   //for Cube in FCubes do
   //  Cube.Location.Rotate(Vec3(DeltaTime * 10, DeltaTime * 90, DeltaTime * 30));
 
-  FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0), DeltaTime * 20);
+  FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0), Context.DeltaTime * 20);
 
 end;
 
@@ -210,9 +210,9 @@ begin
   FCamera.Aspect := Aspect;
 end;
 
-{ TSkyboxShader }
+{ TSkyboxGLProgram }
 
-class function TSkyboxShader.GetShaderSource: string;
+class function TSkyboxGLProgram.GetFileName: string;
 begin
   Result := 'Data\skybox';
 end;
@@ -241,11 +241,14 @@ var
   T: TTexCoord2;
   Data: TData;
   Offset: TVector3;
+  Atlas: TTexturePage;
 begin
   FVAO.Generate(6 * 2 * 3, buStaticDraw);
   FVAO.Map(baWriteOnly);
 
-  Data.Border := TTextureAtlas.Data.GetBounds(Texture);
+  Atlas := TTextureAtlas.Make(FVAO.GLState.ResourceParam);
+
+  Data.Border := Atlas.GetBounds(Texture);
   Offset := TVector3.RandomNormal * 5;
   for P in CubePlanes do
   begin
@@ -261,16 +264,16 @@ begin
       FVAO.AddVertex(Data);
     end;
   end;
-  Data.Border := TTextureAtlas.Data.HalfPixelInset(Data.Border);
+  Data.Border := Atlas.HalfPixelInset(Data.Border);
 
   FVAO.Unmap;
 end;
 
-constructor TCube.Create(AShader: TShader);
+constructor TCube.Create(AGLProgram: TGLProgram);
 var
   Corner: TVector3;
 begin
-  FVAO := TVAO.Create(AShader);
+  FVAO := TVAO.Create(AGLProgram);
   FLocation := TLocation.Create;
   {
   FOcclusionPoints := TArray<TVector3>.Create;
@@ -326,9 +329,9 @@ begin
   BuildVAO;
 end;
 
-{ TModelShader }
+{ TModelGLProgram }
 
-class function TModelShader.GetAttributeOrder: TShader.TAttributeOrder;
+class function TModelGLProgram.GetAttributeOrder: TGLProgram.TAttributeOrder;
 begin
   Result := [
     'vpos',
@@ -341,17 +344,17 @@ begin
     ];
 end;
 
-class function TModelShader.GetShaderSource: string;
+class function TModelGLProgram.GetFileName: string;
 begin
   Result := 'Data\model';
 end;
 
 { TTextureAtlas }
 
-class function TTextureAtlas.CreateData: TTexturePage;
+class function TTextureAtlas.CreateData(AParam: TGLObjectParam): TTexturePage;
 begin
-  Result := TTexturePage.Create;
-  Result.UniformDefaults(TModelShader.Data);
+  Result := TTexturePage.Create(AParam.GLState);
+  Result.UniformDefaults(TModelGLProgram.Make(AParam.GLState.ResourceParam));
   Result.AddTextureFromFile('Data\stone_bricks.png');
   Result.AddTextureFromFile('Data\holed_ironplating.png');
   Result.AddTextureFromFile('Data\stone.png');

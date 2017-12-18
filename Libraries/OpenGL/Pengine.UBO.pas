@@ -8,26 +8,30 @@ uses
   System.SysUtils,
 
   Pengine.GLEnums,
-  Pengine.Shader;
+  Pengine.GLProgram,
+  Pengine.GLState;
 
 type
 
   { TUBO }
 
-  TUBO = class
+  TUBO = class(TGLObject)
   private
-    FUBO: Integer;
-    FBinding: Integer;
+    FBindingPoint: Integer;
 
     class var
       Initialized: Boolean;
       MaxBindings: Integer;
       BindingCount: Integer;
-      BoundUBO: TUBO;
-
+      
     class procedure Init;
+
+  protected
+    procedure GenObject(out AGLName: Cardinal); override;
+    procedure DeleteObject(const AGLName: Cardinal); override;
+
   public
-    constructor Create;
+    constructor Create(AGLState: TGLState);
     destructor Destroy; override;
 
     procedure Generate(AData: Pointer; ASize: Integer; ABufferUsage: TGLBufferUsage); overload;
@@ -35,9 +39,13 @@ type
 
     procedure SubData(AOffset, ASize: Integer; const AData);
 
-    procedure Bind;
+    procedure Bind; override;
+    procedure Unbind; override;
 
-    procedure BindToShader(AShader: TShader; AName: PAnsiChar);
+    procedure BindToGLProgram(AGLProgram: TGLProgram; AName: PAnsiChar);
+
+    class function GetObjectType: TGLObjectType; override;
+
   end;
 
 implementation
@@ -50,7 +58,17 @@ begin
   Initialized := True;
 end;
 
-constructor TUBO.Create;
+procedure TUBO.GenObject(out AGLName: Cardinal);
+begin
+  glGenBuffers(1, @AGLName);
+end;
+
+procedure TUBO.DeleteObject(const AGLName: Cardinal);
+begin
+  glDeleteBuffers(1, @AGLName);
+end;
+
+constructor TUBO.Create(AGLState: TGLState);
 begin
   if not Initialized then
     Init;
@@ -58,14 +76,14 @@ begin
   if BindingCount >= MaxBindings then
     raise Exception.Create('Too many UBOs!');
 
-  FBinding := BindingCount;
+  inherited;
+
+  FBindingPoint := BindingCount;
   Inc(BindingCount);
-  glGenBuffers(1, @FUBO);
 end;
 
 destructor TUBO.Destroy;
 begin
-  glDeleteBuffers(1, @FUBO);
   inherited;
 end;
 
@@ -87,23 +105,31 @@ begin
   glBufferSubData(GL_UNIFORM_BUFFER, AOffset, ASize, @AData);
 end;
 
-procedure TUBO.Bind;
+procedure TUBO.Unbind;
 begin
-  if BoundUBO <> Self then
-  begin
-    glBindBuffer(GL_UNIFORM_BUFFER, FUBO);
-    BoundUBO := Self;
-  end;
+  glBindBuffer(GL_UNIFORM_BUFFER, 0);
 end;
 
-procedure TUBO.BindToShader(AShader: TShader; AName: PAnsiChar);
+procedure TUBO.Bind;
+begin
+  glBindBuffer(GL_UNIFORM_BUFFER, GLName);
+end;
+
+procedure TUBO.BindToGLProgram(AGLProgram: TGLProgram; AName: PAnsiChar);
 var
-  BlockIndex: Integer;
+  BlockIndex: GLuint;
 begin
   Bind;
-  BlockIndex := glGetUniformBlockIndex(AShader.ProgramObject, AName);
-  glBindBufferBase(GL_UNIFORM_BUFFER, FBinding, FUBO);
-  glUniformBlockBinding(AShader.ProgramObject, BlockIndex, FBinding);
+  BlockIndex := glGetUniformBlockIndex(AGLProgram.GLName, AName);
+  if BlockIndex = GL_INVALID_INDEX then
+    raise Exception.Create('The UBO ' + AName + ' does not exist in the shader.');
+  glBindBufferBase(GL_UNIFORM_BUFFER, FBindingPoint, GLName);
+  glUniformBlockBinding(AGLProgram.GLName, BlockIndex, FBindingPoint);
+end;
+
+class function TUBO.GetObjectType: TGLObjectType;
+begin
+  Result := otBuffer;
 end;
 
 end.

@@ -18,10 +18,10 @@ uses
   Pengine.Hasher,
   Pengine.HashCollections,
   Pengine.GLEnums,
-  Pengine.GLObject,
-  Pengine.Shader,
+  Pengine.GLProgram,
   Pengine.Vector,
-  Pengine.IntMaths;
+  Pengine.IntMaths,
+  Pengine.GLState;
 
 type
 
@@ -93,7 +93,6 @@ type
 
   class var
     Initialized: Boolean;
-    BoundTexture: TTexture;
     UsedUnits: TBitField;
 
     class constructor Create;
@@ -101,23 +100,23 @@ type
     class destructor Destroy;
 
   protected
-    procedure GenObject(var AGLName: Cardinal); override;
-    procedure DeleteObject(var AGLName: Cardinal); override;
-    function GetObjectType: TGLObjectType; override;
+    procedure GenObject(out AGLName: Cardinal); override;
+    procedure DeleteObject(const AGLName: Cardinal); override;
 
   public
-    constructor Create;
+    constructor Create(AGLState: TGLState);
     destructor Destroy; override;
 
     procedure Bind; override;
-    class procedure Unbind; override;
+    procedure Unbind; override;
 
     function IsActive: Boolean;
 
     procedure Activate;
     procedure Deactivate;
 
-    procedure Uniform(AUniform: TShader.TUniformSampler);
+    procedure Uniform(AUniform: TGLProgram.TUniformSampler);
+    class function GetObjectType: TGLObjectType; override;
 
     property UnitID: Integer read FUnitID;
 
@@ -140,7 +139,7 @@ type
     procedure SetTextureCompareMode(AValue: TGLTextureCompareMode);
 
   public
-    constructor Create;
+    constructor Create(AGLState: TGLState);
 
     property MagFilter: TGLTextureMagFilter read FMagFilter write SetMagFilter;
     property MinFilter: TGLTextureMinFilter read FMinFilter write SetMinFilter;
@@ -185,7 +184,7 @@ type
     FPixelFormat: TGLPixelFormat;
 
   public
-    constructor Create(AWidth, AHeight: Cardinal; APixelFormat: TGLPixelFormat);
+    constructor Create(AGLState: TGLState; AWidth, AHeight: Cardinal; APixelFormat: TGLPixelFormat);
 
     procedure Resize(AWidth, AHeight: Cardinal);
   end;
@@ -202,7 +201,7 @@ type
     procedure Change;
 
   public
-    constructor Create(AWidth, AHeight: Cardinal; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
+    constructor Create(AGLState: TGLState; AWidth, AHeight: Cardinal; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
 
     procedure Resize(AWidth, AHeight: Cardinal);
     procedure SetSamples(ASamples: Cardinal);
@@ -220,7 +219,7 @@ type
     procedure Change;
 
   public
-    constructor Create(AWidth, AHeight, ALayers: Cardinal; APixelFormat: TGLPixelFormat);
+    constructor Create(AGLState: TGLState; AWidth, AHeight, ALayers: Cardinal; APixelFormat: TGLPixelFormat);
 
     procedure Resize(AWidth, AHeight: Cardinal);
     procedure SetLayers(ALayers: Cardinal);
@@ -238,7 +237,7 @@ type
     procedure Change;
 
   public
-    constructor Create(ASize, ALayers: Cardinal; APixelFormat: TGLPixelFormat);
+    constructor Create(AGLState: TGLState; ASize, ALayers: Cardinal; APixelFormat: TGLPixelFormat);
 
     procedure Resize(ASize: Cardinal);
     procedure SetLayers(ALayers: Cardinal);
@@ -253,8 +252,8 @@ type
     procedure SetTexture(AValue: TTextureData);
 
   public
-    constructor Create; overload;
-    constructor Create(AFileName: string); overload;
+    constructor Create(AGLState: TGLState); overload;
+    constructor Create(AGLState: TGLState; AFileName: string); overload;
     destructor Destroy; override;
 
     property Texture: TTextureData read FTexture write SetTexture;
@@ -295,7 +294,7 @@ type
     function GetTextureName(ID: TTextureID): string;
 
   public
-    constructor Create;
+    constructor Create(AGLState: TGLState);
     destructor Destroy; override;
 
     procedure EnableSubType(ASubType: TSubTextureType);
@@ -338,8 +337,8 @@ type
     property SizeChanged: Boolean read FSizeChanged;
     procedure NotifySizeChange;
 
-    procedure Uniform(AUniform: TShader.TUniformSampler; ATextureType: TTextureType);
-    procedure UniformDefaults(AShader: TShader);
+    procedure Uniform(AUniform: TGLProgram.TUniformSampler; ATextureType: TTextureType);
+    procedure UniformDefaults(AShader: TGLProgram);
   end;
 
 implementation
@@ -353,9 +352,9 @@ begin
     GL_UNSIGNED_BYTE, nil);
 end;
 
-constructor TEmptyTextureCubeMapArray.Create(ASize, ALayers: Cardinal; APixelFormat: TGLPixelFormat);
+constructor TEmptyTextureCubeMapArray.Create(AGLState: TGLState; ASize, ALayers: Cardinal; APixelFormat: TGLPixelFormat);
 begin
-  inherited Create;
+  inherited Create(AGLState);
   FPixelFormat := APixelFormat;
   FSize := ASize;
   FLayers := ALayers;
@@ -407,9 +406,9 @@ begin
   glTexImage3D(TargetType, 0, Ord(FPixelFormat), FWidth, FHeight, FLayers, 0, Ord(FPixelFormat), GL_UNSIGNED_BYTE, nil);
 end;
 
-constructor TEmptyTexture2DArray.Create(AWidth, AHeight, ALayers: Cardinal; APixelFormat: TGLPixelFormat);
+constructor TEmptyTexture2DArray.Create(AGLState: TGLState; AWidth, AHeight, ALayers: Cardinal; APixelFormat: TGLPixelFormat);
 begin
-  inherited Create;
+  inherited Create(AGLState);
   FWidth := AWidth;
   FHeight := AHeight;
   FLayers := ALayers;
@@ -502,9 +501,9 @@ begin
   glTexImage2DMultisample(TargetType, FSamples, Ord(FPixelFormat), FWidth, FHeight, False);
 end;
 
-constructor TEmptyTexture2DMS.Create(AWidth, AHeight: Cardinal; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
+constructor TEmptyTexture2DMS.Create(AGLState: TGLState; AWidth, AHeight: Cardinal; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
 begin
-  inherited Create;
+  inherited Create(AGLState);
   FPixelFormat := APixelFormat;
   FSamples := ASamples;
   FWidth := AWidth;
@@ -514,9 +513,9 @@ end;
 
 { TEmptyTexture2D }
 
-constructor TEmptyTexture2D.Create(AWidth, AHeight: Cardinal; APixelFormat: TGLPixelFormat);
+constructor TEmptyTexture2D.Create(AGLState: TGLState; AWidth, AHeight: Cardinal; APixelFormat: TGLPixelFormat);
 begin
-  inherited Create;
+  inherited Create(AGLState);
   FPixelFormat := APixelFormat;
   Resize(AWidth, AHeight);
 end;
@@ -578,15 +577,15 @@ begin
   FReferenced := True;
 end;
 
-constructor TSingleTexture.Create;
+constructor TSingleTexture.Create(AGLState: TGLState);
 begin
-  inherited Create;
+  inherited;
   FReferenced := True;
 end;
 
-constructor TSingleTexture.Create(AFileName: string);
+constructor TSingleTexture.Create(AGLState: TGLState; AFileName: string);
 begin
-  inherited Create;
+  inherited Create(AGLState);
   Texture := TTextureData.Create(AFileName);
   FReferenced := False;
 end;
@@ -619,7 +618,7 @@ begin
   UsedUnits.Free;
 end;
 
-constructor TTexture.Create;
+constructor TTexture.Create(AGLState: TGLState);
 begin
   if not Initialized then
     Init;
@@ -635,24 +634,20 @@ begin
   inherited Destroy;
 end;
 
-procedure TTexture.GenObject(var AGLName: Cardinal);
+procedure TTexture.GenObject(out AGLName: Cardinal);
 begin
   glGenTextures(1, @AGLName);
 end;
 
-function TTexture.GetObjectType: TGLObjectType;
+class function TTexture.GetObjectType: TGLObjectType;
 begin
   Result := otTexture;
 end;
 
 procedure TTexture.Bind;
 begin
-  if Pointer(BoundTexture) <> Pointer(Self) then
-  begin
-    BoundTexture := Self;
-    Activate;
-    glBindTexture(TargetType, GLName);
-  end;
+  Activate;
+  glBindTexture(TargetType, GLName);
 end;
 
 function TTexture.IsActive: Boolean;
@@ -681,18 +676,17 @@ begin
   UsedUnits[FUnitID] := False;
 end;
 
-procedure TTexture.DeleteObject(var AGLName: Cardinal);
+procedure TTexture.DeleteObject(const AGLName: Cardinal);
 begin
   glDeleteTextures(1, @AGLName);
 end;
 
-class procedure TTexture.Unbind;
+procedure TTexture.Unbind;
 begin
-  inherited;
-
+  glBindTexture(TargetType, 0);
 end;
 
-procedure TTexture.Uniform(AUniform: TShader.TUniformSampler);
+procedure TTexture.Uniform(AUniform: TGLProgram.TUniformSampler);
 begin
   AUniform.Value := FUnitID;
 end;
@@ -918,7 +912,7 @@ begin
   FSizeChanged := False;
 end;
 
-procedure TTexturePage.Uniform(AUniform: TShader.TUniformSampler; ATextureType: TTextureType);
+procedure TTexturePage.Uniform(AUniform: TGLProgram.TUniformSampler; ATextureType: TTextureType);
 begin
   if ATextureType = ttMain then
     inherited Uniform(AUniform)
@@ -930,7 +924,7 @@ begin
   end;
 end;
 
-procedure TTexturePage.UniformDefaults(AShader: TShader);
+procedure TTexturePage.UniformDefaults(AShader: TGLProgram);
 begin
   Uniform(AShader.UniformSampler('diffusemap'), ttMain);
   Uniform(AShader.UniformSampler('specularmap'), ttSpecular);
@@ -1078,9 +1072,9 @@ begin
   Result := FSubTextures[ASubTextureType];
 end;
 
-constructor TTexturePage.Create;
+constructor TTexturePage.Create(AGLState: TGLState);
 begin
-  inherited Create;
+  inherited Create(AGLState);
   FTextures := TTextures.Create(True);
   FTextureIDs := TTextureIDs.Create;
 end;
@@ -1110,7 +1104,7 @@ end;
 procedure TTexturePage.EnableSubType(ASubType: TSubTextureType);
 begin
   if FSubTextures[ASubType] = nil then
-    FSubTextures[ASubType] := TTexturePage.Create;
+    FSubTextures[ASubType] := TTexturePage.Create(GLState);
 end;
 
 function TTexturePage.GetTexCoord(const AName: string; const ATexCoord: TVector2): TVector2;
@@ -1181,4 +1175,3 @@ begin
 end;
 
 end.
-

@@ -27,28 +27,35 @@ uses
   Pengine.InputHandler,
   Pengine.Collections,
   Pengine.Hasher,
-  Pengine.Shader,
-  Pengine.TimeManager;
+  Pengine.TimeManager,
+  Pengine.IntMaths;
 
 type
 
   TGLContext = class
+  public type
+
+    TRenderCallback = procedure of object;
+
   private
     FMustUpdateFPS: Boolean;
     FVSync: Boolean;
-    FRunning: Boolean;
     FMaxDeltaTime: Single;
-    FInput: TInputHandler;
     FTimer: TDeltaTimer;
     FFPSLimit: Single;
     FClearMask: TGLAttribMask;
-    FState: TGLState;
+    FGLState: TGLState;
     FDC: HDC;
     FRC: HGLRC;
     FFBO: TFBO;
     FMultiSampling: Boolean;
     FSamples: Cardinal;
     FMaxSamples: Cardinal;
+    FSize: TIntVector2;
+    FRenderCallback: TRenderCallback;
+
+    FGLDebugLogLevels: TGLDebugSeverities;
+    FGLDebugRaiseLevels: TGLDebugSeverities;
 
     function GetDeltaTime: Single;
     function GetFPS: Single;
@@ -65,30 +72,32 @@ type
 
     procedure WaitForFPSLimit;
 
-    procedure IdleHandler(Sender: TObject; var Done: Boolean);
+    class function ErrorBox(const ATitle, AMessage: String; AButtons: TMsgDlgButtons; ADefault: TMsgDlgBtn): TModalResult;
 
-    function ErrorBox(const ATitle, AMessage: String; AButtons: TMsgDlgButtons; ADefault: TMsgDlgBtn): TModalResult;
+    class procedure DebugCallback(ASource, AType, AID, ASeverity: Cardinal; ALength: Integer; const AMessage: PAnsiChar; AUserdata: Pointer); static; stdcall;
 
-    procedure Start;
+    procedure SetSize(const Value: TIntVector2);
 
-    class procedure DebugCallback(ASource, AType, AID, ASeverity: Cardinal; ALength: Integer; const AMessage: PAnsiChar;
-      AUserdata: Pointer); static; stdcall;
+    function GetDebugOutput: Boolean;
+    function GetDebugOutputSynced: Boolean;
+    procedure SetDebugOutput(const Value: Boolean);
+    procedure SetDebugOutputSynced(const Value: Boolean);
+    procedure SetGLDebugLogLevels(const Value: TGLDebugSeverities);
+    procedure SetGLDebugRaiseLevels(const Value: TGLDebugSeverities);
 
   public
-    constructor Create(ADC: HDC);
-
+    constructor Create(ADC: HDC; ASize: TIntVector2; ARenderCallback: TRenderCallback);
+    destructor Destroy; override;
+    
+    procedure Update;
     procedure ForceFPSUpdate;
-
-    procedure Pause;
-    procedure Resume;
 
     procedure Render;
 
+    property Size: TIntVector2 read FSize write SetSize;
     property VSync: Boolean read FVSync write SetVSync;
     property ClearMask: TGLAttribMask read FClearMask write FClearMask;
     property MaxDeltaTime: Single read FMaxDeltaTime write FMaxDeltaTime;
-
-    property Input: TInputHandler read FInput;
 
     property DeltaTime: Single read GetDeltaTime;
     property FPS: Single read GetFPS;
@@ -97,9 +106,14 @@ type
     property Seconds: Single read GetSeconds;
     property MustUpdateFPS: Boolean read FMustUpdateFPS;
 
-    property State: TGLState read FState;
+    property GLDebug: Boolean read GetDebugOutput write SetDebugOutput;
+    property GLDebugSynced: Boolean read GetDebugOutputSynced write SetDebugOutputSynced;
+    property GLDebugRaiseLevels: TGLDebugSeverities read FGLDebugRaiseLevels write SetGLDebugRaiseLevels;
+    property GLDebugLogLevels: TGLDebugSeverities read FGLDebugLogLevels write SetGLDebugLogLevels;
 
-    property MultiSampling: Boolean read FMultiSampling write SetMultiSampling;
+    property GLState: TGLState read FGLState;
+
+    property MultiSampled: Boolean read FMultiSampling write SetMultiSampling;
     property MaxSamples: Cardinal read FMaxSamples;
     property Samples: Cardinal read FSamples write SetSamples;
 
@@ -107,9 +121,12 @@ type
 
   TGLForm = class(TForm)
   private
+    FInput: TInputHandler;
     FContext: TGLContext;
     FFullscreen: Boolean;
     FOldWindowState: TWindowState;
+    FRunning: Boolean;
+    FDC: HDC;
 
     procedure ActivateHandler(Sender: TObject);
     procedure DeactivateHandler(Sender: TObject);
@@ -118,6 +135,9 @@ type
 
     procedure SetFullscreen(Value: Boolean);
     procedure SetCursorVisible(Value: Boolean);
+
+    procedure IdleHandler(Sender: TObject; var Done: Boolean);
+    function GetGLState: TGLState;
 
   protected
     procedure Resize; override;
@@ -129,6 +149,12 @@ type
 
     property Fullscreen: Boolean read FFullscreen write SetFullscreen;
     property CursorVisible: Boolean read GetCursorVisible write SetCursorVisible;
+                     
+    property Input: TInputHandler read FInput;
+    
+    procedure Start;
+    procedure Pause;
+    procedure Resume;
 
     procedure WndProc(var AMessage: TMessage); override;
 
@@ -140,6 +166,9 @@ type
     procedure ResizeGL; virtual;
 
     property Aspect: Single read GetAspect;
+
+    property Context: TGLContext read FContext;
+    property GLState: TGLState read GetGLState;
 
   end;
 
@@ -156,18 +185,18 @@ begin
   begin
     ShowWindow(FindWindow(TaskbarWindowClass, nil), SW_HIDE);
     BringToFront;
-    //ShowWindow(Handle, SW_SHOW);
+    // ShowWindow(Handle, SW_SHOW);
   end;
 end;
 
 procedure TGLForm.DeactivateHandler(Sender: TObject);
 begin
-  FInput.ReleaseAll;
+  Input.ReleaseAll;
   if Fullscreen then
   begin
     ShowWindow(FindWindow(TaskbarWindowClass, nil), SW_SHOWNOACTIVATE);
     WindowState := wsMinimized;
-    //ShowWindow(Handle, SW_HIDE);
+    // ShowWindow(Handle, SW_HIDE);
   end;
 end;
 
@@ -176,49 +205,14 @@ begin
   Result := ClientWidth / ClientHeight;
 end;
 
-function TGLForm.GetDeltaTime: Single;
-begin
-  Result := FTimer.DeltaTime;
-end;
-
-function TGLForm.GetFPS: Single;
-begin
-  Result := FTimer.FPS;
-end;
-
-function TGLForm.GetFPSInt: Cardinal;
-begin
-  Result := Floor(FTimer.FPS + 0.5);
-end;
-
-function TGLForm.GetSeconds: Single;
-begin
-  Result := FTimer.Seconds;
-end;
-
 function TGLForm.GetCursorVisible: Boolean;
 begin
   Result := Cursor <> -1;
 end;
 
-procedure TGLForm.InitGL;
+function TGLForm.GetGLState: TGLState;
 begin
-  FDC := GetDC(Handle);
-  FRC := CreateRenderingContextVersion(FDC, [opDoubleBuffered], 4, 3, True, 32, 32, 0, 0, 0, 0);
-  ActivateRenderingContext(FDC, FRC);
-
-  glDebugMessageCallback(DebugCallback, Self);
-
-  FState := TGLState.Create;
-end;
-
-procedure TGLForm.FinalizeGL;
-begin
-  FState.Free;
-
-  DeactivateRenderingContext;
-  DestroyRenderingContext(FRC);
-  ReleaseDC(Handle, FDC);
+  Result := Context.GLState;
 end;
 
 procedure TGLForm.SetFullscreen(Value: Boolean);
@@ -259,65 +253,11 @@ begin
   Cursor := TCursor(Value) - 1;
 end;
 
-procedure TGLForm.SetMultiSampling(Value: Boolean);
-begin
-  if FMultiSampling = Value then
-    Exit;
-  FMultiSampling := Value;
-
-  if FMultiSampling then
-  begin
-    FFBO := TFBO.Create(ClientWidth, ClientHeight);
-    FFBO.EnableRenderBufferMS(fbaColor, pfRGBA, Samples);
-    FFBO.EnableRenderBufferMS(fbaDepth, pfDepthComponent, Samples);
-    if not FFBO.Finish then
-      raise Exception.Create('Multisampling Framebuffer could not be created!');
-  end
-  else
-    FFBO.Free;
-end;
-
-procedure TGLForm.SetSamples(Value: Cardinal);
-begin
-  if (Value < 1) or (Value > MaxSamples) then
-    raise Exception.Create('Unspported Number of Samples!');
-
-  if (FSamples = Value) and MultiSampling then
-    Exit;
-  FSamples := Value;
-
-  if not MultiSampling then
-    MultiSampling := True
-  else
-    FFBO.SetSamples(FSamples);
-end;
-
-procedure TGLForm.SetVSync(Value: Boolean);
-begin
-  FVSync := Value;
-  wglSwapIntervalEXT(Integer(FVSync));
-end;
-
-procedure TGLForm.SetFPSLimit(Value: Single);
-begin
-  if Value = 0 then
-    raise Exception.Create('FPS Limit must be greater than zero!');
-  if FFPSLimit = Value then
-    Exit;
-  FFPSLimit := Value;
-end;
-
-procedure TGLForm.WaitForFPSLimit;
-begin
-  if FPS > FPSLimit then
-    Sleep(Ceil(1000 / FPSLimit));
-end;
-
 procedure TGLForm.IdleHandler(Sender: TObject; var Done: Boolean);
 begin
-  FMustUpdateFPS := FTimer.Update;
-
-  if DeltaTime <= MaxDeltaTime then
+  FContext.Update;
+  
+  if FContext.DeltaTime <= FContext.MaxDeltaTime then
   begin
     try
       UpdateGL;
@@ -325,11 +265,8 @@ begin
       on E: Exception do
       begin
         Pause;
-        if ErrorBox('Game Update Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
-        begin
-          Close;
-          Exit;
-        end
+        if TGLContext.ErrorBox('Game Update Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
+          Halt
         else
           Resume;
       end;
@@ -337,55 +274,21 @@ begin
   end;
 
   try
-    Render;
+    FContext.Render;
     GLErrorMessage;
   except
     on E: Exception do
     begin
       Pause;
-      if ErrorBox('Render Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
-      begin
-        Close;
-        Exit;
-      end
+      if TGLContext.ErrorBox('Render Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
+        Halt
       else
         Resume;
     end;
-  end;
-
-  Input.NotifyChanges;
-
-  WaitForFPSLimit;
-
+  end;      
+  
+  FContext.WaitForFPSLimit;   
   Done := False;
-end;
-
-function TGLForm.ErrorBox(const ATitle, AMessage: String; AButtons: TMsgDlgButtons; ADefault: TMsgDlgBtn): TModalResult;
-begin
-  Result := MessageDlg(ATitle + sLineBreak + sLineBreak + AMessage, mtError, AButtons, 0, ADefault);
-end;
-
-procedure TGLForm.Start;
-begin
-  Visible := True;
-  FRunning := True;
-  Application.OnDeactivate := DeactivateHandler;
-  Application.OnActivate := ActivateHandler;
-  Application.OnIdle := IdleHandler;
-end;
-
-class procedure TGLForm.DebugCallback(ASource, AType, AID, ASeverity: Cardinal; ALength: Integer;
-  const AMessage: PAnsiChar; AUserdata: Pointer);
-var
-  S: string;
-begin
-  S := Format(
-    'OpenGL [%s] %s (%s)' + sLineBreak + '%s',
-    [GLDebugMessageSeverityName(TGLDebugMessageSeverity(ASeverity)),
-    GLDebugMessageTypeName(TGLDebugMessageType(AType)),
-    GLDebugMessageSourceName(TGLDebugMessageSource(ASource)),
-    AMessage]);
-  OutputDebugString(@S[1]);
 end;
 
 procedure TGLForm.Resize;
@@ -395,26 +298,24 @@ begin
     Exit;
 
   ResizeGL;
-  if MultiSampling then
-    FFBO.Resize(ClientWidth, ClientHeight);
+  FContext.Size := IVec2(ClientWidth, ClientHeight);
 
-  Render;
+  FContext.Render;
 end;
 
 procedure TGLForm.Paint;
 begin
-  Render;
+  FContext.Render;
 end;
 
 constructor TGLForm.Create(TheOwner: TComponent);
 begin
   inherited;
 
-  InitGL;
-
-  glGetIntegerv(GL_MAX_SAMPLES, @FMaxSamples);
-  FSamples := 1;
-
+  FDC := GetDC(Handle);
+  FContext := TGLContext.Create(FDC, IVec2(ClientWidth, ClientHeight), RenderGL);
+  FInput := TInputHandler.Create(Self);
+  
   Constraints.MinWidth := 200;
   Constraints.MinHeight := 100;
 
@@ -424,24 +325,13 @@ begin
   SendMessage(Handle, WM_KEYUP, VK_MENU, 0);
   SendMessage(Handle, WM_KEYUP, VK_RIGHT, 0);
 
-  FInput := TInputHandler.Create(Self);
-  FTimer.Init;
-
-  VSync := True;
-  FPSLimit := Infinity;
   FFullscreen := False;
-
-  MaxDeltaTime := 0.5;
-
-  ClearMask := amColorDepth;
 
   Color := clBlack;
 
   try
     TResourceManager.Init;
-    GLErrorMessage;
     Init;
-    GLErrorMessage;
     Start;
   except
     on E: EAbort do
@@ -451,7 +341,7 @@ begin
     end;
     on E: Exception do
     begin
-      ErrorBox('Initialization Error!', E.Message, [mbOK], mbOK);
+      TGLContext.ErrorBox('Initialization Error!', E.Message, [mbOK], mbOK);
       WindowState := wsMinimized; // hide the window sneaky sneaky
       PostQuitMessage(0);
     end
@@ -467,16 +357,35 @@ begin
     TResourceManager.Finalize;
   except
     on E: Exception do
-      ErrorBox('Finalization Error!', E.Message, [mbOK], mbOK);
+      TGLContext.ErrorBox('Finalization Error!', E.Message, [mbOK], mbOK);
   end;
   if Fullscreen then
     Fullscreen := False;
-  Pause;
   FInput.Free;
-  if MultiSampling then
-    FFBO.Free;
-  FinalizeGL;
+  FContext.Free;
+  ReleaseDC(Handle, FDC);
   inherited;
+end;
+
+procedure TGLForm.Start;
+begin
+  Visible := True;
+  FRunning := True;
+  Application.OnDeactivate := DeactivateHandler;
+  Application.OnActivate := ActivateHandler;
+  Application.OnIdle := IdleHandler;
+end;
+
+procedure TGLForm.Pause;
+begin
+  Input.ReleaseAll;
+  Application.OnIdle := nil;
+end;
+
+procedure TGLForm.Resume;
+begin
+  FContext.Update;
+  Application.OnIdle := IdleHandler;
 end;
 
 procedure TGLForm.WndProc(var AMessage: TMessage);
@@ -507,41 +416,6 @@ begin
   inherited WndProc(AMessage);
 end;
 
-procedure TGLForm.ForceFPSUpdate;
-begin
-  FTimer.ForceFPSUpdate;
-end;
-
-procedure TGLForm.Pause;
-begin
-  FInput.ReleaseAll;
-  Application.OnIdle := nil;
-end;
-
-procedure TGLForm.Resume;
-begin
-  FTimer.Update;
-  Application.OnIdle := IdleHandler;
-end;
-
-procedure TGLForm.Render;
-begin
-  if FMultiSampling then
-  begin
-    FFBO.Bind;
-    glClear(Ord(ClearMask));
-    RenderGL;
-    FFBO.CopyToScreen(amColor);
-  end
-  else
-  begin
-    TFBO.BindScreen(ClientWidth, ClientHeight);
-    glClear(Ord(ClearMask));
-    RenderGL;
-  end;
-  SwapBuffers(FDC);
-end;
-
 procedure TGLForm.Init;
 begin
 end;
@@ -560,6 +434,230 @@ end;
 
 procedure TGLForm.ResizeGL;
 begin
+end;
+
+function TGLContext.GetDebugOutput: Boolean;
+begin
+  Result := GLState[stDebugOutput]
+end;
+
+function TGLContext.GetDebugOutputSynced: Boolean;
+begin
+  Result := GLState[stDebugOutputSynced];
+end;
+
+function TGLContext.GetDeltaTime: Single;
+begin
+  Result := FTimer.DeltaTime;
+end;
+
+function TGLContext.GetFPS: Single;
+begin
+  Result := FTimer.FPS;
+end;
+
+function TGLContext.GetFPSInt: Cardinal;
+begin
+  Result := Floor(FTimer.FPS + 0.5);
+end;
+
+function TGLContext.GetSeconds: Single;
+begin
+  Result := FTimer.Seconds;
+end;
+
+procedure TGLContext.InitGL;
+begin
+  FRC := CreateRenderingContextVersion(FDC, [opDoubleBuffered], 4, 3, True, 32, 32, 0, 0, 0, 0);
+  ActivateRenderingContext(FDC, FRC);
+
+  glDebugMessageCallback(DebugCallback, Self);
+
+  FGLState := TGLState.Create(FTimer);
+end;
+
+procedure TGLContext.FinalizeGL;
+begin
+  FGLState.Free;
+
+  DeactivateRenderingContext;
+  DestroyRenderingContext(FRC);
+end;
+
+procedure TGLContext.SetMultiSampling(Value: Boolean);
+begin
+  if FMultiSampling = Value then
+    Exit;
+  FMultiSampling := Value;
+
+  if FMultiSampling then
+  begin
+    FFBO := TFBO.Create(FSize.X, FSize.Y);
+    FFBO.EnableRenderBufferMS(fbaColor, pfRGBA, Samples);
+    FFBO.EnableRenderBufferMS(fbaDepth, pfDepthComponent, Samples);
+    if not FFBO.Finish then
+      raise Exception.Create('Multisampling Framebuffer could not be created!');
+  end
+  else
+    FFBO.Free;
+end;
+
+procedure TGLContext.SetSamples(Value: Cardinal);
+begin
+  if (Value < 1) or (Value > MaxSamples) then
+    raise Exception.Create('Unspported Number of Samples!');
+
+  if (FSamples = Value) and MultiSampled then
+    Exit;
+  FSamples := Value;
+
+  if not MultiSampled then
+    MultiSampled := True
+  else
+    FFBO.SetSamples(FSamples);
+end;
+
+procedure TGLContext.SetSize(const Value: TIntVector2);
+begin
+  FSize := Value;
+  if MultiSampled then
+    FFBO.Resize(FSize.X, FSize.Y);
+end;
+
+procedure TGLContext.SetVSync(Value: Boolean);
+begin
+  FVSync := Value;
+  wglSwapIntervalEXT(Integer(FVSync));
+end;
+
+procedure TGLContext.SetDebugOutput(const Value: Boolean);
+begin
+  GLState[stDebugOutput] := Value;
+end;
+
+procedure TGLContext.SetDebugOutputSynced(const Value: Boolean);
+begin
+  GLState[stDebugOutputSynced] := Value;
+end;
+
+procedure TGLContext.SetFPSLimit(Value: Single);
+begin
+  if Value = 0 then
+    raise Exception.Create('FPS Limit must be greater than zero!');
+  if FFPSLimit = Value then
+    Exit;
+  FFPSLimit := Value;
+end;
+
+procedure TGLContext.SetGLDebugLogLevels(const Value: TGLDebugSeverities);
+begin
+  FGLDebugLogLevels := Value;
+end;
+
+procedure TGLContext.SetGLDebugRaiseLevels(const Value: TGLDebugSeverities);
+begin
+  FGLDebugRaiseLevels := Value;
+end;
+
+procedure TGLContext.WaitForFPSLimit;
+begin
+  if FPS > FPSLimit then
+    Sleep(Max(1, Floor(1000 / FPSLimit)));
+end;
+
+procedure TGLContext.Update;
+begin
+  FMustUpdateFPS := FTimer.Update;
+end;
+
+class function TGLContext.ErrorBox(const ATitle, AMessage: String; AButtons: TMsgDlgButtons; ADefault: TMsgDlgBtn): TModalResult;
+begin
+  Result := MessageDlg(ATitle + sLineBreak + sLineBreak + AMessage, mtError, AButtons, 0, ADefault);
+end;
+
+constructor TGLContext.Create(ADC: HDC; ASize: TIntVector2; ARenderCallback: TRenderCallback);
+begin
+  FDC := ADC;
+  FSize := ASize;
+  FRenderCallback := ARenderCallback;
+
+  FTimer := TDeltaTimer.Create;
+
+  InitGL;
+
+  glGetIntegerv(GL_MAX_SAMPLES, @FMaxSamples);
+  FSamples := 1;
+
+  VSync := True;
+  FPSLimit := Infinity;
+
+  MaxDeltaTime := 0.5;
+
+  ClearMask := amColorDepth;
+
+  {$IFDEF DEBUG}
+  GLDebug := True;
+  GLDebugSynced := True;
+  GLDebugLogLevels := [dmsNotification, dmsLow, dmsMedium, dmsHigh];
+  GLDebugRaiseLevels := [dmsLow, dmsMedium, dmsHigh];
+  {$ENDIF}
+end;
+
+class procedure TGLContext.DebugCallback(ASource, AType, AID, ASeverity: Cardinal; ALength: Integer; const AMessage: PAnsiChar; AUserdata: Pointer);
+
+  function Formatted: string;
+  begin
+    Result := Format(
+      'OpenGL [%s] %s (%s)' + sLineBreak + '%s',
+      [GLDebugSeverityName[GLDebugSeverityToEnum(ASeverity)],
+      GLDebugTypeName(TGLDebugType(AType)),
+      GLDebugSourceName(TGLDebugSource(ASource)),
+      AMessage]);
+  end;
+
+var
+  Severity: TGLDebugSeverity;
+  Self: TGLContext;
+begin
+  Self := TGLContext(AUserData);
+  Severity := GLDebugSeverityToEnum(ASeverity);
+  if Severity in Self.GLDebugLogLevels then
+    OutputDebugString(@Formatted[1]);
+  if Severity in Self.GLDebugRaiseLevels then
+    raise Exception.Create(Formatted);
+end;
+
+destructor TGLContext.Destroy;
+begin
+  if MultiSampled then
+    FFBO.Free;
+  FinalizeGL;
+  FTimer.Free;
+  inherited;
+end;
+
+procedure TGLContext.ForceFPSUpdate;
+begin
+  FTimer.ForceFPSUpdate;
+end;
+
+procedure TGLContext.Render;
+begin
+  if FMultiSampling then
+  begin
+    FFBO.Bind;
+    glClear(Ord(ClearMask));
+    FRenderCallback;
+    FFBO.CopyToScreen(amColor);
+  end
+  else
+  begin
+    // TFBO.BindScreen;
+    raise Exception.Create('TODO');
+    glClear(Ord(ClearMask));
+    FRenderCallback;
+  end;
+  SwapBuffers(FDC);
 end;
 
 end.

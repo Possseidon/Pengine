@@ -363,7 +363,7 @@ var
   Factor: Single;
   DRotation, DPos, DOffset: TVector3;
 begin
-  Factor := 1 - Exp(-FSmoothSpeed * FGLForm.DeltaTime);
+  Factor := 1 - Exp(-FSmoothSpeed * FGLForm.Context.DeltaTime);
 
   DRotation := FDeltaRotation * Factor;
   DPos := FDeltaPos * Factor;

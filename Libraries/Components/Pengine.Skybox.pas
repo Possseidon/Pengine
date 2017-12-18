@@ -8,7 +8,7 @@ uses
   Pengine.VAO,
   Pengine.Collections,
   Pengine.Color,
-  Pengine.Shader,
+  Pengine.GLProgram,
   Pengine.GLEnums,
   Pengine.Vector,
   Pengine.UBO,
@@ -40,7 +40,7 @@ type
     property Color: TColorRGB read FColor;
   end;
 
-  TSkyboxShaderBase = class(TShaderResource)
+  TSkyboxGLProgramBase = class(TGLProgramResource)
   public type
 
     TData = record
@@ -48,11 +48,11 @@ type
     end;
 
   protected
-    class function GetAttributeOrder: TShader.TAttributeOrder; override;
+    class function GetAttributeOrder: TGLProgram.TAttributeOrder; override;
 
   end;
 
-  TSkyboxShaderClass = class of TSkyboxShaderBase;
+  TSkyboxGLProgramClass = class of TSkyboxGLProgramBase;
 
   TSkybox = class(TRenderable)
   public const
@@ -63,16 +63,9 @@ type
   private type
 
     TSkyboxVAO = class(TVAO)
-    private
-      FGLState: TGLState;
-
     protected
       procedure BeforeRender; override;
       procedure AfterRender; override;
-
-    public
-      constructor Create(AShader: TShader; AGLState: TGLState);
-
     end;
 
   private
@@ -87,7 +80,7 @@ type
     procedure SetVisible(const Value: Boolean);
 
   public
-    constructor Create(AGLState: TGLState; AShaderClass: TSkyboxShaderClass);
+    constructor Create(AGLState: TGLState; AGLProgramClass: TSkyboxGLProgramClass);
     destructor Destroy; override;
 
     procedure AddStripe(AColor: TColorRGB; AAngle: Single);
@@ -120,9 +113,9 @@ begin
   FUBO.SubData(SizeOf(TStripeData) * FIndex, SizeOf(TStripeData), Data);
 end;
 
-{ TSkyboxShaderBase }
+{ TSkyboxGLProgramBase }
 
-class function TSkyboxShaderBase.GetAttributeOrder: TShader.TAttributeOrder;
+class function TSkyboxGLProgramBase.GetAttributeOrder: TGLProgram.TAttributeOrder;
 begin
   Result := ['vpos'];
 end;
@@ -137,7 +130,7 @@ const
 
   procedure AddData(T, P: Single);
   var
-    Data: TSkyboxShaderBase.TData;
+    Data: TSkyboxGLProgramBase.TData;
   begin
     P := P * 90 / PitchSteps;
     T := T * 360 / TurnSteps;
@@ -169,7 +162,7 @@ end;
 
 procedure TSkybox.BuildVAO;
 var
-  Data: TSkyboxShaderBase.TData;
+  Data: TSkyboxGLProgramBase.TData;
   P: TPlane3;
   T: TTexCoord2;
 begin
@@ -188,16 +181,18 @@ begin
   FVAO.Unmap;
 end;
 
-constructor TSkybox.Create(AGLState: TGLState; AShaderClass: TSkyboxShaderClass);
+constructor TSkybox.Create(AGLState: TGLState; AGLProgramClass: TSkyboxGLProgramClass);
 const
   Zero: Integer = 0;
 begin
-  FVAO := TSkyboxVAO.Create(AShaderClass.Data, AGLState);
+  FVAO := TSkyboxVAO.Create(AGLProgramClass.Make(AGLState.ResourceParam));
+  FVAO.GLLabel := 'Skybox';
 
-  FUBO := TUBO.Create;
+  FUBO := TUBO.Create(FVAO.GLState);
+  FUBO.GLLabel := 'Skybox Stripe-Data';
   FUBO.Generate(UBOSize, buStaticDraw);
   FUBO.SubData(SizeOf(TStripeData) * MaxStripes, SizeOf(Integer), Zero);
-  FUBO.BindToShader(FVAO.Shader, 'stripedata');
+  FUBO.BindToGLProgram(FVAO.GLProgram, 'stripedata');
 
   FStripes := TRefArray<TStripe>.Create(True);
 
@@ -243,21 +238,15 @@ end;
 procedure TSkybox.TSkyboxVAO.BeforeRender;
 begin
   inherited;
-  FGLState.Push;
-  FGLState[stDepthTest] := False;
-  FGLState[stDepthMask] := False;
+  GLState.Push;
+  GLState[stDepthTest] := False;
+  GLState[stDepthMask] := False;
 end;
 
 procedure TSkybox.TSkyboxVAO.AfterRender;
 begin
-  FGLState.Pop;
+  GLState.Pop;
   inherited;
-end;
-
-constructor TSkybox.TSkyboxVAO.Create(AShader: TShader; AGLState: TGLState);
-begin
-  inherited Create(AShader);
-  FGLState := AGLState;
 end;
 
 end.

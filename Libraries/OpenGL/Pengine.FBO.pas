@@ -9,13 +9,12 @@ uses
 
   Pengine.GLEnums,
   Pengine.RBO,
-  Pengine.Texture;
+  Pengine.Texture,
+  Pengine.GLState;
 
 type
 
-  { TFBO }
-
-  TFBO = class
+  TFBO = class(TGLObject)
   private
     FFBO: Cardinal;
     FOutputs: array [TGLFBOAttachment] of TObject;
@@ -24,17 +23,19 @@ type
     FWidth: Cardinal;
     FHeight: Cardinal;
 
-    class var
-      BoundFBO: TFBO;
-
     function GetRenderBuffer(AType: TGLFBOAttachment): TBasicRenderBuffer;
     function GetTexture(AType: TGLFBOAttachment): TTexture;
+
+  protected
+    procedure GenObject(out AGLName: Cardinal); override;
+    procedure DeleteObject(const AGLName: Cardinal); override;
+
   public
     constructor Create(AWidth, AHeight: Cardinal);
     destructor Destroy; override;
 
-    class procedure BindScreen(AWidth, AHeight: Integer);
-    procedure Bind;
+    procedure Unbind; override;
+    procedure Bind; override;
 
     procedure EnableTexture2D(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat); overload;
     procedure EnableTexture2D(AType: TGLFBOAttachment; ATexture: TTexture2D); overload;
@@ -46,6 +47,7 @@ type
     procedure EnableTexture2DMS(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
     procedure EnableRenderBuffer(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat);
     procedure EnableRenderBufferMS(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
+    class function GetObjectType: TGLObjectType; override;
 
     property Textures[AType: TGLFBOAttachment]: TTexture read GetTexture;
     property RenderBuffers[AType: TGLFBOAttachment]: TBasicRenderBuffer read GetRenderBuffer;
@@ -60,13 +62,21 @@ type
     procedure Resize(AWidth, AHeight: Cardinal);
     procedure SetSamples(ASamples: Cardinal);
 
-    class property CurrentFBO: TFBO read BoundFBO;
-
   end;
 
 implementation
 
 { TFBO }
+
+procedure TFBO.GenObject(out AGLName: Cardinal);
+begin
+  glGenFramebuffers(1, @AGLName);
+end;
+
+class function TFBO.GetObjectType: TGLObjectType;
+begin
+  Result := otFramebuffer;
+end;
 
 function TFBO.GetRenderBuffer(AType: TGLFBOAttachment): TBasicRenderBuffer;
 begin
@@ -86,6 +96,12 @@ begin
   glGenFramebuffers(1, @FFBO);
 end;
 
+procedure TFBO.DeleteObject(const AGLName: Cardinal);
+begin
+  inherited;
+
+end;
+
 destructor TFBO.Destroy;
 var
   T: TGLFBOAttachment;
@@ -98,21 +114,17 @@ begin
   inherited;
 end;
 
-class procedure TFBO.BindScreen(AWidth, AHeight: Integer);
+procedure TFBO.Unbind;
 begin
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glViewport(0, 0, AWidth, AHeight);
-  BoundFBO := nil;
+  glViewport(0, 0, 0, 0);
+  raise Exception.Create('Width Height');
 end;
 
 procedure TFBO.Bind;
 begin
-  if Pointer(BoundFBO) <> Pointer(Self) then
-  begin
-    glBindFramebuffer(GL_FRAMEBUFFER, FFBO);
-    glViewport(0, 0, FWidth, FHeight);
-    BoundFBO := Self;
-  end;
+  glBindFramebuffer(GL_FRAMEBUFFER, FFBO);
+  glViewport(0, 0, FWidth, FHeight);
 end;
 
 procedure TFBO.EnableTexture2D(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat);
@@ -120,7 +132,7 @@ begin
   if FOutputs[AType] <> nil then
     raise Exception.Create('Multiple Framebuffer outputs for same Type!');
 
-  FOutputs[AType] := TEmptyTexture2D.Create(FWidth, FHeight, APixelFormat);
+  FOutputs[AType] := TEmptyTexture2D.Create(GLState, FWidth, FHeight, APixelFormat);
 
   Bind;
   glFramebufferTexture2D(GL_FRAMEBUFFER, Ord(AType), GL_TEXTURE_2D, Textures[AType].GLName, 0);
@@ -168,7 +180,7 @@ begin
   if FOutputs[AType] <> nil then
     raise Exception.Create('Multiple Framebuffer outputs for same Type!');
 
-  FOutputs[AType] := TEmptyTexture2DMS.Create(FWidth, FHeight, APixelFormat, ASamples);
+  FOutputs[AType] := TEmptyTexture2DMS.Create(GLState, FWidth, FHeight, APixelFormat, ASamples);
 
   Bind;
   glFramebufferTexture2D(GL_FRAMEBUFFER, Ord(AType), GL_TEXTURE_2D_MULTISAMPLE, Textures[AType].GLName, 0);
@@ -214,44 +226,37 @@ begin
     raise Exception.Create('Framebuffer Dimension are not equal!');
 
   glBindFramebuffer(GL_READ_FRAMEBUFFER, Self.FFBO);
-  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, AFBO.FFBO);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, AFBO.FFBO);     
+  raise Exception.Create('BoundFBO := AFBO.FBO;');
 
   glBlitFramebuffer(0, 0, FWidth, FHeight, 0, 0, FWidth, FHeight, Ord(AMask), GL_NEAREST);
-
-  BoundFBO := nil;
 end;
 
 procedure TFBO.StretchTo(AFBO: TFBO; AMask: TGLAttribMask);
 begin
   glBindFramebuffer(GL_READ_FRAMEBUFFER, Self.FFBO);
-  GLErrorMessage;
-  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, AFBO.FFBO);
-  GLErrorMessage;
-
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, AFBO.FFBO);   
+  raise Exception.Create('BoundFBO := AFBO.FBO;');
+  
   glBlitFramebuffer(0, 0, FWidth, FHeight, 0, 0, AFBO.FWidth, AFBO.FHeight, Ord(AMask), GL_NEAREST);
-  GLErrorMessage;
-
-  BoundFBO := nil;
 end;
 
 procedure TFBO.CopyToScreen(AMask: TGLAttribMask);
 begin
   glBindFramebuffer(GL_READ_FRAMEBUFFER, Self.FFBO);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+  raise Exception.Create('BoundFBO := nil;');
 
   glBlitFramebuffer(0, 0, FWidth, FHeight, 0, 0, FWidth, FHeight, Ord(AMask), GL_NEAREST);
-
-  BoundFBO := nil;
 end;
 
 procedure TFBO.StretchToScreen(AMask: TGLAttribMask; AWidth, AHeight: Cardinal);
 begin
   glBindFramebuffer(GL_READ_FRAMEBUFFER, Self.FFBO);
-  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); 
+  raise Exception.Create('BoundFBO := nil;');
 
   glBlitFramebuffer(0, 0, FWidth, FHeight, 0, 0, AWidth, AHeight, Ord(AMask), GL_NEAREST);
-
-  BoundFBO := nil;
 end;
 
 procedure TFBO.Resize(AWidth, AHeight: Cardinal);

@@ -10,12 +10,12 @@ uses
 
   Pengine.Camera,
   Pengine.GLEnums,
-  Pengine.GLObject,
+  Pengine.GLState,
   Pengine.Interfaces,
   Pengine.Collections,
   Pengine.CollectionInterfaces,
   Pengine.Matrix,
-  Pengine.Shader,
+  Pengine.GLProgram,
   Pengine.Vector,
   Pengine.IntMaths;
 
@@ -80,19 +80,19 @@ type
     FMaxSize: Integer;
 
   class var
-    BoundVBO: TVBO;
     BindLock: Boolean;
 
   protected
-    function GetObjectType: TGLObjectType; override;
-    procedure GenObject(var AGLName: Cardinal); override;
-    procedure DeleteObject(var AGLName: Cardinal); override;
+    procedure GenObject(out AGLName: Cardinal); override;
+    procedure DeleteObject(const AGLName: Cardinal); override;
 
   public
-    constructor Create(AStride: Integer);
+    constructor Create(AGLState: TGLState; AStride: Integer);
+
+    class function GetObjectType: TGLObjectType; override;
 
     procedure Bind; override;
-    class procedure Unbind; override;
+    procedure Unbind; override;
 
     procedure Generate(AMaxSize: Integer; AUsage: TGLBufferUsage); overload;
     procedure Generate(const AData; ADataSize: Integer; AUsage: TGLBufferUsage); overload;
@@ -116,7 +116,7 @@ type
     FVBO: TVBO;
     FBeginMode: TGLBeginMode;
 
-    FShader: TShader;
+    FGLProgram: TGLProgram;
 
     FVisible: Boolean;
 
@@ -134,20 +134,22 @@ type
     procedure SetLocation(const Value: TLocation);
 
   protected
+    procedure GenObject(out AGLName: GLuint); override;
+    procedure DeleteObject(const AGLName: GLuint); override;
+
+    procedure SetGLLabel(const Value: AnsiString); override;
+
     procedure BeforeRender; virtual;
     procedure AfterRender; virtual;
 
-    procedure GenObject(var AGLName: Cardinal); override;
-    procedure DeleteObject(var AGLName: Cardinal); override;
-    function GetObjectType: TGLObjectType; override;
-    procedure SetGLLabel(const Value: AnsiString); override;
-
   public
-    constructor Create(AShader: TShader; ABeginMode: TGLBeginMode = rmTriangles);
+    constructor Create(AGLProgram: TGLProgram; ABeginMode: TGLBeginMode = rmTriangles);
     destructor Destroy; override;
 
+    class function GetObjectType: TGLObjectType; override;
+
     procedure Bind; override;
-    class procedure Unbind; override;
+    procedure Unbind; override;
 
     property Visible: Boolean read GetVisible write SetVisible;
     property Location: TLocation read GetLocation write SetLocation;
@@ -158,7 +160,7 @@ type
     procedure Render; virtual;
     // procedure Render(const ABounds: TIntBounds1); virtual;
 
-    property Shader: TShader read FShader;
+    property GLProgram: TGLProgram read FGLProgram;
 
     // --- VBO ---
     procedure Generate(AMaxSize: Integer; AUsage: TGLBufferUsage); overload; inline;
@@ -266,14 +268,12 @@ end;
 
 procedure TVAO.GenAttributes;
 var
-  I: Integer;
-  Attribute: TShader.TAttribute;
+  Attribute: TGLProgram.TAttribute;
 begin
   Bind;
   FVBO.Bind;
-  for I := 0 to Shader.AttributeCount - 1 do
+  for Attribute in GLProgram.Attributes do
   begin
-    Attribute := Shader.Attributes[I];
     if Attribute.Location <> -1 then
     begin
       glEnableVertexAttribArray(Attribute.Location);
@@ -282,7 +282,7 @@ begin
         Attribute.BaseCount,
         Ord(Attribute.BaseDataType),
         True,
-        Shader.AttributeStride,
+        GLProgram.AttributeStride,
         Pointer(Attribute.Offset));
     end;
   end;
@@ -315,7 +315,7 @@ end;
 
 procedure TVAO.BeforeRender;
 begin
-  FShader.Enable;
+  FGLProgram.Bind;
 end;
 
 procedure TVAO.AfterRender;
@@ -323,17 +323,17 @@ begin
   // do nothing after rendering at the moment by default
 end;
 
-procedure TVAO.GenObject(var AGLName: Cardinal);
+procedure TVAO.GenObject(out AGLName: GLuint);
 begin
   glGenVertexArrays(1, @AGLName);
 end;
 
-procedure TVAO.DeleteObject(var AGLName: Cardinal);
+procedure TVAO.DeleteObject(const AGLName: GLuint);
 begin
   glDeleteVertexArrays(1, @AGLName);
 end;
 
-function TVAO.GetObjectType: TGLObjectType;
+class function TVAO.GetObjectType: TGLObjectType;
 begin
   Result := otVertexArray;
 end;
@@ -341,7 +341,7 @@ end;
 procedure TVAO.SetGLLabel(const Value: AnsiString);
 begin
   inherited;
-  FVBO.GLLabel := Value + ' [VBO]';
+  FVBO.GLLabel := Value;
 end;
 
 procedure TVAO.SetLocation(const Value: TLocation);
@@ -349,12 +349,12 @@ begin
   Location.Assign(Value);
 end;
 
-constructor TVAO.Create(AShader: TShader; ABeginMode: TGLBeginMode);
+constructor TVAO.Create(AGLProgram: TGLProgram; ABeginMode: TGLBeginMode = rmTriangles);
 begin
-  inherited Create;
-  FShader := AShader;
+  inherited Create(AGLProgram.GLState);
+  FGLProgram := AGLProgram;
   FBeginMode := ABeginMode;
-  FVBO := TVBO.Create(FShader.AttributeStride);
+  FVBO := TVBO.Create(GLState, FGLProgram.AttributeStride);
   GenAttributes;
   FVisible := True;
 end;
@@ -374,10 +374,9 @@ begin
   end;
 end;
 
-class procedure TVAO.Unbind;
+procedure TVAO.Unbind;
 begin
   glBindVertexArray(0);
-  BoundVAO := nil;
 end;
 
 function TVAO.CullPoints: IIterable<TVector3>;
@@ -468,22 +467,18 @@ end;
 
 procedure TVBO.Bind;
 begin
-  if Self <> BoundVBO then
-  begin
-    if BindLock then
-      raise EVBOBindLock.Create;
-    glBindBuffer(Ord(btArrayBuffer), GLName);
-    BoundVBO := Self;
-  end;
+  if BindLock then
+    raise EVBOBindLock.Create;
+  glBindBuffer(Ord(btArrayBuffer), GLName);
 end;
 
-constructor TVBO.Create(AStride: Integer);
+constructor TVBO.Create(AGLState: TGLState; AStride: Integer);
 begin
-  inherited Create;
+  inherited Create(AGLState);
   FStride := AStride;
 end;
 
-procedure TVBO.DeleteObject(var AGLName: Cardinal);
+procedure TVBO.DeleteObject(const AGLName: Cardinal);
 begin
   glDeleteBuffers(1, @AGLName);
 end;
@@ -508,12 +503,12 @@ begin
   glBufferData(Ord(btArrayBuffer), AMaxSize * FStride, nil, Ord(AUsage));
 end;
 
-procedure TVBO.GenObject(var AGLName: Cardinal);
+procedure TVBO.GenObject(out AGLName: Cardinal);
 begin
   glGenBuffers(1, @AGLName);
 end;
 
-function TVBO.GetObjectType: TGLObjectType;
+class function TVBO.GetObjectType: TGLObjectType;
 begin
   Result := otBuffer;
 end;
@@ -538,9 +533,8 @@ begin
   glBufferSubData(Ord(btArrayBuffer), AIndex * FStride, FStride, @AData);
 end;
 
-class procedure TVBO.Unbind;
+procedure TVBO.Unbind;
 begin
-  BoundVBO := nil;
   glBindBuffer(Ord(btArrayBuffer), 0);
 end;
 

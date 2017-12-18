@@ -391,6 +391,11 @@ type
 
   end;
 
+  TToObjectMap<K; V: class; H: THasher<K>> = class(TToRefMap<K, V, H>)
+  public
+    constructor Create(AHashMode: THashMode = hmAuto); override;
+  end;
+
 implementation
 
 { ETooManyHashBuckets }
@@ -1344,6 +1349,13 @@ end;
 function TToRefMap<K, V, H>.Copy(AHashMode: THashMode): TToRefMap<K, V, H>;
 begin
   Result := TToRefMap<K, V, H>(CreateCopy(AHashMode));
+end;
+
+{ TToObjectMap<K, V, H> }
+
+constructor TToObjectMap<K, V, H>.Create(AHashMode: THashMode);
+begin
+  inherited Create(True, AHashMode);
 end;
 
 end.

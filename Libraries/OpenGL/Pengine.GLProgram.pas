@@ -1,4 +1,4 @@
-unit Pengine.Shader;
+unit Pengine.GLProgram;
 
 interface
 
@@ -20,55 +20,42 @@ uses
   Pengine.HashCollections,
   Pengine.Hasher,
   Pengine.Matrix,
-  Pengine.Vector,
   Pengine.GLEnums,
-  Pengine.GLObject;
+  Pengine.GLState, 
+  Pengine.Vector,
+  Pengine.ResourceManager;
 
 type
-
-  { EUnsupportedDataType }
 
   EUniformDataTypeUnsupported = class(Exception)
   public
     constructor Create(ADataType: TGLDataType);
   end;
 
-  { EAttribOrderSetAlready }
-
   EAttribOrderSetAlready = class(Exception)
   public
     constructor Create;
   end;
-
-  { EAttribMissing }
 
   EAttribMissing = class(Exception)
   public
     constructor Create(AAttribute: AnsiString);
   end;
 
-  { EAttribNotUsed }
-
   EAttribNotUsed = class(Exception)
   public
     constructor Create(AAttribute: AnsiString);
   end;
-
-  { EUniformWrongDataType }
 
   EUniformWrongDataType = class(Exception)
   public
     constructor Create(AUniform: AnsiString; AExpected, AGot: string);
   end;
 
-  { EGetInactiveUniform }
-
   EGetInactiveUniform = class(Exception)
   public
     constructor Create(AUniform: AnsiString);
   end;
-
-  { EShaderCompilation }
 
   EShaderCompilation = class(Exception)
   private
@@ -78,35 +65,27 @@ type
     property Log: AnsiString read FLog;
   end;
 
-  { EShaderFileCompilation }
-
   EShaderFileCompilation = class(Exception)
   public
     constructor Create(AFileName: string; ALog: AnsiString);
   end;
-
-  { EShaderResourceCompilation }
 
   EShaderResourceCompilation = class(Exception)
   public
     constructor Create(AResourceName: string; ALog: AnsiString);
   end;
 
-  { ELinking }
-
   EShaderLinking = class(Exception)
   public
     constructor Create(ALog: AnsiString);
   end;
 
-  { TShader }
-
-  TShader = class(TGLHandleObject)
+  TGLProgram = class(TGLHandleObject)
   public type
 
     TVariable = class abstract
     private
-      FShader: TShader;
+      FProgram: TGLProgram;
       FName: AnsiString;
       FDataType: TGLDataType;
       FCount: Integer;
@@ -121,14 +100,14 @@ type
       function GetLocation: Integer; virtual; abstract;
 
     public
-      constructor Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType; ACount: Integer); overload;
+      constructor Create(AShader: TGLProgram; AName: AnsiString; ADataType: TGLDataType; ACount: Integer); overload;
       destructor Destroy; override;
 
       /// <summary>Creates a "dead" entry with a Location of -1</summary>
       constructor Create; overload;
 
       /// <summary>The Shader, to which this Variable belongs to</summary>
-      property Shader: TShader read FShader;
+      property GLProgram: TGLProgram read FProgram;
       /// <summary>The Name of the Variable as written in the Shader</summary>
       property Name: AnsiString read FName;
       /// <summary>The DataType of the Variable</summary>
@@ -147,6 +126,7 @@ type
       /// <summary>
       /// The Count measured in the BaseDataType
       /// <code>
+      /// Examples:<p/>
       /// vec3     -> 3<p/>
       /// mat4     -> 4x4 -> 16<p/>
       /// vec2[10] -> 20x2 -> 20
@@ -165,34 +145,44 @@ type
     TAttribute = class(TVariable)
     private
       FOffset: Integer;
+
       function GetOffset: Integer;
 
     protected
       function GetLocation: Integer; override;
 
     public
-      constructor Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType; ACount: Integer); overload;
+      constructor Create(AShader: TGLProgram; AName: AnsiString; ADataType: TGLDataType; ACount: Integer); overload;
       constructor Create; overload;
 
       property Offset: Integer read GetOffset;
+
     end;
 
-    TUniformBase = class abstract(TVariable)
+    TUniform = class abstract(TVariable)
     protected
       function GetLocation: Integer; override;
+
     end;
 
-    TUniform<T> = class(TUniformBase)
+    TUniform<T> = class(TUniform)
     private
+      FValue: T;
+
       function GetValue: T;
       procedure SetValue(const Value: T);
+
     public
-      property Value: T read GetValue write SetValue;
+      constructor Create(AShader: TGLProgram; AName: AnsiString; ADataType: TGLDataType; ACount: Integer); overload;
+      constructor Create; overload;
+
+      property Value: T read FValue write SetValue;
+
     end;
 
     TUniformSampler = TUniform<Integer>;
 
-    TInterfaceVariableMap = TToRefMap<AnsiString, TVariable, TAnsiStringHasher>;
+    TInterfaceVariableMap = TToObjectMap<AnsiString, TVariable, TAnsiStringHasher>;
     TAttributes = TRefArray<TAttribute>;
 
     TType = (
@@ -229,18 +219,17 @@ type
     procedure LoadUniformLocations;
 
     procedure AddShaderFromStream(AShaderType: TType; AStream: TStream);
-    function GetAttribute(I: Integer): TAttribute;
-    function GetAttributeCount: Integer;
+    function GetAttributes: TAttributes.TReader;
 
   protected
     procedure GenObject(out AGLName: GLHandle); override;
     procedure DeleteObject(const AGLName: GLHandle); override;
 
-    function GetObjectType: TGLObjectType; override;
-
   public
-    constructor Create;
+    constructor Create(AGLState: TGLState);
     destructor Destroy; override;
+
+    class function GetObjectType: TGLObjectType; override;
 
     procedure LoadFromFile(AFileName: string);
     procedure LoadFromResource(AResourceName: string);
@@ -253,39 +242,49 @@ type
 
     procedure SetAttributeOrder(AAttributes: TAttributeOrder);
 
-    property AttributeCount: Integer read GetAttributeCount;
-    property Attributes[I: Integer]: TAttribute read GetAttribute;
-    property AttributeStride: Integer read FAttributeStride;
+    procedure Bind; override;
+    procedure Unbind; override;
 
-    procedure Enable;
-    class procedure Disable;
+    property Attributes: TAttributes.TReader read GetAttributes;
+    property AttributeStride: Integer read FAttributeStride;
 
     function Uniform<T>(AName: AnsiString): TUniform<T>;
     function UniformSampler(AName: AnsiString): TUniformSampler;
 
   end;
 
+  TGLProgramResource = class(TParamResource<TGLProgram, TGLObjectParam>)
+  protected
+    class function CreateData(AParam: TGLObjectParam): TGLProgram; override;
+
+    class function GetFileName: string; virtual; abstract;
+    class function GetAttributeOrder: TGLProgram.TAttributeOrder; virtual; abstract;
+  end;
+
 implementation
+
+uses
+  Pengine.IntMaths;
 
 { TShader.TAttribute }
 
-constructor TShader.TAttribute.Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType; ACount: Integer);
+constructor TGLProgram.TAttribute.Create(AShader: TGLProgram; AName: AnsiString; ADataType: TGLDataType; ACount: Integer);
 begin
   inherited;
   FOffset := -1;
 end;
 
-constructor TShader.TAttribute.Create;
+constructor TGLProgram.TAttribute.Create;
 begin
   inherited Create;
 end;
 
-function TShader.TAttribute.GetLocation: Integer;
+function TGLProgram.TAttribute.GetLocation: Integer;
 begin
-  Result := glGetAttribLocation(Shader.ProgramObject, @Name[1]);
+  Result := glGetAttribLocation(GLProgram.GLName, @Name[1]);
 end;
 
-function TShader.TAttribute.GetOffset: Integer;
+function TGLProgram.TAttribute.GetOffset: Integer;
 begin
   if FOffset = -1 then
     raise EAttribNotUsed.Create(Name);
@@ -294,7 +293,7 @@ end;
 
 { TShader }
 
-procedure TShader.AddShaderFromFile(AShaderType: TType; AFileName: string);
+procedure TGLProgram.AddShaderFromFile(AShaderType: TType; AFileName: string);
 var
   FileStream: TFileStream;
 begin
@@ -311,7 +310,7 @@ begin
   end;
 end;
 
-procedure TShader.AddShaderFromResource(AShaderType: TType; AResourceName: string);
+procedure TGLProgram.AddShaderFromResource(AShaderType: TType; AResourceName: string);
 var
   ResourceStream: TResourceStream;
 begin
@@ -328,7 +327,7 @@ begin
   end;
 end;
 
-procedure TShader.AddShaderFromStream(AShaderType: TType; AStream: TStream);
+procedure TGLProgram.AddShaderFromStream(AShaderType: TType; AStream: TStream);
 var
   Text: AnsiString;
 begin
@@ -342,7 +341,7 @@ begin
   end;
 end;
 
-procedure TShader.AddShaderFromText(ShaderType: TType; const AText: AnsiString);
+procedure TGLProgram.AddShaderFromText(ShaderType: TType; const AText: AnsiString);
 var
   ShaderObject, ShaderLength: Integer;
   Data: PGLchar;
@@ -357,13 +356,18 @@ begin
 
   try
     CheckShaderErrors(ShaderObject);
-    glAttachShader(FProgramObject, ShaderObject);
+    glAttachShader(GLName, ShaderObject);
   finally
     glDeleteShader(ShaderObject);
   end;
 end;
 
-procedure TShader.CheckShaderErrors(AShader: GLHandle);
+procedure TGLProgram.Bind;
+begin
+  glUseProgram(GLName);
+end;
+
+procedure TGLProgram.CheckShaderErrors(AShader: GLHandle);
 var
   blen, slen: Integer;
   InfoLog: AnsiString;
@@ -380,78 +384,65 @@ begin
   raise EShaderCompilation.Create(InfoLog);
 end;
 
-procedure TShader.CheckProgramErrors;
+procedure TGLProgram.CheckProgramErrors;
 var
   blen: GLInt;
   slen: GLsizei;
   InfoLog: AnsiString;
   Success: Integer;
 begin
-  glGetProgramiv(FProgramObject, GL_LINK_STATUS, @Success);
+  glGetProgramiv(GLName, GL_LINK_STATUS, @Success);
   if Success <> 0 then
     Exit;
 
-  glGetProgramiv(FProgramObject, GL_INFO_LOG_LENGTH, @blen);
+  glGetProgramiv(GLName, GL_INFO_LOG_LENGTH, @blen);
   if blen <= 1 then
     raise EShaderLinking.Create('Unknown Error');
 
   SetLength(InfoLog, blen);
-  glGetProgramInfoLog(FProgramObject, blen, @slen, @InfoLog[1]);
+  glGetProgramInfoLog(GLName, blen, @slen, @InfoLog[1]);
   raise EShaderLinking.Create(InfoLog);
 end;
 
-constructor TShader.Create;
+constructor TGLProgram.Create;
 begin
   inherited;
-  FInterfaceVariables := TInterfaceVariableMap.Create(True);
+  FInterfaceVariables := TInterfaceVariableMap.Create;
 end;
 
-procedure TShader.DeleteObject(const AGLName: GLHandle);
+procedure TGLProgram.DeleteObject(const AGLName: GLHandle);
 begin
   glDeleteProgram(AGLName);
 end;
 
-destructor TShader.Destroy;
+destructor TGLProgram.Destroy;
 begin
   FAttributes.Free;
   FInterfaceVariables.Free;
   inherited;
 end;
 
-class procedure TShader.Disable;
-begin
-  if ActiveShader <> nil then
-  begin
-    glUseProgram(0);
-    ActiveShader := nil;
-  end;
-end;
-
-procedure TShader.Enable;
-begin
-  if ActiveShader <> Self then
-  begin
-    glUseProgram(FProgramObject);
-    ActiveShader := Self;
-  end;
-end;
-
-procedure TShader.GenObject(out AGLName: GLHandle);
+procedure TGLProgram.GenObject(out AGLName: GLHandle);
 begin
   AGLName := glCreateProgram;
 end;
 
-function TShader.GetAttribute(I: Integer): TAttribute;
+function TGLProgram.GetAttributes: TAttributes.TReader;
 begin
-  Result := FAttributes[I];
+  Result := FAttributes.Reader;
 end;
 
-function TShader.GetAttributeCount: Integer;
+class function TGLProgram.GetObjectType: TGLObjectType;
 begin
-  Result := FAttributes.Count;
+  Result := otProgram;
 end;
 
-function TShader.Uniform<T>(AName: AnsiString): TUniform<T>;
+procedure TGLProgram.Unbind;
+begin
+  glUseProgram(0);
+end;
+
+function TGLProgram.Uniform<T>(AName: AnsiString): TUniform<T>;
 var
   InterfaceVar: TVariable;
 begin
@@ -469,44 +460,45 @@ begin
   end;
 end;
 
-function TShader.UniformSampler(AName: AnsiString): TUniformSampler;
+function TGLProgram.UniformSampler(AName: AnsiString): TUniformSampler;
 begin
   Result := Uniform<Integer>(AName);
 end;
 
-procedure TShader.Link;
+procedure TGLProgram.Link;
 begin
-  glLinkProgram(FProgramObject);
+  glLinkProgram(GLName);
   CheckProgramErrors;
-  Enable;
+  Bind;
   LoadAttributeLocations;
   LoadUniformLocations;
 end;
 
-procedure TShader.LoadAttributeLocations;
+procedure TGLProgram.LoadAttributeLocations;
 var
   AttributeCount, MaxLength, ActualLength, Size, I: Integer;
   Buffer: AnsiString;
   DataType: GLenum;
 begin
-  glGetProgramiv(ProgramObject, GL_ACTIVE_ATTRIBUTES, @AttributeCount);
+  glGetProgramiv(GLName, GL_ACTIVE_ATTRIBUTES, @AttributeCount);
   if AttributeCount = 0 then
     Exit;
-  glGetProgramiv(ProgramObject, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, @MaxLength);
+  glGetProgramiv(GLName, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, @MaxLength);
   for I := 0 to AttributeCount - 1 do
   begin
     SetLength(Buffer, MaxLength);
-    glGetActiveAttrib(ProgramObject, I, MaxLength, ActualLength, Size, DataType, @Buffer[1]);
+    glGetActiveAttrib(GLName, I, MaxLength, ActualLength, Size, DataType, @Buffer[1]);
     SetLength(Buffer, ActualLength);
     FInterfaceVariables[Buffer] := TAttribute.Create(Self, Buffer, TGLDataType(DataType), Size);
   end;
 end;
 
-procedure TShader.LoadFromFile(AFileName: string);
+procedure TGLProgram.LoadFromFile(AFileName: string);
 var
   ShaderType: TType;
   Name: string;
 begin
+  GLLabel := AnsiString(AFileName);
   for ShaderType := Low(TType) to High(TType) do
   begin
     Name := AFileName + FileExtensions[ShaderType];
@@ -516,11 +508,12 @@ begin
   Link;
 end;
 
-procedure TShader.LoadFromResource(AResourceName: string);
+procedure TGLProgram.LoadFromResource(AResourceName: string);
 var
   ShaderType: TType;
   Name: string;
 begin
+  GLLabel := AnsiString(AResourceName);
   for ShaderType := Low(TType) to High(TType) do
   begin
     Name := AResourceName + ResourceExtensions[ShaderType];
@@ -530,22 +523,22 @@ begin
   Link;
 end;
 
-procedure TShader.LoadUniformLocations;
+procedure TGLProgram.LoadUniformLocations;
 var
   UniformCount, MaxLength, ActualLength, Size, I: Integer;
   Buffer: AnsiString;
   GLDataType: GLenum;
   DataType: TGLDataType;
-  Uniform: TUniformBase;
+  Uniform: TUniform;
 begin
-  glGetProgramiv(ProgramObject, GL_ACTIVE_UNIFORMS, @UniformCount);
+  glGetProgramiv(GLName, GL_ACTIVE_UNIFORMS, @UniformCount);
   if UniformCount = 0 then
     Exit;
-  glGetProgramiv(ProgramObject, GL_ACTIVE_UNIFORM_MAX_LENGTH, @MaxLength);
+  glGetProgramiv(GLName, GL_ACTIVE_UNIFORM_MAX_LENGTH, @MaxLength);
   for I := 0 to UniformCount - 1 do
   begin
     SetLength(Buffer, MaxLength);
-    glGetActiveUniform(ProgramObject, I, MaxLength, ActualLength, Size, GLDataType, @Buffer[1]);
+    glGetActiveUniform(GLName, I, MaxLength, ActualLength, Size, GLDataType, @Buffer[1]);
     SetLength(Buffer, ActualLength);
     DataType := TGLDataType(GLDataType);
     case DataType of
@@ -579,7 +572,7 @@ begin
   end;
 end;
 
-procedure TShader.SetAttributeOrder(AAttributes: TAttributeOrder);
+procedure TGLProgram.SetAttributeOrder(AAttributes: TAttributeOrder);
 var
   Attribute: AnsiString;
   InterfaceVar: TVariable;
@@ -639,9 +632,9 @@ end;
 
 { TShader.TVariable }
 
-constructor TShader.TVariable.Create(AShader: TShader; AName: AnsiString; ADataType: TGLDataType; ACount: Integer);
+constructor TGLProgram.TVariable.Create(AShader: TGLProgram; AName: AnsiString; ADataType: TGLDataType; ACount: Integer);
 begin
-  FShader := AShader;
+  FProgram := AShader;
   FName := AName;
   FDataType := ADataType;
   FCount := ACount;
@@ -652,26 +645,26 @@ begin
   FLocation := GetLocation;
 end;
 
-constructor TShader.TVariable.Create;
+constructor TGLProgram.TVariable.Create;
 begin
   FLocation := -1;
 end;
 
-destructor TShader.TVariable.Destroy;
+destructor TGLProgram.TVariable.Destroy;
 begin
   inherited;
 end;
 
-function TShader.TVariable.GetActive: Boolean;
+function TGLProgram.TVariable.GetActive: Boolean;
 begin
   Result := Location <> -1;
 end;
 
 { TShader.TUniformBase }
 
-function TShader.TUniformBase.GetLocation: Integer;
+function TGLProgram.TUniform.GetLocation: Integer;
 begin
-  Result := glGetUniformLocation(Shader.ProgramObject, @Name[1]);
+  Result := glGetUniformLocation(GLProgram.GLName, @Name[1]);
 end;
 
 { EUniformWrongDataType }
@@ -683,7 +676,20 @@ end;
 
 { TShader.TUniform<T> }
 
-function TShader.TUniform<T>.GetValue: T;
+constructor TGLProgram.TUniform<T>.Create(AShader: TGLProgram; AName: AnsiString; ADataType: TGLDataType;
+  ACount: Integer);
+begin
+  inherited;
+  if Active then
+    FValue := GetValue;
+end;
+
+constructor TGLProgram.TUniform<T>.Create;
+begin
+  inherited;
+end;
+
+function TGLProgram.TUniform<T>.GetValue: T;
 var
   BoolHelp: Integer;
 begin
@@ -693,29 +699,30 @@ begin
     bdtInt:
       if DataType = dtBoolean then
       begin
-        glGetUniformiv(Shader.ProgramObject, Location, @BoolHelp);
+        glGetUniformiv(GLProgram.GLName, Location, @BoolHelp);
         PBoolean(@Result)^ := BoolHelp <> 0;
       end
       else
-        glGetUniformiv(Shader.ProgramObject, Location, PGLint(@Result));
+        glGetUniformiv(GLProgram.GLName, Location, PGLint(@Result));
     bdtUInt:
-      glGetUniformuiv(Shader.ProgramObject, Location, PGLuint(@Result));
+      glGetUniformuiv(GLProgram.GLName, Location, PGLuint(@Result));
     bdtFloat:
-      glGetUniformfv(Shader.ProgramObject, Location, PGLfloat(@Result));
+      glGetUniformfv(GLProgram.GLName, Location, PGLfloat(@Result));
     bdtDouble:
-      glGetUniformdv(Shader.ProgramObject, Location, PGLdouble(@Result));
+      glGetUniformdv(GLProgram.GLName, Location, PGLdouble(@Result));
   else
     raise ENotImplemented.Create('Missing BaseDataType for Uniform GetValue');
   end;
 end;
 
-procedure TShader.TUniform<T>.SetValue(const Value: T);
+procedure TGLProgram.TUniform<T>.SetValue(const Value: T);
 var
   BoolHelp: Cardinal;
 begin
   if not Active then
     Exit;
-  Shader.Enable;
+  FValue := Value;
+  GLProgram.Bind;
   case DataType of
     dtFloat:
       glUniform1fv(Location, Count, PGLfloat(@Value));
@@ -847,6 +854,20 @@ end;
 constructor EAttribMissing.Create(AAttribute: AnsiString);
 begin
   CreateFmt('Vertex Attribute "%s" does not exist or got optimized away.', [AAttribute]);
+end;
+
+{ TGLProgramResource }
+
+class function TGLProgramResource.CreateData(AParam: TGLObjectParam): TGLProgram;
+begin
+  Result := TGLProgram.Create(AParam.GLState);
+  try
+    Result.LoadFromFile(GetFileName);
+    Result.SetAttributeOrder(GetAttributeOrder);
+  except
+    Result.Free;
+    raise;
+  end;
 end;
 
 end.

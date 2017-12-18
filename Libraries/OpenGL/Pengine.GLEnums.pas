@@ -398,7 +398,7 @@ type
     cfBoth = GL_FRONT_AND_BACK
     );
 
-  TGLDebugMessageSource = (
+  TGLDebugSource = (
     dmsAPI = GL_DEBUG_SOURCE_API,
     dmsWindowSystem,
     dmsShaderCompiler,
@@ -407,7 +407,7 @@ type
     dmsOther
   );
 
-  TGLDebugMessageType = (
+  TGLDebugType = (
     dmtError = GL_DEBUG_TYPE_ERROR,
     dmtDeprecatedBehaviour,
     dmtUndefinedBehaviour,
@@ -420,11 +420,29 @@ type
     dmtPopGroup
   );
 
-  TGLDebugMessageSeverity = (
-    dmsHigh = GL_DEBUG_SEVERITY_HIGH,
-    dmsMedium,
+  TGLDebugSeverity = (
+    dmsNotification,
     dmsLow,
-    dmsNotification = GL_DEBUG_SEVERITY_NOTIFICATION
+    dmsMedium,
+    dmsHigh
+  );
+
+  TGLDebugSeverities = set of TGLDebugSeverity;
+
+const
+
+  GLDebugSeverity: array [TGLDebugSeverity] of GLenum = (
+    GL_DEBUG_SEVERITY_NOTIFICATION,
+    GL_DEBUG_SEVERITY_LOW,
+    GL_DEBUG_SEVERITY_MEDIUM,
+    GL_DEBUG_SEVERITY_HIGH
+  );
+
+  GLDebugSeverityName: array [TGLDebugSeverity] of string = (
+    'Notification',
+    'Low',
+    'Medium',
+    'High'
   );
 
 function GLDataTypeSize(ADataType: TGLDataType): Integer; inline;
@@ -432,9 +450,9 @@ function GLDataTypeName(ADataType: TGLDataType): string;
 function GLDataTypeIsSampler(ADataType: TGLDataType): Boolean; inline;
 function GLBaseDataType(ADataType: TGLDataType): TGLBaseDataType; inline;
 
-function GLDebugMessageSourceName(ASource: TGLDebugMessageSource): string;
-function GLDebugMessageTypeName(AType: TGLDebugMessageType): string;
-function GLDebugMessageSeverityName(ASeverity: TGLDebugMessageSeverity): string;
+function GLDebugSourceName(ASource: TGLDebugSource): string;
+function GLDebugTypeName(AType: TGLDebugType): string;
+function GLDebugSeverityToEnum(ASeverity: GLenum): TGLDebugSeverity;
 
 procedure GLErrorMessage;
 
@@ -632,7 +650,7 @@ begin
   end;
 end;
 
-function GLDebugMessageSourceName(ASource: TGLDebugMessageSource): string;
+function GLDebugSourceName(ASource: TGLDebugSource): string;
 begin
   case ASource of
     dmsAPI: Result := 'API';
@@ -644,7 +662,7 @@ begin
   end;
 end;
 
-function GLDebugMessageTypeName(AType: TGLDebugMessageType): string;
+function GLDebugTypeName(AType: TGLDebugType): string;
 begin
   case AType of
     dmtError: Result := 'Error';
@@ -659,14 +677,15 @@ begin
   end;
 end;
 
-function GLDebugMessageSeverityName(ASeverity: TGLDebugMessageSeverity): string;
+function GLDebugSeverityToEnum(ASeverity: GLenum): TGLDebugSeverity;
 begin
   case ASeverity of
-    dmsHigh: Result := 'High';
-    dmsMedium: Result := 'Medium';
-    dmsLow: Result := 'Low';
-    dmsNotification: Result := 'Notification';
+    GL_DEBUG_SEVERITY_NOTIFICATION: Exit(dmsNotification);
+    GL_DEBUG_SEVERITY_LOW: Exit(dmsLow);
+    GL_DEBUG_SEVERITY_MEDIUM: Exit(dmsMedium);
+    GL_DEBUG_SEVERITY_HIGH: Exit(dmsHigh);
   end;
+  raise Exception.Create('Invalid GLDebugMessageSeverity');
 end;
 
 procedure GLErrorMessage;

@@ -19,9 +19,7 @@ type
     tfYears
   );
 
-  { TDeltaTimer }
-
-  TDeltaTimer = record
+  TDeltaTimer = class
   private
     FLastTime: Int64;
 
@@ -32,7 +30,7 @@ type
     procedure SetUpdateInterval(const Value: Single);
 
   public
-    procedure Init(AUpdateSpeed: Single = 4; AUpdateInterval: Single = 0.5);
+    constructor Create(AUpdateSpeed: Single = 4; AUpdateInterval: Single = 0.5);
 
     function Update: Boolean;
 
@@ -145,7 +143,7 @@ end;
 
 { TGLTimer }
 
-procedure TDeltaTimer.Init(AUpdateSpeed: Single = 4; AUpdateInterval: Single = 0.5);
+constructor TDeltaTimer.Create(AUpdateSpeed: Single = 4; AUpdateInterval: Single = 0.5);
 begin
   FUpdateSpeed := AUpdateSpeed;
   FUpdateInterval := AUpdateInterval;

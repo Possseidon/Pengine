@@ -9,7 +9,7 @@ uses
 
   Pengine.Collections,
   Pengine.UBO,
-  Pengine.Shader,
+  Pengine.GLProgram,
   Pengine.Color,
   Pengine.Vector,
   Pengine.Matrix,
@@ -18,7 +18,7 @@ uses
   Pengine.Camera,
   Pengine.FBO,
   Pengine.VAO,
-  Pengine.GLContext;
+  Pengine.GLState;
 
 type
 
@@ -201,8 +201,8 @@ type
     procedure AddOccluder(ARenderable: IRenderable);
     procedure DelOccluder(ARenderable: IRenderable);
 
-    procedure AddShader(AShader: TShader);
-    procedure DelShader(AShader: TShader);
+    procedure AddGLProgram(AGLProgram: TGLProgram);
+    procedure DelGLProgram(AGLProgram: TGLProgram);
 
     procedure RenderShadows;
 
@@ -240,8 +240,8 @@ type
     procedure AddOccluder(ARenderable: IRenderable);
     procedure DelOccluder(ARenderable: IRenderable);
 
-    procedure AddShader(AShader: TShader);
-    procedure DelShader(AShader: TShader);
+    procedure AddGLProgram(AGLProgram: TGLProgram);
+    procedure DelGLProgram(AGLProgram: TGLProgram);
 
     procedure RenderShadows;
 
@@ -278,8 +278,8 @@ type
     procedure AddOccluder(ARenderable: IRenderable);
     procedure DelOccluder(ARenderable: IRenderable);
 
-    procedure AddShader(AShader: TShader);
-    procedure DelShader(AShader: TShader);
+    procedure AddGLProgram(AGLProgram: TGLProgram);
+    procedure DelGLProgram(AGLProgram: TGLProgram);
 
     procedure RenderShadows;
 
@@ -292,12 +292,12 @@ type
 
   TLightSystem = class
   private
-    FGLForm: TGLForm;
-    FShader: TShader;
+    FGLState: TGLState;
+    FGLProgram: TGLProgram;
 
     FAmbient: TColorRGB;
 
-    FDepthOnlyUniform: TShader.TUniform<Boolean>;
+    FDepthOnlyUniform: TGLProgram.TUniform<Boolean>;
 
     FDirectionalLights: TRefArray<TDirectionalLight>;
     FPointLights: TRefArray<TPointLight>;
@@ -319,7 +319,7 @@ type
     procedure SendSpotLightCount;
 
   public
-    constructor Create(AGLForm: TGLForm);
+    constructor Create(AGLState: TGLState);
     destructor Destroy; override;
 
     property UBO: TUBO read FUBO;
@@ -332,7 +332,7 @@ type
 
     property Ambient: TColorRGB read FAmbient write SetAmbient;
 
-    procedure BindToShader(AShader: TShader);
+    procedure BindToGLProgram(AGLProgram: TGLProgram);
 
     procedure RenderShadows;
 
@@ -445,14 +445,14 @@ begin
   FCamera.DelRenderable(ARenderable);
 end;
 
-procedure TDirectionalLightShaded.AddShader(AShader: TShader);
+procedure TDirectionalLightShaded.AddGLProgram(AGLProgram: TGLProgram);
 begin
-  FCamera.AddUniforms(AShader);
+  FCamera.AddUniforms(AGLProgram);
 end;
 
-procedure TDirectionalLightShaded.DelShader(AShader: TShader);
+procedure TDirectionalLightShaded.DelGLProgram(AGLProgram: TGLProgram);
 begin
-  FCamera.DelUniforms(AShader);
+  FCamera.DelUniforms(AGLProgram);
 end;
 
 procedure TDirectionalLightShaded.RenderShadows;
@@ -582,20 +582,20 @@ begin
     FCameras[Side].DelRenderable(ARenderable);
 end;
 
-procedure TPointLightShaded.AddShader(AShader: TShader);
+procedure TPointLightShaded.AddGLProgram(AGLProgram: TGLProgram);
 var
   Side: TGLCubeMapSide;
 begin
   for Side := Low(TGLCubeMapSide) to High(TGLCubeMapSide) do
-    FCameras[Side].AddUniforms(AShader);
+    FCameras[Side].AddUniforms(AGLProgram);
 end;
 
-procedure TPointLightShaded.DelShader(AShader: TShader);
+procedure TPointLightShaded.DelGLProgram(AGLProgram: TGLProgram);
 var
   Side: TGLCubeMapSide;
 begin
   for Side := Low(TGLCubeMapSide) to High(TGLCubeMapSide) do
-    FCameras[Side].DelUniforms(AShader);
+    FCameras[Side].DelUniforms(AGLProgram);
 end;
 
 procedure TPointLightShaded.RenderShadows;
@@ -686,14 +686,14 @@ begin
   FCamera.DelRenderable(ARenderable);
 end;
 
-procedure TSpotLightShaded.AddShader(AShader: TShader);
+procedure TSpotLightShaded.AddGLProgram(AGLProgram: TGLProgram);
 begin
-  FCamera.AddUniforms(AShader);
+  FCamera.AddUniforms(AGLProgram);
 end;
 
-procedure TSpotLightShaded.DelShader(AShader: TShader);
+procedure TSpotLightShaded.DelGLProgram(AGLProgram: TGLProgram);
 begin
-  FCamera.DelUniforms(AShader);
+  FCamera.DelUniforms(AGLProgram);
 end;
 
 procedure TSpotLightShaded.SendCamera;
@@ -1067,27 +1067,28 @@ begin
   UBO.SubData(TSpotLight.MajorOffset, SizeOf(Integer), LightCount);
 end;
 
-constructor TLightSystem.Create(AGLForm: TGLForm);
+constructor TLightSystem.Create(AGLState: TGLState);
 begin
-  FGLForm := AGLForm;
+  FGLState := AGLState;
 
   FDirectionalLights := TRefArray<TDirectionalLight>.Create;
   FPointLights := TRefArray<TPointLight>.Create;
   FSpotLights := TRefArray<TSpotLight>.Create;
 
-  FDirectionalLightTexArray := TEmptyTexture2DArray.Create(1024, 1024, TDirectionalLight.MaxLights, pfDepthComponent);
+  FDirectionalLightTexArray := TEmptyTexture2DArray.Create(FGLState, 1024, 1024, TDirectionalLight.MaxLights, pfDepthComponent);
   FDirectionalLightTexArray.MagFilter := magLinear;
   FDirectionalLightTexArray.TextureCompareMode := tcmCompareRefToTexture;
 
-  FPointLightTexArray := TEmptyTextureCubeMapArray.Create(1024, TPointLight.MaxLights, pfDepthComponent);
+  FPointLightTexArray := TEmptyTextureCubeMapArray.Create(FGLState, 1024, TPointLight.MaxLights, pfDepthComponent);
   FPointLightTexArray.MagFilter := magLinear;
   FPointLightTexArray.TextureCompareMode := tcmCompareRefToTexture;
 
-  FSpotLightTexArray := TEmptyTexture2DArray.Create(1024, 1024, TSpotLight.MaxLights, pfDepthComponent);
+  FSpotLightTexArray := TEmptyTexture2DArray.Create(FGLState, 1024, 1024, TSpotLight.MaxLights, pfDepthComponent);
   FSpotLightTexArray.MagFilter := magLinear;
   FSpotLightTexArray.TextureCompareMode := tcmCompareRefToTexture;
 
-  FUBO := TUBO.Create;
+  FUBO := TUBO.Create(FGLState);
+  FUBO.GLLabel := 'Light-Data';
   FUBO.Generate(TSpotLight.MajorOffset + 16 + TSpotLight.DataSize * TSpotLight.MaxLights, buStreamDraw);
 
   Ambient := 0.1;
@@ -1115,7 +1116,7 @@ begin
     if ALight.ClassType = TDirectionalLightShaded then
     begin
       Inc(FShadowLightCount);
-      TDirectionalLightShaded(ALight).AddShader(FShader);
+      TDirectionalLightShaded(ALight).AddGLProgram(FGLProgram);
     end;
   end
   else if (ALight.ClassType = TPointLight) or (ALight.ClassType = TPointLightShaded) then
@@ -1126,7 +1127,7 @@ begin
     if ALight.ClassType = TPointLightShaded then
     begin
       Inc(FShadowLightCount);
-      TPointLightShaded(ALight).AddShader(FShader);
+      TPointLightShaded(ALight).AddGLProgram(FGLProgram);
     end;
   end
   else if (ALight.ClassType = TSpotLight) or (ALight.ClassType = TSpotLightShaded) then
@@ -1137,7 +1138,7 @@ begin
     if ALight.ClassType = TSpotLightShaded then
     begin
       Inc(FShadowLightCount);
-      TSpotLightShaded(ALight).AddShader(FShader);
+      TSpotLightShaded(ALight).AddGLProgram(FGLProgram);
     end;
   end
   else
@@ -1158,7 +1159,7 @@ begin
     if ALight.ClassType = TDirectionalLightShaded then
     begin
       Dec(FShadowLightCount);
-      TDirectionalLightShaded(ALight).DelShader(FShader);
+      TDirectionalLightShaded(ALight).DelGLProgram(FGLProgram);
     end;
   end
   else if (ALight.ClassType = TPointLight) or (ALight.ClassType = TPointLightShaded) then
@@ -1171,7 +1172,7 @@ begin
     if ALight.ClassType = TPointLightShaded then
     begin
       Dec(FShadowLightCount);
-      TPointLightShaded(ALight).DelShader(FShader);
+      TPointLightShaded(ALight).DelGLProgram(FGLProgram);
     end;
   end
   else if (ALight.ClassType = TSpotLight) or (ALight.ClassType = TSpotLightShaded) then
@@ -1184,37 +1185,37 @@ begin
     if ALight.ClassType = TSpotLightShaded then
     begin
       Dec(FShadowLightCount);
-      TSpotLightShaded(ALight).DelShader(FShader);
+      TSpotLightShaded(ALight).DelGLProgram(FGLProgram);
     end;
   end
   else
     raise Exception.Create('Unsupported Light Class!');
 end;
 
-procedure TLightSystem.BindToShader(AShader: TShader);
+procedure TLightSystem.BindToGLProgram(AGLProgram: TGLProgram);
 var
   Light: TObject;
 begin
-  FShader := AShader;
-  FDepthOnlyUniform := AShader.Uniform<Boolean>('depthonly');
+  FGLProgram := AGLProgram;
+  FDepthOnlyUniform := AGLProgram.Uniform<Boolean>('depthonly');
 
-  FDirectionalLightTexArray.Uniform(AShader.UniformSampler('directionalshadowmaps'));
-  FSpotLightTexArray.Uniform(AShader.UniformSampler('spotshadowmaps'));
-  FPointLightTexArray.Uniform(AShader.UniformSampler('pointshadowmaps'));
+  FDirectionalLightTexArray.Uniform(AGLProgram.UniformSampler('directionalshadowmaps'));
+  FSpotLightTexArray.Uniform(AGLProgram.UniformSampler('spotshadowmaps'));
+  FPointLightTexArray.Uniform(AGLProgram.UniformSampler('pointshadowmaps'));
 
-  FUBO.BindToShader(AShader, 'lightdata');
+  FUBO.BindToGLProgram(AGLProgram, 'lightdata');
 
   for Light in FDirectionalLights do
     if Light is TDirectionalLightShaded then
-      TDirectionalLightShaded(Light).AddShader(AShader);
+      TDirectionalLightShaded(Light).AddGLProgram(AGLProgram);
 
   for Light in FSpotLights do
     if Light is TSpotLightShaded then
-      TSpotLightShaded(Light).AddShader(AShader);
+      TSpotLightShaded(Light).AddGLProgram(AGLProgram);
 
   for Light in FPointLights do
     if Light is TPointLightShaded then
-      TPointLightShaded(Light).AddShader(AShader);
+      TPointLightShaded(Light).AddGLProgram(AGLProgram);
 end;
 
 procedure TLightSystem.RenderShadows;
@@ -1225,7 +1226,8 @@ begin
   if FShadowLightCount = 0 then
     Exit;
 
-  OldFBO := TFBO.CurrentFBO;
+  OldFBO := nil;
+  raise Exception.Create('TODO');
 
   FDepthOnlyUniform.Value := True;
 
@@ -1244,7 +1246,7 @@ begin
   FDepthOnlyUniform.Value := False;
 
   if OldFBO = nil then
-    TFBO.BindScreen(FGLForm.ClientWidth, FGLForm.ClientHeight)
+    OldFBO.Unbind
   else
     OldFBO.Bind;
 end;

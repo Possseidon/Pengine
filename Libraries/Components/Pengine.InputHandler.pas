@@ -18,12 +18,10 @@ uses
 
 type
 
-  { TKeyboardInput }
-
   TKeyboardInput = class
   private
     FKeys, FNotifyDown, FNotifyUp, FNotifyTyped: TBitField;
-    FCharBuffer: AnsiString;
+    FAnsiStringBuffer: AnsiString;
 
   public
     constructor Create;
@@ -46,20 +44,17 @@ type
 
     // READ
     function KeyDown(AKey: Byte): Boolean;
-    function AsyncKeyDown(AKey: Byte): Boolean;
-    function KeyPressed(AKey: Byte): Boolean; // only once
-    function KeyTyped(AKey: Byte): Boolean;   // with key repeat
-
     function KeyUp(AKey: Byte): Boolean;
+    function AsyncKeyDown(AKey: Byte): Boolean;
     function AsyncKeyUp(AKey: Byte): Boolean;
+    function KeyPressed(AKey: Byte): Boolean;
     function KeyReleased(AKey: Byte): Boolean;
+    function KeyTyped(AKey: Byte): Boolean;
 
-    property CharBuffer: AnsiString read FCharBuffer;
+    property AnsiStringBuffer: AnsiString read FAnsiStringBuffer;
 
     function AnyKeyDown: Boolean;
   end;
-
-  { TMouseInput }
 
   TMouseInput = class
   private
@@ -115,8 +110,6 @@ type
     function Height: Integer;
   end;
 
-  { TInputHandler }
-
   TInputHandler = class
   private
     FForm: TForm;
@@ -130,8 +123,8 @@ type
     FOldResize: TNotifyEvent;
     FOldMouseWheel: TMouseWheelEvent;
 
-    function GetAnsiCharBuffer: AnsiString;
-    function GetCharInBuffer: Boolean;
+    function GetAnsiStringBuffer: AnsiString;
+    function GetStringBufferEmpty: Boolean;
 
     procedure OnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure OnKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -147,7 +140,7 @@ type
 
     procedure PressChar(AChar: AnsiChar);
 
-    // FMouse
+    // Mouse
     function ButtonDown(AButton: TMouseButton): Boolean; inline;
     function ButtonPressed(AButton: TMouseButton): Boolean; inline;
     function ButtonUp(AButton: TMouseButton): Boolean; inline;
@@ -171,25 +164,30 @@ type
     function Width: Integer; inline;
     function Height: Integer; inline;
 
-    // FKeyboard
+    // Keyboard
     function KeyDown(AKey: Byte): Boolean; overload; inline;
-    function KeyPressed(AKey: Byte): Boolean; overload; inline;
-    function KeyTyped(AKey: Byte): Boolean; overload; inline;
-    function KeyUp(AKey: Byte): Boolean; overload; inline;
-    function KeyReleased(AKey: Byte): Boolean; overload; inline;
-    function AsyncKeyDown(AKey: Byte): Boolean; overload; inline;
-    function AsyncKeyUp(AKey: Byte): Boolean; overload; inline;
-
     function KeyDown(AKey: Char): Boolean; overload; inline;
-    function KeyPressed(AKey: Char): Boolean; overload; inline;
-    function KeyTyped(AKey: Char): Boolean; overload; inline;
+
+    function KeyUp(AKey: Byte): Boolean; overload; inline;
     function KeyUp(AKey: Char): Boolean; overload; inline;
-    function KeyReleased(AKey: Char): Boolean; overload; inline;
+
+    function AsyncKeyDown(AKey: Byte): Boolean; overload; inline;
     function AsyncKeyDown(AKey: Char): Boolean; overload; inline;
+
+    function AsyncKeyUp(AKey: Byte): Boolean; overload; inline;
     function AsyncKeyUp(AKey: Char): Boolean; overload; inline;
 
-    property AnsiCharBuffer: AnsiString read GetAnsiCharBuffer;
-    property CharInBuffer: Boolean read GetCharInBuffer;
+    function KeyPressed(AKey: Byte): Boolean; overload; inline;
+    function KeyPressed(AKey: Char): Boolean; overload; inline;
+
+    function KeyReleased(AKey: Byte): Boolean; overload; inline;
+    function KeyReleased(AKey: Char): Boolean; overload; inline;
+
+    function KeyTyped(AKey: Byte): Boolean; overload; inline;
+    function KeyTyped(AKey: Char): Boolean; overload; inline;
+
+    property AnsiStringBuffer: AnsiString read GetAnsiStringBuffer;
+    property StringBufferEmpty: Boolean read GetStringBufferEmpty;
 
     function AnyKeyDown: Boolean; inline;
 
@@ -199,6 +197,7 @@ type
     procedure NotifyChanges;
 
     procedure ReleaseAll;
+
   end;
 
 implementation
@@ -215,14 +214,14 @@ begin
     FOldKeyDown(Sender, Key, Shift);
 end;
 
-function TInputHandler.GetAnsiCharBuffer: AnsiString;
+function TInputHandler.GetAnsiStringBuffer: AnsiString;
 begin
-  Result := FKeyboard.CharBuffer;
+  Result := FKeyboard.AnsiStringBuffer;
 end;
 
-function TInputHandler.GetCharInBuffer: Boolean;
+function TInputHandler.GetStringBufferEmpty: Boolean;
 begin
-  Result := FKeyboard.CharBuffer <> '';
+  Result := FKeyboard.AnsiStringBuffer <> '';
 end;
 
 procedure TInputHandler.OnKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -278,21 +277,21 @@ begin
   FMouse := TMouseInput.Create(AForm);
   FKeyboard := TKeyboardInput.Create;
 
-  FOldKeyDown := AForm.OnKeyDown;
-  FOldKeyUp := AForm.OnKeyUp;
-  FOldMouseDown := AForm.OnMouseDown;
-  FOldMouseUp := AForm.OnMouseUp;
-  FOldMouseMove := AForm.OnMouseMove;
-  FOldMouseWheel := AForm.OnMouseWheel;
-  FOldResize := AForm.OnResize;
+  FOldKeyDown := FForm.OnKeyDown;
+  FOldKeyUp := FForm.OnKeyUp;
+  FOldMouseDown := FForm.OnMouseDown;
+  FOldMouseUp := FForm.OnMouseUp;
+  FOldMouseMove := FForm.OnMouseMove;
+  FOldMouseWheel := FForm.OnMouseWheel;
+  FOldResize := FForm.OnResize;
 
-  AForm.OnKeyDown := OnKeyDown;
-  AForm.OnKeyUp := OnKeyUp;
-  AForm.OnMouseDown := OnMouseDown;
-  AForm.OnMouseUp := OnMouseUp;
-  AForm.OnMouseMove := OnMouseMove;
-  AForm.OnMouseWheel := OnMouseWheel;
-  AForm.OnResize := OnResize;
+  FForm.OnKeyDown := OnKeyDown;
+  FForm.OnKeyUp := OnKeyUp;
+  FForm.OnMouseDown := OnMouseDown;
+  FForm.OnMouseUp := OnMouseUp;
+  FForm.OnMouseMove := OnMouseMove;
+  FForm.OnMouseWheel := OnMouseWheel;
+  FForm.OnResize := OnResize;
 end;
 
 destructor TInputHandler.Destroy;
@@ -720,7 +719,7 @@ end;
 
 procedure TKeyboardInput.ResetCharBuffer;
 begin
-  FCharBuffer := '';
+  FAnsiStringBuffer := '';
 end;
 
 procedure TKeyboardInput.Reset;
@@ -767,7 +766,7 @@ begin
       for C in Text do
         if C <> #0 then
           TextNoNull := TextNoNull + C;
-      FCharBuffer := FCharBuffer + TextNoNull;
+      FAnsiStringBuffer := FAnsiStringBuffer + TextNoNull;
     end;
   end;
 end;
@@ -780,7 +779,7 @@ end;
 
 procedure TKeyboardInput.PressChar(AChar: AnsiChar);
 begin
-  FCharBuffer := FCharBuffer + AChar;
+  FAnsiStringBuffer := FAnsiStringBuffer + AChar;
 end;
 
 function TKeyboardInput.KeyDown(AKey: Byte): Boolean;

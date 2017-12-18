@@ -6,14 +6,119 @@ uses
   dglOpenGL, 
 
   System.SysUtils,
+  {$IFDEF DEBUG}
   System.RTTI,
-  
+  {$ENDIF}
+
+  Pengine.Interfaces,
   Pengine.GLEnums,
   Pengine.Collections,
   Pengine.Color,
-  Pengine.Equaller;
+  Pengine.Equaller,
+  Pengine.TimeManager,
+  Pengine.ResourceManager,
+  Pengine.Hasher;
 
 type
+
+  TGLObjectType = (
+    otTexture = GL_TEXTURE,
+
+    otVertexArray = GL_VERTEX_ARRAY,
+
+    otBuffer = GL_BUFFER,
+    otShader,
+    otProgram,
+    otQuery,
+    otProgramPipeline,
+
+    otSampler = GL_SAMPLER,
+    otDisplayList,
+
+    otFramebuffer = GL_FRAMEBUFFER,
+    otRenderbuffer,
+
+    otTransformFeedback = GL_TRANSFORM_FEEDBACK
+  );
+
+  TGLState = class;
+
+  TGLObjectParam = class(TResourceParameter)
+  private
+    FGLState: TGLState;
+
+  protected
+    function GetHash: Cardinal; override;
+    function Equals(AOther: TResourceParameter): Boolean; override;
+
+  public
+    constructor Create(AGLState: TGLState);
+
+    property GLState: TGLState read FGLState;
+    
+  end;
+
+  TGLObjectBase = class abstract(TInterfaceBase)
+  private
+    FGLLabel: AnsiString;
+    FGLState: TGLState;
+
+
+  protected
+    function GetGLNameUInt: GLuint; virtual; abstract;
+
+    procedure SetGLLabel(const Value: AnsiString); virtual;
+
+  public
+    constructor Create(AGLState: TGLState);
+
+    class function GetObjectType: TGLObjectType; virtual; abstract;
+
+    procedure Bind; virtual; abstract;
+    procedure Unbind; virtual; abstract;
+
+    property GLState: TGLState read FGLState;
+    property GLLabel: AnsiString read FGLLabel write SetGLLabel;
+
+  end;
+
+  TGLObject = class(TGLObjectBase)
+  private
+    FGLName: GLuint;
+
+  protected
+    procedure GenObject(out AGLName: GLuint); virtual; abstract;
+    procedure DeleteObject(const AGLName: GLuint); virtual; abstract;
+
+    function GetGLNameUInt: Cardinal; override;
+
+    procedure SetGLLabel(const Value: AnsiString); override;
+
+  public
+    constructor Create(AGLState: TGLState);
+    destructor Destroy; override;
+
+    property GLName: GLuint read FGLName;
+
+  end;
+
+  TGLHandleObject = class(TGLObjectBase)
+  private
+    FGLName: GLHandle;
+
+  protected
+    procedure GenObject(out AGLName: GLHandle); virtual; abstract;
+    procedure DeleteObject(const AGLName: GLHandle); virtual; abstract;
+
+    function GetGLNameUInt: Cardinal; override;
+
+  public
+    constructor Create(AGLState: TGLState);
+    destructor Destroy; override;
+
+    property GLName: GLHandle read FGLName;
+
+  end;
 
   TGLSingleState = class abstract
   public type
@@ -43,26 +148,37 @@ type
       stBlendFunc
       );
 
+    TTypes = set of TType;
+
     TBooleanType = stDepthTest .. stDepthMask;
     TColorRGBAType = stClearColor .. stClearColor;
     TCompareFuncType = stDepthFunc .. stDepthFunc;
     TCullFaceType = stCullFaceMode .. stCullFaceMode;
     TBlendFuncType = stBlendFunc .. stBlendFunc;
 
-  public
-    // function GetType: TType; virtual; abstract;
+  protected
+    procedure Assign(AState: TGLSingleState); virtual; abstract;
+    
+  public 
+    procedure SendState; virtual; abstract;
+
+    function GetType: TType; virtual; abstract;
+
+    function Copy: TGLSingleState;
     
   end;
+
+  TGLSingleStateClass = class of TGLSingleState;
 
   // TODO: XmlDoc
   TGLSingleState<T> = class abstract(TGLSingleState)
   private
     FState: T;
 
-  protected
-    procedure SendState; virtual; abstract;
-
+  protected       
     procedure SetState(const Value: T); virtual; abstract;
+
+    procedure Assign(AState: TGLSingleState); override;
 
   public
     constructor Create(const APengineDefault, AGLDefault: T); overload;
@@ -80,53 +196,67 @@ type
   // glEnable/glDisable
   TGLFlagState = class(TGLSingleState<Boolean, TBoolEqualler>)
   private
-    FFlag: Integer;
+    FType: TGLSingleState.TType;
+    FFlag: TGLenum;
 
   protected
-    procedure SendState; override;
+    procedure Assign(AState: TGLSingleState); override;
 
   public
-    constructor Create(AFlag: TGLenum; APengineDefault: Boolean; AGLDefault: Boolean = False);
+    constructor Create(AType: TGLSingleState.TType; AFlag: TGLenum; APengineDefault: Boolean; AGLDefault: Boolean = False);
+
+    procedure SendState; override;
+
+    function GetType: TGLSingleState.TType; override;
 
   end;
 
   TGLClearColorState = class(TGLSingleState<TColorRGBA, TColorRGBAEqualler>)
-  protected
+  public
     procedure SendState; override;
+    function GetType: TGLSingleState.TType; override;
   end;
 
   TGLDepthMaskState = class(TGLSingleState<Boolean, TBoolEqualler>)
-  protected
+  public
     procedure SendState; override;
+    function GetType: TGLSingleState.TType; override;
   end;
 
   TGLEnumState<T> = class(TGLSingleState<T, TEnumEqualler<T>>);
 
   TGLDepthFuncState = class(TGLEnumState<TGLCompareFunction>)
-  protected
+  public
     procedure SendState; override;
+    function GetType: TGLSingleState.TType; override;
   end;
 
   TGLCullFaceState = class(TGLEnumState<TGLCullFace>)
-  protected
+  public
     procedure SendState; override;
+    function GetType: TGLSingleState.TType; override;
   end;
 
   TGLBlendFuncState = class(TGLEnumState<TGLBlendFunc>)
-  protected
+  public
     procedure SendState; override;
+    function GetType: TGLSingleState.TType; override;
   end;
 
-  TGLStateChange = class abstract;
+  TGLStateRevertSet = class
+  public type
+    TStates = TObjectArray<TGLSingleState>;
 
-  /// <summary>Automatically stores the old state on construction, which gets reverted on destruction of this object.</summary>
-  TGLStateChange<T> = class(TGLStateChange)
   private
-    FState: TGLSingleState<T>;
-    FOldState: T;
+    FStates: TStates;
+    FChangedStates: TGLSingleState.TTypes;
+
   public
-    constructor Create(AState: TGLSingleState<T>; const ANewState: T);
+    constructor Create;
     destructor Destroy; override;
+
+    procedure Save(AState: TGLSingleState);
+
   end;
 
   // TODO: XmlDoc
@@ -134,12 +264,12 @@ type
   public type
     // TODO: XmlDoc
     TAllStates = array [TGLSingleState.TType] of TGLSingleState;
-    TChanges = TRefArray<TGLStateChange>;
-    TChangeStack = TRefStack<TChanges>;
+    TChangeStack = TObjectStack<TGLStateRevertSet>;
 
   private
     FStates: TAllStates;
     FChangeStack: TChangeStack;
+    FTimer: TDeltaTimer;
 
     procedure InitStates;
 
@@ -160,9 +290,11 @@ type
 
     function GetState(AState: TGLSingleState.TBlendFuncType): TGLBlendFunc; overload;
     procedure SetState(AState: TGLSingleState.TBlendFuncType; const Value: TGLBlendFunc); overload;
+    function GetDeltaTime: Single;
+    function GetResourceParam: TGLObjectParam;
 
   public
-    constructor Create;
+    constructor Create(ATimer: TDeltaTimer);
     destructor Destroy; override;
 
     procedure Push;
@@ -174,6 +306,10 @@ type
     property State[AState: TGLSingleState.TCullFaceType]: TGLCullFace read GetState write SetState; default;
     property State[AState: TGLSingleState.TBlendFuncType]: TGLBlendFunc read GetState write SetState; default;
 
+    property DeltaTime: Single read GetDeltaTime;
+
+    property ResourceParam: TGLObjectParam read GetResourceParam;
+
   end;
 
 implementation
@@ -181,20 +317,20 @@ implementation
 { TGLContextState }
 
 procedure TGLState.InitStates;
+{$IFDEF DEBUG}
 var
   S: TGLSingleState.TType;
-  {$IFDEF DEBUG} 
   Uninitialized: string;
-  {$ENDIF}      
+{$ENDIF}
 begin
   // Flag (glEnable/glDisable)
-  FStates[stDepthTest] := TGLFlagState.Create(GL_DEPTH_TEST, True);
-  FStates[stSeamlessCubemap] := TGLFlagState.Create(GL_TEXTURE_CUBE_MAP_SEAMLESS, True);
-  FStates[stDepthClamp] := TGLFlagState.Create(GL_DEPTH_CLAMP, True);
-  FStates[stBlend] := TGLFlagState.Create(GL_BLEND, False);
-  FStates[stCullFace] := TGLFlagState.Create(GL_CULL_FACE, True);
-  FStates[stDebugOutput] := TGLFlagState.Create(GL_DEBUG_OUTPUT, False);
-  FStates[stDebugOutputSynced] := TGLFlagState.Create(GL_DEBUG_OUTPUT_SYNCHRONOUS, False);
+  FStates[stDepthTest] := TGLFlagState.Create(stDepthTest, GL_DEPTH_TEST, True);
+  FStates[stSeamlessCubemap] := TGLFlagState.Create(stSeamlessCubemap, GL_TEXTURE_CUBE_MAP_SEAMLESS, True);
+  FStates[stDepthClamp] := TGLFlagState.Create(stDepthClamp, GL_DEPTH_CLAMP, True);
+  FStates[stBlend] := TGLFlagState.Create(stBlend, GL_BLEND, False);
+  FStates[stCullFace] := TGLFlagState.Create(stCullFace, GL_CULL_FACE, True);
+  FStates[stDebugOutput] := TGLFlagState.Create(stDebugOutput, GL_DEBUG_OUTPUT, False);
+  FStates[stDebugOutputSynced] := TGLFlagState.Create(stDebugOutputSynced, GL_DEBUG_OUTPUT_SYNCHRONOUS, False);
   // Other booleans (using their own separate functions)
   FStates[stDepthMask] := TGLDepthMaskState.Create(True);
   // TColorRGBA
@@ -231,6 +367,16 @@ begin
   Result := GetState<TGLCullFace>(AState);
 end;
 
+function TGLState.GetDeltaTime: Single;
+begin
+  Result := FTimer.DeltaTime;
+end;
+
+function TGLState.GetResourceParam: TGLObjectParam;
+begin
+  Result := TGLObjectParam.Create(Self);
+end;
+
 function TGLState.GetState(AState: TGLSingleState.TBlendFuncType): TGLBlendFunc;
 begin
   Result := GetState<TGLBlendFunc>(AState);
@@ -258,10 +404,9 @@ end;
 
 procedure TGLState.SetState<T>(AState: TGLSingleState.TType; const Value: T);
 begin
-  if FChangeStack.Empty then
-    TGLSingleState<T>(FStates[AState]).State := Value
-  else
-    FChangeStack.Top.Add(TGLStateChange<T>.Create(TGLSingleState<T>(FStates[AState]), Value));
+  if not FChangeStack.Empty then
+    FChangeStack.Top.Save(FStates[AState]);
+  TGLSingleState<T>(FStates[AState]).State := Value
 end;
 
 function TGLState.GetState(AState: TGLSingleState.TBooleanType): Boolean;
@@ -284,8 +429,9 @@ begin
   SetState<TColorRGBA>(AState, Value);
 end;
 
-constructor TGLState.Create;
+constructor TGLState.Create(ATimer: TDeltaTimer);
 begin
+  FTimer := ATimer;
   InitStates;
   FChangeStack := TChangeStack.Create(True);
 end;
@@ -302,7 +448,7 @@ end;
 
 procedure TGLState.Push;
 begin
-  FChangeStack.Push(TChanges.Create(True));
+  FChangeStack.Push(TGLStateRevertSet.Create);
 end;
 
 procedure TGLState.Pop;
@@ -312,10 +458,23 @@ end;
 
 { TGLFlagState }
 
-constructor TGLFlagState.Create(AFlag: TGLenum; APengineDefault: Boolean; AGLDefault: Boolean = False);
+procedure TGLFlagState.Assign(AState: TGLSingleState);
 begin
+  inherited;
+  FType := TGLFlagState(AState).FType;
+  FFlag := TGLFlagState(AState).FFlag;
+end;
+
+constructor TGLFlagState.Create(AType: TGLSingleState.TType; AFlag: TGLenum; APengineDefault: Boolean; AGLDefault: Boolean = False);
+begin
+  FType := AType;
   FFlag := AFlag;
   inherited Create(APengineDefault, AGLDefault);
+end;
+
+function TGLFlagState.GetType: TGLSingleState.TType;
+begin
+  Result := FType;
 end;
 
 procedure TGLFlagState.SendState;
@@ -336,22 +495,12 @@ begin
   SendState;
 end;
 
-{ TGLStateChange<T> }
-
-constructor TGLStateChange<T>.Create(AState: TGLSingleState<T>; const ANewState: T);
-begin
-  FState := AState;
-  FOldState := AState.State;
-  FState.State := ANewState;
-end;
-
-destructor TGLStateChange<T>.Destroy;
-begin
-  FState.State := FOldState;
-  inherited;
-end;
-
 { TGLClearColorState }
+
+function TGLClearColorState.GetType: TGLSingleState.TType;
+begin
+  Result := stClearColor;
+end;
 
 procedure TGLClearColorState.SendState;
 begin
@@ -366,12 +515,22 @@ begin
   State := APengineDefault;
 end;
 
+procedure TGLSingleState<T>.Assign(AState: TGLSingleState);
+begin
+  FState := TGLSingleState<T>(AState).FState;
+end;
+
 constructor TGLSingleState<T>.Create(const ADefault: T);
 begin
   FState := ADefault;
 end;
 
 { TGLDepthMaskState }
+
+function TGLDepthMaskState.GetType: TGLSingleState.TType;
+begin
+  Result := stDepthMask;
+end;
 
 procedure TGLDepthMaskState.SendState;
 begin
@@ -380,12 +539,22 @@ end;
 
 { DepthFunc }
 
+function TGLDepthFuncState.GetType: TGLSingleState.TType;
+begin
+  Result := stDepthFunc;
+end;
+
 procedure TGLDepthFuncState.SendState;
 begin
   glDepthFunc(Ord(State));
 end;
 
 { CullFace }
+
+function TGLCullFaceState.GetType: TGLSingleState.TType;
+begin
+  Result := stCullFace;
+end;
 
 procedure TGLCullFaceState.SendState;
 begin
@@ -394,9 +563,122 @@ end;
 
 { BlendFunc }
 
+function TGLBlendFuncState.GetType: TGLSingleState.TType;
+begin
+  Result := stBlendFunc;
+end;
+
 procedure TGLBlendFuncState.SendState;
 begin
   glBlendFunc(Ord(State.Src), Ord(State.Dest));
+end;
+
+{ TGLChangeSet }
+
+constructor TGLStateRevertSet.Create;
+begin
+  FStates := TStates.Create(True);
+end;
+
+destructor TGLStateRevertSet.Destroy;
+var
+  State: TGLSingleState;
+begin
+  for State in FStates do
+    State.SendState;
+  FStates.Free;
+  inherited;
+end;
+
+procedure TGLStateRevertSet.Save(AState: TGLSingleState);
+begin
+  if not (AState.GetType in FChangedStates) then
+    FStates.Add(AState.Copy);
+end;
+
+{ TGLSingleState }
+
+function TGLSingleState.Copy: TGLSingleState;
+begin
+  Result := TGLSingleStateClass(ClassType).Create;
+  Result.Assign(Self);
+end;
+
+{ TGLObjectParam }
+
+constructor TGLObjectParam.Create(AGLState: TGLState);
+begin
+  FGLState := AGLState;
+end;
+
+function TGLObjectParam.Equals(AOther: TResourceParameter): Boolean;
+begin
+  Result := inherited and (FGLState = TGLObjectParam(AOther).FGLState);
+end;
+
+function TGLObjectParam.GetHash: Cardinal;
+begin
+  Result := inherited xor TRefHasher<TGLState>.GetHash(FGLState);
+end;
+
+{ TGLUIntObject }
+
+constructor TGLObject.Create(AGLState: TGLState);
+begin
+  inherited;
+  GenObject(FGLName);
+end;
+
+destructor TGLObject.Destroy;
+begin
+  DeleteObject(FGLName);
+  inherited;
+end;
+
+function TGLObject.GetGLNameUInt: Cardinal;
+begin
+  Result := GLName;
+end;
+
+procedure TGLObject.SetGLLabel(const Value: AnsiString);
+begin
+  Bind;
+  inherited;
+end;
+
+{ TGLHandleObject }
+
+constructor TGLHandleObject.Create(AGLState: TGLState);
+begin
+  inherited;
+  GenObject(FGLName);
+end;
+
+destructor TGLHandleObject.Destroy;
+begin
+  DeleteObject(FGLName);
+  inherited;
+end;
+
+function TGLHandleObject.GetGLNameUInt: Cardinal;
+begin
+  Result := GLName;
+end;
+
+{ TGLObjectBase }
+
+constructor TGLObjectBase.Create(AGLState: TGLState);
+begin
+  FGLState := AGLState;
+end;
+
+procedure TGLObjectBase.SetGLLabel(const Value: AnsiString);
+begin
+  FGLLabel := Value;
+  if Value = '' then
+    glObjectLabel(Ord(GetObjectType), GetGLNameUInt, -1, nil)
+  else
+    glObjectLabel(Ord(GetObjectType), GetGLNameUInt, Length(Value), @Value[1]);
 end;
 
 end.

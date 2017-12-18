@@ -13,11 +13,6 @@ uses
 
   System.SysUtils,
 
-  Pengine.Shader,
-  Pengine.Texture,
-  Pengine.VAO,
-  Pengine.GLEnums,
-  Pengine.Vector,
   Pengine.Collections,
   Pengine.HashCollections,
   Pengine.Hasher,
@@ -66,18 +61,18 @@ type
 
   end;
 
-  { TResourceParameter }
+  TParamResource = class(TObject);
+
+  TParamResourceClass = class of TParamResource;
 
   TResourceParameter = class abstract
   private
     FRefCount: Integer;
+    FResourceClass: TParamResourceClass;
 
   protected
-    function Equals(AOther: TResourceParameter): Boolean; reintroduce; virtual; abstract;
-    function GetHash: Cardinal; virtual; abstract;
-
-  public
-    constructor Create; virtual;
+    function Equals(AOther: TResourceParameter): Boolean; reintroduce; virtual;
+    function GetHash: Cardinal; virtual;
 
   end;
 
@@ -91,39 +86,32 @@ type
     class function CanIndex(const AValue: TResourceParameter): Boolean; override;
   end;
 
-  TResourceParameterMap<T: class> = class(TMap<TResourceParameter, T, TResourceParameterHasher>)
+  TResourceParameterMap<T> = class(TMap<TResourceParameter, T, TResourceParameterHasher>)
   protected
-    function CreateBucket: THashBase.TBucket; override;
     function CreateCopy(AHashMode: THashMode): THashBase; override;
   end;
 
-  { TParamResoruce<T> }
-
   /// <summary>
   /// An alternative to TResource<T>, which can contain Parameters.
-  /// Create a new Resource of this type, using Make and Release it after use.
+  /// Create a new Resource of this type using Make and Release it after use.
   /// </summary>
-  TParamResource<T: class; P: TResourceParameter> = class abstract
+  TParamResource<T: class; P: TResourceParameter> = class abstract(TParamResource)
   private
     class var
       FData: TResourceParameterMap<T>;
 
   protected
-    class procedure CreateData(var AData: T; AParam: P); virtual; abstract;
+    class function CreateData(AParam: P): T; virtual; abstract;
 
   public
     class constructor Create;
     class destructor Destroy;
 
     /// <summary>Get a reference to a parametrized resource</summary>
-    class function Make(AParams: P): T; overload;
-    /// <summary>Get a reference to a default parametrized resource</summary>
-    class function Make: T; overload;
+    class function Make(AParams: P; AFreeParam: Boolean = True): T; overload;
 
     /// <summary>Release the with make obtained reference to a resource</summary>
     class procedure Release(AParams: P); overload;
-    /// <summary>Release the with make obtained reference to a resource</summary>
-    class procedure Release; overload;
   end;
 
   { TResourceManager }
@@ -147,16 +135,6 @@ type
     class procedure Init;
     class procedure Finalize;
 
-  end;
-
-  { TShaderResource }
-
-  TShaderResource = class(TResource<TShader>)
-  protected
-    class function GetShaderSource: string; virtual; abstract;
-    class function GetAttributeOrder: TShader.TAttributeOrder; virtual; abstract;
-
-    class function CreateData: TShader; override;
   end;
 
 implementation
@@ -200,19 +178,7 @@ begin
   end;
 end;
 
-{ TResourceParameter }
-
-constructor TResourceParameter.Create;
-begin
-  // nothing by default
-end;
-
 { TResourceParameterRefMap }
-
-function TResourceParameterMap<T>.CreateBucket: THashBase.TBucket;
-begin
-
-end;
 
 function TResourceParameterMap<T>.CreateCopy(AHashMode: THashMode): THashBase;
 begin
@@ -236,31 +202,24 @@ begin
   FData.Free;
 end;
 
-class function TParamResource<T, P>.Make(AParams: P): T;
+class function TParamResource<T, P>.Make(AParams: P; AFreeParam: Boolean = True): T;
 var
   ActualKey: TResourceParameter;
 begin
+  AParams.FResourceClass := Self;
   if FData.Get(AParams, Result) then
   begin
     ActualKey := FData.ActualKeys[AParams];
     Inc(ActualKey.FRefCount);
-    if ActualKey <> TResourceParameter(AParams) then
+    if AFreeParam and (ActualKey <> TResourceParameter(AParams)) then
       AParams.Free;
   end
   else
   begin
-    CreateData(Result, AParams);
+    Result := CreateData(AParams);
     FData[AParams] := Result;
     Inc(AParams.FRefCount)
   end;
-end;
-
-class function TParamResource<T, P>.Make: T;
-var
-  Params: P;
-begin
-  Params := P.Create;
-  Make(Params);
 end;
 
 class procedure TParamResource<T, P>.Release(AParams: P);
@@ -273,11 +232,6 @@ begin
     AParams.Free;
   if Key.FRefCount = 0 then
     FData.Del(Key);
-end;
-
-class procedure TParamResource<T, P>.Release;
-begin
-  Release(P.Create);
 end;
 
 { TResourceManager }
@@ -359,20 +313,6 @@ begin
   FResourceClasses.Add(AResourceClass);
 end;
 
-{ TShaderResource }
-
-class function TShaderResource.CreateData: TShader;
-begin
-  Result := TShader.Create;
-  try
-    Result.LoadFromFile(GetShaderSource);
-    Result.SetAttributeOrder(GetAttributeOrder);
-  except
-    Result.Free;
-    raise;
-  end;
-end;
-
 { TResourceParameterHasher }
 
 class function TResourceParameterHasher.CanIndex(const AValue: TResourceParameter): Boolean;
@@ -390,6 +330,18 @@ end;
 class function TResourceParameterEqualler.Equal(const AValue1, AValue2: TResourceParameter): Boolean;
 begin
   Result := AValue1.Equals(AValue2);
+end;
+
+{ TResourceParameter }
+
+function TResourceParameter.Equals(AOther: TResourceParameter): Boolean;
+begin
+  Result := FResourceClass = AOther.FResourceClass;
+end;
+
+function TResourceParameter.GetHash: Cardinal;
+begin
+  Result := HashOf(FResourceClass);
 end;
 
 end.

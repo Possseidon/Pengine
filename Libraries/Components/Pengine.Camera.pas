@@ -9,7 +9,7 @@ uses
 
   Pengine.GLEnums,
   Pengine.Matrix,
-  Pengine.Shader,
+  Pengine.GLProgram,
   Pengine.CollectionInterfaces,
   Pengine.Collections,
   Pengine.Vector,
@@ -124,8 +124,8 @@ type
 
     TUniform = class abstract
     public type
-      TUniformList = TRefArray<TShader.TUniform<TMatrix4>>;
-      TRotationUniformList = TRefArray<TShader.TUniform<TMatrix3>>;
+      TUniformList = TObjectArray<TGLProgram.TUniform<TMatrix4>>;
+      TRotationUniformList = TObjectArray<TGLProgram.TUniform<TMatrix3>>;
 
     private
       FCalculatesTo: TUniform;
@@ -149,11 +149,11 @@ type
       procedure SendAllMatrices;
       procedure Invalidate;
 
-      procedure AddUniform(AUniform: TShader.TUniform<TMatrix4>); overload;
-      procedure DelUniform(AUniform: TShader.TUniform<TMatrix4>); overload;
+      procedure AddUniform(AUniform: TGLProgram.TUniform<TMatrix4>); overload;
+      procedure DelUniform(AUniform: TGLProgram.TUniform<TMatrix4>); overload;
 
-      procedure AddUniform(AUniform: TShader.TUniform<TMatrix3>); overload;
-      procedure DelUniform(AUniform: TShader.TUniform<TMatrix3>); overload;
+      procedure AddUniform(AUniform: TGLProgram.TUniform<TMatrix3>); overload;
+      procedure DelUniform(AUniform: TGLProgram.TUniform<TMatrix3>); overload;
 
       property Data: TMatrix4 read GetData;
 
@@ -256,10 +256,10 @@ type
 
     /// <summary>Adds all uniforms with the <see cref="Pengine.Camera|TCamera.DefaultMatrixNames"/>.</summary>
     /// <remarks>Use <see cref="Pengine.Camera|TCamera.AddUniform"/> for more control.</remarks>
-    procedure AddUniforms(AShader: TShader);
+    procedure AddUniforms(AShader: TGLProgram);
     /// <summary>Removes all uniforms with the <see cref="Pengine.Camera|TCamera.DefaultMatrixNames"/>.</summary>
     /// <remarks>Use <see cref="Pengine.Camera|TCamera.DelUniform"/> for more control.</remarks>
-    procedure DelUniforms(AShader: TShader);
+    procedure DelUniforms(AShader: TGLProgram);
 
     /// <summary>Registers a specific matrix-uniform.</summary>
     /// <param name="AType">Which matrix-type to bind the uniform to.</param>
@@ -267,23 +267,23 @@ type
     /// <remarks>Inactive uniforms get ignored automatically.<p/>
     /// Use <see cref="Pengine.Camera|TCamera.AddUniforms"/> to use the
     /// <see cref="Pengine.Camera|TCamera.DefaultMatrixNames"/>.</remarks>
-    procedure AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>); overload;
+    procedure AddUniform(AType: TMatrixType; AUniform: TGLProgram.TUniform<TMatrix4>); overload;
     /// <summary>Registers a specific rotation-matrix-uniform.</summary>
     /// <param name="AType">Which matrix-type to bind the uniform to.</param>
     /// <param name="AUniform">The uniform to bind to the specified type.</param>
     /// <remarks>Inactive uniforms get ignored automatically.<p/>
     /// Use <see cref="Pengine.Camera|TCamera.AddUniforms"/> to use the
     /// <see cref="Pengine.Camera|TCamera.DefaultMatrixNames"/>.</remarks>
-    procedure AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>); overload;
+    procedure AddUniform(AType: TMatrixType; AUniform: TGLProgram.TUniform<TMatrix3>); overload;
 
     /// <summary>Unregisters a specific matrix-uniform.</summary>
     /// <param name="AType">Which matrix-type to unbind the uniform from.</param>
     /// <param name="AUniform">The uniform to unbind from the specified type.</param>
-    procedure DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>); overload;
+    procedure DelUniform(AType: TMatrixType; AUniform: TGLProgram.TUniform<TMatrix4>); overload;
     /// <summary>Unregisters a specific rotation-matrix-uniform.</summary>
     /// <param name="AType">Which matrix-type to unbind the uniform from.</param>
     /// <param name="AUniform">The uniform to unbind from the specified type.</param>
-    procedure DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>); overload;
+    procedure DelUniform(AType: TMatrixType; AUniform: TGLProgram.TUniform<TMatrix3>); overload;
 
     procedure AddRenderable(ARenderable: IRenderable); overload;
     procedure AddRenderable(ARenderables: IIterable<IRenderable>); overload;
@@ -432,7 +432,7 @@ begin
   Result := FLocation.Matrix;
 end;
 
-procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>);
+procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TGLProgram.TUniform<TMatrix4>);
 begin
   if AUniform.Active then
     FMat[AType].AddUniform(AUniform);
@@ -446,13 +446,13 @@ begin
     AddRenderable(Renderable);
 end;
 
-procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>);
+procedure TCamera.AddUniform(AType: TMatrixType; AUniform: TGLProgram.TUniform<TMatrix3>);
 begin
   if AUniform.Active then
     FMat[AType].AddUniform(AUniform);
 end;
 
-procedure TCamera.AddUniforms(AShader: TShader);
+procedure TCamera.AddUniforms(AShader: TGLProgram);
 var
   MatrixType: TMatrixType;
 begin
@@ -468,7 +468,7 @@ begin
   FRenderObjects.Add(ARenderable);
 end;
 
-procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix4>);
+procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TGLProgram.TUniform<TMatrix4>);
 begin
   if AUniform.Active then
     FMat[AType].DelUniform(AUniform);
@@ -482,13 +482,13 @@ begin
     DelRenderable(Renderable);
 end;
 
-procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TShader.TUniform<TMatrix3>);
+procedure TCamera.DelUniform(AType: TMatrixType; AUniform: TGLProgram.TUniform<TMatrix3>);
 begin
   if AUniform.Active then
     FMat[AType].DelUniform(AUniform);
 end;
 
-procedure TCamera.DelUniforms(AShader: TShader);
+procedure TCamera.DelUniforms(AShader: TGLProgram);
 var
   MatrixType: TMatrixType;
 begin
@@ -524,7 +524,6 @@ end;
 procedure TCamera.Render;
 var
   Frustum: THexahedron;
-  S: string;
 
   procedure RenderList(AList: IIterable<IRenderable>);
   var
@@ -713,13 +712,13 @@ end;
 
 { TCamera.TUniform }
 
-procedure TCamera.TUniform.AddUniform(AUniform: TShader.TUniform<TMatrix3>);
+procedure TCamera.TUniform.AddUniform(AUniform: TGLProgram.TUniform<TMatrix3>);
 begin
   if AUniform.Active then
     FRotationUniforms.Add(AUniform);
 end;
 
-procedure TCamera.TUniform.AddUniform(AUniform: TShader.TUniform<TMatrix4>);
+procedure TCamera.TUniform.AddUniform(AUniform: TGLProgram.TUniform<TMatrix4>);
 begin
   if AUniform.Active then
     FUniforms.Add(AUniform);
@@ -731,13 +730,13 @@ begin
   FRotationUniforms := TRotationUniformList.Create;
 end;
 
-procedure TCamera.TUniform.DelUniform(AUniform: TShader.TUniform<TMatrix3>);
+procedure TCamera.TUniform.DelUniform(AUniform: TGLProgram.TUniform<TMatrix3>);
 begin
   if AUniform.Active then
     FRotationUniforms.Del(AUniform);
 end;
 
-procedure TCamera.TUniform.DelUniform(AUniform: TShader.TUniform<TMatrix4>);
+procedure TCamera.TUniform.DelUniform(AUniform: TGLProgram.TUniform<TMatrix4>);
 begin
   if AUniform.Active then
     FUniforms.Del(AUniform);

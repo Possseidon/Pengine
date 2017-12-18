@@ -73,6 +73,32 @@ type
 
   // TODO: XmlDoc
   TArray = class(TInterfaceBase)
+  public type
+
+    TReader = class
+    private
+      function GetCapacity: Integer; inline;
+      function GetGrowAmount: Integer; inline;
+      function GetShrinkRetain: Integer; inline;
+
+    public
+      property GrowAmount: Integer read GetGrowAmount;
+      property ShrinkRetain: Integer read GetShrinkRetain;
+
+      function Count: Integer; inline;
+      function CountOptimized: Boolean; inline;
+      function MaxIndex: Integer; inline;
+      function Empty: Boolean; inline;
+
+      property Capacity: Integer read GetCapacity;
+
+      procedure RangeCheckException(AIndex: Integer); inline;
+      function RangeCheck(AIndex: Integer): Boolean; inline;
+
+      function Copy: TArray; inline;
+
+    end;
+
   public const
 
     // TODO: XmlDoc
@@ -149,6 +175,8 @@ type
 
     // TODO: XmlDoc
     function Copy: TArray;
+
+    function Reader: TReader; inline;
 
   end;
 
@@ -248,6 +276,103 @@ type
       function AfterPivot(I: Integer): Boolean; override;
     public
       constructor Create(AArray: TArray<T>; AFunc: TCompareFunc<T>);
+    end;
+
+    TReader = class(TArray.TReader)
+      private
+        function GetFirst: T;
+        function GetItem(I: Integer): T;
+        function GetLast: T;
+        procedure SetFirst(const Value: T);
+        procedure SetItem(I: Integer; const Value: T);
+        procedure SetLast(const Value: T);
+    public
+
+      {$REGION 'Find Functions'}
+
+      // TODO: XmlDoc
+      function FindFirstIndex(AFunc: TFindFuncStatic<T>): Integer; overload; inline;
+      // TODO: XmlDoc
+      function FindFirstIndex(AFunc: TFindFuncRef<T>): Integer; overload; inline;
+      // TODO: XmlDoc
+      function FindFirstIndex(AFunc: TFindFunc<T>): Integer; overload; inline;
+
+      // TODO: XmlDoc
+      function FindFirst(AFunc: TFindFuncStatic<T>): T; overload; inline;
+      // TODO: XmlDoc
+      function FindFirst(AFunc: TFindFuncRef<T>): T; overload; inline;
+      // TODO: XmlDoc
+      function FindFirst(AFunc: TFindFunc<T>): T; overload; inline;
+
+      // TODO: XmlDoc
+      function FindLastIndex(AFunc: TFindFuncStatic<T>): Integer; overload; inline;
+      // TODO: XmlDoc
+      function FindLastIndex(AFunc: TFindFuncRef<T>): Integer; overload; inline;
+      // TODO: XmlDoc
+      function FindLastIndex(AFunc: TFindFunc<T>): Integer; overload; inline;
+
+      // TODO: XmlDoc
+      function FindLast(AFunc: TFindFuncStatic<T>): T; overload;inline;
+      // TODO: XmlDoc
+      function FindLast(AFunc: TFindFuncRef<T>): T; overload; inline;
+      // TODO: XmlDoc
+      function FindLast(AFunc: TFindFunc<T>): T; overload; inline;
+
+      // TODO: XmlDoc
+      function FindIndexAsArray(AFunc: TFindFuncStatic<T>): TIntArray; overload; inline;
+      // TODO: XmlDoc
+      function FindIndexAsArray(AFunc: TFindFuncRef<T>): TIntArray; overload; inline;
+      // TODO: XmlDoc
+      function FindIndexAsArray(AFunc: TFindFunc<T>): TIntArray; overload; inline;
+
+      // TODO: XmlDoc
+      function FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>; overload; inline;
+      // TODO: XmlDoc
+      function FindAsArray(AFunc: TFindFuncRef<T>): TArray<T>; overload; inline;
+      // TODO: XmlDoc
+      function FindAsArray(AFunc: TFindFunc<T>): TArray<T>; overload; inline;
+
+      {$ENDREGION} //
+
+      {$REGION 'Sorting'}
+
+      // TODO: XmlDoc
+      function Sorted(AFunc: TCompareFuncStatic<T>): Boolean; overload; inline;
+      // TODO: XmlDoc
+      function Sorted(AFunc: TCompareFuncRef<T>): Boolean; overload; inline;
+      // TODO: XmlDoc
+      function Sorted(AFunc: TCompareFunc<T>): Boolean; overload; inline;
+
+      {$ENDREGION}
+
+      // TODO: XmlDoc
+      function BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer; overload; inline;
+      // TODO: XmlDoc
+      function BinarySearch(AItem: T; AFunc: TCompareFuncRef<T>): Integer; overload; inline;
+      // TODO: XmlDoc
+      function BinarySearch(AItem: T; AFunc: TCompareFunc<T>): Integer; overload; inline;
+
+      // TODO: XmlDoc
+      function Copy: TArray<T>; reintroduce; inline;
+
+      // TODO: XmlDoc
+      property Items[I: Integer]: T read GetItem write SetItem; default;
+
+      // TODO: XmlDoc
+      property First: T read GetFirst write SetFirst;
+      // TODO: XmlDoc
+      property Last: T read GetLast write SetLast;
+
+      // TODO: XmlDoc
+      function GetEnumerator: IIterator<T>; inline;
+      // TODO: XmlDoc
+      function InReverse: TReverseWrapper; inline;
+
+      // TODO: XmlDoc
+      function ToString: string; override;
+      // TODO: XmlDoc
+      class function ItemToString(AItem: T): string; inline;
+
     end;
 
   private
@@ -385,6 +510,8 @@ type
     function ToString: string; override;
     // TODO: XmlDoc
     class function ItemToString(AItem: T): string; virtual;
+
+    function Reader: TReader; reintroduce; inline;
 
   end;
 
@@ -530,8 +657,8 @@ type
 
   public
     constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
-    constructor Create(AOwnsObjects: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
-      overload;
+    constructor Create(AOwnsObjects: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8);
+      reintroduce; overload;
 
     // TODO: XmlDoc
     function FindAsArray(AFunc: TFindFuncStatic<T>): TRefArray<T>; overload; inline;
@@ -545,6 +672,13 @@ type
 
     property OwnsObjects: Boolean read GetOwnsObjects write SetOwnsObjects;
 
+  end;
+
+  /// <summary>The same as <see cref="TRefArray{T}"/> but the constructor defaults to owning the objects.</summary>
+  TObjectArray<T: class> = class(TRefArray<T>)
+  public
+    /// <summary>Creates a <see cref="TObjectArray{T}"/>, which will automatically free all objects on destruction.</summary>
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
   end;
 
   // TODO: XmlDoc DO NOT COPY THIS, IT WON'T KEEP ITS LINK (probably)
@@ -874,14 +1008,18 @@ type
 
   public
     constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
-    constructor Create(AOwnsObjects: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
-      overload;
+    constructor Create(AOwnsObjects: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce; overload;
 
     // TODO: XmlDoc
     function Copy: TRefStack<T>; reintroduce; inline;
 
     property OwnsObjects: Boolean read GetOwnsObjects write SetOwnsObjects;
 
+  end;
+
+  TObjectStack<T: class> = class(TRefStack<T>)
+  public
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); override;
   end;
 
   // TODO: XmlDoc
@@ -1033,6 +1171,11 @@ procedure TArray.RangeCheckException(AIndex: Integer);
 begin
   if not RangeCheck(AIndex) then
     raise EArrayRangeError.Create;
+end;
+
+function TArray.Reader: TReader;
+begin
+  Result := TReader(Self);
 end;
 
 procedure TArray.SetGrowAmount(const Value: Integer);
@@ -1597,6 +1740,11 @@ end;
 class function TArray<T>.ItemToString(AItem: T): string;
 begin
   raise EArrayItemNoStringRepresentative.Create;
+end;
+
+function TArray<T>.Reader: TReader;
+begin
+  Result := TReader(Self);
 end;
 
 function TArray<T>.BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer;
@@ -2420,6 +2568,249 @@ function TLinkedInterfaceArray<I, T>.TIterator.MoveNext: Boolean;
 begin
   Inc(FIndex);
   Result := FIndex < FLinkedArray.Count;
+end;
+
+{ TObjectArray<T> }
+
+constructor TObjectArray<T>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(True, AGrowAmount, AShrinkRetain);
+end;
+
+{ TObjectStack<T> }
+
+constructor TObjectStack<T>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(True, AGrowAmount, AShrinkRetain);
+end;
+
+{ TArray.TReader }
+
+function TArray.TReader.GetCapacity: Integer;
+begin
+  Result := TArray(Self).Capacity;
+end;
+
+function TArray.TReader.GetGrowAmount: Integer;
+begin
+  Result := TArray(Self).GrowAmount;
+end;
+
+function TArray.TReader.GetShrinkRetain: Integer;
+begin
+  Result := TArray(Self).ShrinkRetain;
+end;
+
+function TArray.TReader.Count: Integer;
+begin
+  Result := TArray(Self).Count;
+end;
+
+function TArray.TReader.CountOptimized: Boolean;
+begin
+  Result := TArray(Self).CountOptimized;
+end;
+
+function TArray.TReader.MaxIndex: Integer;
+begin
+  Result := TArray(Self).MaxIndex;
+end;
+
+function TArray.TReader.Empty: Boolean;
+begin
+  Result := TArray(Self).Empty;
+end;
+
+procedure TArray.TReader.RangeCheckException(AIndex: Integer);
+begin
+  TArray(Self).RangeCheckException(AIndex);
+end;
+
+function TArray.TReader.RangeCheck(AIndex: Integer): Boolean;
+begin
+  Result := TArray(Self).RangeCheck(AIndex);
+end;
+
+function TArray.TReader.Copy: TArray;
+begin
+  Result := TArray(Self).Copy;
+end;
+
+{ TArray<T>.TReader }
+
+function TArray<T>.TReader.BinarySearch(AItem: T; AFunc: TCompareFunc<T>): Integer;
+begin
+  Result := TArray<T>(Self).BinarySearch(AItem, AFunc);
+end;
+
+function TArray<T>.TReader.BinarySearch(AItem: T; AFunc: TCompareFuncRef<T>): Integer;
+begin
+  Result := TArray<T>(Self).BinarySearch(AItem, AFunc);
+end;
+
+function TArray<T>.TReader.BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer;
+begin
+  Result := TArray<T>(Self).BinarySearch(AItem, AFunc);
+end;
+
+function TArray<T>.TReader.Copy: TArray<T>;
+begin
+  Result := TArray<T>(Self).Copy;
+end;
+
+function TArray<T>.TReader.FindAsArray(AFunc: TFindFuncRef<T>): TArray<T>;
+begin
+  Result := TArray<T>(Self).FindAsArray(AFunc);
+end;
+
+function TArray<T>.TReader.FindAsArray(AFunc: TFindFunc<T>): TArray<T>;
+begin
+  Result := TArray<T>(Self).FindAsArray(AFunc);
+end;
+
+function TArray<T>.TReader.FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>;
+begin
+  Result := TArray<T>(Self).FindAsArray(AFunc);
+end;
+
+function TArray<T>.TReader.FindFirst(AFunc: TFindFuncStatic<T>): T;
+begin
+  Result := TArray<T>(Self).FindFirst(AFunc);
+end;
+
+function TArray<T>.TReader.FindFirst(AFunc: TFindFuncRef<T>): T;
+begin
+  Result := TArray<T>(Self).FindFirst(AFunc);
+end;
+
+function TArray<T>.TReader.FindFirst(AFunc: TFindFunc<T>): T;
+begin
+  Result := TArray<T>(Self).FindFirst(AFunc);
+end;
+
+function TArray<T>.TReader.FindFirstIndex(AFunc: TFindFuncRef<T>): Integer;
+begin
+  Result := TArray<T>(Self).FindFirstIndex(AFunc);
+end;
+
+function TArray<T>.TReader.FindFirstIndex(AFunc: TFindFuncStatic<T>): Integer;
+begin
+  Result := TArray<T>(Self).FindFirstIndex(AFunc);
+end;
+
+function TArray<T>.TReader.FindFirstIndex(AFunc: TFindFunc<T>): Integer;
+begin
+  Result := TArray<T>(Self).FindFirstIndex(AFunc);
+end;
+
+function TArray<T>.TReader.FindIndexAsArray(AFunc: TFindFunc<T>): TIntArray;
+begin
+  Result := TArray<T>(Self).FindIndexAsArray(AFunc);
+end;
+
+function TArray<T>.TReader.FindIndexAsArray(AFunc: TFindFuncRef<T>): TIntArray;
+begin
+  Result := TArray<T>(Self).FindIndexAsArray(AFunc);
+end;
+
+function TArray<T>.TReader.FindIndexAsArray(AFunc: TFindFuncStatic<T>): TIntArray;
+begin
+  Result := TArray<T>(Self).FindIndexAsArray(AFunc);
+end;
+
+function TArray<T>.TReader.FindLast(AFunc: TFindFunc<T>): T;
+begin
+  Result := TArray<T>(Self).FindLast(AFunc);
+end;
+
+function TArray<T>.TReader.FindLast(AFunc: TFindFuncRef<T>): T;
+begin
+  Result := TArray<T>(Self).FindLast(AFunc);
+end;
+
+function TArray<T>.TReader.FindLast(AFunc: TFindFuncStatic<T>): T;
+begin
+  Result := TArray<T>(Self).FindLast(AFunc);
+end;
+
+function TArray<T>.TReader.FindLastIndex(AFunc: TFindFuncStatic<T>): Integer;
+begin
+  Result := TArray<T>(Self).FindLastIndex(AFunc);
+end;
+
+function TArray<T>.TReader.FindLastIndex(AFunc: TFindFunc<T>): Integer;
+begin
+  Result := TArray<T>(Self).FindLastIndex(AFunc);
+end;
+
+function TArray<T>.TReader.FindLastIndex(AFunc: TFindFuncRef<T>): Integer;
+begin
+  Result := TArray<T>(Self).FindLastIndex(AFunc);
+end;
+
+function TArray<T>.TReader.GetEnumerator: IIterator<T>;
+begin
+  Result := TArray<T>(Self).GetEnumerator;
+end;
+
+function TArray<T>.TReader.GetFirst: T;
+begin
+  Result := TArray<T>(Self).First;
+end;
+
+function TArray<T>.TReader.GetItem(I: Integer): T;
+begin
+  Result := TArray<T>(Self)[I];
+end;
+
+function TArray<T>.TReader.GetLast: T;
+begin
+  Result := TArray<T>(Self).Last;
+end;
+
+function TArray<T>.TReader.InReverse: TReverseWrapper;
+begin
+  Result := TArray<T>(Self).InReverse;
+end;
+
+class function TArray<T>.TReader.ItemToString(AItem: T): string;
+begin
+  Result := TArray<T>(Self).ItemToString(AItem);
+end;
+
+procedure TArray<T>.TReader.SetFirst(const Value: T);
+begin
+  TArray<T>(Self).First := Value;
+end;
+
+procedure TArray<T>.TReader.SetItem(I: Integer; const Value: T);
+begin
+  TArray<T>(Self)[I] := Value;
+end;
+
+procedure TArray<T>.TReader.SetLast(const Value: T);
+begin
+  TArray<T>(Self).Last := Value;
+end;
+
+function TArray<T>.TReader.Sorted(AFunc: TCompareFunc<T>): Boolean;
+begin
+  Result := TArray<T>(Self).Sorted(AFunc);
+end;
+
+function TArray<T>.TReader.Sorted(AFunc: TCompareFuncRef<T>): Boolean;
+begin
+  Result := TArray<T>(Self).Sorted(AFunc);
+end;
+
+function TArray<T>.TReader.Sorted(AFunc: TCompareFuncStatic<T>): Boolean;
+begin
+  Result := TArray<T>(Self).Sorted(AFunc);
+end;
+
+function TArray<T>.TReader.ToString: string;
+begin
+  Result := TArray<T>(Self).ToString;
 end;
 
 end.
