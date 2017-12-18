@@ -13,6 +13,7 @@ uses
   Pengine.Interfaces,
   Pengine.GLEnums,
   Pengine.Collections,
+  Pengine.HashCollections,
   Pengine.Color,
   Pengine.Equaller,
   Pengine.TimeManager,
@@ -81,6 +82,8 @@ type
     property GLLabel: AnsiString read FGLLabel write SetGLLabel;
 
   end;
+
+  TGLObjectBaseClass = class of TGLObjectBase;
 
   TGLObject = class(TGLObjectBase)
   private
@@ -256,6 +259,31 @@ type
     destructor Destroy; override;
 
     procedure Save(AState: TGLSingleState);
+
+  end;
+
+  TGLObjectBinding = class
+  private
+    FBoundObject: TGLObjectBase;
+
+  public
+    property BoundObject: TGLObjectBase read FBoundObject write FBoundObject;
+
+  end;
+
+  TBoundGLObjects = class
+  public type
+    TBindingMap = TClassMap<TGLObjectBase>;
+
+  private
+    FBindings: TBindingMap;
+    function GetBindings: TBindingMap.TReader;
+
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    property Bindings: TBindingMap.TReader read GetBindings;
 
   end;
 
@@ -679,6 +707,24 @@ begin
     glObjectLabel(Ord(GetObjectType), GetGLNameUInt, -1, nil)
   else
     glObjectLabel(Ord(GetObjectType), GetGLNameUInt, Length(Value), @Value[1]);
+end;
+
+{ TBoundGLObjects }
+
+constructor TBoundGLObjects.Create;
+begin
+  FBindings := TBindingMap.Create;
+end;
+
+destructor TBoundGLObjects.Destroy;
+begin
+  FBindings.Free;
+  inherited;
+end;
+
+function TBoundGLObjects.GetBindings: TBindingMap.TReader;
+begin
+  Result := FBindings.Reader;
 end;
 
 end.

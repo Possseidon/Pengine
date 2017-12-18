@@ -108,6 +108,26 @@ type
 
     end;
 
+    TReader = class
+    private
+      function GetBuckets: Integer;
+      function GetHashMode: THashMode;
+
+    public
+      property Buckets: Integer read GetBuckets;
+      property HashMode: THashMode read GetHashMode;
+
+      function Count: Integer;
+      function CountOptimized: Boolean;
+
+      function Empty: Boolean; inline;
+
+      function Copy(AHashMode: THashMode = hmAuto): THashBase;
+
+      function BucketCounts: TIntArray;
+
+    end;
+
   private
     FHashMode: THashMode;
     FBuckets: TBuckets;
@@ -151,8 +171,11 @@ type
 
     procedure Clear;
     function Empty: Boolean; inline;
-
     function Copy(AHashMode: THashMode = hmAuto): THashBase;
+
+    function BucketCounts: TIntArray;
+
+    function Reader: TReader; inline;
 
   end;
 
@@ -160,6 +183,14 @@ type
 
   // TODO: XmlDoc
   THashBase<K; H: THasher<K>> = class abstract(THashBase)
+  public type
+
+    TReader = class(THashBase.TReader)
+    public
+      function GetCappedHash(AKey: K): Integer;
+
+    end;
+
   protected
     class function KeysEqual(const AKey1, AKey2: K): Boolean;
     class function GetHash(const AKey: K): Cardinal;
@@ -170,6 +201,8 @@ type
     function GetCappedHash(AKey: K): Integer;
 
     function Copy(AHashMode: THashMode = hmAuto): THashBase<K, H>; reintroduce; inline;
+
+    function Reader: TReader; reintroduce; inline;
 
   end;
 
@@ -193,6 +226,27 @@ type
       constructor Create(ASet: TSet<T, H>);
 
       function GetCurrent: T; override;
+
+    end;
+
+    TReader = class(THashBase<T, H>.TReader)
+    private
+      function GetElement(AElement: T): Boolean;
+
+    public
+      property Elements[AElement: T]: Boolean read GetElement; default;
+
+      function GetEnumerator: IIterator<T>;
+
+      function Copy(AHashMode: THashMode = hmAuto): TSet<T, H>; reintroduce; inline;
+
+      function Union(ASet: TSet<T, H>): TSet<T, H>;
+      function Intersection(ASet: TSet<T, H>): TSet<T, H>;
+      function Remove(ASet: TSet<T, H>): TSet<T, H>;
+
+      function IsSupersetOf(ASet: TSet<T, H>): Boolean;
+      function IsSubsetOf(ASet: TSet<T, H>): Boolean;
+      function Equals(ASet: TSet<T, H>): Boolean; reintroduce;
 
     end;
 
@@ -233,6 +287,8 @@ type
     function IsSubsetOf(ASet: TSet<T, H>): Boolean;
     function Equals(ASet: TSet<T, H>): Boolean; reintroduce;
 
+    function Reader: TReader; reintroduce; inline;
+
   end;
 
   // TODO: XmlDoc
@@ -256,6 +312,31 @@ type
       constructor Create(AMap: TMap<K, V, H>);
 
       function GetCurrent: TPair; override;
+
+    end;
+
+    TReader = class(THashBase<K, H>.TReader)
+    private
+      function GetActualKeyE(AKey: K): K;
+      function GetPair(AKey: K): TPair;
+      function GetValue(AKey: K): V;
+
+    public
+      function Get(AKey: K; out AValue: V): Boolean; overload;
+      property Values[AKey: K]: V read GetValue; default;
+      function Get(AKey: K; out APair: TPair): Boolean; overload;
+      property Pairs[AKey: K]: TPair read GetPair;
+
+      function GetActualKey(AKey: K; out AActualKey: K): Boolean;
+      property ActualKeys[AKey: K]: K read GetActualKeyE;
+
+      function KeyExists(AKey: K): Boolean;
+
+      function GetEnumerator: IIterator<TPair>;
+
+      function KeySet(AHashMode: THashMode = hmManual): TSet<K, H>;
+
+      function Copy(AHashMode: THashMode = hmAuto): TMap<K, V, H>; reintroduce; inline;
 
     end;
 
@@ -293,12 +374,11 @@ type
     function KeyExists(AKey: K): Boolean;
 
     function GetEnumerator: IIterator<TPair>;
-
-    function BucketCounts: TIntArray;
-
     function KeySet(AHashMode: THashMode = hmManual): TSet<K, H>;
 
     function Copy(AHashMode: THashMode = hmAuto): TMap<K, V, H>; reintroduce; inline;
+
+    function Reader: TReader; reintroduce; inline;
 
   end;
 
@@ -394,6 +474,13 @@ type
   TToObjectMap<K; V: class; H: THasher<K>> = class(TToRefMap<K, V, H>)
   public
     constructor Create(AHashMode: THashMode = hmAuto); override;
+  end;
+
+  TClassSet = TSet<TClass, TClassHasher>;
+
+  TClassMap<T> = class(TMap<TClass, T, TClassHasher>)
+  public
+    function Copy(AHashMode: THashMode = hmAuto): TClassMap<T>; reintroduce; inline;
   end;
 
 implementation
@@ -560,6 +647,11 @@ begin
   Result := HashPrimes[Result];
 end;
 
+function THashBase.Reader: TReader;
+begin
+  Result := TReader(Self);
+end;
+
 procedure THashBase.Rehash(ABuckets: Integer);
 var
   Tmp: THashBase;
@@ -607,6 +699,19 @@ begin
   Result := CreateCopy(AHashMode);
 end;
 
+function THashBase.BucketCounts: TIntArray;
+var
+  I: Integer;
+begin
+  Result := TIntArray.Create;
+  Result.Capacity := Buckets;
+  for I := 0 to Buckets - 1 do
+    if FBuckets[I] = nil then
+      Result.Add(0)
+    else
+      Result.Add(FBuckets[I].Count);
+end;
+
 procedure THashBase.CopyTo(AHashBase: THashBase);
 var
   I: Integer;
@@ -622,6 +727,11 @@ end;
 class function THashBase<K, H>.KeysEqual(const AKey1, AKey2: K): Boolean;
 begin
   Result := H.Equal(AKey1, AKey2);
+end;
+
+function THashBase<K, H>.Reader: TReader;
+begin
+  Result := TReader(Self);
 end;
 
 class function THashBase<K, H>.GetHash(const AKey: K): Cardinal;
@@ -789,6 +899,11 @@ begin
   Result := False;
 end;
 
+function TSet<T, H>.Reader: TReader;
+begin
+  Result := TReader(Self);
+end;
+
 function TSet<T, H>.Remove(ASet: TSet<T, H>): TSet<T, H>;
 var
   Element: T;
@@ -929,19 +1044,6 @@ begin
 end;
 
 { TMap<K, V, H> }
-
-function TMap<K, V, H>.BucketCounts: TIntArray;
-var
-  I: Integer;
-begin
-  Result := TIntArray.Create;
-  Result.Capacity := Buckets;
-  for I := 0 to Buckets - 1 do
-    if FBuckets[I] = nil then
-      Result.Add(0)
-    else
-      Result.Add(FBuckets[I].Count);
-end;
 
 function TMap<K, V, H>.Copy(AHashMode: THashMode): TMap<K, V, H>;
 begin
@@ -1207,6 +1309,11 @@ begin
   Result.HashMode := AHashMode;
 end;
 
+function TMap<K, V, H>.Reader: TReader;
+begin
+  Result := TReader(Self);
+end;
+
 { TRefSet<T> }
 
 function TRefSet<T>.CreateBucket: THashBase.TBucket;
@@ -1356,6 +1463,156 @@ end;
 constructor TToObjectMap<K, V, H>.Create(AHashMode: THashMode);
 begin
   inherited Create(True, AHashMode);
+end;
+
+{ TClassMap<T> }
+
+function TClassMap<T>.Copy(AHashMode: THashMode): TClassMap<T>;
+begin
+  Result := TClassMap<T>(CreateCopy(AHashMode));
+end;
+
+{ THashBase.TReader }
+
+function THashBase.TReader.GetBuckets: Integer;
+begin
+  Result := THashBase(Self).Buckets;
+end;
+
+function THashBase.TReader.GetHashMode: THashMode;
+begin
+  Result := THashBase(Self).HashMode;
+end;
+
+function THashBase.TReader.Count: Integer;
+begin
+  Result := THashBase(Self).Count;
+end;
+
+function THashBase.TReader.CountOptimized: Boolean;
+begin
+  Result := THashBase(Self).CountOptimized;
+end;
+
+function THashBase.TReader.Empty: Boolean;
+begin
+  Result := THashBase(Self).Empty;
+end;
+
+function THashBase.TReader.BucketCounts: TIntArray;
+begin
+  Result := THashBase(Self).BucketCounts;
+end;
+
+function THashBase.TReader.Copy(AHashMode: THashMode): THashBase;
+begin
+  Result := THashBase(Self).Copy(AHashMode);
+end;
+
+{ THashBase<K, H>.TReader }
+
+function THashBase<K, H>.TReader.GetCappedHash(AKey: K): Integer;
+begin
+  Result := THashBase<K, H>(Self).GetCappedHash(AKey);
+end;
+
+
+{ TSet<T, H>.TReader }
+
+function TSet<T, H>.TReader.GetElement(AElement: T): Boolean;
+begin
+  Result := TSet<T, H>(Self)[AElement];
+end;
+
+function TSet<T, H>.TReader.GetEnumerator: IIterator<T>;
+begin
+  Result := TSet<T, H>(Self).GetEnumerator;
+end;
+function TSet<T, H>.TReader.Copy(AHashMode: THashMode): TSet<T, H>;
+begin
+  Result := TSet<T, H>(Self).Copy(AHashMode);
+end;
+
+function TSet<T, H>.TReader.Union(ASet: TSet<T, H>): TSet<T, H>;
+begin
+  Result := TSet<T, H>(Self).Union(ASet);
+end;
+
+function TSet<T, H>.TReader.Intersection(ASet: TSet<T, H>): TSet<T, H>;
+begin
+  Result := TSet<T, H>(Self).Intersection(ASet);
+end;
+
+function TSet<T, H>.TReader.Remove(ASet: TSet<T, H>): TSet<T, H>;
+begin
+  Result := TSet<T, H>(Self).Remove(ASet);
+end;
+
+function TSet<T, H>.TReader.IsSupersetOf(ASet: TSet<T, H>): Boolean;
+begin
+  Result := TSet<T, H>(Self).IsSupersetOf(ASet);
+end;
+
+function TSet<T, H>.TReader.IsSubsetOf(ASet: TSet<T, H>): Boolean;
+begin
+  Result := TSet<T, H>(Self).IsSubsetOf(ASet);
+end;
+
+function TSet<T, H>.TReader.Equals(ASet: TSet<T, H>): Boolean;
+begin
+  Result := TSet<T, H>(Self).Equals(ASet);
+end;
+
+{ TMap<K, V, H>.TReader }
+
+function TMap<K, V, H>.TReader.GetActualKeyE(AKey: K): K;
+begin
+  Result := TMap<K, V, H>(Self).ActualKeys[AKey];
+end;
+
+function TMap<K, V, H>.TReader.GetPair(AKey: K): TPair;
+begin
+  Result := TMap<K, V, H>(Self).Pairs[AKey];
+end;
+
+function TMap<K, V, H>.TReader.GetValue(AKey: K): V;
+begin
+  Result := TMap<K, V, H>(Self)[AKey];
+end;
+
+function TMap<K, V, H>.TReader.Get(AKey: K; out AValue: V): Boolean;
+begin
+  Result := TMap<K, V, H>(Self).Get(AKey, AValue);
+end;
+
+function TMap<K, V, H>.TReader.Get(AKey: K; out APair: TPair): Boolean;
+begin
+  Result := TMap<K, V, H>(Self).Get(AKey, APair);
+end;
+
+function TMap<K, V, H>.TReader.GetActualKey(AKey: K; out AActualKey: K): Boolean;
+begin
+  Result := TMap<K, V, H>(Self).GetActualKey(AKey, AActualKey);
+end;
+
+function TMap<K, V, H>.TReader.KeyExists(AKey: K): Boolean;
+begin
+  Result := TMap<K, V, H>(Self).KeyExists(AKey);
+end;
+
+function TMap<K, V, H>.TReader.GetEnumerator: IIterator<TPair>;
+begin
+  Result := TMap<K, V, H>(Self).GetEnumerator;
+end;
+
+function TMap<K, V, H>.TReader.KeySet(AHashMode: THashMode): TSet<K, H>;
+begin
+  Result := TMap<K, V, H>(Self).KeySet(AHashMode);
+end;
+
+function TMap<K, V, H>.TReader.Copy(AHashMode: THashMode): TMap<K, V, H>;
+begin
+  Result := TMap<K, V, H>(Self).Copy(AHashMode);
 end;
 
 end.
