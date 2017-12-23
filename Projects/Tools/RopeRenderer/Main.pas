@@ -88,9 +88,9 @@ begin
   FSkybox.AddStripe(ColorRGB(0.1, 0.2, 0.9), +90);
 
   FCamera := TSmoothControlledCamera.Create(60, Aspect, 0.01, 100, Self);
-  FCamera.Location.OffsetZ := 5;
-  FCamera.Location.TurnAngle := -30;
-  FCamera.Location.PitchAngle := -20;
+  FCamera.Location.OffsetZ := 15;
+  FCamera.Location.TurnAngle := -70;
+  FCamera.Location.PitchAngle := -30;
   FCamera.AddUniforms(FSkyboxGLProgram);
   FCamera.AddUniforms(FModelGLProgram);
 
@@ -118,7 +118,7 @@ begin
   FRopes.Capacity := 10;
   for I := 0 to FRopes.Capacity - 1 do
   begin
-    Rope := FRopes.Add(TRopeProxy.Create(FBaseRope, Vec3(-3, 2, 9.5 - I * 2), Vec3(3, 2, 9.5 - I * 2), (I + 1)));
+    Rope := FRopes.Add(TRopeProxy.Create(FBaseRope, Vec3(-3, 2, 9.5 - I * 2), Vec3(3, 2, 8.5 - I * 2), (10 - I)));
     Rope.Point1 := Rope.Point1 + TVector3.RandomNormal * 1.5;
     Rope.Point2 := Rope.Point2 + TVector3.RandomNormal * 1.5;
     FCamera.AddRenderable(Rope);
