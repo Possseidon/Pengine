@@ -43,14 +43,15 @@ type
     FMaxDeltaTime: Single;
     FTimer: TDeltaTimer;
     FFPSLimit: Single;
-    FClearMask: TGLAttribMask;
+    FClearMask: TGLAttribMaskFlags;
     FGLState: TGLState;
     FDC: HDC;
     FRC: HGLRC;
     FFBO: TFBO;
-    FMultiSampling: Boolean;
-    FSamples: Cardinal;
-    FMaxSamples: Cardinal;
+    FFBOBinding: TGLObjectBinding<TFBO>;
+    FMultiSampled: Boolean;
+    FSamples: Integer;
+    FMaxSamples: Integer;
     FSize: TIntVector2;
     FRenderCallback: TRenderCallback;
 
@@ -63,7 +64,7 @@ type
     function GetSeconds: Single;
 
     procedure SetMultiSampling(Value: Boolean);
-    procedure SetSamples(Value: Cardinal);
+    procedure SetSamples(Value: Integer);
     procedure SetVSync(Value: Boolean);
     procedure SetFPSLimit(Value: Single);
 
@@ -96,7 +97,7 @@ type
 
     property Size: TIntVector2 read FSize write SetSize;
     property VSync: Boolean read FVSync write SetVSync;
-    property ClearMask: TGLAttribMask read FClearMask write FClearMask;
+    property ClearMask: TGLAttribMaskFlags read FClearMask write FClearMask;
     property MaxDeltaTime: Single read FMaxDeltaTime write FMaxDeltaTime;
 
     property DeltaTime: Single read GetDeltaTime;
@@ -113,9 +114,9 @@ type
 
     property GLState: TGLState read FGLState;
 
-    property MultiSampled: Boolean read FMultiSampling write SetMultiSampling;
-    property MaxSamples: Cardinal read FMaxSamples;
-    property Samples: Cardinal read FSamples write SetSamples;
+    property MultiSampled: Boolean read FMultiSampled write SetMultiSampling;
+    property MaxSamples: Integer read FMaxSamples;
+    property Samples: Integer read FSamples write SetSamples;
 
   end;
 
@@ -138,6 +139,7 @@ type
 
     procedure IdleHandler(Sender: TObject; var Done: Boolean);
     function GetGLState: TGLState;
+    function GetDeltaTime: Single;
 
   protected
     procedure Resize; override;
@@ -169,6 +171,8 @@ type
 
     property Context: TGLContext read FContext;
     property GLState: TGLState read GetGLState;
+
+    property DeltaTime: Single read GetDeltaTime;
 
   end;
 
@@ -208,6 +212,11 @@ end;
 function TGLForm.GetCursorVisible: Boolean;
 begin
   Result := Cursor <> -1;
+end;
+
+function TGLForm.GetDeltaTime: Single;
+begin
+  Result := Context.DeltaTime;
 end;
 
 function TGLForm.GetGLState: TGLState;
@@ -256,7 +265,7 @@ end;
 procedure TGLForm.IdleHandler(Sender: TObject; var Done: Boolean);
 begin
   FContext.Update;
-  
+
   if FContext.DeltaTime <= FContext.MaxDeltaTime then
   begin
     try
@@ -285,8 +294,10 @@ begin
       else
         Resume;
     end;
-  end;      
-  
+  end;
+
+  FInput.NotifyChanges;
+
   FContext.WaitForFPSLimit;   
   Done := False;
 end;
@@ -468,12 +479,12 @@ end;
 
 procedure TGLContext.InitGL;
 begin
-  FRC := CreateRenderingContextVersion(FDC, [opDoubleBuffered], 4, 3, True, 32, 32, 0, 0, 0, 0);
+  FRC := CreateRenderingContextVersion(FDC, [opDoubleBuffered], 4, 6, False, 32, 24, 0, 0, 0, 0);
   ActivateRenderingContext(FDC, FRC);
 
   glDebugMessageCallback(DebugCallback, Self);
 
-  FGLState := TGLState.Create(FTimer);
+  FGLState := TGLState.Create(FTimer, FSize);
 end;
 
 procedure TGLContext.FinalizeGL;
@@ -486,13 +497,13 @@ end;
 
 procedure TGLContext.SetMultiSampling(Value: Boolean);
 begin
-  if FMultiSampling = Value then
+  if FMultiSampled = Value then
     Exit;
-  FMultiSampling := Value;
+  FMultiSampled := Value;
 
-  if FMultiSampling then
+  if FMultiSampled then
   begin
-    FFBO := TFBO.Create(FSize.X, FSize.Y);
+    FFBO := TFBO.Create(GLState, FSize);
     FFBO.EnableRenderBufferMS(fbaColor, pfRGBA, Samples);
     FFBO.EnableRenderBufferMS(fbaDepth, pfDepthComponent, Samples);
     if not FFBO.Finish then
@@ -502,10 +513,10 @@ begin
     FFBO.Free;
 end;
 
-procedure TGLContext.SetSamples(Value: Cardinal);
+procedure TGLContext.SetSamples(Value: Integer);
 begin
   if (Value < 1) or (Value > MaxSamples) then
-    raise Exception.Create('Unspported Number of Samples!');
+    raise Exception.Create('Unspported number of samples!');
 
   if (FSamples = Value) and MultiSampled then
     Exit;
@@ -521,7 +532,7 @@ procedure TGLContext.SetSize(const Value: TIntVector2);
 begin
   FSize := Value;
   if MultiSampled then
-    FFBO.Resize(FSize.X, FSize.Y);
+    FFBO.Resize(FSize);
 end;
 
 procedure TGLContext.SetVSync(Value: Boolean);
@@ -585,6 +596,8 @@ begin
 
   InitGL;
 
+  FFBOBinding := GLState.GLObjectBindings.Get<TFBO>;
+
   glGetIntegerv(GL_MAX_SAMPLES, @FMaxSamples);
   FSamples := 1;
 
@@ -593,13 +606,13 @@ begin
 
   MaxDeltaTime := 0.5;
 
-  ClearMask := amColorDepth;
+  ClearMask := [amColor, amDepth];
 
   {$IFDEF DEBUG}
   GLDebug := True;
   GLDebugSynced := True;
-  GLDebugLogLevels := [dmsNotification, dmsLow, dmsMedium, dmsHigh];
-  GLDebugRaiseLevels := [dmsLow, dmsMedium, dmsHigh];
+  GLDebugLogLevels := [dmsLow, dmsMedium, dmsHigh];
+  GLDebugRaiseLevels := [dmsHigh];
   {$ENDIF}
 end;
 
@@ -643,18 +656,17 @@ end;
 
 procedure TGLContext.Render;
 begin
-  if FMultiSampling then
+  if FMultiSampled then
   begin
     FFBO.Bind;
-    glClear(Ord(ClearMask));
+    glClear(ToGLBitfield(ClearMask));
     FRenderCallback;
-    FFBO.CopyToScreen(amColor);
+    FFBO.CopyToScreen([amColor]);
   end
   else
   begin
-    // TFBO.BindScreen;
-    raise Exception.Create('TODO');
-    glClear(Ord(ClearMask));
+    TFBO.BindScreen(GLState.ScreenSize, FFBOBinding);
+    glClear(ToGLBitfield(ClearMask));
     FRenderCallback;
   end;
   SwapBuffers(FDC);

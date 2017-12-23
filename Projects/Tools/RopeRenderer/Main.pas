@@ -9,6 +9,7 @@ uses
   System.Math,
 
   Pengine.GLContext,
+  Pengine.GLState,
   Pengine.Camera,
   Pengine.ControlledCamera,
   Pengine.Skybox,
@@ -17,22 +18,29 @@ uses
   Pengine.Light,
   Pengine.GLEnums,
   Pengine.Collections,
+  Pengine.GLProgram,
+  Pengine.InputHandler,
 
   ModelShader,
   RopeDefine;
 
 type
 
-  TSkyboxShader = class(TSkyboxShaderBase)
+  TSkyboxGLProgram = class(TSkyboxGLProgramBase)
   protected
-    class function GetShaderSource: string; override;
+    class function GetFileName: string; override;
   end;
+
+  TRopes = TObjectArray<TRopeProxy>;
 
   TfrmMain = class(TGLForm)
   private
     FCamera: TSmoothControlledCamera;
+    FSkyboxGLProgram: TGLProgram;
+    FModelGLProgram: TGLProgram;
     FSkybox: TSkybox;
-    FRopes: TRefArray<TRope>;
+    FBaseRope: TRope;
+    FRopes: TRopes;
     FLightSystem: TLightSystem;
     FSun: TDirectionalLightShaded;
 
@@ -51,6 +59,9 @@ var
 
 implementation
 
+uses
+  Winapi.Windows;
+
 {$R *.dfm}
 
 { TfrmMain }
@@ -58,11 +69,19 @@ implementation
 procedure TfrmMain.Init;
 var
   I: Integer;
-  Rope: TRope;
+  Rope: TRopeProxy;
 begin
-  VSync := False;
+  Context.VSync := True;
 
-  FSkybox := TSkybox.Create(Self, TSkyboxShader);
+  Context.Samples := Context.MaxSamples;
+
+  GLState[stBlend] := True;
+  GLState[stBlendFunc] := TGLBlendFunc.Make(bfsOne, bfdOneMinusSrcAlpha);
+
+  FSkyboxGLProgram := TSkyboxGLProgram.Make(GLState.ResourceParam);
+  FModelGLProgram := TModelGLProgram.Make(GLState.ResourceParam);
+
+  FSkybox := TSkybox.Create(FSkyboxGLProgram);
 
   FSkybox.AddStripe(ColorRGB(0.7, 1.0, 0.9), -90);
   FSkybox.AddStripe(ColorRGB(0.4, 0.6, 0.9), 0);
@@ -72,28 +91,36 @@ begin
   FCamera.Location.OffsetZ := 5;
   FCamera.Location.TurnAngle := -30;
   FCamera.Location.PitchAngle := -20;
-  FCamera.AddUniforms(TSkyboxShader.Data);
-  FCamera.AddUniforms(TModelShader.Data);
+  FCamera.AddUniforms(FSkyboxGLProgram);
+  FCamera.AddUniforms(FModelGLProgram);
 
   FCamera.AddRenderable(FSkybox);
 
-  FLightSystem := TLightSystem.Create(Self);
-  FLightSystem.BindToShader(TModelShader.Data);
-  FLightSystem.Ambient := 0.2;
+  FLightSystem := TLightSystem.Create(GLState);
+  FLightSystem.BindToGLProgram(FModelGLProgram);
+  FLightSystem.Ambient := 0.25;
 
   FSun := TDirectionalLightShaded.Create(FLightSystem);
-  FSun.Size := 10;
+  FSun.Size := 20;
   FSun.Direction := -Vec3(0.2, 1, 0.2);
 
-  FRopes := TRefArray<TRope>.Create(True);
+  FBaseRope := TRope.Create(GLState, Vec3(-3, 2, 0), Vec3(3, 2, 0), 3);
+  FBaseRope.Radius := Bounds1(0.3, 0.4);
+  FBaseRope.StepsX := 16;
+  FBaseRope.StepsR := 16;
+  FBaseRope.Smooth := False;
+
+  // FCamera.AddRenderable(FBaseRope);
+  // FSun.AddOccluder(FBaseRope);
+
+  FRopes := TRopes.Create;
 
   FRopes.Capacity := 10;
-  for I := 1 to FRopes.Capacity do
+  for I := 0 to FRopes.Capacity - 1 do
   begin
-    Rope := FRopes.Add(TRope.Create(Vec3(-3, 2, 4.5 - I), Vec3(3, 2, 4.5 - I), (I + 1) / 2));
-    Rope.Radius := Bounds1(0.3, 0.4);
-    Rope.StepsX := 16;
-    Rope.StepsR := 16;
+    Rope := FRopes.Add(TRopeProxy.Create(FBaseRope, Vec3(-3, 2, 9.5 - I * 2), Vec3(3, 2, 9.5 - I * 2), (I + 1)));
+    Rope.Point1 := Rope.Point1 + TVector3.RandomNormal * 1.5;
+    Rope.Point2 := Rope.Point2 + TVector3.RandomNormal * 1.5;
     FCamera.AddRenderable(Rope);
     FSun.AddOccluder(Rope);
   end;
@@ -101,20 +128,26 @@ end;
 
 procedure TfrmMain.Finalize;
 begin
+  TModelGLProgram.Release(GLState.ResourceParam);
+  TSkyboxGLProgram.Release(GLState.ResourceParam);
   FSun.Free;
   FLightSystem.Free;
   FCamera.Free;
   FRopes.Free;
+  FBaseRope.Free;
   FSkybox.Free;
 end;
 
 procedure TfrmMain.UpdateGL;
+var
+  Rope: TRopeProxy;
 begin
-  if MustUpdateFPS then
-    Caption := Format('Rope Renderer - FPS: %d', [FPSInt]);
+  if Context.MustUpdateFPS then
+    Caption := Format('Rope Renderer - FPS: %d', [Context.FPSInt]);
 
   FCamera.Update;
-  if Input.KeyDown(' ') then
+
+  if Input.KeyDown(VK_SPACE) then
     FSun.Direction := FCamera.Location.Look;
 
 end;
@@ -132,7 +165,7 @@ end;
 
 { TSkyboxShader }
 
-class function TSkyboxShader.GetShaderSource: string;
+class function TSkyboxGLProgram.GetFileName: string;
 begin
   Result := 'Data\skybox';
 end;

@@ -62,7 +62,7 @@ type
 
   private type
 
-    TSkyboxVAO = class(TVAO)
+    TSkyboxVAO = class(TVAOMutable<TSkyboxGLProgramBase.TData>)
     protected
       procedure BeforeRender; override;
       procedure AfterRender; override;
@@ -80,7 +80,7 @@ type
     procedure SetVisible(const Value: Boolean);
 
   public
-    constructor Create(AGLState: TGLState; AGLProgramClass: TSkyboxGLProgramClass);
+    constructor Create(ASkyboxGLProgram: TGLProgram);
     destructor Destroy; override;
 
     procedure AddStripe(AColor: TColorRGB; AAngle: Single);
@@ -162,30 +162,31 @@ end;
 
 procedure TSkybox.BuildVAO;
 var
-  Data: TSkyboxGLProgramBase.TData;
+  Data: TSkyboxVAO.TData;
   P: TPlane3;
   T: TTexCoord2;
 begin
-  FVAO.Generate(6 * 6, buStaticDraw);
-  FVAO.Map(baWriteOnly);
-
-  for P in CubePlanes do
+  FVAO.VBO.Generate(6 * 6, buStaticDraw);
+  with FVAO.VBO.Map do
   begin
-    for T in QuadTexCoords do
+    for P in CubePlanes do
     begin
-      Data.Pos := P[T.YX] * 2 - 1;
-      FVAO.AddVertex(Data);
+      for T in QuadTexCoords do
+      begin
+        Data.Pos := P[T.YX] * 2 - 1;
+        AddToBuffer(Data);
+      end;
     end;
-  end;
 
-  FVAO.Unmap;
+    Free;
+  end;
 end;
 
-constructor TSkybox.Create(AGLState: TGLState; AGLProgramClass: TSkyboxGLProgramClass);
+constructor TSkybox.Create(ASkyboxGLProgram: TGLProgram);
 const
   Zero: Integer = 0;
 begin
-  FVAO := TSkyboxVAO.Create(AGLProgramClass.Make(AGLState.ResourceParam));
+  FVAO := TSkyboxVAO.Create(ASkyboxGLProgram);
   FVAO.GLLabel := 'Skybox';
 
   FUBO := TUBO.Create(FVAO.GLState);

@@ -124,8 +124,8 @@ type
 
     TUniform = class abstract
     public type
-      TUniformList = TObjectArray<TGLProgram.TUniform<TMatrix4>>;
-      TRotationUniformList = TObjectArray<TGLProgram.TUniform<TMatrix3>>;
+      TUniformList = TRefArray<TGLProgram.TUniform<TMatrix4>>;
+      TRotationUniformList = TRefArray<TGLProgram.TUniform<TMatrix3>>;
 
     private
       FCalculatesTo: TUniform;
@@ -256,10 +256,10 @@ type
 
     /// <summary>Adds all uniforms with the <see cref="Pengine.Camera|TCamera.DefaultMatrixNames"/>.</summary>
     /// <remarks>Use <see cref="Pengine.Camera|TCamera.AddUniform"/> for more control.</remarks>
-    procedure AddUniforms(AShader: TGLProgram);
+    procedure AddUniforms(AGLProgram: TGLProgram); overload;
     /// <summary>Removes all uniforms with the <see cref="Pengine.Camera|TCamera.DefaultMatrixNames"/>.</summary>
     /// <remarks>Use <see cref="Pengine.Camera|TCamera.DelUniform"/> for more control.</remarks>
-    procedure DelUniforms(AShader: TGLProgram);
+    procedure DelUniforms(AGLProgram: TGLProgram); overload;
 
     /// <summary>Registers a specific matrix-uniform.</summary>
     /// <param name="AType">Which matrix-type to bind the uniform to.</param>
@@ -452,14 +452,14 @@ begin
     FMat[AType].AddUniform(AUniform);
 end;
 
-procedure TCamera.AddUniforms(AShader: TGLProgram);
+procedure TCamera.AddUniforms(AGLProgram: TGLProgram);
 var
   MatrixType: TMatrixType;
 begin
   for MatrixType := Low(TMatrixType) to High(TMatrixType) do
   begin
-    FMat[MatrixType].AddUniform(AShader.Uniform<TMatrix4>(DefaultMatrixNames[MatrixType] + MatrixSuffix));
-    FMat[MatrixType].AddUniform(AShader.Uniform<TMatrix3>(DefaultMatrixNames[MatrixType] + RotMatrixSuffix));
+    FMat[MatrixType].AddUniform(AGLProgram.Uniform<TMatrix4>(DefaultMatrixNames[MatrixType] + MatrixSuffix));
+    FMat[MatrixType].AddUniform(AGLProgram.Uniform<TMatrix3>(DefaultMatrixNames[MatrixType] + RotMatrixSuffix));
   end;
 end;
 
@@ -488,14 +488,14 @@ begin
     FMat[AType].DelUniform(AUniform);
 end;
 
-procedure TCamera.DelUniforms(AShader: TGLProgram);
+procedure TCamera.DelUniforms(AGLProgram: TGLProgram);
 var
   MatrixType: TMatrixType;
 begin
   for MatrixType := Low(TMatrixType) to High(TMatrixType) do
   begin
-    FMat[MatrixType].DelUniform(AShader.Uniform<TMatrix4>(DefaultMatrixNames[MatrixType] + MatrixSuffix));
-    FMat[MatrixType].DelUniform(AShader.Uniform<TMatrix3>(DefaultMatrixNames[MatrixType] + RotMatrixSuffix));
+    FMat[MatrixType].DelUniform(AGLProgram.Uniform<TMatrix4>(DefaultMatrixNames[MatrixType] + MatrixSuffix));
+    FMat[MatrixType].DelUniform(AGLProgram.Uniform<TMatrix3>(DefaultMatrixNames[MatrixType] + RotMatrixSuffix));
   end;
 end;
 

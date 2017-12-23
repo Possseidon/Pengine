@@ -4,13 +4,13 @@ interface
 
 uses
   Pengine.ResourceManager,
-  Pengine.Shader,
+  Pengine.GLProgram,
   Pengine.Vector,
   Pengine.Color;
 
 type
 
-  TModelShader = class(TShaderResource)
+  TModelGLProgram = class(TGLProgramResource)
   public type
 
     TData = record
@@ -20,20 +20,20 @@ type
     end;
 
   protected
-    class function GetShaderSource: string; override;
-    class function GetAttributeOrder: TShader.TAttributeOrder; override;
+    class function GetFileName: string; override;
+    class function GetAttributeOrder: TGLProgram.TAttributeOrder; override;
   end;
 
 implementation
 
 { TModelShader }
 
-class function TModelShader.GetAttributeOrder: TShader.TAttributeOrder;
+class function TModelGLProgram.GetAttributeOrder: TGLProgram.TAttributeOrder;
 begin
   Result := ['vpos', 'vcolor', 'vnormal'];
 end;
 
-class function TModelShader.GetShaderSource: string;
+class function TModelGLProgram.GetFileName: string;
 begin
   Result := 'Data\model';
 end;

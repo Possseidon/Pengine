@@ -225,11 +225,15 @@ type
     procedure GenObject(out AGLName: GLHandle); override;
     procedure DeleteObject(const AGLName: GLHandle); override;
 
+    procedure BindGLObject; override;
+    procedure UnbindGLObject; override;
+
   public
     constructor Create(AGLState: TGLState);
     destructor Destroy; override;
 
     class function GetObjectType: TGLObjectType; override;
+    class function GetBindingClass: TGLObjectBindingClass; override;
 
     procedure LoadFromFile(AFileName: string);
     procedure LoadFromResource(AResourceName: string);
@@ -241,9 +245,6 @@ type
     procedure Link;
 
     procedure SetAttributeOrder(AAttributes: TAttributeOrder);
-
-    procedure Bind; override;
-    procedure Unbind; override;
 
     property Attributes: TAttributes.TReader read GetAttributes;
     property AttributeStride: Integer read FAttributeStride;
@@ -260,6 +261,8 @@ type
     class function GetFileName: string; virtual; abstract;
     class function GetAttributeOrder: TGLProgram.TAttributeOrder; virtual; abstract;
   end;
+
+  TGLProgramResourceClass = class of TGLProgramResource;
 
 implementation
 
@@ -362,7 +365,7 @@ begin
   end;
 end;
 
-procedure TGLProgram.Bind;
+procedure TGLProgram.BindGLObject;
 begin
   glUseProgram(GLName);
 end;
@@ -432,12 +435,17 @@ begin
   Result := FAttributes.Reader;
 end;
 
+class function TGLProgram.GetBindingClass: TGLObjectBindingClass;
+begin
+  Result := TGLObjectBinding<TGLProgram>;
+end;
+
 class function TGLProgram.GetObjectType: TGLObjectType;
 begin
   Result := otProgram;
 end;
 
-procedure TGLProgram.Unbind;
+procedure TGLProgram.UnbindGLObject;
 begin
   glUseProgram(0);
 end;

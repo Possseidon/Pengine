@@ -9,23 +9,14 @@ uses
 
 type
 
-  TGLAttribMask = (
-    amNone = 0,
-    amDepth = GL_DEPTH_BUFFER_BIT,
-    amStencil = GL_STENCIL_BUFFER_BIT,
-    amColor = GL_COLOR_BUFFER_BIT,
-    amDepthStencil = Ord(amDepth) or Ord(amStencil),
-    amColorDepth = Ord(amColor) or Ord(amDepth),
-    amColorStencil = Ord(amColor) or Ord(amStencil),
-    amColorDepthStencil = Ord(amColor) or Ord(amDepth) or Ord(amStencil)
+  TGLAttribMaskFlag = (
+    amDepth,
+    amAccum,
+    amStencil,
+    amColor
     );
 
-  {
-  TGLBoolean = (
-    blFalse = GL_FALSE,
-    blTrue
-    );
-  }
+  TGLAttribMaskFlags = set of TGLAttribMaskFlag;
 
   TGLBeginMode = (
     rmPoints = GL_POINTS,
@@ -405,7 +396,7 @@ type
     dmsThirdParty,
     dmsApplication,
     dmsOther
-  );
+    );
 
   TGLDebugType = (
     dmtError = GL_DEBUG_TYPE_ERROR,
@@ -418,16 +409,41 @@ type
     dmtMarker = GL_DEBUG_TYPE_MARKER,
     dmtPushGroup,
     dmtPopGroup
-  );
+    );
 
   TGLDebugSeverity = (
     dmsNotification,
     dmsLow,
     dmsMedium,
     dmsHigh
-  );
+    );
 
   TGLDebugSeverities = set of TGLDebugSeverity;
+
+  /// <summary>See: <see cref="Pengine.GLEnums|TGLBufferMappingFlags"/></summary>
+  TGLBufferFlag = (
+    bfMapRead,
+    bfMapWrite,
+    bfMapPersistent,
+    bfMapCoherent,
+    bfDynamicStorage,
+    bfClientStorage
+    );
+
+  /// <summary>
+  /// <p><c>bfDynamicStorage</c>: Allows direct subdata writing.</p>
+  /// <p><c>bfMapRead</c>: Allows mapping with read specifier.</p>
+  /// <p><c>bfMapWrite</c>: Allows mapping with write specifier.</p>
+  /// <p><c>bfMapPersistent</c>: Mapping can remain over e.g. drawing calls.</p>
+  /// <p><c>bfMapCoherent</c>: TODO</p>
+  /// <p><c>bfClientStorage</c>: Store data on client instead of server.</p>
+  /// </summary>
+  /// <remarks>
+  /// Constraints:<p/>
+  /// - <c>bfMapPersistent</c> requires either <c>bfMapRead</c> or <c>bfMapWrite</c>.<p/>
+  /// - <c>bfMapCoherent</c> requires <c>bfMapPersistent</c>.
+  /// </remarks>
+  TGLBufferFlags = set of TGLBufferFlag;
 
 const
 
@@ -436,14 +452,17 @@ const
     GL_DEBUG_SEVERITY_LOW,
     GL_DEBUG_SEVERITY_MEDIUM,
     GL_DEBUG_SEVERITY_HIGH
-  );
+    );
 
   GLDebugSeverityName: array [TGLDebugSeverity] of string = (
     'Notification',
     'Low',
     'Medium',
     'High'
-  );
+    );
+
+function ToGLBitfield(const AAttribMask: TGLAttribMaskFlags): TGLbitfield; overload; inline;
+function ToGLBitfield(const ABufferFlags: TGLBufferFlags): TGLbitfield; overload; inline;
 
 function GLDataTypeSize(ADataType: TGLDataType): Integer; inline;
 function GLDataTypeName(ADataType: TGLDataType): string;
@@ -457,6 +476,36 @@ function GLDebugSeverityToEnum(ASeverity: GLenum): TGLDebugSeverity;
 procedure GLErrorMessage;
 
 implementation
+
+function ToGLBitfield(const AAttribMask: TGLAttribMaskFlags): TGLbitfield;
+begin
+  Result := 0;
+  if amDepth in AAttribMask then
+    Result := Result or GL_DEPTH_BUFFER_BIT;
+  if amAccum in AAttribMask then
+    Result := Result or GL_ACCUM_BUFFER_BIT;
+  if amStencil in AAttribMask then
+    Result := Result or GL_STENCIL_BUFFER_BIT;
+  if amColor in AAttribMask then
+    Result := Result or GL_COLOR_BUFFER_BIT;
+end;
+
+function ToGLBitfield(const ABufferFlags: TGLBufferFlags): TGLbitfield;
+begin
+  Result := 0;
+  if bfMapRead in ABufferFlags then
+    Result := Result or GL_MAP_READ_BIT;
+  if bfMapWrite in ABufferFlags then
+    Result := Result or GL_MAP_WRITE_BIT;
+  if bfMapPersistent in ABufferFlags then
+    Result := Result or GL_MAP_PERSISTENT_BIT;
+  if bfMapCoherent in ABufferFlags then
+    Result := Result or GL_MAP_COHERENT_BIT;
+  if bfDynamicStorage in ABufferFlags then
+    Result := Result or GL_DYNAMIC_STORAGE_BIT;
+  if bfClientStorage in ABufferFlags then
+    Result := Result or GL_CLIENT_STORAGE_BIT;
+end;
 
 function GLDataTypeSize(ADataType: TGLDataType): Integer;
 begin
@@ -617,10 +666,10 @@ function GLDataTypeIsSampler(ADataType: TGLDataType): Boolean;
 begin
   case ADataType of
     dtSampler1D .. dtSampler2DRectShadow,
-    dtSampler1DArray .. dtSamplerCubeShadow,
-    dtISampler1D .. dtUSamplerBuffer,
-    dtSampler2DMS .. dtUSampler2DMSArray,
-    dtSamplerCubeMapArray .. dtUSamplerCubeMapArray:
+      dtSampler1DArray .. dtSamplerCubeShadow,
+      dtISampler1D .. dtUSamplerBuffer,
+      dtSampler2DMS .. dtUSampler2DMSArray,
+      dtSamplerCubeMapArray .. dtUSamplerCubeMapArray:
       Result := True;
   else
     Result := False;
@@ -631,18 +680,18 @@ function GLBaseDataType(ADataType: TGLDataType): TGLBaseDataType;
 begin
   case ADataType of
     dtFloat,
-    dtVec2 .. dtVec4,
-    dtMat2 .. dtMat4,
-    dtMat2x3 .. dtMat4x3:
+      dtVec2 .. dtVec4,
+      dtMat2 .. dtMat4,
+      dtMat2x3 .. dtMat4x3:
       Result := bdtFloat;
 
     dtUInt,
-    dtUVec2 .. dtUVec4:
+      dtUVec2 .. dtUVec4:
       Result := bdtUInt;
 
     dtDVec2 .. dtDVec4,
-    dtDMat2 .. dtDMat4,
-    dtDMat2x3 .. dtDMat4x2:
+      dtDMat2 .. dtDMat4,
+      dtDMat2x3 .. dtDMat4x2:
       Result := bdtDouble;
 
   else

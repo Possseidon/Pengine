@@ -69,6 +69,7 @@ type
     // TODO: XmlDoc
     function CountOptimized: Boolean; virtual;
     function Empty: Boolean; inline;
+
   end;
 
 implementation

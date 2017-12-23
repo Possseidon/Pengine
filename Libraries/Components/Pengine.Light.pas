@@ -309,6 +309,8 @@ type
 
     FUBO: TUBO;
 
+    FFBOBinding: TGLObjectBinding<TFBO>;
+
     FShadowLightCount: Cardinal;
 
     procedure SetAmbient(AValue: TColorRGB);
@@ -321,6 +323,8 @@ type
   public
     constructor Create(AGLState: TGLState);
     destructor Destroy; override;
+
+    property GLState: TGLState read FGLState;
 
     property UBO: TUBO read FUBO;
     property DirectionalLightTexArray: TEmptyTexture2DArray read FDirectionalLightTexArray;
@@ -339,6 +343,9 @@ type
   end;
 
 implementation
+
+uses
+  Pengine.IntMaths;
 
 { TDirectionalLightShaded }
 
@@ -421,7 +428,7 @@ begin
   FCamera := TCamera.Create(0, 1, -50, 50);
   inherited Create(ALightSystem);
   Size := 100;
-  FFBO := TFBO.Create(1024, 1024);
+  FFBO := TFBO.Create(ALightSystem.GLState, IVec2(1024, 1024));
   FFBO.EnableTexture2DLayer(fbaDepth, LightSystem.DirectionalLightTexArray, Index);
   if not FFBO.Finish then
     raise Exception.Create('IT DOESNT WORK!');
@@ -458,7 +465,7 @@ end;
 procedure TDirectionalLightShaded.RenderShadows;
 begin
   FFBO.Bind;
-  glClear(Ord(amDepth));
+  glClear(ToGLBitfield([amDepth]));
   if FCameraChanged then
     SendCamera;
   FCamera.Render;
@@ -528,7 +535,7 @@ begin
   inherited Create(ALightSystem);
   for Side := Low(TGLCubeMapSide) to High(TGLCubeMapSide) do
   begin
-    FFBOs[Side] := TFBO.Create(1024, 1024);
+    FFBOs[Side] := TFBO.Create(ALightSystem.GLState, IVec2(1024, 1024));
     FFBOs[Side].EnableTextureCubeMapLayer(fbaDepth, ALightSystem.PointLightTexArray, Index, Side);
     if not FFBOs[Side].Finish then
       raise Exception.Create('IT DOESN''T WORK!');
@@ -662,7 +669,7 @@ begin
   FCamera := TCamera.Create(42, 1, 0.1, 100);
   inherited Create(ALightSystem);
   FCamera.FOV := FullCutoff;
-  FFBO := TFBO.Create(1024, 1024);
+  FFBO := TFBO.Create(ALightSystem.GLState, IVec2(1024, 1024));
   FFBO.EnableTexture2DLayer(fbaDepth, LightSystem.SpotLightTexArray, Index);
   if not FFBO.Finish then
     raise Exception.Create('IT DOESNT WORK!');
@@ -1091,6 +1098,8 @@ begin
   FUBO.GLLabel := 'Light-Data';
   FUBO.Generate(TSpotLight.MajorOffset + 16 + TSpotLight.DataSize * TSpotLight.MaxLights, buStreamDraw);
 
+  FFBOBinding := GLState.GLObjectBindings.Get<TFBO>;
+
   Ambient := 0.1;
 end;
 
@@ -1226,8 +1235,7 @@ begin
   if FShadowLightCount = 0 then
     Exit;
 
-  OldFBO := nil;
-  raise Exception.Create('TODO');
+  OldFBO := FFBOBinding.BoundObject;
 
   FDepthOnlyUniform.Value := True;
 
@@ -1246,7 +1254,7 @@ begin
   FDepthOnlyUniform.Value := False;
 
   if OldFBO = nil then
-    OldFBO.Unbind
+    TFBO.BindScreen(GLState.ScreenSize, FFBOBinding)
   else
     OldFBO.Bind;
 end;

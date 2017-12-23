@@ -1716,7 +1716,7 @@ const
 
   QuadSideCount = High(TQuadIndex) + 1;
 
-  QuadTexCoords: array [TQuadIndex] of TTexCoord2 = (
+  QuadTexCoords: array [TQuadIndex] of TIntVector2 = (
     (X: 0; Y: 0),
     (X: 1; Y: 0),
     (X: 1; Y: 1),
@@ -1725,7 +1725,7 @@ const
     (X: 0; Y: 0)
     );
 
-  QuadMiddleCoords: array [TQuadIndex] of TTexCoord2 = (
+  QuadMiddleCoords: array [TQuadIndex] of TIntVector2 = (
     (X: - 1; Y: - 1),
     (X: + 1; Y: - 1),
     (X: + 1; Y: + 1),
@@ -1734,7 +1734,7 @@ const
     (X: - 1; Y: - 1)
     );
 
-  TriangleTexCoords: array [TTriangleIndex] of TTexCoord2 = (
+  TriangleTexCoords: array [TTriangleIndex] of TIntVector2 = (
     (X: 0; Y: 0),
     (X: 1; Y: 0),
     (X: 0; Y: 1)

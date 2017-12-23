@@ -143,6 +143,8 @@ type
 
     // TODO: XmlDoc
     function Count: Integer; inline;
+    // use this, when making changes over DataPointer, keep capacity in mind
+    procedure ForceCount(ACount: Integer); inline;
     // TODO: XmlDoc
     function CountOptimized: Boolean; inline;
     // TODO: XmlDoc Remarks: returns -1 on empty arrays
@@ -834,8 +836,7 @@ type
 
   public
     constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
-    constructor Create(AOwnsKeys, AOwnsValues: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8);
-      reintroduce; overload;
+    constructor Create(AOwnsKeys, AOwnsValues: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce; overload;
 
     // TODO: XmlDoc
     function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefRefPairArray<K, V>; overload; inline;
@@ -895,6 +896,7 @@ type
 
   end;
 
+  // Linked to a TArray<T> but is an iterable of the interface
   TLinkedInterfaceArray<I: IInterface; T: I> = class(TIterable<I>)
   public type
 
@@ -1133,6 +1135,11 @@ end;
 function TArray.Empty: Boolean;
 begin
   Result := Count = 0;
+end;
+
+procedure TArray.ForceCount(ACount: Integer);
+begin
+  FCount := ACount;
 end;
 
 procedure TArray.DelLast;
@@ -2511,8 +2518,7 @@ end;
 
 { TRefRefPairArrayOwnLinked<K, V> }
 
-constructor TRefRefPairArrayOwnLinked<K, V>.Create(AOwnsKeysLink, AOwnsValuesLink: PBoolean;
-AGrowAmount, AShrinkRetain: Integer);
+constructor TRefRefPairArrayOwnLinked<K, V>.Create(AOwnsKeysLink, AOwnsValuesLink: PBoolean; AGrowAmount, AShrinkRetain: Integer);
 begin
   inherited Create(AGrowAmount, AShrinkRetain);
   FOwnsKeysLink := AOwnsKeysLink;

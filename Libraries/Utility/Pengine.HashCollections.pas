@@ -133,7 +133,7 @@ type
     FBuckets: TBuckets;
 
     procedure SetHashMode(const Value: THashMode);
-
+    
   protected
     FCount: Integer;
 
@@ -148,8 +148,6 @@ type
 
     // TODO: XmlDoc
     function CreateSame(AHashMode: THashMode = hmAuto): THashBase; inline;
-
-    procedure CopyTo(AHashBase: THashBase);
 
     function CreateBucket: TBucket; virtual; abstract;
 
@@ -176,6 +174,8 @@ type
     function BucketCounts: TIntArray;
 
     function Reader: TReader; inline;
+
+    procedure Assign(AHashBase: THashBase); virtual;
 
   end;
 
@@ -383,7 +383,7 @@ type
   end;
 
   // TODO: XmlDoc
-  TRefSet<T: class> = class(TSet<T, TRefHasher<T>>)
+  TRefSet<T: class; H: THasher<T>> = class(TSet<T, H>)
   private
     FOwnsObjects: Boolean;
     FStoredOwnsObjects: Boolean;
@@ -398,14 +398,26 @@ type
     constructor Create(AHashMode: THashMode = hmAuto); overload; override;
     constructor Create(AOwnsObjects: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
 
-    function Copy(AHashMode: THashMode = hmAuto): TRefSet<T>; reintroduce; inline;
+    function Copy(AHashMode: THashMode = hmAuto): TRefSet<T, H>; reintroduce; inline;
 
     property OwnsObjects: Boolean read FOwnsObjects write FOwnsObjects;
 
   end;
 
+  TRefSet<T: class> = class(TRefSet<T, TRefHasher<T>>)
+  public
+    function Copy(AHashMode: THashMode = hmAuto): TRefSet<T>; reintroduce; inline;
+  end;
+
+  TObjectSet<T: class; H: THasher<T>> = class(TRefSet<T, H>)
+  public
+    constructor Create(AHashMode: THashMode = hmAuto); override;
+  end;
+
+  TObjectSet<T: class> = class(TObjectSet<T, TRefHasher<T>>);
+
   // TODO: XmlDoc
-  TRefMap<K: class; V> = class(TMap<K, V, TRefHasher<K>>)
+  TRefMap<K: class; V; H: THasher<K>> = class(TMap<K, V, H>)
   private
     FOwnsKeys: Boolean;
     FStoredOwnsKeys: Boolean;
@@ -420,14 +432,26 @@ type
     constructor Create(AHashMode: THashMode = hmAuto); overload; override;
     constructor Create(AOwnsKeys: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
 
-    function Copy(AHashMode: THashMode = hmAuto): TRefMap<K, V>; reintroduce; inline;
+    function Copy(AHashMode: THashMode = hmAuto): TRefMap<K, V, H>; reintroduce; inline;
 
     property OwnsKeys: Boolean read FOwnsKeys write FOwnsKeys;
 
   end;
 
+  TRefMap<K: class; V> = class(TRefMap<K, V, TRefHasher<K>>)
+  public
+    function Copy(AHashMode: THashMode = hmAuto): TRefMap<K, V>; reintroduce; inline;
+  end;
+
+  TObjectMap<K: class; V; H: THasher<K>> = class(TRefMap<K, V, H>)
+  public
+    constructor Create(AHashMode: THashMode = hmAuto); override;
+  end;
+
+  TObjectMap<K: class; V> = class(TObjectMap<K, V, TRefHasher<K>>);
+
   // TODO: XmlDoc
-  TRefRefMap<K, V: class> = class(TRefMap<K, V>)
+  TRefRefMap<K, V: class; H: THasher<K>> = class(TRefMap<K, V, H>)
   private
     FOwnsValues: Boolean;
     FStoredOwnsValues: Boolean;
@@ -443,14 +467,48 @@ type
     constructor Create(AOwnsObjects: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
     constructor Create(AOwnsKeys, AOwnsValues: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
 
-    function Copy(AHashMode: THashMode = hmAuto): TRefRefMap<K, V>; reintroduce; inline;
+    function Copy(AHashMode: THashMode = hmAuto): TRefRefMap<K, V, H>; reintroduce; inline;
 
     property OwnsValues: Boolean read FOwnsValues write FOwnsValues;
 
   end;
 
+  TRefRefMap<K, V: class> = class(TRefRefMap<K, V, TRefHasher<K>>)
+  public
+    function Copy(AHashMode: THashMode = hmAuto): TRefRefMap<K, V>; reintroduce; inline;
+  end;
+
+  TObjectRefMap<K, V: class; H: THasher<K>> = class(TRefRefMap<K, V, H>)
+  protected
+    function CreateCopy(AHashMode: THashMode): THashBase; override;
+  public
+    constructor Create(AHashMode: THashMode = hmAuto); overload; override;
+    constructor Create(AOwnsValues: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
+  end;
+
+  TObjectRefMap<K, V: class> = class(TObjectRefMap<K, V, TRefHasher<K>>);
+
+  TObjectObjectMap<K, V: class; H: THasher<K>> = class(TRefRefMap<K, V, H>)
+  protected
+    function CreateCopy(AHashMode: THashMode): THashBase; override;
+  public
+    constructor Create(AHashMode: THashMode = hmAuto); override;
+  end;
+
+  TObjectObjectMap<K, V: class> = class(TObjectObjectMap<K, V, TRefHasher<K>>);
+
+  TRefObjectMap<K, V: class; H: THasher<K>> = class(TRefRefMap<K, V, H>)
+  protected
+    function CreateCopy(AHashMode: THashMode): THashBase; override;
+  public
+    constructor Create(AHashMode: THashMode = hmAuto); overload; override;
+    constructor Create(AOwnsKeys: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
+  end;
+
+  TRefObjectMap<K, V: class> = class(TRefObjectMap<K, V, TRefHasher<K>>);
+
   // TODO: XmlDoc
-  TToRefMap<K; V: class; H: THasher<K>> = class abstract(TMap<K, V, H>)
+  TToRefMap<K; V: class; H: THasher<K>> = class(TMap<K, V, H>)
   private
     FOwnsValues: Boolean;
     FStoredOwnsValues: Boolean;
@@ -473,7 +531,7 @@ type
 
   TToObjectMap<K; V: class; H: THasher<K>> = class(TToRefMap<K, V, H>)
   protected
-    function CreateCopy: THashBase; override;
+    function CreateCopy(AHashMode: THashMode): THashBase; override;
   public
     constructor Create(AHashMode: THashMode = hmAuto); override;
   end;
@@ -622,7 +680,7 @@ end;
 function THashBase.CreateCopy(AHashMode: THashMode): THashBase;
 begin
   Result := CreateSame(AHashMode);
-  CopyTo(Result);
+  Result.Assign(Self);
 end;
 
 function THashBase.CreateSame(AHashMode: THashMode): THashBase;
@@ -708,6 +766,17 @@ begin
   Result := CreateCopy(AHashMode);
 end;
 
+procedure THashBase.Assign(AHashBase: THashBase);
+var
+  I: Integer;
+begin
+  Clear;
+  SetBucketsDirect(Buckets);
+  for I := 0 to Buckets - 1 do
+    if FBuckets[I] <> nil then
+      FBuckets[I] := AHashBase.FBuckets[I].Copy;
+end;
+
 function THashBase.BucketCounts: TIntArray;
 var
   I: Integer;
@@ -719,16 +788,6 @@ begin
       Result.Add(0)
     else
       Result.Add(FBuckets[I].Count);
-end;
-
-procedure THashBase.CopyTo(AHashBase: THashBase);
-var
-  I: Integer;
-begin
-  AHashBase.SetBucketsDirect(Buckets);
-  for I := 0 to Buckets - 1 do
-    if FBuckets[I] <> nil then
-      AHashBase.FBuckets[I] := FBuckets[I].Copy;
 end;
 
 { THashBase<K, H> }
@@ -1323,114 +1382,114 @@ begin
   Result := TReader(Self);
 end;
 
-{ TRefSet<T> }
+{ TRefSet<T, H> }
 
-function TRefSet<T>.CreateBucket: THashBase.TBucket;
+function TRefSet<T, H>.CreateBucket: THashBase.TBucket;
 begin
   Result := TRefArrayOwnLinked<T>.Create(@FOwnsObjects, 4, 2);
 end;
 
-procedure TRefSet<T>.UnownObjects;
+procedure TRefSet<T, H>.UnownObjects;
 begin
   FStoredOwnsObjects := OwnsObjects;
   OwnsObjects := False;
 end;
 
-procedure TRefSet<T>.ReownObjects;
+procedure TRefSet<T, H>.ReownObjects;
 begin
   OwnsObjects := FStoredOwnsObjects;
 end;
 
-constructor TRefSet<T>.Create(AHashMode: THashMode);
+constructor TRefSet<T, H>.Create(AHashMode: THashMode);
 begin
   inherited;
 end;
 
-constructor TRefSet<T>.Create(AOwnsObjects: Boolean; AHashMode: THashMode);
+constructor TRefSet<T, H>.Create(AOwnsObjects: Boolean; AHashMode: THashMode);
 begin
   inherited Create(AHashMode);
   OwnsObjects := AOwnsObjects;
 end;
 
-function TRefSet<T>.Copy(AHashMode: THashMode): TRefSet<T>;
+function TRefSet<T, H>.Copy(AHashMode: THashMode): TRefSet<T, H>;
 begin
-  Result := TRefSet<T>(CreateCopy(AHashMode));
+  Result := TRefSet<T, H>(CreateCopy(AHashMode));
 end;
 
-{ TRefMap<K, V> }
+{ TRefMap<K, V, H> }
 
-function TRefMap<K, V>.CreateBucket: THashBase.TBucket;
+function TRefMap<K, V, H>.CreateBucket: THashBase.TBucket;
 begin
   Result := TRefPairArrayOwnLinked<K, V>.Create(@FOwnsKeys, 4, 2);
 end;
 
-procedure TRefMap<K, V>.UnownObjects;
+procedure TRefMap<K, V, H>.UnownObjects;
 begin
   FStoredOwnsKeys := OwnsKeys;
   OwnsKeys := False;
 end;
 
-procedure TRefMap<K, V>.ReownObjects;
+procedure TRefMap<K, V, H>.ReownObjects;
 begin
   OwnsKeys := FStoredOwnsKeys;
 end;
 
-constructor TRefMap<K, V>.Create(AHashMode: THashMode);
+constructor TRefMap<K, V, H>.Create(AHashMode: THashMode);
 begin
   inherited;
 end;
 
-constructor TRefMap<K, V>.Create(AOwnsKeys: Boolean; AHashMode: THashMode);
+constructor TRefMap<K, V, H>.Create(AOwnsKeys: Boolean; AHashMode: THashMode);
 begin
   inherited Create(AHashMode);
   OwnsKeys := AOwnsKeys;
 end;
 
-function TRefMap<K, V>.Copy(AHashMode: THashMode): TRefMap<K, V>;
+function TRefMap<K, V, H>.Copy(AHashMode: THashMode): TRefMap<K, V, H>;
 begin
-  Result := TRefMap<K, V>(CreateCopy(AHashMode));
+  Result := TRefMap<K, V, H>(CreateCopy(AHashMode));
 end;
 
-{ TRefRefMap<K, V> }
+{ TRefRefMap<K, V, H> }
 
-function TRefRefMap<K, V>.CreateBucket: THashBase.TBucket;
+function TRefRefMap<K, V, H>.CreateBucket: THashBase.TBucket;
 begin
   Result := TRefRefPairArrayOwnLinked<K, V>.Create(@FOwnsKeys, @FOwnsValues, 4, 2);
 end;
 
-procedure TRefRefMap<K, V>.UnownObjects;
+procedure TRefRefMap<K, V, H>.UnownObjects;
 begin
   inherited;
   FStoredOwnsValues := OwnsValues;
   OwnsValues := False;
 end;
 
-procedure TRefRefMap<K, V>.ReownObjects;
+procedure TRefRefMap<K, V, H>.ReownObjects;
 begin
   inherited;
   OwnsValues := FStoredOwnsValues;
 end;
 
-constructor TRefRefMap<K, V>.Create(AHashMode: THashMode);
+constructor TRefRefMap<K, V, H>.Create(AHashMode: THashMode);
 begin
   inherited;
 end;
 
-constructor TRefRefMap<K, V>.Create(AOwnsObjects: Boolean; AHashMode: THashMode);
+constructor TRefRefMap<K, V, H>.Create(AOwnsObjects: Boolean; AHashMode: THashMode);
 begin
   inherited Create(AOwnsObjects, AHashMode);
   OwnsValues := AOwnsObjects;
 end;
 
-constructor TRefRefMap<K, V>.Create(AOwnsKeys, AOwnsValues: Boolean; AHashMode: THashMode);
+constructor TRefRefMap<K, V, H>.Create(AOwnsKeys, AOwnsValues: Boolean; AHashMode: THashMode);
 begin
   inherited Create(AOwnsKeys, AHashMode);
   OwnsValues := AOwnsValues;
 end;
 
-function TRefRefMap<K, V>.Copy(AHashMode: THashMode): TRefRefMap<K, V>;
+function TRefRefMap<K, V, H>.Copy(AHashMode: THashMode): TRefRefMap<K, V, H>;
 begin
-  Result := TRefRefMap<K, V>(CreateCopy(AHashMode));
+  Result := TRefRefMap<K, V, H>(CreateCopy(AHashMode));
 end;
 
 { TToRefMap<K, V, H> }
@@ -1472,6 +1531,12 @@ end;
 constructor TToObjectMap<K, V, H>.Create(AHashMode: THashMode);
 begin
   inherited Create(True, AHashMode);
+end;
+
+function TToObjectMap<K, V, H>.CreateCopy(AHashMode: THashMode): THashBase;
+begin
+  Result := TToRefMap<K, V, H>.Create(AHashMode);
+  Result.Assign(Self);
 end;
 
 { TClassMap<T> }
@@ -1622,6 +1687,97 @@ end;
 function TMap<K, V, H>.TReader.Copy(AHashMode: THashMode): TMap<K, V, H>;
 begin
   Result := TMap<K, V, H>(Self).Copy(AHashMode);
+end;
+
+{ TClassRefMap<T> }
+
+function TClassRefMap<T>.Copy(AHashMode: THashMode): TClassRefMap<T>;
+begin
+  Result := TClassRefMap<T>(CreateCopy(AHashMode));
+end;
+
+{ TRefSet<T> }
+
+function TRefSet<T>.Copy(AHashMode: THashMode): TRefSet<T>;
+begin
+  Result := TRefSet<T>(CreateCopy(AHashMode));
+end;
+
+{ TObjectSet<T, H> }
+
+constructor TObjectSet<T, H>.Create(AHashMode: THashMode);
+begin
+  inherited Create(True, AHashMode);
+end;
+
+{ TRefMap<K, V> }
+
+function TRefMap<K, V>.Copy(AHashMode: THashMode): TRefMap<K, V>;
+begin
+  Result := TRefMap<K, V>(CreateCopy(AHashMode));
+end;
+
+{ TObjectMap<K, V, H> }
+
+constructor TObjectMap<K, V, H>.Create(AHashMode: THashMode);
+begin
+  inherited Create(True, AHashMode);
+end;
+
+{ TRefRefMap<K, V> }
+
+function TRefRefMap<K, V>.Copy(AHashMode: THashMode): TRefRefMap<K, V>;
+begin
+  Result := TRefRefMap<K, V>(CreateCopy(AHashMode));
+end;
+
+{ TObjectRefMap<K, V, H> }
+
+constructor TObjectRefMap<K, V, H>.Create(AHashMode: THashMode);
+begin
+  inherited Create(True, False, AHashMode);
+end;
+
+constructor TObjectRefMap<K, V, H>.Create(AOwnsValues: Boolean; AHashMode: THashMode);
+begin
+  inherited Create(True, AOwnsValues, AHashMode);
+end;
+
+function TObjectRefMap<K, V, H>.CreateCopy(AHashMode: THashMode): THashBase;
+begin
+  Result := TRefRefMap<K, V, H>.Create(AHashMode);
+  Result.Assign(Self);
+end;
+
+{ TObjectObjectMap<K, V, H> }
+
+constructor TObjectObjectMap<K, V, H>.Create(AHashMode: THashMode);
+begin
+  inherited Create(True, AHashMode);
+end;
+
+function TObjectObjectMap<K, V, H>.CreateCopy(AHashMode: THashMode): THashBase;
+begin
+  Result := TRefRefMap<K, V>.Create(AHashMode);
+  Result.Assign(Self);
+end;
+
+{ TRefObjectMap<K, V, H> }
+
+constructor TRefObjectMap<K, V, H>.Create(AHashMode: THashMode);
+begin
+  inherited Create(False, True, AHashMode);
+end;
+
+constructor TRefObjectMap<K, V, H>.Create(AOwnsKeys: Boolean; AHashMode: THashMode);
+begin
+  inherited Create(AOwnsKeys, True, AHashMode);
+end;
+
+function TRefObjectMap<K, V, H>.CreateCopy(AHashMode: THashMode): THashBase;
+begin
+  Result := TRefRefMap<K, V, H>.Create(AHashMode);
+  Result.Assign(Self);
 end;
 
 end.

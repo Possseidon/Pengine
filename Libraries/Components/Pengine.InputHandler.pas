@@ -274,7 +274,7 @@ end;
 constructor TInputHandler.Create(AForm: TForm);
 begin
   FForm := AForm;
-  FMouse := TMouseInput.Create(AForm);
+  FMouse := TMouseInput.Create(FForm);
   FKeyboard := TKeyboardInput.Create;
 
   FOldKeyDown := FForm.OnKeyDown;

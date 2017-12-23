@@ -50,6 +50,7 @@ type
       );
 
     function GetData(T: TTextureType): PByte;
+
   public
     constructor Create(AFileName: string; AResource: Boolean = False); overload;
     constructor Create(AWidth, AHeight: Word; ABpp: Byte; AName: string); overload;
@@ -85,44 +86,60 @@ type
     constructor Create;
   end;
 
-  { TTexture }
-
   TTexture = class abstract(TGLObject)
+  public type
+
+    TUnit = type Integer;
+
+    TBinding = class(TGLObjectBinding<TTexture>)
+    private
+      FUsedUnits: TBitField;
+      FLastUnusedUnit: TUnit;
+      FActiveUnit: TUnit;
+
+      procedure SetActiveUnit(const Value: TUnit);
+
+    public
+      constructor Create; override;
+      destructor Destroy; override;
+
+      function Add: TUnit;
+      procedure Del(ATextureUnit: TUnit);
+
+      property ActiveUnit: TUnit read FActiveUnit write SetActiveUnit;
+
+    end;
+
   private
-    FUnitID: Integer; // Unit-ID for GL_TEXTURE0 + I
-
-  class var
-    Initialized: Boolean;
-    UsedUnits: TBitField;
-
-    class constructor Create;
-    class procedure Init;
-    class destructor Destroy;
+    FUnitID: TUnit;
 
   protected
     procedure GenObject(out AGLName: Cardinal); override;
     procedure DeleteObject(const AGLName: Cardinal); override;
 
+    procedure BindGLObject; override;
+    procedure UnbindGLObject; override;
+
+    function Binding: TBinding;
+
   public
     constructor Create(AGLState: TGLState);
     destructor Destroy; override;
 
-    procedure Bind; override;
-    procedure Unbind; override;
+    class function GetObjectType: TGLObjectType; override;
+    class function GetBindingClass: TGLObjectBindingClass; override;
 
-    function IsActive: Boolean;
+    function TargetType: Cardinal; virtual; abstract;
+
+    function Active: Boolean;
 
     procedure Activate;
     procedure Deactivate;
 
     procedure Uniform(AUniform: TGLProgram.TUniformSampler);
-    class function GetObjectType: TGLObjectType; override;
 
-    property UnitID: Integer read FUnitID;
+    property UnitID: TUnit read FUnitID;
 
-    function TargetType: Cardinal; virtual; abstract;
-
-    class function MaxUnits: Integer;
 
   end;
 
@@ -141,11 +158,11 @@ type
   public
     constructor Create(AGLState: TGLState);
 
+    function TargetType: Cardinal; override;
+
     property MagFilter: TGLTextureMagFilter read FMagFilter write SetMagFilter;
     property MinFilter: TGLTextureMinFilter read FMinFilter write SetMinFilter;
     property TextureCompareMode: TGLTextureCompareMode read FTextureCompareMode write SetTextureCompareMode;
-
-    function TargetType: Cardinal; override;
 
   end;
 
@@ -249,6 +266,7 @@ type
   private
     FTexture: TTextureData;
     FReferenced: Boolean;
+
     procedure SetTexture(AValue: TTextureData);
 
   public
@@ -597,35 +615,52 @@ begin
   inherited Destroy;
 end;
 
-{ TTexture }
+{ TTexture.TBinding }
 
-class constructor TTexture.Create;
-begin
-  UsedUnits := TBitField.Create;
-end;
-
-class procedure TTexture.Init;
+constructor TTexture.TBinding.Create;
 var
-  MaxUnits: Integer;
+  Units: Integer;
 begin
-  glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, @MaxUnits);
-  UsedUnits.Size := MaxUnits;
-  Initialized := True;
+  glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, @Units);
+  FUsedUnits := TBitField.Create(Units);
 end;
 
-class destructor TTexture.Destroy;
+destructor TTexture.TBinding.Destroy;
 begin
-  UsedUnits.Free;
+  FUsedUnits.Free;
+  inherited;
 end;
+
+procedure TTexture.TBinding.SetActiveUnit(const Value: TUnit);
+begin
+  if FActiveUnit = Value then
+    Exit;
+  FActiveUnit := Value;
+  glActiveTexture(GL_TEXTURE0 + FActiveUnit);
+end;
+
+function TTexture.TBinding.Add: TUnit;
+begin
+  if FLastUnusedUnit = FUsedUnits.Size then
+    raise ETooManyTextureUnits.Create;
+  Result := FLastUnusedUnit;
+  repeat
+    Inc(FLastUnusedUnit);
+  until not FUsedUnits[FLastUnusedUnit];
+end;
+
+procedure TTexture.TBinding.Del(ATextureUnit: TUnit);
+begin
+  FUsedUnits[ATextureUnit] := False;
+  FLastUnusedUnit := Min(ATextureUnit, FLastUnusedUnit);
+end;
+
+{ TTexture }
 
 constructor TTexture.Create(AGLState: TGLState);
 begin
-  if not Initialized then
-    Init;
-
-  FUnitID := -1;
-
   inherited;
+  FUnitID := -1;
 end;
 
 destructor TTexture.Destroy;
@@ -639,41 +674,43 @@ begin
   glGenTextures(1, @AGLName);
 end;
 
+class function TTexture.GetBindingClass: TGLObjectBindingClass;
+begin
+  Result := TBinding;
+end;
+
 class function TTexture.GetObjectType: TGLObjectType;
 begin
   Result := otTexture;
 end;
 
-procedure TTexture.Bind;
+procedure TTexture.BindGLObject;
 begin
   Activate;
   glBindTexture(TargetType, GLName);
 end;
 
-function TTexture.IsActive: Boolean;
+function TTexture.Binding: TBinding;
+begin
+  Result := TBinding(inherited Binding);
+end;
+
+function TTexture.Active: Boolean;
 begin
   Result := FUnitID <> -1;
 end;
 
 procedure TTexture.Activate;
-var
-  FirstSlot: Integer;
 begin
-  if IsActive then
-    Exit;
-  FirstSlot := UsedUnits.FirstZero;
-  if FirstSlot = -1 then
-    raise ETooManyTextureUnits.Create;
-  FUnitID := FirstSlot;
-  UsedUnits[FUnitID] := True;
-  glActiveTexture(GL_TEXTURE0 + FUnitID);
+  if FUnitID = -1 then
+    FUnitID := Binding.Add;
+  Binding.ActiveUnit := FUnitID;
 end;
 
 procedure TTexture.Deactivate;
 begin
-  if not IsActive then
-    Exit;
-  UsedUnits[FUnitID] := False;
+  Binding.Del(FUnitID);
+  FUnitID := -1;
 end;
 
 procedure TTexture.DeleteObject(const AGLName: Cardinal);
@@ -681,7 +718,7 @@ begin
   glDeleteTextures(1, @AGLName);
 end;
 
-procedure TTexture.Unbind;
+procedure TTexture.UnbindGLObject;
 begin
   glBindTexture(TargetType, 0);
 end;
@@ -689,11 +726,6 @@ end;
 procedure TTexture.Uniform(AUniform: TGLProgram.TUniformSampler);
 begin
   AUniform.Value := FUnitID;
-end;
-
-class function TTexture.MaxUnits: Integer;
-begin
-  Result := UsedUnits.Size;
 end;
 
 { EMissingTextureID }
@@ -707,7 +739,7 @@ end;
 
 constructor ETooManyTextureUnits.Create;
 begin
-  inherited CreateFmt('Too many Texture Units! Maximum: %d', [TTexturePage.MaxUnits]);
+  inherited Create('Too many Texture Units.');
 end;
 
 function TTextureData.GetData(T: TTextureType): PByte;
