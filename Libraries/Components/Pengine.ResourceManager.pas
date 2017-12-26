@@ -287,6 +287,7 @@ end;
 
 class destructor TResourceManager.Destroy;
 begin
+  FResourceClasses.Free;
   FUnloadResourceClasses.Free;
   {$IFDEF DEBUG}
   ShowUnfreedParamResources;
@@ -301,13 +302,16 @@ begin
   FUnloadResourceClasses := TResourceClasses.Create;
   for ResourceClass in FResourceClasses do
     ResourceClass.Load;
-  FResourceClasses.Free;
+  FreeAndNil(FResourceClasses);
 end;
 
 class procedure TResourceManager.Finalize;
 var
   ResourceClass: TResourceClass;
 begin
+  if FUnloadResourceClasses = nil then
+    Exit;
+
   for ResourceClass in FUnloadResourceClasses do
     ResourceClass.Unload;
   FUnfreedParamResources := TResourceParameterEntrySet.Create;
@@ -320,34 +324,39 @@ var
   ResourceEntry: TResourceParameterEntry;
   ErrorString: string;
 begin
-  if FUnfreedParamResources.Count > 0 then
+  // Did the program crash, before Init got called?
+  if FUnfreedParamResources = nil then
+    Exit;
+
+  // Is there anything not freed?
+  if FUnfreedParamResources.Count = 0 then
+    Exit;
+
+  ErrorString := 'Following Resource';
+  if FUnfreedParamResources.Count > 1 then
+    ErrorString := ErrorString + 's';
+  ErrorString := ErrorString + ' did not get released:' + sLineBreak;
+
+  for ResourceEntry in FUnfreedParamResources do
   begin
-    ErrorString := 'Following Resource';
-    if FUnfreedParamResources.Count > 1 then
+    ErrorString := ErrorString + Format(
+      '- %s: %d reference',
+      [ResourceEntry.GetTypeString, ResourceEntry.FRefCount]);
+    if ResourceEntry.FRefCount > 1 then
       ErrorString := ErrorString + 's';
-    ErrorString := ErrorString + ' did not get released:' + sLineBreak;
-
-    for ResourceEntry in FUnfreedParamResources do
-    begin
-      ErrorString := ErrorString + Format(
-        '- %s: %d reference',
-        [ResourceEntry.GetTypeString, ResourceEntry.FRefCount]);
-      if ResourceEntry.FRefCount > 1 then
-        ErrorString := ErrorString + 's';
-      ErrorString := ErrorString + sLineBreak;
-    end;
-
-    {$IFDEF CONSOLE}
-
-    DebugWriteLine(sLineBreak + ErrorString);
-
-    {$ELSE}
-
-    MessageDlg(ErrorString, mtError, [mbOk], 0);
-
-    {$ENDIF}
-
+    ErrorString := ErrorString + sLineBreak;
   end;
+
+  {$IFDEF CONSOLE}
+
+  DebugWriteLine(sLineBreak + ErrorString);
+
+  {$ELSE}
+
+  MessageDlg(ErrorString, mtError, [mbOk], 0);
+
+  {$ENDIF}
+
 end;
 
 {$ENDIF}

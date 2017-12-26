@@ -8,6 +8,8 @@ uses
   System.SysUtils,
   System.Math,
 
+  VCL.Dialogs,
+
   Pengine.GLContext,
   Pengine.GLState,
   Pengine.Camera,
@@ -20,6 +22,7 @@ uses
   Pengine.Collections,
   Pengine.GLProgram,
   Pengine.InputHandler,
+  Pengine.IntMaths,
 
   ModelShader,
   RopeDefine;
@@ -70,10 +73,17 @@ procedure TfrmMain.Init;
 var
   I: Integer;
   Rope: TRopeProxy;
+  Step: TIntVector2;
+  A, B, C, D: TVector3;
+  P: TPlane3;
 begin
   Context.VSync := True;
 
   Context.Samples := Context.MaxSamples;
+
+  Context.GLDebugLogLevels := [dmsNotification];
+
+  GLState[stClearColor] := $7f7f7f;
 
   GLState[stBlend] := True;
   GLState[stBlendFunc] := TGLBlendFunc.Make(bfsOne, bfdOneMinusSrcAlpha);
@@ -104,14 +114,14 @@ begin
   FSun.Size := 20;
   FSun.Direction := -Vec3(0.2, 1, 0.2);
 
-  FBaseRope := TRope.Create(GLState, Vec3(-3, 2, 0), Vec3(3, 2, 0), 3);
+  FBaseRope := TRope.Create(GLState, Vec3(-3, 2, 0), Vec3(3, 2, 0), 2);
   FBaseRope.Radius := Bounds1(0.3, 0.4);
   FBaseRope.StepsX := 16;
   FBaseRope.StepsR := 16;
   FBaseRope.Smooth := False;
 
-  // FCamera.AddRenderable(FBaseRope);
-  // FSun.AddOccluder(FBaseRope);
+  FCamera.AddRenderable(FBaseRope);
+  FSun.AddOccluder(FBaseRope);
 
   FRopes := TRopes.Create;
 
@@ -128,8 +138,10 @@ end;
 
 procedure TfrmMain.Finalize;
 begin
-  TModelGLProgram.Release(GLState.ResourceParam);
-  TSkyboxGLProgram.Release(GLState.ResourceParam);
+  if FSkyboxGLProgram <> nil then
+    TSkyboxGLProgram.Release(GLState.ResourceParam);
+  if FModelGLProgram <> nil then
+    TModelGLProgram.Release(GLState.ResourceParam);
   FSun.Free;
   FLightSystem.Free;
   FCamera.Free;
@@ -139,8 +151,6 @@ begin
 end;
 
 procedure TfrmMain.UpdateGL;
-var
-  Rope: TRopeProxy;
 begin
   if Context.MustUpdateFPS then
     Caption := Format('Rope Renderer - FPS: %d', [Context.FPSInt]);
@@ -149,6 +159,9 @@ begin
 
   if Input.KeyDown(VK_SPACE) then
     FSun.Direction := FCamera.Location.Look;
+
+  if Input.KeyTyped('M') then
+    Context.MultiSampled := not Context.MultiSampled;
 
 end;
 

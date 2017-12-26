@@ -316,31 +316,33 @@ end;
 
 procedure TGLForm.Paint;
 begin
-  FContext.Render;
+  if FContext <> nil then
+    FContext.Render;
 end;
 
 constructor TGLForm.Create(TheOwner: TComponent);
 begin
   inherited;
 
-  FDC := GetDC(Handle);
-  FContext := TGLContext.Create(FDC, IVec2(ClientWidth, ClientHeight), RenderGL);
-  FInput := TInputHandler.Create(Self);
-  
-  Constraints.MinWidth := 200;
-  Constraints.MinHeight := 100;
-
-  SendMessage(Handle, WM_KEYDOWN, VK_MENU, 0);
-  SendMessage(Handle, WM_KEYDOWN, VK_RIGHT, 0);
-
-  SendMessage(Handle, WM_KEYUP, VK_MENU, 0);
-  SendMessage(Handle, WM_KEYUP, VK_RIGHT, 0);
-
-  FFullscreen := False;
-
-  Color := clBlack;
-
   try
+
+    FDC := GetDC(Handle);
+    FContext := TGLContext.Create(FDC, IVec2(ClientWidth, ClientHeight), RenderGL);
+    FInput := TInputHandler.Create(Self);
+
+    Constraints.MinWidth := 200;
+    Constraints.MinHeight := 100;
+
+    SendMessage(Handle, WM_KEYDOWN, VK_MENU, 0);
+    SendMessage(Handle, WM_KEYDOWN, VK_RIGHT, 0);
+
+    SendMessage(Handle, WM_KEYUP, VK_MENU, 0);
+    SendMessage(Handle, WM_KEYUP, VK_RIGHT, 0);
+
+    FFullscreen := False;
+
+    Color := clBlack;
+
     TResourceManager.Init;
     Init;
     Start;
@@ -363,6 +365,9 @@ end;
 
 destructor TGLForm.Destroy;
 begin
+  if FContext = nil then
+    Exit;
+
   try
     Finalize;
     TResourceManager.Finalize;
@@ -479,20 +484,23 @@ end;
 
 procedure TGLContext.InitGL;
 begin
-  FRC := CreateRenderingContextVersion(FDC, [opDoubleBuffered], 4, 6, False, 32, 24, 0, 0, 0, 0);
+  FRC := CreateRenderingContextVersion(FDC, [opDoubleBuffered], 4, 5, True, 32, 32, 0, 0, 0, 0);
   ActivateRenderingContext(FDC, FRC);
 
   glDebugMessageCallback(DebugCallback, Self);
 
-  FGLState := TGLState.Create(FTimer, FSize);
+  FGLState := TGLState.Create(FTimer, @FSize);
 end;
 
 procedure TGLContext.FinalizeGL;
 begin
   FGLState.Free;
 
-  DeactivateRenderingContext;
-  DestroyRenderingContext(FRC);
+  if FRC <> 0 then
+  begin
+    DeactivateRenderingContext;
+    DestroyRenderingContext(FRC);
+  end;
 end;
 
 procedure TGLContext.SetMultiSampling(Value: Boolean);

@@ -11,6 +11,7 @@ uses
 
   Pengine.LuaHeader,
   Pengine.Collections,
+  Pengine.HashCollections,
   Pengine.LuaConf,
   Pengine.TimeManager,
   Pengine.DebugConsole,

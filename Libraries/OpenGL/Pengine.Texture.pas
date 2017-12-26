@@ -25,61 +25,32 @@ uses
 
 type
 
-  TTextureType = (
-    ttMain,
-    ttSpecular,
-    ttNormal
-    );
-  TSubTextureType = ttSpecular .. High(TTextureType);
-  TSubTextureTypes = set of TSubTextureType;
-
-  { TTextureData }
-
+  /// <summary>Stores data for a single Texture. Can be loaded from a file.</summary>
   TTextureData = class
-  private
-    FWidth, FHeight: Word;
-    FBpp: Byte;
-    FData: array [TTextureType] of PByte;
-    FName: string;
-
-  const
+  public const
     FileExtension = '.png';
-    FileTypeMarker: array [TSubTextureType] of string = (
-      'specularmap',
-      'normalmap'
-      );
 
-    function GetData(T: TTextureType): PByte;
+  private
+    FSize: TIntVector2;
+    FBpp: Integer;
+    FData: PByte;
+    FName: string;
 
   public
     constructor Create(AFileName: string; AResource: Boolean = False); overload;
-    constructor Create(AWidth, AHeight: Word; ABpp: Byte; AName: string); overload;
-
+    constructor Create(ASize: TIntVector2; ABpp: Integer; AName: string); overload;
     destructor Destroy; override;
+
     procedure FreeData;
 
-    property Width: Word read FWidth;
-    property Height: Word read FHeight;
-    property Bpp: Byte read FBpp;
-    property Data[T: TTextureType]: PByte read GetData;
+    property Size: TIntVector2 read FSize;
+    property Width: Word read FSize.X;
+    property Height: Word read FSize.Y;
+    property Bpp: Integer read FBpp;
+    property Data: PByte read FData;
     property Name: string read FName;
 
   end;
-
-  { TTextureItem }
-
-  TTextureItem = class(TTextureData)
-  private
-    FTexCoord: TTexCoord2;
-  public
-    constructor Create(ATextureData: TTextureData); overload;
-    // constructor Create(AFileName: String; AResource: Boolean = False); overload;
-    // constructor Create(AWidth, AHeight: Word; ABpp: Byte; AName: String); overload;
-
-    property TexCoord: TTexCoord2 read FTexCoord write FTexCoord;
-  end;
-
-  { ETooManyTextureUnits }
 
   ETooManyTextureUnits = class(Exception)
   public
@@ -143,8 +114,6 @@ type
 
   end;
 
-  { TTexture2D }
-
   TTexture2D = class(TTexture)
   private
     FMagFilter: TGLTextureMagFilter;
@@ -166,35 +135,25 @@ type
 
   end;
 
-  { TTexture2DMS }
-
   TTexture2DMS = class(TTexture)
   public
     function TargetType: Cardinal; override;
   end;
-
-  { TTexture2DArray }
 
   TTexture2DArray = class(TTexture2D)
   public
     function TargetType: Cardinal; override;
   end;
 
-  { TTextureCubeMap }
-
   TTextureCubeMap = class(TTexture2D)
   public
     function TargetType: Cardinal; override;
   end;
 
-  { TTextureCubeMapArray }
-
   TTextureCubeMapArray = class(TTexture2D)
   public
     function TargetType: Cardinal; override;
   end;
-
-  { TEmptyTexture2D }
 
   TEmptyTexture2D = class(TTexture2D)
   private
@@ -205,8 +164,6 @@ type
 
     procedure Resize(AWidth, AHeight: Cardinal);
   end;
-
-  { TEmptyTexture2DMS }
 
   TEmptyTexture2DMS = class(TTexture2DMS)
   private
@@ -224,8 +181,6 @@ type
     procedure SetSamples(ASamples: Cardinal);
   end;
 
-  { TEmptyTexture2DArray }
-
   TEmptyTexture2DArray = class(TTexture2DArray)
   private
     FPixelFormat: TGLPixelFormat;
@@ -242,8 +197,6 @@ type
     procedure SetLayers(ALayers: Cardinal);
 
   end;
-
-  { TEmptyTextureCubeMapArray }
 
   TEmptyTextureCubeMapArray = class(TTextureCubeMapArray)
   private
@@ -870,33 +823,26 @@ begin
   LoadTexture(AFileName, AResource);
 end;
 
-constructor TTextureData.Create(AWidth, AHeight: Word; ABpp: Byte; AName: string);
+constructor TTextureData.Create(ASize: TIntVector2; ABpp: Integer; AName: string);
 begin
-  FWidth := AWidth;
-  FHeight := AHeight;
+  FSize := ASize;
   FBpp := ABpp;
   FName := AName;
-  GetMem(FData[ttMain], AWidth * AHeight * ABpp);
+  GetMem(FData, Width * Height * Bpp);
 end;
 
 destructor TTextureData.Destroy;
-var
-  P: PByte;
 begin
-  for P in FData do
-    if P <> nil then
-      FreeMem(P);
+  FreeData;
+  inherited;
 end;
 
 procedure TTextureData.FreeData;
-var
-  T: TTextureType;
 begin
-  for T := Low(TTextureType) to High(TTextureType) do
-  begin
-    FreeMem(FData[T]);
-    FData[T] := nil;
-  end;
+  if FData = nil then
+    Exit;
+  FreeMem(FData);
+  FData := nil;
 end;
 
 { TTexturePage }

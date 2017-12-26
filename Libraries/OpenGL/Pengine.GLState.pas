@@ -256,173 +256,140 @@ type
 
   end;
 
-TGLSingleState<T;
-E: TEqualler<T>> = class abstract(TGLSingleState<T>)
+  TGLSingleState<T; E: TEqualler<T>> = class abstract(TGLSingleState<T>)
   protected
-procedure SetState(const Value: T);
-override;
-end;
+    procedure SetState(const Value: T); override;
+  end;
 
   // glEnable/glDisable
-TGLFlagState = class(TGLSingleState<Boolean, TBoolEqualler>)
+  TGLFlagState = class(TGLSingleState<Boolean, TBoolEqualler>)
   private
-  FType: TGLSingleState.TType;
-FFlag: TGLenum;
+    FType: TGLSingleState.TType;
+    FFlag: TGLenum;
 
-protected
-  procedure Assign(AState: TGLSingleState);
-  override;
+  protected
+    procedure Assign(AState: TGLSingleState); override;
 
-public
-  constructor Create(AType: TGLSingleState.TType; AFlag: TGLenum; APengineDefault: Boolean;
-    AGLDefault: Boolean = False);
+  public
+    constructor Create(AType: TGLSingleState.TType; AFlag: TGLenum; APengineDefault: Boolean;
+      AGLDefault: Boolean = False);
 
-  procedure SendState;
-  override;
+    procedure SendState; override;
 
-  function GetType: TGLSingleState.TType;
-  override;
+    function GetType: TGLSingleState.TType; override;
 
   end;
 
   TGLClearColorState = class(TGLSingleState<TColorRGBA, TColorRGBAEqualler>)
-    public
-  procedure SendState;
-  override;
-  function GetType: TGLSingleState.TType;
-  override;
+  public
+    procedure SendState; override;
+    function GetType: TGLSingleState.TType; override;
   end;
 
   TGLDepthMaskState = class(TGLSingleState<Boolean, TBoolEqualler>)
-    public
-  procedure SendState;
-  override;
-  function GetType: TGLSingleState.TType;
-  override;
+  public
+    procedure SendState; override;
+    function GetType: TGLSingleState.TType; override;
   end;
 
   TGLEnumState<T> = class(TGLSingleState<T, TEnumEqualler<T>>);
 
   TGLDepthFuncState = class(TGLEnumState<TGLCompareFunction>)
-    public
-  procedure SendState;
-  override;
-  function GetType: TGLSingleState.TType;
-  override;
+  public
+    procedure SendState; override;
+    function GetType: TGLSingleState.TType; override;
   end;
 
   TGLCullFaceState = class(TGLEnumState<TGLCullFace>)
-    public
-  procedure SendState;
-  override;
-  function GetType: TGLSingleState.TType;
-  override;
+  public
+    procedure SendState; override;
+    function GetType: TGLSingleState.TType; override;
   end;
 
   TGLBlendFuncState = class(TGLEnumState<TGLBlendFunc>)
-    public
-  procedure SendState;
-  override;
-  function GetType: TGLSingleState.TType;
-  override;
+  public
+    procedure SendState; override;
+    function GetType: TGLSingleState.TType; override;
   end;
 
   TGLStateRevertSet = class;
 
   // TODO: XmlDoc
   TGLState = class
-    public type
+  public type
     // TODO: XmlDoc
     TAllStates = array [TGLSingleState.TType] of TGLSingleState;
-  TChangeStack = TObjectStack<TGLStateRevertSet>;
+    TChangeStack = TObjectStack<TGLStateRevertSet>;
 
-private
-  FStates: TAllStates;
-  FChangeStack: TChangeStack;
-  FTimer: TDeltaTimer;
-  FGLObjectBindings: TGLObjectBindings;
-  FScreenSize: PIntVector2;
+  private
+    FStates: TAllStates;
+    FChangeStack: TChangeStack;
+    FTimer: TDeltaTimer;
+    FGLObjectBindings: TGLObjectBindings;
+    FScreenSize: PIntVector2;
 
-  procedure InitStates;
+    procedure InitStates;
 
-  function GetState<T>(AState: TGLSingleState.TType): T;
-  overload;
-  procedure SetState<T>(AState: TGLSingleState.TType; const Value: T);
-  overload;
+    function GetState<T>(AState: TGLSingleState.TType): T; overload;
+    procedure SetState<T>(AState: TGLSingleState.TType; const Value: T); overload;
 
-  function GetState(AState: TGLSingleState.TBooleanType): Boolean;
-  overload;
-  procedure SetState(AState: TGLSingleState.TBooleanType; const Value: Boolean);
-  overload;
+    function GetState(AState: TGLSingleState.TBooleanType): Boolean; overload;
+    procedure SetState(AState: TGLSingleState.TBooleanType; const Value: Boolean); overload;
 
-  function GetState(AState: TGLSingleState.TColorRGBAType): TColorRGBA;
-  overload;
-  procedure SetState(AState: TGLSingleState.TColorRGBAType; const Value: TColorRGBA);
-  overload;
+    function GetState(AState: TGLSingleState.TColorRGBAType): TColorRGBA; overload;
+    procedure SetState(AState: TGLSingleState.TColorRGBAType; const Value: TColorRGBA); overload;
 
-  function GetState(AState: TGLSingleState.TCompareFuncType): TGLCompareFunction;
-  overload;
-  procedure SetState(AState: TGLSingleState.TCompareFuncType; const Value: TGLCompareFunction);
-  overload;
+    function GetState(AState: TGLSingleState.TCompareFuncType): TGLCompareFunction; overload;
+    procedure SetState(AState: TGLSingleState.TCompareFuncType; const Value: TGLCompareFunction); overload;
 
-  function GetState(AState: TGLSingleState.TCullFaceType): TGLCullFace;
-  overload;
-  procedure SetState(AState: TGLSingleState.TCullFaceType; const Value: TGLCullFace);
-  overload;
+    function GetState(AState: TGLSingleState.TCullFaceType): TGLCullFace; overload;
+    procedure SetState(AState: TGLSingleState.TCullFaceType; const Value: TGLCullFace); overload;
 
-  function GetState(AState: TGLSingleState.TBlendFuncType): TGLBlendFunc;
-  overload;
-  procedure SetState(AState: TGLSingleState.TBlendFuncType; const Value: TGLBlendFunc);
-  overload;
+    function GetState(AState: TGLSingleState.TBlendFuncType): TGLBlendFunc; overload;
+    procedure SetState(AState: TGLSingleState.TBlendFuncType; const Value: TGLBlendFunc); overload;
 
-  function GetDeltaTime: Single;
-  function GetResourceParam: TGLObjectParam;
-  function GetScreenSize: TIntVector2;
+    function GetDeltaTime: Single;
+    function GetResourceParam: TGLObjectParam;
+    function GetScreenSize: TIntVector2;
 
-public
-  constructor Create(ATimer: TDeltaTimer; const AScreenSize: TIntVector2);
-  destructor Destroy;
-  override;
+  public
+    constructor Create(ATimer: TDeltaTimer; AScreenSize: PIntVector2);
+    destructor Destroy; override;
 
-  procedure Push;
-  procedure Pop;
+    procedure Push;
+    procedure Pop;
 
-  property State[AState: TGLSingleState.TBooleanType]: Boolean read GetState write SetState;
-  default;
-  property State[AState: TGLSingleState.TColorRGBAType]: TColorRGBA read GetState write SetState;
-  default;
-  property State[AState: TGLSingleState.TCompareFuncType]: TGLCompareFunction read GetState write SetState;
-  default;
-  property State[AState: TGLSingleState.TCullFaceType]: TGLCullFace read GetState write SetState;
-  default;
-  property State[AState: TGLSingleState.TBlendFuncType]: TGLBlendFunc read GetState write SetState;
-  default;
+    property State[AState: TGLSingleState.TBooleanType]: Boolean read GetState write SetState; default;
+    property State[AState: TGLSingleState.TColorRGBAType]: TColorRGBA read GetState write SetState; default;
+    property State[AState: TGLSingleState.TCompareFuncType]: TGLCompareFunction read GetState write SetState; default;
+    property State[AState: TGLSingleState.TCullFaceType]: TGLCullFace read GetState write SetState; default;
+    property State[AState: TGLSingleState.TBlendFuncType]: TGLBlendFunc read GetState write SetState; default;
 
-  property DeltaTime: Single read GetDeltaTime;
+    property DeltaTime: Single read GetDeltaTime;
 
-  property GLObjectBindings: TGLObjectBindings read FGLObjectBindings;
+    property GLObjectBindings: TGLObjectBindings read FGLObjectBindings;
 
-  property ResourceParam: TGLObjectParam read GetResourceParam;
+    property ResourceParam: TGLObjectParam read GetResourceParam;
 
-  property ScreenSize: TIntVector2 read GetScreenSize;
+    property ScreenSize: TIntVector2 read GetScreenSize;
 
   end;
 
   TGLStateRevertSet = class
-    public type
+  public type
     TStates = TObjectArray<TGLSingleState>;
 
-private
-  FStates: TGLState.TAllStates;
-  FOldStates: TStates;
-  FChangedStates: TGLSingleState.TTypes;
+  private
+    FStates: TGLState.TAllStates;
+    FOldStates: TStates;
+    FChangedStates: TGLSingleState.TTypes;
 
-public
-  constructor Create(AStates: TGLState.TAllStates);
-  destructor Destroy;
-  override;
+  public
+    constructor Create(AStates: TGLState.TAllStates);
+    destructor Destroy;
+      override;
 
-  procedure Save(AState: TGLSingleState);
+    procedure Save(AState: TGLSingleState);
 
   end;
 
@@ -555,10 +522,10 @@ begin
   SetState<TColorRGBA>(AState, Value);
 end;
 
-constructor TGLState.Create(ATimer: TDeltaTimer; const AScreenSize: TIntVector2);
+constructor TGLState.Create(ATimer: TDeltaTimer; AScreenSize: PIntVector2);
 begin
   FTimer := ATimer;
-  FScreenSize := @AScreenSize;
+  FScreenSize := AScreenSize;
   InitStates;
   FChangeStack := TChangeStack.Create(True);
   FGLObjectBindings := TGLObjectBindings.Create;

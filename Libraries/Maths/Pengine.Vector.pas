@@ -1,5 +1,7 @@
 unit Pengine.Vector;
 
+{$EXCESSPRECISION OFF}
+
 interface
 
 { TODO 3 -oPossseidon -cFunction :
@@ -468,6 +470,10 @@ type
     /// <remarks>Therefore bdLeft and bdRight etc. are mutually exclusive, as each axis can have only one direction.</remarks>
     function Dirs: TBasicDirs3;
 
+    /// <returns>The component, which has the biggest absolute value.</returns>
+    /// <remarks>If there are multiple choices, the function prefers X over Y and Y over Z.</remarks>
+    function LongestAxis: TCoordAxis3;
+
   end;
 
   /// <summary>A four component vector of type <see cref="System|Single"/>.</summary>
@@ -502,7 +508,7 @@ type
   TBounds1 = record
   public const
 
-    CornerCount = 2 shl 1;
+    CornerCount = 2;
 
   public type
 
@@ -511,8 +517,8 @@ type
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
     /// Index  X<p/>
-    /// [0]  (0)<p/>
-    /// [1]  (1)<p/>
+    /// [0]   (0)<p/>
+    /// [1]   (1)<p/>
     /// </code></summary>
     TCorners = array [TCornerIndex] of Single;
 
@@ -638,7 +644,7 @@ type
   TBounds2 = record
   public const
 
-    CornerCount = 2 shl 2;
+    CornerCount = 4;
 
   public type
 
@@ -647,10 +653,10 @@ type
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
     /// Index  X, Y<p/>
-    /// [0]  (0, 0)<p/>
-    /// [1]  (1, 0)<p/>
-    /// [2]  (0, 1)<p/>
-    /// [3]  (1, 1)<p/>
+    /// [0]   (0, 0)<p/>
+    /// [1]   (1, 0)<p/>
+    /// [2]   (0, 1)<p/>
+    /// [3]   (1, 1)<p/>
     /// </code></summary>
     TCorners = array [TCornerIndex] of TVector2;
 
@@ -695,7 +701,7 @@ type
 
     class operator Implicit(A: Single): TBounds2; inline;
     class operator Implicit(A: TVector2): TBounds2; inline;
-    class operator Implicit(A: TIntBounds1): TBounds2; inline;
+    class operator Implicit(A: TIntBounds2): TBounds2; inline;
 
     /// <returns>The difference between C1 and C2.</returns>
     /// <remarks>Will give negative values for non-normalized bounds.</remarks>
@@ -749,6 +755,11 @@ type
     /// <returns>The given value being clamped to the bounds <c>[C1, C2].</c></returns>
     function Clamp(AValue: TVector2): TVector2; overload;
 
+    /// <returns>The given vector in the interval: <c>[C1..C2)</c></returns>
+    function RangedModL(AValue: TVector2): TVector2;
+    /// <returns>The given vector in the interval: <c>(C1..C2]</c></returns>
+    function RangedModR(AValue: TVector2): TVector2;
+
     /// <returns>True, if C1 &lt;= C2</returns>
     function Normalized: Boolean; inline;
     /// <returns>The normalized version of the bounds.</summary>
@@ -793,7 +804,7 @@ type
   TBounds3 = record
   public const
 
-    CornerCount = 2 shl 3;
+    CornerCount = 8;
 
   public type
 
@@ -802,14 +813,14 @@ type
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
     /// Index  X, Y, Z<p/>
-    /// [0]  (0, 0, 0)<p/>
-    /// [1]  (1, 0, 0)<p/>
-    /// [2]  (0, 1, 0)<p/>
-    /// [3]  (1, 1, 0)<p/>
-    /// [4]  (0, 0, 1)<p/>
-    /// [5]  (1, 0, 1)<p/>
-    /// [6]  (0, 1, 1)<p/>
-    /// [7]  (1, 1, 1)
+    /// [0]   (0, 0, 0)<p/>
+    /// [1]   (1, 0, 0)<p/>
+    /// [2]   (0, 1, 0)<p/>
+    /// [3]   (1, 1, 0)<p/>
+    /// [4]   (0, 0, 1)<p/>
+    /// [5]   (1, 0, 1)<p/>
+    /// [6]   (0, 1, 1)<p/>
+    /// [7]   (1, 1, 1)
     /// </code></summary>
     TCorners = array [TCornerIndex] of TVector3;
 
@@ -948,6 +959,11 @@ type
     function Clamp(ARange: TBounds3): TBounds3; overload;
     /// <returns>The given value being clamped to the bounds <c>[C1, C2].</c></returns>
     function Clamp(AValue: TVector3): TVector3; overload;
+
+    /// <returns>The given vector in the interval: <c>[C1..C2)</c></returns>
+    function RangedModL(AValue: TVector3): TVector3;
+    /// <returns>The given vector in the interval: <c>(C1..C2]</c></returns>
+    function RangedModR(AValue: TVector3): TVector3;
 
     /// <returns>True, if C1 &lt;= C2</returns>
     function Normalized: Boolean; inline;
@@ -2577,6 +2593,18 @@ begin
   Result := (A.X <= B.X) and (A.Y <= B.Y) and (A.Z <= B.Z);
 end;
 
+function TVector3.LongestAxis: TCoordAxis3;
+begin
+  if System.Abs(X) >= System.Abs(Y) then
+  begin
+    if System.Abs(X) >= System.Abs(Z) then
+      Exit(caX);
+  end
+  else if System.Abs(Y) >= System.Abs(Z) then
+    Exit(caY);
+  Result := caZ;
+end;
+
 class operator TVector3.GreaterThan(const A, B: TVector3): Boolean;
 begin
   Result := (A.X > B.X) and (A.Y > B.Y) and (A.Z > B.Z);
@@ -3070,7 +3098,7 @@ begin
   Result.C2 := A;
 end;
 
-class operator TBounds2.Implicit(A: TIntBounds1): TBounds2;
+class operator TBounds2.Implicit(A: TIntBounds2): TBounds2;
 begin
   Result.C1 := A.C1;
   Result.C2 := A.C2;
@@ -3139,6 +3167,18 @@ function TBounds2.Outset(AAmount: TVector2): TBounds2;
 begin
   Result.C1 := C1 - AAmount;
   Result.C2 := C2 + AAmount;
+end;
+
+function TBounds2.RangedModL(AValue: TVector2): TVector2;
+begin
+  AValue.X := LineX.RangedModL(AValue.X);
+  AValue.Y := LineY.RangedModL(AValue.Y);
+end;
+
+function TBounds2.RangedModR(AValue: TVector2): TVector2;
+begin
+  AValue.X := LineX.RangedModR(AValue.X);
+  AValue.Y := LineY.RangedModR(AValue.Y);
 end;
 
 class operator TBounds2.Add(const A, B: TBounds2): TBounds2;
@@ -3490,6 +3530,20 @@ begin
   Result.C2 := C2 + AAmount;
 end;
 
+function TBounds3.RangedModL(AValue: TVector3): TVector3;
+begin
+  AValue.X := LineX.RangedModL(AValue.X);
+  AValue.Y := LineY.RangedModL(AValue.Y);
+  AValue.Z := LineZ.RangedModL(AValue.Z);
+end;
+
+function TBounds3.RangedModR(AValue: TVector3): TVector3;
+begin
+  AValue.X := LineX.RangedModR(AValue.X);
+  AValue.Y := LineY.RangedModR(AValue.Y);
+  AValue.Z := LineZ.RangedModR(AValue.Z);
+end;
+
 class operator TBounds3.Add(const A, B: TBounds3): TBounds3;
 begin
   Result.C1 := A.C1 + B.C1;
@@ -3655,7 +3709,7 @@ end;
 
 class operator TLine2.Equal(const A, B: TLine2): Boolean;
 begin
-  Result := (A.S  = B.S) and (A.D = B.D);
+  Result := (A.S = B.S) and (A.D = B.D);
 end;
 
 function TLine2.GetHead: TVector2;
@@ -3822,8 +3876,24 @@ begin
 end;
 
 function TLine3.Height(const A: TVector3): Single;
+
+{$IFDEF CPUX86}
+
+var
+  B: TVector3;
+  C: Single;
 begin
-  Result := Self[OrthoProj(A)].DistanceTo(A);
+  B := A.VectorTo(S);
+  C := D.SqrDot;
+  Result := Sqrt(Abs(B.SqrDot * C - Sqr(B.Dot(D)) / C));
+
+{$ELSE}
+
+begin
+  Result := D.Cross(A.VectorTo(S)).Length / D.Length;
+
+  {$ENDIF}
+
 end;
 
 function TLine3.Mirror(APoint: TVector3): TVector3;

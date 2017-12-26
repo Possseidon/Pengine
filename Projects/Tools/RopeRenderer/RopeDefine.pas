@@ -575,7 +575,7 @@ end;
 
 function TRopeProxy.GetStepPoint(AStep: TIntVector2; AOutside: Boolean): TVector3;
 const
-  Segments = 32;
+  Segments = 64;
 var
   TestPoint, LinePoint, Direction, NormalSide, NormalUp: TVector3;
   Distance, Factor, LowestDistance, LowestFactor, LowestI, Angle: Single;

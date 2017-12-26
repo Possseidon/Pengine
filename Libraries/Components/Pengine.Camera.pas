@@ -46,8 +46,6 @@ type
     /// in the <see cref="Pengine.Camera|TCamera"/>'s view-frustum.</returns>
     /// <remarks>Return nil, to ignore this occlusion-check.<p/>
     /// For simple cube-bounds you can use <see cref="Pengine.Vector|TBounds3.GetCorners"/>.</remarks>
-    /// <remarks>Returning nil, causes the object to be visible at all times.<p/>
-    /// For simple cube-bounds you can use <see cref="Pengine.Vector|TBounds3.GetCorners"/>.</remarks>
     function CullPoints: IIterable<TVector3>;
 
     /// <returns>A radius for a sphere, surrounding the whole object, which is used to check, wether the object is

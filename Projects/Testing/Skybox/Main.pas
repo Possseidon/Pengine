@@ -42,6 +42,17 @@ type
   end;
 
   TModelGLProgram = class(TGLProgramResource)
+  public type
+
+    TData = record
+      Pos: TVector3;
+      TexCoord: TVector2;
+      Border: TBounds2;
+      Normal: TVector3;
+      Tangent: TVector3;
+      Bitangent: TVector3;
+    end;
+
   protected
     class function GetAttributeOrder: TGLProgram.TAttributeOrder; override;
     class function GetFileName: string; override;
@@ -52,8 +63,12 @@ type
     class function CreateData(AParam: TGLObjectParam): TTexturePage; override;
     class procedure ReleaseReferences(AParam: TGLObjectParam); override;
   end;
-  
+
   TCube = class(TRenderable)
+  public type
+
+    TVAO = TVAOMutable<TModelGLProgram.TData>;
+
   private
     FGLProgramResource: TGLProgramResourceClass;
     FTexturePage: TTexturePage;
@@ -125,6 +140,8 @@ var
 begin
   Context.VSync := False;
 
+  Context.Samples := Context.MaxSamples;
+
   RandSeed := 0;
 
   FCamera := TSmoothControlledCamera.Create(60, Aspect, 0.01, 100, Self);
@@ -139,7 +156,7 @@ begin
   FCamera.AddUniforms(FSkyboxGLProgram);
   FCamera.AddUniforms(FModelGLProgram);
 
-  FSkybox := TSkybox.Create(GLState, TSkyboxGLProgram);
+  FSkybox := TSkybox.Create(FSkyboxGLProgram);
 
   FSkybox.AddStripe(ColorRGB(0.7, 1.0, 0.9), -90);
   FSkybox.AddStripe(ColorRGB(0.4, 0.6, 0.9), 0);
@@ -182,8 +199,10 @@ begin
   FCamera.Free;
   FCubes.Free;
   FSkybox.Free;
-  TSkyboxGLProgram.Release(GLState.ResourceParam);
-  TModelGLProgram.Release(GLState.ResourceParam);
+  if FSkyboxGLProgram <> nil then
+    TSkyboxGLProgram.Release(GLState.ResourceParam);
+  if FModelGLProgram <> nil then
+    TModelGLProgram.Release(GLState.ResourceParam);
 end;
 
 procedure TfrmMain.UpdateGL;
@@ -194,19 +213,22 @@ begin
     Caption := Format('FPS: %d', [Context.FPSInt]);
   FCamera.Update;
 
-  if Input.KeyTyped('A') then
+  if Input.KeyDown('A') then
     FCubes[Random(FCubes.Count)].Texture := 'stone_bricks.png';
-  if Input.KeyTyped('S') then
+  if Input.KeyDown('S') then
     FCubes[Random(FCubes.Count)].Texture := 'holed_ironplating.png';
-  if Input.KeyTyped('D') then
+  if Input.KeyDown('D') then
     FCubes[Random(FCubes.Count)].Texture := 'stone.png';
-  if Input.KeyTyped('F') then
+  if Input.KeyDown('F') then
     FCubes[Random(FCubes.Count)].Texture := 'wooden_planks.png';
 
-  for Cube in FCubes do
-    Cube.Location.Rotate(Vec3(DeltaTime * 10, DeltaTime * 90, DeltaTime * 30));
+  //for Cube in FCubes do
+  //  Cube.Location.Rotate(Vec3(DeltaTime * 10, DeltaTime * 90, DeltaTime * 30));
 
   FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0), Context.DeltaTime * 20);
+
+  if Input.KeyTyped('M') then
+    Context.MultiSampled := not Context.MultiSampled;
 
 end;
 
@@ -237,45 +259,38 @@ begin
 end;
 
 procedure TCube.BuildVAO;
-type
-  TData = record   
-    Pos: TVector3;
-    TexCoord: TVector2;
-    Border: TBounds2;
-    Normal: TVector3;
-    Tangent: TVector3;
-    Bitangent: TVector3;
-  end;
-
 var
   P: TPlane3;
   T: TTexCoord2;
-  Data: TData;
+  Data: TVAO.TData;
+  Border: TBounds2;
   Offset: TVector3;
   I: Integer;
 begin
-  FVAO.Generate(6 * 2 * 3, buStaticDraw);
-  FVAO.Map(baWriteOnly);
-
-  Data.Border := FTexturePage.GetBounds(Texture);
-  Offset := 0; //TVector3.RandomNormal * 5;
-  for P in CubePlanes do
+  FVAO.VBO.Generate(6 * 2 * 3, buStaticDraw);
+  with FVAO.VBO.Map do
   begin
-    Data.Normal := P.Normal;
-    Data.Tangent := P.D1;
-    Data.Bitangent := P.D2;
-    for T in QuadTexCoords do
+
+    Border := FTexturePage.GetBounds(Texture);
+    Data.Border := FTexturePage.HalfPixelInset(Border);
+    Offset := 0; // TVector3.RandomNormal * 5;
+
+    for P in CubePlanes do
     begin
-      Data.Pos := P[T] - 0.5 + Offset;
-      Data.Pos := Data.Pos;
-      Data.TexCoord := Data.Border[T];
+      Data.Normal := P.Normal;
+      Data.Tangent := P.D1;
+      Data.Bitangent := P.D2;
+      for T in QuadTexCoords do
+      begin
+        Data.Pos := P[T] - 0.5 + Offset;
+        Data.TexCoord := Border[T];
 
-      FVAO.AddVertex(Data);
+        AddToBuffer(Data);
+      end;
     end;
-  end;
-  Data.Border := FTexturePage.HalfPixelInset(Data.Border);
 
-  FVAO.Unmap;
+    Free;
+  end;
 end;
 
 constructor TCube.Create(AGLState: TGLState; AGLProgramResource: TGLProgramResourceClass);
@@ -292,7 +307,7 @@ begin
   FOcclusionPoints.Capacity := TBounds3.CornerCount;
   for Corner in Bounds3(-0.5, 0.5).GetCorners do
     FOcclusionPoints.Add(Corner);
-  }
+ }
   FChildren := TRefArray<TCube>.Create(True);
   FRenderableChildren := TLinkedInterfaceArray<IRenderable, TCube>.Create(FChildren);
   Texture := 'stone_bricks.png';
