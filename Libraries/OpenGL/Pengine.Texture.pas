@@ -7,6 +7,7 @@ uses
 
   System.SysUtils,
   System.Math,
+  System.Classes,
 
   Vcl.Graphics,
   Vcl.Imaging.pngimage,
@@ -25,30 +26,46 @@ uses
 
 type
 
-  /// <summary>Stores data for a single Texture. Can be loaded from a file.</summary>
+  /// <summary>Stores data for a single 2D-texture.</summary>
   TTextureData = class
-  public const
-    FileExtension = '.png';
-
   private
     FSize: TIntVector2;
     FBpp: Integer;
     FData: PByte;
-    FName: string;
 
+    function GetDataSize: Integer;
+    
   public
-    constructor Create(AFileName: string; AResource: Boolean = False); overload;
-    constructor Create(ASize: TIntVector2; ABpp: Integer; AName: string); overload;
+    /// <summary>Creates an unintialized TTextureData object.</summary>
+    constructor Create; overload;
+    /// <summary>Creates a TTextureData object and reserves memory for the required amount of pixel-data.</summary>
+    constructor Create(ASize: TIntVector2; ABpp: Integer); overload;
     destructor Destroy; override;
 
+    /// <summary>Loads a texture from a stream.</summary>
+    procedure LoadFromStream(AStream: TStream);
+    /// <summary>Loads a texture from a file.</summary>
+    procedure LoadFromFile(AFileName: string);
+    /// <summary>Loads a texture from a resource.</summary>
+    procedure LoadFromResource(AResource: string);
+    /// <summary>Loads a texture from a TPngImage object.</summary>
+    procedure LoadFromPngImage(AImage: TPngImage);
+
+    /// <summary>If present, frees all memory for the pixel-data and sets its pointer to nil.</summary>
     procedure FreeData;
 
+    /// <summary>The width and height of the texture.</summary>
     property Size: TIntVector2 read FSize;
-    property Width: Word read FSize.X;
-    property Height: Word read FSize.Y;
+    /// <summary>The width of the texture.</summary>
+    property Width: Integer read FSize.X;
+    /// <summary>The height of the texture.</summary>
+    property Height: Integer read FSize.Y;
+    /// <summary>The amount of bytes per pixel.</summary>
     property Bpp: Integer read FBpp;
+    /// <summary>A pointer to the pixel-data.</summary>
     property Data: PByte read FData;
-    property Name: string read FName;
+    /// <summary>The size of the data in bytes. Equal to width*height*bpp.</summary>
+    property DataSize: Integer read GetDataSize;
 
   end;
 
@@ -57,6 +74,7 @@ type
     constructor Create;
   end;
 
+  /// <summary>An abstract base class for OpenGL texture objects.</summary>
   TTexture = class abstract(TGLObject)
   public type
 
@@ -85,8 +103,8 @@ type
     FUnitID: TUnit;
 
   protected
-    procedure GenObject(out AGLName: Cardinal); override;
-    procedure DeleteObject(const AGLName: Cardinal); override;
+    procedure GenObject(out AGLName: GLuint); override;
+    procedure DeleteObject(const AGLName: GLuint); override;
 
     procedure BindGLObject; override;
     procedure UnbindGLObject; override;
@@ -110,7 +128,6 @@ type
     procedure Uniform(AUniform: TGLProgram.TUniformSampler);
 
     property UnitID: TUnit read FUnitID;
-
 
   end;
 
@@ -230,20 +247,6 @@ type
     property Texture: TTextureData read FTexture write SetTexture;
   end;
 
-  TTextureID = Cardinal;
-
-  { EMissingTextureID }
-
-  EMissingTextureID = class(Exception)
-    constructor Create(ID: TTextureID);
-  end;
-
-  { EMissingTextureName }
-
-  EMissingTextureName = class(Exception)
-    constructor Create(AName: string);
-  end;
-
   { TTexturePage }
 
   TTexturePage = class(TTexture2D)
@@ -313,6 +316,112 @@ type
   end;
 
 implementation
+
+{ TTextureData }
+
+function TTextureData.GetDataSize: Integer;
+begin
+  Result := Width * Height * Bpp;
+end;
+
+constructor TTextureData.Create;
+begin
+  // nothing
+end;
+
+constructor TTextureData.Create(ASize: TIntVector2; ABpp: Integer);
+begin
+  FSize := ASize;
+  FBpp := ABpp;
+  GetMem(FData, DataSize);
+end;
+
+destructor TTextureData.Destroy;
+begin
+  FreeData;
+  inherited;
+end;
+
+procedure TTextureData.LoadFromStream(AStream: TStream);
+var
+  Image: TPngImage;
+begin
+  Image := TPngImage.Create;
+  try
+    Image.LoadFromStream(AStream);
+    LoadFromPngImage(Image);
+  finally
+    Image.Free;
+  end;
+end;
+
+procedure TTextureData.LoadFromFile(AFileName: string);
+var
+  Stream: TFileStream;
+begin
+  Stream := TFileStream.Create(AFileName, fmOpenRead);
+  try
+    LoadFromStream(Stream);
+  finally
+    Stream.Free;
+  end;
+end;
+
+procedure TTextureData.LoadFromResource(AResource: string);
+var
+  Stream: TResourceStream;
+begin
+  Stream := TResourceStream.Create(HInstance, AResource, RT_RCDATA);
+  try
+    LoadFromStream(Stream);
+  finally
+    Stream.Free;
+  end;
+end;
+
+procedure TTextureData.LoadFromPngImage(AImage: TPngImage);
+var
+  X, Y, Color: Integer;
+  Res: PByte;
+begin
+  FreeData;
+
+  FSize := IVec2(AImage.Width, AImage.Height);
+  FBpp := 4;
+
+  GetMem(FData, DataSize);
+  Res := FData;
+
+  for Y := AImage.Height - 1 downto 0 do
+  begin
+    for X := 0 to Width - 1 do
+    begin
+      Color := ByteSwap(AImage.Pixels[X, Y]) shr 8;
+      Move(Color, Res^, 3);
+      Inc(Res, 3);
+      case AImage.TransparencyMode of
+        ptmNone:
+          Res^ := $FF;
+        ptmBit:
+          if Color = AImage.TransparentColor then
+            Res^ := 0
+          else
+            Res^ := $FF;
+        ptmPartial:
+          Res^ := AImage.AlphaScanline[Y]^[X];
+      end;
+      Inc(Res, 1);
+    end;
+  end;
+end;
+
+procedure TTextureData.FreeData;
+begin
+  if FData = nil then
+    Exit;
+  FreeMem(FData);
+  FData := nil;
+end;
 
 { TEmptyTextureCubeMapArray }
 
@@ -415,6 +524,8 @@ end;
 
 procedure TTexture2D.SetMagFilter(AValue: TGLTextureMagFilter);
 begin
+  if MagFilter = AValue then
+    Exit;
   FMagFilter := AValue;
   Bind;
   glTexParameteri(TargetType, GL_TEXTURE_MAG_FILTER, Ord(AValue));
@@ -422,6 +533,8 @@ end;
 
 procedure TTexture2D.SetMinFilter(AValue: TGLTextureMinFilter);
 begin
+  if MinFilter = AValue then
+    Exit;
   FMinFilter := AValue;
   Bind;
   glTexParameteri(TargetType, GL_TEXTURE_MIN_FILTER, Ord(AValue));
@@ -429,6 +542,8 @@ end;
 
 procedure TTexture2D.SetTextureCompareMode(AValue: TGLTextureCompareMode);
 begin
+  if TextureCompareMode = AValue then
+    Exit;
   FTextureCompareMode := AValue;
   Bind;
   glTexParameteri(TargetType, GL_TEXTURE_COMPARE_MODE, Ord(AValue));
@@ -439,7 +554,7 @@ begin
   Result := GL_TEXTURE_2D;
 end;
 
-constructor TTexture2D.Create;
+constructor TTexture2D.Create(AGLState: TGLState);
 begin
   inherited;
   MinFilter := minNearest;
@@ -502,26 +617,6 @@ end;
 constructor EMissingTextureName.Create(AName: string);
 begin
   inherited Create('Texture with Name "' + AName + '" does not exist!');
-end;
-
-{ TTextureItem }
-
-constructor TTextureItem.Create(ATextureData: TTextureData);
-var
-  T: TTextureType;
-  DataSize: Cardinal;
-begin
-  FWidth := ATextureData.Width;
-  FHeight := ATextureData.Height;
-  FBpp := ATextureData.Bpp;
-  FName := ATextureData.Name;
-  DataSize := ATextureData.Bpp * ATextureData.Width * ATextureData.Height;
-  for T := Low(TTextureType) to High(TTextureType) do
-    if ATextureData.Data[T] <> nil then
-    begin
-      GetMem(FData[T], DataSize);
-      Move(ATextureData.Data[T]^, FData[T]^, DataSize);
-    end;
 end;
 
 { TSingleTexture }
@@ -622,7 +717,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TTexture.GenObject(out AGLName: Cardinal);
+procedure TTexture.GenObject(out AGLName: GLuint);
 begin
   glGenTextures(1, @AGLName);
 end;
@@ -666,7 +761,7 @@ begin
   FUnitID := -1;
 end;
 
-procedure TTexture.DeleteObject(const AGLName: Cardinal);
+procedure TTexture.DeleteObject(const AGLName: GLuint);
 begin
   glDeleteTextures(1, @AGLName);
 end;
@@ -692,157 +787,7 @@ end;
 
 constructor ETooManyTextureUnits.Create;
 begin
-  inherited Create('Too many Texture Units.');
-end;
-
-function TTextureData.GetData(T: TTextureType): PByte;
-begin
-  Result := FData[T];
-end;
-
-constructor TTextureData.Create(AFileName: string; AResource: Boolean);
-const
-  Normal: Cardinal = $007F7FFF;
-
-  function ConvertFileName(AFileName: string; ATextureType: TSubTextureType): string;
-  begin
-    // test.png > test_MARKER.png
-    Result := StringReplace(
-      AFileName,
-      FileExtension,
-      '_' + FileTypeMarker[ATextureType] + FileExtension,
-      [rfIgnoreCase]
-      );
-  end;
-
-  function ConvertResourceName(AName: string; ATextureType: TSubTextureType): string;
-  begin
-    Result := AName + '_' + UpperCase(FileTypeMarker[ATextureType]);
-  end;
-
-  procedure LoadTexture(AName: string; AResource: Boolean = False; ATextureType: TTextureType = ttMain);
-  var
-    Res: PByte;
-    X, Y: Integer;
-    NoSubTexture: Boolean;
-    Size, I: Integer;
-    T: TTextureType;
-    Name: string;
-    Png: TPngImage;
-    Alpha: PByteArray;
-    C: TColor;
-  begin
-    Png := TPngImage.Create;
-
-    if AResource then
-    begin
-      if FindResource(hInstance, PChar(AName), RT_RCDATA) = 0 then
-        raise Exception.Create('Cannot find resource ' + AName);
-      Png.LoadFromResourceName(hInstance, AName);
-    end
-    else
-    begin
-      if not FileExists(AName) then
-        raise Exception.Create('Cannot find file ' + AName);
-      Png.LoadFromFile(AName);
-    end;
-
-    if ATextureType = ttMain then
-    begin
-      FWidth := Png.Width;
-      FHeight := Png.Height;
-      FBpp := 4;
-    end
-    else if (FWidth <> Png.Width) or (FHeight <> Png.Height) then
-      raise Exception.Create('Texture size for sub textures must be equal to main texture!');
-
-    Size := Png.Width * Png.Height * FBpp;
-    GetMem(Res, Size);
-    FData[ATextureType] := Res;
-
-    for Y := Png.Height - 1 downto 0 do
-    begin
-      Alpha := Png.AlphaScanline[Y];
-      for X := 0 to Png.Width - 1 do
-      begin
-        C := ByteSwap(Png.Pixels[X, Y]) shr 8;
-        Move(C, Res^, 3);
-        Inc(Res, 3);
-        case Png.TransparencyMode of
-          ptmNone:
-            Res^ := $FF;
-          ptmBit:
-            if C = Png.TransparentColor then
-              Res^ := 0
-            else
-              Res^ := $FF;
-          ptmPartial:
-            Res^ := Alpha^[X];
-        end;
-        Inc(Res, 1);
-      end;
-    end;
-
-    Png.Free;
-
-    if ATextureType = ttMain then
-      for T := Low(TSubTextureType) to High(TSubTextureType) do
-      begin
-        NoSubTexture := False;
-        if AResource then
-        begin
-          Name := ConvertResourceName(AName, T);
-          if FindResource(hInstance, PChar(Name), RT_RCDATA) = 0 then
-            NoSubTexture := True;
-        end
-        else
-        begin
-          Name := ConvertFileName(AName, T);
-          if not FileExists(Name) then
-            NoSubTexture := True;
-        end;
-
-        if NoSubTexture then
-        begin
-          GetMem(FData[T], Size);
-          case T of
-            ttMain, ttSpecular:
-              FillChar(FData[T]^, Size, 0);
-            ttNormal:
-              for I := 0 to Size div SizeOf(Normal) - 1 do
-                Move(Normal, FData[T][I * SizeOf(Normal)], SizeOf(Normal));
-          end;
-        end
-        else
-          LoadTexture(Name, AResource, T);
-      end;
-  end;
-
-begin
-  FName := ExtractFileName(AFileName);
-  LoadTexture(AFileName, AResource);
-end;
-
-constructor TTextureData.Create(ASize: TIntVector2; ABpp: Integer; AName: string);
-begin
-  FSize := ASize;
-  FBpp := ABpp;
-  FName := AName;
-  GetMem(FData, Width * Height * Bpp);
-end;
-
-destructor TTextureData.Destroy;
-begin
-  FreeData;
-  inherited;
-end;
-
-procedure TTextureData.FreeData;
-begin
-  if FData = nil then
-    Exit;
-  FreeMem(FData);
-  FData := nil;
+  inherited Create('Too many texture units.');
 end;
 
 { TTexturePage }
