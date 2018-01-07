@@ -9,20 +9,19 @@ uses
   System.Math,
   System.Classes,
 
-  Vcl.Graphics,
   Vcl.Imaging.pngimage,
 
   Winapi.Windows,
 
-  Pengine.BitField,
-  Pengine.Collections,
+  Pengine.Bitfield,
   Pengine.Hasher,
   Pengine.HashCollections,
   Pengine.GLEnums,
   Pengine.GLProgram,
   Pengine.Vector,
   Pengine.IntMaths,
-  Pengine.GLState;
+  Pengine.GLState,
+  Pengine.Color;
 
 type
 
@@ -69,7 +68,14 @@ type
 
   end;
 
-  ETooManyTextureUnits = class(Exception)
+  /// <summary>Raised, if too many texture units are active at once.</summary>
+  ETextureTooManyUnits = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  /// <summary>Raised, if an operation requires the texture to be active.</summary>
+  ETextureNotActive = class(Exception)
   public
     constructor Create;
   end;
@@ -82,7 +88,7 @@ type
 
     TBinding = class(TGLObjectBinding<TTexture>)
     private
-      FUsedUnits: TBitField;
+      FUsedUnits: TBitfield;
       FLastUnusedUnit: TUnit;
       FActiveUnit: TUnit;
 
@@ -102,6 +108,69 @@ type
   private
     FUnitID: TUnit;
 
+    // Fields for glTexParam
+    FDepthStencilMode: TGLDepthStencilTextureMode;
+
+    FBorderColor: TColorRGBA;
+
+    FBaseLevel: Integer;
+    FMaxLevel: Integer;
+
+    FCompareFunc: TGLCompareFunction;
+    FCompareMode: TGLTextureCompareMode;
+
+    FMinFilter: TGLTextureMinFilter;
+    FMagFilter: TGLTextureMagFilter;
+
+    FMinLOD: Single;
+    FMaxLOD: Single;
+    FLODBias: Single;
+
+    FSwizzleR: TGLTextureSwizzle;
+    FSwizzleG: TGLTextureSwizzle;
+    FSwizzleB: TGLTextureSwizzle;
+    FSwizzleA: TGLTextureSwizzle;
+
+    FWrapS: TGLTextureWrap;
+    FWrapT: TGLTextureWrap;
+    FWrapR: TGLTextureWrap;
+
+    // Fields for glTexImage        
+    FUpdateCount: Integer;
+    FUpdateChanged: Boolean;
+
+    FPixelFormat: TGLPixelFormat;
+    
+    procedure SetDepthStencilMode(const Value: TGLDepthStencilTextureMode);
+
+    procedure SetBorderColor(const Value: TColorRGBA);
+
+    procedure SetBaseLevel(const Value: Integer);
+    procedure SetMaxLevel(const Value: Integer);
+
+    procedure SetCompareFunc(const Value: TGLCompareFunction);
+    procedure SetCompareMode(const Value: TGLTextureCompareMode);
+
+    procedure SetMinFilter(const Value: TGLTextureMinFilter);
+    procedure SetMagFilter(const Value: TGLTextureMagFilter);
+
+    procedure SetMinLOD(const Value: Single);
+    procedure SetMaxLOD(const Value: Single);
+    procedure SetLODBias(const Value: Single);
+
+    procedure SetSwizzleR(const Value: TGLTextureSwizzle);
+    procedure SetSwizzleG(const Value: TGLTextureSwizzle);
+    procedure SetSwizzleB(const Value: TGLTextureSwizzle);
+    procedure SetSwizzleA(const Value: TGLTextureSwizzle);
+
+    procedure SetWrapS(const Value: TGLTextureWrap);
+    procedure SetWrapT(const Value: TGLTextureWrap);
+    procedure SetWrapR(const Value: TGLTextureWrap);
+
+    procedure SetPixelFormat(const Value: TGLPixelFormat);
+    
+    procedure InitTexParams;
+    
   protected
     procedure GenObject(out AGLName: GLuint); override;
     procedure DeleteObject(const AGLName: GLuint); override;
@@ -111,8 +180,11 @@ type
 
     function Binding: TBinding;
 
+    procedure Changed; inline;
+
+    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA);
+
   public
-    constructor Create(AGLState: TGLState);
     destructor Destroy; override;
 
     class function GetObjectType: TGLObjectType; override;
@@ -120,199 +192,254 @@ type
 
     function TargetType: Cardinal; virtual; abstract;
 
+    /// <returns>Wether the texture is currently assigned to a texture unit.</returns>
     function Active: Boolean;
 
+    /// <summary>Assigns a texutre unit if necessary and sets it as active.</summary>
     procedure Activate;
+    /// <summary>If active, resets the texture unit.</summary>
     procedure Deactivate;
 
+    /// <summary>Sends the texture unit to the uniform sampler.</summary>
     procedure Uniform(AUniform: TGLProgram.TUniformSampler);
 
+    /// <summary>The texture unit id of the texture. -1 if not active.</summary>
     property UnitID: TUnit read FUnitID;
+
+    property DepthStencilMode: TGLDepthStencilTextureMode read FDepthStencilMode write SetDepthStencilMode;
+    property BorderColor: TColorRGBA read FBorderColor write SetBorderColor;
+
+    property BaseLevel: Integer read FBaseLevel write SetBaseLevel;
+    property MaxLevel: Integer read FMaxLevel write SetMaxLevel;
+
+    property CompareFunc: TGLCompareFunction read FCompareFunc write SetCompareFunc;
+    property CompareMode: TGLTextureCompareMode read FCompareMode write SetCompareMode;
+
+    property MinFilter: TGLTextureMinFilter read FMinFilter write SetMinFilter;
+    property MagFilter: TGLTextureMagFilter read FMagFilter write SetMagFilter;
+
+    property MinLOD: Single read FMinLOD write SetMinLOD;
+    property MaxLOD: Single read FMaxLOD write SetMaxLOD;
+    property LODBias: Single read FLODBias write SetLODBias;
+
+    property SwizzleR: TGLTextureSwizzle read FSwizzleR write SetSwizzleR;
+    property SwizzleG: TGLTextureSwizzle read FSwizzleG write SetSwizzleG;
+    property SwizzleB: TGLTextureSwizzle read FSwizzleB write SetSwizzleB;
+    property SwizzleA: TGLTextureSwizzle read FSwizzleA write SetSwizzleA;
+
+    property WrapS: TGLTextureWrap read FWrapS write SetWrapS;
+    property WrapT: TGLTextureWrap read FWrapT write SetWrapT;
+    property WrapR: TGLTextureWrap read FWrapR write SetWrapR;
+
+    procedure BeginUpdate;
+    procedure EndUpdate;
+
+    property PixelFormat: TGLPixelFormat read FPixelFormat write SetPixelFormat;
+
+    procedure Generate; virtual; abstract;
+
+  end;
+
+  TTexture1D = class(TTexture)
+  private
+    FWidth: Integer;
+
+    procedure SetWidth(const Value: Integer);
+
+  public
+    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+    constructor Create(AGLState: TGLState; AWidth: Integer; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+
+    function TargetType: Cardinal; override;
+
+    property Width: Integer read FWidth write SetWidth;
+
+    procedure Generate; override;
 
   end;
 
   TTexture2D = class(TTexture)
   private
-    FMagFilter: TGLTextureMagFilter;
-    FMinFilter: TGLTextureMinFilter;
-    FTextureCompareMode: TGLTextureCompareMode;
+    FSize: TIntVector2;
 
-    procedure SetMagFilter(AValue: TGLTextureMagFilter);
-    procedure SetMinFilter(AValue: TGLTextureMinFilter);
-    procedure SetTextureCompareMode(AValue: TGLTextureCompareMode);
+    procedure SetSize(const Value: TIntVector2);
+    procedure SetWidth(const Value: Integer);
+    procedure SetHeight(const Value: Integer);
+
+  public
+    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+    constructor Create(AGLState: TGLState; ASize: TIntVector2; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+
+    function TargetType: Cardinal; override;
+
+    property Size: TIntVector2 read FSize write SetSize;
+    property Width: Integer read FSize.X write SetWidth;
+    property Height: Integer read FSize.Y write SetHeight;
+
+    procedure Generate; override;
+
+    procedure Data(AData: PByte);
+    procedure SubData(ABounds: TIntBounds2; AData: PByte);
+
+    procedure LoadTexture(ATexture: TTextureData);
+
+  end;
+
+  TTexture3D = class(TTexture)
+  private
+    FSize: TIntVector3;
+
+    procedure SetSize(const Value: TIntVector3);
+    procedure SetWidth(const Value: Integer);
+    procedure SetHeight(const Value: Integer);
+    procedure SetDepth(const Value: Integer);
+
+  public
+    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+    constructor Create(AGLState: TGLState; ASize: TIntVector3; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+
+    function TargetType: Cardinal; override;
+
+    property Size: TIntVector3 read FSize write SetSize;
+    property Width: Integer read FSize.X write SetWidth;
+    property Height: Integer read FSize.Y write SetHeight;
+    property Depth: Integer read FSize.Z write SetDepth;
+
+    procedure Generate; override;
+
+  end;
+
+  TTexture1DArray = class(TTexture)
+  public
+    function TargetType: Cardinal; override;
+  end;
+
+  TTexture2DArray = class(TTexture)
+  private
+    FSize: TIntVector3;
+
+    procedure SetSize(const Value: TIntVector3);
+    procedure SetWidth(const Value: Integer);
+    procedure SetHeight(const Value: Integer);
+    procedure SetLayers(const Value: Integer);
+
+  public
+    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+    constructor Create(AGLState: TGLState; ASize: TIntVector3; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+
+    function TargetType: Cardinal; override;
+
+    property Size: TIntVector3 read FSize write SetSize;
+    property Width: Integer read FSize.X write SetWidth;
+    property Height: Integer read FSize.Y write SetHeight;
+    property Layers: Integer read FSize.Z write SetLayers;
+
+    procedure Generate; override;
+
+  end;
+
+  TTextureRectangle = class(TTexture)
+  public
+    // TODO
+    function TargetType: Cardinal; override;
+  end;
+
+  TTextureCubeMap = class(TTexture)
+  public
+    // TODO
+    function TargetType: Cardinal; override;
+  end;
+
+  TTextureCubeMapArray = class(TTexture)
+  private
+    FSize: Integer;
+    FLayers: Integer;
+
+    procedure SetSize(const Value: Integer);
+    procedure SetLayer(const Value: Integer);
+
+  public
+    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+    constructor Create(AGLState: TGLState; ASize: Integer; ALayers: Integer; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+
+    function TargetType: Cardinal; override;
+
+    property Size: Integer read FSize write SetSize;
+    property Layers: Integer read FLayers write SetLayer;
+
+    procedure Generate; override;
+
+  end;
+
+  TTextureBuffer = class(TTexture)
+  public
+    // TODO
+    function TargetType: Cardinal; override;
+  end;
+
+  TTexture2DMS = class(TTexture2D)
+  private
+    FSamples: Integer;
+    
+    procedure SetSamples(const Value: Integer);
+
+  public
+    constructor Create(AGLState: TGLState; ASize: TIntVector2; ASamples: Integer; APixelFormat: TGLPixelFormat = pfRGBA);
+  
+    function TargetType: Cardinal; override;
+
+    procedure Generate; override;
+
+    property Samples: Integer read FSamples write SetSamples;
+    
+  end;
+
+  TTexture2DMSArray = class(TTexture2DArray)
+  private
+    FSamples: Integer;
+
+    procedure SetSamples(const Value: Integer);
+
+  public
+    constructor Create(AGLState: TGLState; ASize: TIntVector3; ASamples: Integer; APixelFormat: TGLPixelFormat = pfRGBA);
+
+    function TargetType: Cardinal; override;
+
+    procedure Generate; override;
+
+    property Samples: Integer read FSamples write SetSamples;
+
+  end;
+
+  TTextureAtlas = class
+  public type
+
+    TTile = class
+    private
+      FAtlas: TTextureAtlas;
+      FPosition: TIntBounds2;
+
+    public
+      constructor Create(AAtlas: TTextureAtlas; APosition: TIntBounds2);
+
+      property Atlas: TTextureAtlas read FAtlas;
+
+    end;
+
+    TTiles = TToObjectMap<string, TTile, TStringHasher>;
+
+  private
+    FTexture: TTexture2D;
+    FTiles: TTiles;
+
+    function GetGLState: TGLState;
 
   public
     constructor Create(AGLState: TGLState);
-
-    function TargetType: Cardinal; override;
-
-    property MagFilter: TGLTextureMagFilter read FMagFilter write SetMagFilter;
-    property MinFilter: TGLTextureMinFilter read FMinFilter write SetMinFilter;
-    property TextureCompareMode: TGLTextureCompareMode read FTextureCompareMode write SetTextureCompareMode;
-
-  end;
-
-  TTexture2DMS = class(TTexture)
-  public
-    function TargetType: Cardinal; override;
-  end;
-
-  TTexture2DArray = class(TTexture2D)
-  public
-    function TargetType: Cardinal; override;
-  end;
-
-  TTextureCubeMap = class(TTexture2D)
-  public
-    function TargetType: Cardinal; override;
-  end;
-
-  TTextureCubeMapArray = class(TTexture2D)
-  public
-    function TargetType: Cardinal; override;
-  end;
-
-  TEmptyTexture2D = class(TTexture2D)
-  private
-    FPixelFormat: TGLPixelFormat;
-
-  public
-    constructor Create(AGLState: TGLState; AWidth, AHeight: Cardinal; APixelFormat: TGLPixelFormat);
-
-    procedure Resize(AWidth, AHeight: Cardinal);
-  end;
-
-  TEmptyTexture2DMS = class(TTexture2DMS)
-  private
-    FPixelFormat: TGLPixelFormat;
-    FWidth: Cardinal;
-    FHeight: Cardinal;
-    FSamples: Cardinal;
-
-    procedure Change;
-
-  public
-    constructor Create(AGLState: TGLState; AWidth, AHeight: Cardinal; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
-
-    procedure Resize(AWidth, AHeight: Cardinal);
-    procedure SetSamples(ASamples: Cardinal);
-  end;
-
-  TEmptyTexture2DArray = class(TTexture2DArray)
-  private
-    FPixelFormat: TGLPixelFormat;
-    FWidth: Cardinal;
-    FHeight: Cardinal;
-    FLayers: Cardinal;
-
-    procedure Change;
-
-  public
-    constructor Create(AGLState: TGLState; AWidth, AHeight, ALayers: Cardinal; APixelFormat: TGLPixelFormat);
-
-    procedure Resize(AWidth, AHeight: Cardinal);
-    procedure SetLayers(ALayers: Cardinal);
-
-  end;
-
-  TEmptyTextureCubeMapArray = class(TTextureCubeMapArray)
-  private
-    FPixelFormat: TGLPixelFormat;
-    FSize: Cardinal;
-    FLayers: Cardinal;
-
-    procedure Change;
-
-  public
-    constructor Create(AGLState: TGLState; ASize, ALayers: Cardinal; APixelFormat: TGLPixelFormat);
-
-    procedure Resize(ASize: Cardinal);
-    procedure SetLayers(ALayers: Cardinal);
-  end;
-
-  { TSingleTexture }
-
-  TSingleTexture = class(TTexture2D)
-  private
-    FTexture: TTextureData;
-    FReferenced: Boolean;
-
-    procedure SetTexture(AValue: TTextureData);
-
-  public
-    constructor Create(AGLState: TGLState); overload;
-    constructor Create(AGLState: TGLState; AFileName: string); overload;
     destructor Destroy; override;
 
-    property Texture: TTextureData read FTexture write SetTexture;
-  end;
+    property GLState: TGLState read GetGLState;
 
-  { TTexturePage }
-
-  TTexturePage = class(TTexture2D)
-  private type
-    TTextures = TRefArray<TTextureItem>;
-    TTextureIDs = TMap<string, TTextureID, TStringHasher>;
-
-  private
-    FTextures: TTextures;
-    FTextureIDs: TTextureIDs;
-    FPxlSize: Integer;
-
-    FSubTextures: array [TSubTextureType] of TTexture2D;
-    FSizeChanged: Boolean;
-
-    function GetSubTexture(ASubTextureType: TSubTextureType): TTexture2D;
-    function GetTexture(ID: TTextureID): TTextureItem;
-    function GetTextureID(AName: string): TTextureID;
-    function GetTextureName(ID: TTextureID): string;
-
-  public
-    constructor Create(AGLState: TGLState);
-    destructor Destroy; override;
-
-    procedure EnableSubType(ASubType: TSubTextureType);
-
-    procedure AddTexture(const ATexture: TTextureItem; const AName: string); overload;
-    procedure AddTexture(const ATexture: TTextureItem); overload; inline;
-
-    procedure AddTextureFromFile(const AFileName: string); overload; inline;
-    procedure AddTextureFromFile(const AFileName, AName: string); overload; inline;
-
-    procedure AddTextureFromResource(const AResourceName: string); overload; inline;
-    procedure AddTextureFromResource(const AResourceName, AName: string); overload; inline;
-
-    procedure DelTexture(const AName: string);
-    procedure Clear;
-
-    procedure BuildPage(ASegmentResolution: Integer; AFreeTextures: Boolean = True);
-
-    function GetTexCoord(const AName: string; const ATexCoord: TVector2): TVector2; overload;
-    function GetTexCoord(const AName: string; S, T: Single): TVector2; overload; inline;
-    function GetTexBounds(const AName: string; ABounds: TBounds2): TBounds2; overload; inline;
-
-    function GetTexCoord(ID: TTextureID; const ATexCoord: TVector2): TVector2; overload;
-    function GetTexCoord(ID: TTextureID; S, T: Single): TVector2; overload; inline;
-    function GetTexBounds(ID: TTextureID; ABounds: TBounds2): TBounds2; overload; inline;
-
-    function HalfPixelInset(ABounds: TBounds2): TBounds2;
-
-    function GetBounds(ID: TTextureID): TBounds2; overload;
-    function GetBounds(AName: string): TBounds2; overload; inline;
-
-    property Textures[ID: TTextureID]: TTextureItem read GetTexture;
-
-    property TextureIDs[AName: string]: TTextureID read GetTextureID;
-    property TextureNames[ID: TTextureID]: string read GetTextureName;
-    property SubTexture[ASubTextureType: TSubTextureType]: TTexture2D read GetSubTexture;
-
-    function TextureExists(const AName: string): Boolean;
-
-    property SizeChanged: Boolean read FSizeChanged;
-    procedure NotifySizeChange;
-
-    procedure Uniform(AUniform: TGLProgram.TUniformSampler; ATextureType: TTextureType);
-    procedure UniformDefaults(AShader: TGLProgram);
   end;
 
 implementation
@@ -423,261 +550,21 @@ begin
   FData := nil;
 end;
 
-{ TEmptyTextureCubeMapArray }
+{ ETextureTooManyUnits }
 
-procedure TEmptyTextureCubeMapArray.Change;
+constructor ETextureTooManyUnits.Create;
 begin
-  Bind;
-  glTexImage3D(TargetType, 0, Ord(FPixelFormat), FSize, FSize, FLayers * 6, 0, Ord(FPixelFormat),
-    GL_UNSIGNED_BYTE, nil);
+  inherited Create('There are too many texture units active at once.');
 end;
 
-constructor TEmptyTextureCubeMapArray.Create(AGLState: TGLState; ASize, ALayers: Cardinal; APixelFormat: TGLPixelFormat);
+{ ETextureNotActive }
+
+constructor ETextureNotActive.Create;
 begin
-  inherited Create(AGLState);
-  FPixelFormat := APixelFormat;
-  FSize := ASize;
-  FLayers := ALayers;
-  Change;
-end;
-
-procedure TEmptyTextureCubeMapArray.Resize(ASize: Cardinal);
-begin
-  if FSize = ASize then
-    Exit;
-  FSize := ASize;
-  Change;
-end;
-
-procedure TEmptyTextureCubeMapArray.SetLayers(ALayers: Cardinal);
-begin
-  if FLayers = ALayers then
-    Exit;
-  FLayers := ALayers;
-  Change;
-end;
-
-{ TTextureCubeMap }
-
-function TTextureCubeMap.TargetType: Cardinal;
-begin
-  Result := GL_TEXTURE_CUBE_MAP;
-end;
-
-{ TTextureCubeMapArray }
-
-function TTextureCubeMapArray.TargetType: Cardinal;
-begin
-  Result := GL_TEXTURE_CUBE_MAP_ARRAY;
-end;
-
-{ TTexture2DArray }
-
-function TTexture2DArray.TargetType: Cardinal;
-begin
-  Result := GL_TEXTURE_2D_ARRAY;
-end;
-
-{ TEmptyTexture2DArray }
-
-procedure TEmptyTexture2DArray.Change;
-begin
-  Bind;
-  glTexImage3D(TargetType, 0, Ord(FPixelFormat), FWidth, FHeight, FLayers, 0, Ord(FPixelFormat), GL_UNSIGNED_BYTE, nil);
-end;
-
-constructor TEmptyTexture2DArray.Create(AGLState: TGLState; AWidth, AHeight, ALayers: Cardinal; APixelFormat: TGLPixelFormat);
-begin
-  inherited Create(AGLState);
-  FWidth := AWidth;
-  FHeight := AHeight;
-  FLayers := ALayers;
-  FPixelFormat := APixelFormat;
-  Change;
-end;
-
-procedure TEmptyTexture2DArray.Resize(AWidth, AHeight: Cardinal);
-begin
-  if (FWidth = AWidth) and (FHeight = AHeight) then
-    Exit;
-  FWidth := AWidth;
-  FHeight := AHeight;
-  Change;
-end;
-
-procedure TEmptyTexture2DArray.SetLayers(ALayers: Cardinal);
-begin
-  if FLayers = ALayers then
-    Exit;
-  FLayers := ALayers;
-  Change;
-end;
-
-{ TTexture2DMS }
-
-function TTexture2DMS.TargetType: Cardinal;
-begin
-  Result := GL_TEXTURE_2D_MULTISAMPLE;
-end;
-
-{ TTexture2D }
-
-procedure TTexture2D.SetMagFilter(AValue: TGLTextureMagFilter);
-begin
-  if MagFilter = AValue then
-    Exit;
-  FMagFilter := AValue;
-  Bind;
-  glTexParameteri(TargetType, GL_TEXTURE_MAG_FILTER, Ord(AValue));
-end;
-
-procedure TTexture2D.SetMinFilter(AValue: TGLTextureMinFilter);
-begin
-  if MinFilter = AValue then
-    Exit;
-  FMinFilter := AValue;
-  Bind;
-  glTexParameteri(TargetType, GL_TEXTURE_MIN_FILTER, Ord(AValue));
-end;
-
-procedure TTexture2D.SetTextureCompareMode(AValue: TGLTextureCompareMode);
-begin
-  if TextureCompareMode = AValue then
-    Exit;
-  FTextureCompareMode := AValue;
-  Bind;
-  glTexParameteri(TargetType, GL_TEXTURE_COMPARE_MODE, Ord(AValue));
-end;
-
-function TTexture2D.TargetType: Cardinal;
-begin
-  Result := GL_TEXTURE_2D;
-end;
-
-constructor TTexture2D.Create(AGLState: TGLState);
-begin
-  inherited;
-  MinFilter := minNearest;
-  MagFilter := magNearest;
-  TextureCompareMode := tcmNone;
-end;
-
-{ TEmptyTexture2DMS }
-
-procedure TEmptyTexture2DMS.Resize(AWidth, AHeight: Cardinal);
-begin
-  if (FWidth = AWidth) and (FHeight = AHeight) then
-    Exit;
-  FWidth := AWidth;
-  FHeight := AHeight;
-  Change;
-end;
-
-procedure TEmptyTexture2DMS.SetSamples(ASamples: Cardinal);
-begin
-  if FSamples = ASamples then
-    Exit;
-  FSamples := ASamples;
-  Change;
-end;
-
-procedure TEmptyTexture2DMS.Change;
-begin
-  Bind;
-  glTexImage2DMultisample(TargetType, FSamples, Ord(FPixelFormat), FWidth, FHeight, False);
-end;
-
-constructor TEmptyTexture2DMS.Create(AGLState: TGLState; AWidth, AHeight: Cardinal; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
-begin
-  inherited Create(AGLState);
-  FPixelFormat := APixelFormat;
-  FSamples := ASamples;
-  FWidth := AWidth;
-  FHeight := AHeight;
-  Change;
-end;
-
-{ TEmptyTexture2D }
-
-constructor TEmptyTexture2D.Create(AGLState: TGLState; AWidth, AHeight: Cardinal; APixelFormat: TGLPixelFormat);
-begin
-  inherited Create(AGLState);
-  FPixelFormat := APixelFormat;
-  Resize(AWidth, AHeight);
-end;
-
-procedure TEmptyTexture2D.Resize(AWidth, AHeight: Cardinal);
-begin
-  Bind;
-  glTexImage2D(TargetType, 0, Ord(FPixelFormat), AWidth, AHeight, 0, Ord(FPixelFormat), GL_UNSIGNED_BYTE, nil);
-end;
-
-{ EMissingTextureName }
-
-constructor EMissingTextureName.Create(AName: string);
-begin
-  inherited Create('Texture with Name "' + AName + '" does not exist!');
-end;
-
-{ TSingleTexture }
-
-procedure TSingleTexture.SetTexture(AValue: TTextureData);
-begin
-  if Pointer(FTexture) = Pointer(AValue) then
-    Exit;
-  if (FTexture <> nil) and (not FReferenced) then
-    FTexture.Free;
-  FTexture := AValue;
-  Bind;
-  glTexImage2D(
-    TargetType,
-    0,
-    GL_RGBA,
-    FTexture.Width,
-    FTexture.Height,
-    0,
-    GL_BGRA,
-    GL_UNSIGNED_BYTE,
-    FTexture.Data[ttMain]
-    );
-  FReferenced := True;
-end;
-
-constructor TSingleTexture.Create(AGLState: TGLState);
-begin
-  inherited;
-  FReferenced := True;
-end;
-
-constructor TSingleTexture.Create(AGLState: TGLState; AFileName: string);
-begin
-  inherited Create(AGLState);
-  Texture := TTextureData.Create(AFileName);
-  FReferenced := False;
-end;
-
-destructor TSingleTexture.Destroy;
-begin
-  if (FTexture <> nil) and not FReferenced then
-    FTexture.Free;
-  inherited Destroy;
+  inherited Create('The operation requires the texture to be active.');
 end;
 
 { TTexture.TBinding }
-
-constructor TTexture.TBinding.Create;
-var
-  Units: Integer;
-begin
-  glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, @Units);
-  FUsedUnits := TBitField.Create(Units);
-end;
-
-destructor TTexture.TBinding.Destroy;
-begin
-  FUsedUnits.Free;
-  inherited;
-end;
 
 procedure TTexture.TBinding.SetActiveUnit(const Value: TUnit);
 begin
@@ -687,10 +574,24 @@ begin
   glActiveTexture(GL_TEXTURE0 + FActiveUnit);
 end;
 
+constructor TTexture.TBinding.Create;
+var
+  Units: Integer;
+begin
+  glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, @Units);
+  FUsedUnits := TBitfield.Create(Units);
+end;
+
+destructor TTexture.TBinding.Destroy;
+begin
+  FUsedUnits.Free;
+  inherited;
+end;
+
 function TTexture.TBinding.Add: TUnit;
 begin
   if FLastUnusedUnit = FUsedUnits.Size then
-    raise ETooManyTextureUnits.Create;
+    raise ETextureTooManyUnits.Create;
   Result := FLastUnusedUnit;
   repeat
     Inc(FLastUnusedUnit);
@@ -705,16 +606,174 @@ end;
 
 { TTexture }
 
-constructor TTexture.Create(AGLState: TGLState);
+procedure TTexture.SetDepthStencilMode(const Value: TGLDepthStencilTextureMode);
 begin
-  inherited;
-  FUnitID := -1;
+  if DepthStencilMode = Value then
+    Exit;
+  FDepthStencilMode := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_DEPTH_STENCIL_TEXTURE_MODE, Ord(Value));
 end;
 
-destructor TTexture.Destroy;
+procedure TTexture.SetBaseLevel(const Value: Integer);
 begin
-  Deactivate;
-  inherited Destroy;
+  if BaseLevel = Value then
+    Exit;
+  FBaseLevel := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_BASE_LEVEL, Value);
+end;
+
+procedure TTexture.SetMaxLevel(const Value: Integer);
+begin
+  if MaxLevel = Value then
+    Exit;
+  FMaxLevel := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_MAX_LEVEL, Value);
+end;
+
+procedure TTexture.SetBorderColor(const Value: TColorRGBA);
+begin
+  if BorderColor = Value then
+    Exit;
+  FBorderColor := Value;
+  Bind;
+  glTexParameterfv(TargetType, GL_TEXTURE_BORDER_COLOR, @Value);
+end;
+
+procedure TTexture.SetCompareFunc(const Value: TGLCompareFunction);
+begin
+  if CompareFunc = Value then
+    Exit;
+  FCompareFunc := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_COMPARE_FUNC, Ord(Value));
+end;
+
+procedure TTexture.SetCompareMode(const Value: TGLTextureCompareMode);
+begin
+  if CompareMode = Value then
+    Exit;
+  FCompareMode := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_COMPARE_MODE, Ord(Value));
+end;
+
+procedure TTexture.SetMinFilter(const Value: TGLTextureMinFilter);
+begin
+  if MinFilter = Value then
+    Exit;
+  FMinFilter := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_MIN_FILTER, Ord(Value));
+end;
+
+procedure TTexture.SetMagFilter(const Value: TGLTextureMagFilter);
+begin
+  if MagFilter = Value then
+    Exit;
+  FMagFilter := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_MAG_FILTER, Ord(Value));
+end;
+
+procedure TTexture.SetMinLOD(const Value: Single);
+begin
+  if MinLOD = Value then
+    Exit;
+  FMinLOD := Value;
+  Bind;
+  glTexParameterf(TargetType, GL_TEXTURE_MIN_LOD, Value);
+end;
+
+procedure TTexture.SetPixelFormat(const Value: TGLPixelFormat);
+begin
+  if PixelFormat = Value then
+    Exit;
+  FPixelFormat := Value;
+  Changed;
+end;
+
+procedure TTexture.SetMaxLOD(const Value: Single);
+begin
+  if MaxLOD = Value then
+    Exit;
+  FMaxLOD := Value;
+  Bind;
+  glTexParameterf(TargetType, GL_TEXTURE_MAX_LOD, Value);
+end;
+
+procedure TTexture.SetLODBias(const Value: Single);
+begin
+  if LODBias = Value then
+    Exit;
+  FLODBias := Value;
+  Bind;
+  glTexParameterf(TargetType, GL_TEXTURE_LOD_BIAS, Value);
+end;
+
+procedure TTexture.SetSwizzleR(const Value: TGLTextureSwizzle);
+begin
+  if SwizzleR = Value then
+    Exit;
+  FSwizzleR := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_SWIZZLE_R, Ord(Value));
+end;
+
+procedure TTexture.SetSwizzleG(const Value: TGLTextureSwizzle);
+begin
+  if SwizzleG = Value then
+    Exit;
+  FSwizzleG := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_SWIZZLE_G, Ord(Value));
+end;
+
+procedure TTexture.SetSwizzleB(const Value: TGLTextureSwizzle);
+begin
+  if SwizzleB = Value then
+    Exit;
+  FSwizzleB := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_SWIZZLE_B, Ord(Value));
+end;
+
+procedure TTexture.SetSwizzleA(const Value: TGLTextureSwizzle);
+begin
+  if SwizzleA = Value then
+    Exit;
+  FSwizzleA := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_SWIZZLE_A, Ord(Value));
+end;
+
+procedure TTexture.SetWrapS(const Value: TGLTextureWrap);
+begin
+  if WrapS = Value then
+    Exit;
+  FWrapS := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_WRAP_S, Ord(Value));
+end;
+
+procedure TTexture.SetWrapT(const Value: TGLTextureWrap);
+begin
+  if WrapT = Value then
+    Exit;
+  FWrapT := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_WRAP_T, Ord(Value));
+end;
+
+procedure TTexture.SetWrapR(const Value: TGLTextureWrap);
+begin
+  if WrapR = Value then
+    Exit;
+  FWrapR := Value;
+  Bind;
+  glTexParameteri(TargetType, GL_TEXTURE_WRAP_R, Ord(Value));
 end;
 
 procedure TTexture.GenObject(out AGLName: GLuint);
@@ -722,14 +781,16 @@ begin
   glGenTextures(1, @AGLName);
 end;
 
-class function TTexture.GetBindingClass: TGLObjectBindingClass;
+procedure TTexture.DeleteObject(const AGLName: GLuint);
 begin
-  Result := TBinding;
+  glDeleteTextures(1, @AGLName);
 end;
 
-class function TTexture.GetObjectType: TGLObjectType;
+procedure TTexture.BeginUpdate;
 begin
-  Result := otTexture;
+  if FUpdateCount = 0 then
+    FUpdateChanged := False;
+  Inc(FUpdateCount);
 end;
 
 procedure TTexture.BindGLObject;
@@ -738,9 +799,81 @@ begin
   glBindTexture(TargetType, GLName);
 end;
 
+procedure TTexture.UnbindGLObject;
+begin
+  glBindTexture(TargetType, 0);
+end;
+
 function TTexture.Binding: TBinding;
 begin
   Result := TBinding(inherited Binding);
+end;
+
+procedure TTexture.Changed;
+begin
+  if FUpdateCount > 0 then
+    FUpdateChanged := True
+  else
+    Generate;
+end;
+
+constructor TTexture.Create(AGLState: TGLState; APixelFormat: TGLPixelFormat);
+begin
+  inherited Create(AGLState);
+  FUnitID := -1;
+  InitTexParams;
+  FPixelFormat := APixelFormat;
+end;
+
+destructor TTexture.Destroy;
+begin
+  Deactivate;
+  inherited Destroy;
+end;
+
+procedure TTexture.EndUpdate;
+begin
+  Dec(FUpdateCount);
+  if (FUpdateCount = 0) and FUpdateChanged then
+    Generate;
+end;
+
+class function TTexture.GetObjectType: TGLObjectType;
+begin
+  Result := otTexture;
+end;
+
+procedure TTexture.InitTexParams;
+begin      
+  FDepthStencilMode := tmDepthComponent;
+  FBorderColor := 0;
+
+  FBaseLevel := 0;
+  FMaxLevel := 1000;
+
+  FCompareFunc := cfLEqual;
+  FCompareMode := tcmNone;
+
+  FMinFilter := minNearestMipmapLinear;
+  FMagFilter := magLinear;
+
+  FMinLOD := -1000;
+  FMaxLOD := 1000;
+  FLODBias := 0;
+
+  FSwizzleR := tsRed;
+  FSwizzleG := tsGreen;
+  FSwizzleB := tsBlue;
+  FSwizzleA := tsAlpha;
+
+  FWrapS := twRepeat;
+  FWrapT := twRepeat;
+  FWrapR := twRepeat;   
+end;
+
+class function TTexture.GetBindingClass: TGLObjectBindingClass;
+begin
+  Result := TBinding;
 end;
 
 function TTexture.Active: Boolean;
@@ -750,351 +883,390 @@ end;
 
 procedure TTexture.Activate;
 begin
-  if FUnitID = -1 then
+  if not Active then
     FUnitID := Binding.Add;
   Binding.ActiveUnit := FUnitID;
 end;
 
 procedure TTexture.Deactivate;
 begin
+  if Active then
+    Exit;
   Binding.Del(FUnitID);
   FUnitID := -1;
 end;
 
-procedure TTexture.DeleteObject(const AGLName: GLuint);
-begin
-  glDeleteTextures(1, @AGLName);
-end;
-
-procedure TTexture.UnbindGLObject;
-begin
-  glBindTexture(TargetType, 0);
-end;
-
 procedure TTexture.Uniform(AUniform: TGLProgram.TUniformSampler);
 begin
+  if not Active then
+    raise ETextureNotActive.Create;
   AUniform.Value := FUnitID;
 end;
 
-{ EMissingTextureID }
+{ TTexture1D }
 
-constructor EMissingTextureID.Create(ID: TTextureID);
+procedure TTexture1D.SetWidth(const Value: Integer);
 begin
-  inherited CreateFmt('Texture with ID "%d" does not exist!', [ID]);
+  if Width = Value then
+    Exit;
+  FWidth := Value;
+  Changed;
 end;
 
-{ ETooManyTextureUnits }
-
-constructor ETooManyTextureUnits.Create;
+constructor TTexture1D.Create(AGLState: TGLState; APixelFormat: TGLPixelFormat);
 begin
-  inherited Create('Too many texture units.');
-end;
-
-{ TTexturePage }
-
-procedure TTexturePage.AddTexture(const ATexture: TTextureItem; const AName: string);
-begin
-  if TextureExists(AName) then
-    raise Exception.Create('Tried to create multiple textures with name ' + string(AName));
-  FTextureIDs[AName] := FTextures.Count;
-  FTextures.Add(ATexture);
-end;
-
-procedure TTexturePage.AddTexture(const ATexture: TTextureItem);
-begin
-  AddTexture(ATexture, ATexture.Name);
-end;
-
-procedure TTexturePage.AddTextureFromResource(const AResourceName: string);
-begin
-  AddTexture(TTextureItem.Create(AResourceName));
-end;
-
-procedure TTexturePage.AddTextureFromResource(const AResourceName, AName: string);
-begin
-  AddTexture(TTextureItem.Create(AResourceName, True), AName);
-end;
-
-procedure TTexturePage.AddTextureFromFile(const AFileName: string);
-begin
-  AddTexture(TTextureItem.Create(AFileName));
-end;
-
-procedure TTexturePage.AddTextureFromFile(const AFileName, AName: string);
-begin
-  AddTexture(TTextureItem.Create(AFileName), AName);
-end;
-
-function TTexturePage.TextureExists(const AName: string): Boolean;
-begin
-  Result := FTextureIDs.KeyExists(AName);
-end;
-
-procedure TTexturePage.NotifySizeChange;
-begin
-  FSizeChanged := False;
-end;
-
-procedure TTexturePage.Uniform(AUniform: TGLProgram.TUniformSampler; ATextureType: TTextureType);
-begin
-  if ATextureType = ttMain then
-    inherited Uniform(AUniform)
-  else
-  begin
-    if FSubTextures[ATextureType] = nil then
-      EnableSubType(ATextureType);
-    AUniform.Value := FSubTextures[ATextureType].UnitID;
-  end;
-end;
-
-procedure TTexturePage.UniformDefaults(AShader: TGLProgram);
-begin
-  Uniform(AShader.UniformSampler('diffusemap'), ttMain);
-  Uniform(AShader.UniformSampler('specularmap'), ttSpecular);
-  Uniform(AShader.UniformSampler('normalmap'), ttNormal);
-end;
-
-procedure TTexturePage.BuildPage(ASegmentResolution: Integer; AFreeTextures: Boolean);
-var
-  Pxl: Cardinal;
-  Size, MinSize: Integer;
-  X, Y: Integer;
-  S, T: Integer;
-  Map: array of array of Boolean;
-  Fits: Boolean;
-  TexItem, TexItem2: TTextureItem;
-  TexType: TTextureType;
-  OldPixelSize: Integer;
-begin
-  OldPixelSize := FPxlSize;
-  Pxl := 0;
-  FPxlSize := 0;
-  MinSize := 0;
-  for TexItem in FTextures do
-  begin
-    Pxl := Pxl + TexItem.Width * TexItem.Height;
-    MinSize := Max(Max(FPxlSize, TexItem.Width), TexItem.Height);
-  end;
-  FPxlSize := Max(FPxlSize, Floor(Power(2, Ceil(ln(Pxl) / (2 * ln(2))))));
-  while MinSize > FPxlSize do
-    FPxlSize := FPxlSize * 2;
-
-  Size := FPxlSize div ASegmentResolution;
-
-  SetLength(Map, Size, Size);
-
-  for TexItem in FTextures do
-  begin
-    S := 0;
-    T := 0;
-    while True do
-    begin
-      while T + TexItem.Height / ASegmentResolution > Size do
-      begin
-        Size := Size * 2;
-        FPxlSize := FPxlSize * 2;
-        SetLength(Map, Size, Size);
-        for TexItem2 in FTextures do
-          TexItem2.TexCoord := TexItem2.TexCoord / 2;
-      end;
-      if S + TexItem.Width / ASegmentResolution <= Size then
-      begin
-        Fits := True;
-        for X := 0 to TexItem.Width div ASegmentResolution - 1 do
-        begin
-          for Y := 0 to TexItem.Height div ASegmentResolution - 1 do
-            if Map[S + X, T + Y] then
-            begin
-              Fits := False;
-              Break;
-            end;
-          if not Fits then
-            Break;
-        end;
-        if Fits then
-          Break;
-      end;
-      S := S + 1;
-      if S = Size then
-      begin
-        S := 0;
-        T := T + 1;
-      end;
-    end;
-    for X := 0 to TexItem.Width div ASegmentResolution - 1 do
-      for Y := 0 to TexItem.Height div ASegmentResolution - 1 do
-        Map[S + X, T + Y] := True;
-    TexItem.TexCoord := TTexCoord2.Create(S, T) / Size;
-
-    while T + TexItem.Height / ASegmentResolution > Size do
-    begin
-      Size := Size * 2;
-      FPxlSize := FPxlSize * 2;
-      SetLength(Map, Size, Size);
-      for TexItem2 in FTextures do
-      begin
-        TexItem2.TexCoord := TexItem2.TexCoord / 2;
-      end;
-    end;
-    for X := 0 to TexItem.Width div ASegmentResolution - 1 do
-      for Y := 0 to TexItem.Height div ASegmentResolution - 1 do
-        Map[S + X, T + Y] := True;
-    TexItem.TexCoord := TTexCoord2.Create(S, T) / Size;
-  end;
-
-  for TexType := Low(TTextureType) to High(TTextureType) do
-  begin
-    if TexType = ttMain then
-      Bind
-    else if FSubTextures[TexType] <> nil then
-      FSubTextures[TexType].Bind
-    else
-      Continue;
-    glTexImage2D(TargetType, 0, GL_RGBA, FPxlSize, FPxlSize, 0, GL_BGRA, GL_UNSIGNED_BYTE, nil);
-  end;
-
-  for TexItem in FTextures do
-  begin
-    for TexType := Low(TTextureType) to High(TTextureType) do
-    begin
-      if TexType = ttMain then
-        Bind
-      else if FSubTextures[TexType] <> nil then
-        FSubTextures[TexType].Bind
-      else
-        Continue;
-
-      glTexSubImage2D(
-        TargetType,
-        0,
-        Floor(TexItem.TexCoord.X * FPxlSize),
-        Floor(TexItem.TexCoord.Y * FPxlSize),
-        TexItem.Width,
-        TexItem.Height,
-        GL_BGRA,
-        GL_UNSIGNED_BYTE,
-        TexItem.Data[TexType]
-        );
-    end;
-
-    if AFreeTextures then
-      TTextureData(TexItem).FreeData;
-  end;
-
-  if OldPixelSize <> FPxlSize then
-    FSizeChanged := True;
-end;
-
-function TTexturePage.GetTexture(ID: TTextureID): TTextureItem;
-begin
-  Result := FTextures[ID];
-end;
-
-function TTexturePage.GetSubTexture(ASubTextureType: TSubTextureType): TTexture2D;
-begin
-  Result := FSubTextures[ASubTextureType];
-end;
-
-constructor TTexturePage.Create(AGLState: TGLState);
-begin
-  inherited Create(AGLState);
-  FTextures := TTextures.Create(True);
-  FTextureIDs := TTextureIDs.Create;
-end;
-
-procedure TTexturePage.DelTexture(const AName: string);
-begin
-  FTextures.DelAt(TextureIDs[AName]);
-  FTextureIDs.Del(AName);
-end;
-
-procedure TTexturePage.Clear;
-begin
-  FTextures.Clear;
-end;
-
-destructor TTexturePage.Destroy;
-var
-  T: TTextureType;
-begin
-  FTextures.Free;
-  FTextureIDs.Free;
-  for T := Low(TSubTextureType) to High(TSubTextureType) do
-    FSubTextures[T].Free;
   inherited;
 end;
 
-procedure TTexturePage.EnableSubType(ASubType: TSubTextureType);
+constructor TTexture1D.Create(AGLState: TGLState; AWidth: Integer; APixelFormat: TGLPixelFormat = pfRGBA);
 begin
-  if FSubTextures[ASubType] = nil then
-    FSubTextures[ASubType] := TTexturePage.Create(GLState);
+  inherited Create(AGLState, APixelFormat);
+  FWidth := AWidth;
+  Generate;
 end;
 
-function TTexturePage.GetTexCoord(const AName: string; const ATexCoord: TVector2): TVector2;
+function TTexture1D.TargetType: Cardinal;
 begin
-  Result := GetTexCoord(GetTextureID(AName), ATexCoord);
+  Result := GL_TEXTURE_1D;
 end;
 
-function TTexturePage.GetTexCoord(const AName: string; S, T: Single): TVector2;
+procedure TTexture1D.Generate;
 begin
-  Result := GetTexCoord(GetTextureID(AName), S, T);
+  Bind;
+  glTexImage1D(TargetType, 0, Ord(PixelFormat), Width, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
 end;
 
-function TTexturePage.GetTexBounds(const AName: string; ABounds: TBounds2): TBounds2;
+{ TTexture2D }
+
+procedure TTexture2D.SetSize(const Value: TIntVector2);
 begin
-  Result := GetTexBounds(GetTextureID(AName), ABounds);
+  if Size = Value then
+    Exit;
+  FSize := Value;
+  Changed;
 end;
 
-function TTexturePage.GetTexCoord(ID: TTextureID; const ATexCoord: TVector2): TVector2;
+procedure TTexture2D.SetWidth(const Value: Integer);
 begin
-  Result := GetBounds(ID)[ATexCoord];
+  if Width = Value then
+    Exit;
+  FSize.X := Value;
+  Changed;
 end;
 
-function TTexturePage.GetTexCoord(ID: TTextureID; S, T: Single): TVector2;
+procedure TTexture2D.SetHeight(const Value: Integer);
 begin
-  Result := GetTexCoord(ID, TTexCoord2.Create(S, T));
+  if Height = Value then
+    Exit;
+  FSize.Y := Value;
+  Changed;
 end;
 
-function TTexturePage.GetTexBounds(ID: TTextureID; ABounds: TBounds2): TBounds2;
+constructor TTexture2D.Create(AGLState: TGLState; APixelFormat: TGLPixelFormat);
 begin
-  Result.C1 := GetTexCoord(ID, ABounds.C1);
-  Result.C2 := GetTexCoord(ID, ABounds.C2);
+  inherited;
 end;
 
-function TTexturePage.HalfPixelInset(ABounds: TBounds2): TBounds2;
+constructor TTexture2D.Create(AGLState: TGLState; ASize: TIntVector2; APixelFormat: TGLPixelFormat = pfRGBA);
 begin
-  Result := ABounds.Inset(1 / (FPxlSize * 2));
+  inherited Create(AGLState, APixelFormat);
+  FSize := ASize;
+  Generate;
 end;
 
-function TTexturePage.GetBounds(ID: TTextureID): TBounds2;
+function TTexture2D.TargetType: Cardinal;
 begin
-  if not FTextures.RangeCheck(ID) then
-    raise EMissingTextureID.Create(ID);
-  with FTextures[ID] as TTextureItem do
-  begin
-    Result.C1 := TexCoord;
-    Result.C2 := TexCoord + TVector2.Create(Width, Height) / FPxlSize;
-  end;
+  Result := GL_TEXTURE_2D;
 end;
 
-function TTexturePage.GetBounds(AName: string): TBounds2;
+procedure TTexture2D.Generate;
 begin
-  Result := GetBounds(TextureIDs[AName]);
+  Bind;
+  glTexImage2D(TargetType, 0, Ord(PixelFormat), Width, Height, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
 end;
 
-function TTexturePage.GetTextureID(AName: string): TTextureID;
+procedure TTexture2D.Data(AData: PByte);
 begin
-  if not FTextureIDs.Get(AName, Result) then
-    raise EMissingTextureName.Create(AName);
+  glTexImage2D(TargetType, 0, Ord(PixelFormat), Width, Height, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, AData);
 end;
 
-function TTexturePage.GetTextureName(ID: TTextureID): string;
-var
-  Pair: TPair<string, TTextureID>;
+procedure TTexture2D.SubData(ABounds: TIntBounds2; AData: PByte);
 begin
-  for Pair in FTextureIDs do
-    if Pair.Value = ID then
-      Result := Pair.Key;
+  glTexSubImage2D(TargetType, 0, ABounds.C1.X, ABounds.C1.Y, ABounds.Width, ABounds.Height, Ord(PixelFormat), GL_UNSIGNED_BYTE, AData);
+end;
+
+procedure TTexture2D.LoadTexture(ATexture: TTextureData);
+begin
+  FSize := ATexture.Size;
+  Data(ATexture.Data);
+end;
+
+{ TTexture3D }
+
+procedure TTexture3D.SetSize(const Value: TIntVector3);
+begin
+  if Size = Value then
+    Exit;
+  FSize := Value;
+  Changed;
+end;
+
+procedure TTexture3D.SetWidth(const Value: Integer);
+begin
+  if Width = Value then
+    Exit;
+  FSize.X := Value;
+  Changed;
+end;
+
+procedure TTexture3D.SetHeight(const Value: Integer);
+begin
+  if Height = Value then
+    Exit;
+  FSize.Y := Value;
+  Changed;
+end;
+
+procedure TTexture3D.SetDepth(const Value: Integer);
+begin
+  if Depth = Value then
+    Exit;
+  FSize.Z := Value;
+  Changed;
+end;
+
+constructor TTexture3D.Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA);
+begin
+  inherited;
+end;
+
+constructor TTexture3D.Create(AGLState: TGLState; ASize: TIntVector3; APixelFormat: TGLPixelFormat = pfRGBA);
+begin
+  inherited Create(AGLState, APixelFormat);
+  FSize := ASize;
+  Generate;
+end;
+
+function TTexture3D.TargetType: Cardinal;
+begin
+  Result := GL_TEXTURE_3D;
+end;
+
+procedure TTexture3D.Generate;
+begin
+  Bind;
+  glTexImage3D(TargetType, 0, Ord(PixelFormat), Width, Height, Depth, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
+end;
+
+{ TTexture1DArray }
+
+function TTexture1DArray.TargetType: Cardinal;
+begin
+  Result := GL_TEXTURE_1D_ARRAY;
+end;
+
+{ TTexture2DArray }
+
+procedure TTexture2DArray.SetSize(const Value: TIntVector3);
+begin
+  if Size = Value then
+    Exit;
+  FSize := Value;
+  Changed;
+end;
+
+procedure TTexture2DArray.SetWidth(const Value: Integer);
+begin
+  if Width = Value then
+    Exit;
+  FSize.X := Value;
+  Changed;
+end;
+
+procedure TTexture2DArray.SetHeight(const Value: Integer);
+begin
+  if Height = Value then
+    Exit;
+  FSize.Y := Value;
+  Changed;
+end;
+
+procedure TTexture2DArray.SetLayers(const Value: Integer);
+begin
+  if Layers = Value then
+    Exit;
+  FSize.Z := Value;
+  Changed;
+end;
+
+constructor TTexture2DArray.Create(AGLState: TGLState; APixelFormat: TGLPixelFormat);
+begin
+  inherited;
+end;
+
+constructor TTexture2DArray.Create(AGLState: TGLState; ASize: TIntVector3; APixelFormat: TGLPixelFormat);
+begin
+  inherited Create(AGLState, APixelFormat);
+  FSize := ASize;
+  Generate;
+end;
+
+function TTexture2DArray.TargetType: Cardinal;
+begin
+  Result := GL_TEXTURE_2D_ARRAY;
+end;
+
+procedure TTexture2DArray.Generate;
+begin
+  glTexImage3D(TargetType, 0, Ord(PixelFormat), Width, Height, Layers, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
+end;
+
+{ TTextureRectangle }
+
+function TTextureRectangle.TargetType: Cardinal;
+begin
+  Result := GL_TEXTURE_RECTANGLE;
+end;
+
+{ TTextureCubeMap }
+
+function TTextureCubeMap.TargetType: Cardinal;
+begin
+  Result := GL_TEXTURE_CUBE_MAP;
+end;
+
+{ TTextureCubeMapArray }
+
+procedure TTextureCubeMapArray.SetSize(const Value: Integer);
+begin
+  if Size = Value then
+    Exit;
+  FSize := Value;
+  Changed;
+end;
+
+procedure TTextureCubeMapArray.SetLayer(const Value: Integer);
+begin
+  if Layers = Value then
+    Exit;
+  FLayers := Value;
+  Changed;
+end;
+
+constructor TTextureCubeMapArray.Create(AGLState: TGLState; APixelFormat: TGLPixelFormat);
+begin
+  inherited;
+end;
+
+constructor TTextureCubeMapArray.Create(AGLState: TGLState; ASize, ALayers: Integer; APixelFormat: TGLPixelFormat);
+begin
+  inherited Create(AGLState, APixelFormat);
+  FSize := ASize;
+  FLayers := ALayers;
+  Generate;
+end;
+
+function TTextureCubeMapArray.TargetType: Cardinal;
+begin
+  Result := GL_TEXTURE_CUBE_MAP_ARRAY;
+end;
+
+procedure TTextureCubeMapArray.Generate;
+begin
+  glTexImage3D(TargetType, 0, Ord(PixelFormat), Size, Size, Layers * 6, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
+end;
+
+{ TTextureBuffer }
+
+function TTextureBuffer.TargetType: Cardinal;
+begin
+  Result := GL_TEXTURE_BUFFER;
+end;
+
+{ TTexture2DMS }
+
+procedure TTexture2DMS.SetSamples(const Value: Integer);
+begin
+  if Samples = Value then
+    Exit;
+  FSamples := Value;
+  Changed;
+end;
+
+function TTexture2DMS.TargetType: Cardinal;
+begin
+  Result := GL_TEXTURE_2D_MULTISAMPLE;
+end;
+
+constructor TTexture2DMS.Create(AGLState: TGLState; ASize: TIntVector2; ASamples: Integer; APixelFormat: TGLPixelFormat);
+begin
+  inherited Create(AGLState, APixelFormat);
+  FSize := ASize;
+  FSamples := ASamples;
+  Generate;    
+end;
+
+procedure TTexture2DMS.Generate;
+begin
+  Bind;
+  glTexImage2DMultisample(TargetType, Samples, Ord(PixelFormat), Width, Height, True);
+end;
+
+{ TTexture2DMSArray }
+
+procedure TTexture2DMSArray.SetSamples(const Value: Integer);
+begin
+  if Samples = Value then
+    Exit;
+  FSamples := Value;
+  Changed;
+end;
+
+constructor TTexture2DMSArray.Create(AGLState: TGLState; ASize: TIntVector3; ASamples: Integer; APixelFormat: TGLPixelFormat);
+begin
+  inherited Create(AGLState, APixelFormat);
+  FSize := ASize;
+  FSamples := ASamples;
+  Generate;
+end;
+
+function TTexture2DMSArray.TargetType: Cardinal;
+begin
+  Result := GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
+end;
+
+procedure TTexture2DMSArray.Generate;
+begin
+  glTexImage3DMultisample(TargetType, Samples, Ord(PixelFormat), Width, Height, Layers, True);
+end;
+
+{ TTextureAtlas.TTile }
+
+constructor TTextureAtlas.TTile.Create(AAtlas: TTextureAtlas; APosition: TIntBounds2);
+begin
+  FAtlas := AAtlas;
+  FPosition := APosition;
+end;
+
+{ TTextureAtlas }
+
+constructor TTextureAtlas.Create(AGLState: TGLState);
+begin
+  FTexture := TTexture2D.Create(AGLState);
+  FTiles := TTiles.Create;
+end;
+
+destructor TTextureAtlas.Destroy;
+begin
+  FTiles.Free;
+  FTexture.Free;
+  inherited;
+end;
+
+
+function TTextureAtlas.GetGLState: TGLState;
+begin
+  Result := FTexture.GLState;
 end;
 
 end.

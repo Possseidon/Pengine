@@ -58,9 +58,9 @@ type
     class function GetFileName: string; override;
   end;
 
-  TTextureAtlas = class(TParamResource<TTexturePage, TGLObjectParam>)
-  protected
-    class function CreateData(AParam: TGLObjectParam): TTexturePage; override;
+  TTextureMap = class(TParamResource<TTextureAtlas, TGLObjectParam>)
+  public
+    class function CreateData(AParam: TGLObjectParam): TTextureAtlas; override;
     class procedure ReleaseReferences(AParam: TGLObjectParam); override;
   end;
 
@@ -71,7 +71,7 @@ type
 
   private
     FGLProgramResource: TGLProgramResourceClass;
-    FTexturePage: TTexturePage;
+    FTextureAtlas: TTextureAtlas;
     FVAO: TVAO;
     FTexture: string;
     FLocation: TLocation;
@@ -168,7 +168,6 @@ begin
 
   FLightSystem := TLightSystem.Create(GLState);
   FLightSystem.BindToGLProgram(FModelGLProgram);
-
   FSun := TDirectionalLightShaded.Create(FLightSystem);
   FSun.Direction := -Vec3(0.3, 1, 0.3);
   FSun.Size := 20;
@@ -271,8 +270,8 @@ begin
   with FVAO.VBO.Map do
   begin
 
-    Border := FTexturePage.GetBounds(Texture);
-    Data.Border := FTexturePage.HalfPixelInset(Border);
+    // Border := FTextureAtlas.GetBounds(Texture);
+    // Data.Border := FTextureAtlas.HalfPixelInset(Border);
     Offset := 0; // TVector3.RandomNormal * 5;
 
     for P in CubePlanes do
@@ -299,7 +298,7 @@ var
 begin
   FGLProgramResource := AGLProgramResource;
   FGLProgram := FGLProgramResource.Make(AGLState.ResourceParam);
-  FTexturePage := TTextureAtlas.Make(AGLState.ResourceParam);
+  FTextureAtlas := TTextureMap.Make(AGLState.ResourceParam);
   FVAO := TVAO.Create(FGLProgram);
   FLocation := TLocation.Create;
   {
@@ -319,7 +318,7 @@ begin
   FRenderableChildren.Free;
   FChildren.Free;
   FLocation.Free;
-  TTextureAtlas.Release(FTexturePage.GLState.ResourceParam);
+  TTextureMap.Release(FTextureAtlas.GLState.ResourceParam);
   FGLProgramResource.Release(FVAO.GLState.ResourceParam);
   FVAO.Free;
   inherited;
@@ -378,20 +377,22 @@ begin
   Result := 'Data\model';
 end;
 
-{ TTextureAtlas }
+{ TTextureMap }
 
-class function TTextureAtlas.CreateData(AParam: TGLObjectParam): TTexturePage;
+class function TTextureMap.CreateData(AParam: TGLObjectParam): TTextureAtlas;
 begin
-  Result := TTexturePage.Create(AParam.GLState);
-  Result.UniformDefaults(TModelGLProgram.Make(AParam.GLState.ResourceParam));
+  Result := TTextureAtlas.Create(AParam.GLState);
+  {
+  Result.Uniform(TModelGLProgram.Make(AParam.GLState.ResourceParam));
   Result.AddTextureFromFile('Data\stone_bricks.png');
   Result.AddTextureFromFile('Data\holed_ironplating.png');
   Result.AddTextureFromFile('Data\stone.png');
   Result.AddTextureFromFile('Data\wooden_planks.png');
-  Result.BuildPage(32);
+  Result.Build(32);
+  }
 end;
 
-class procedure TTextureAtlas.ReleaseReferences(AParam: TGLObjectParam);
+class procedure TTextureMap.ReleaseReferences(AParam: TGLObjectParam);
 begin
   TModelGLProgram.Release(AParam.GLState.ResourceParam);
 end;

@@ -303,9 +303,9 @@ type
     FPointLights: TRefArray<TPointLight>;
     FSpotLights: TRefArray<TSpotLight>;
 
-    FDirectionalLightTexArray: TEmptyTexture2DArray;
-    FPointLightTexArray: TEmptyTextureCubeMapArray;
-    FSpotLightTexArray: TEmptyTexture2DArray;
+    FDirectionalLightTexArray: TTexture2DArray;
+    FPointLightTexArray: TTextureCubeMapArray;
+    FSpotLightTexArray: TTexture2DArray;
 
     FUBO: TUBO;
 
@@ -327,9 +327,9 @@ type
     property GLState: TGLState read FGLState;
 
     property UBO: TUBO read FUBO;
-    property DirectionalLightTexArray: TEmptyTexture2DArray read FDirectionalLightTexArray;
-    property PointLightTexArray: TEmptyTextureCubeMapArray read FPointLightTexArray;
-    property SpotLightTexArray: TEmptyTexture2DArray read FSpotLightTexArray;
+    property DirectionalLightTexArray: TTexture2DArray read FDirectionalLightTexArray;
+    property PointLightTexArray: TTextureCubeMapArray read FPointLightTexArray;
+    property SpotLightTexArray: TTexture2DArray read FSpotLightTexArray;
 
     function AddLight(ALight: TBaseLight): Integer;
     procedure DelLight(ALight: TBaseLight);
@@ -428,10 +428,9 @@ begin
   FCamera := TCamera.Create(0, 1, -50, 50);
   inherited Create(ALightSystem);
   Size := 100;
-  FFBO := TFBO.Create(ALightSystem.GLState, IVec2(1024, 1024));
-  FFBO.EnableTexture2DLayer(fbaDepth, LightSystem.DirectionalLightTexArray, Index);
-  if not FFBO.Finish then
-    raise Exception.Create('IT DOESNT WORK!');
+  FFBO := TFBO.Create(ALightSystem.GLState, IBounds2(IVec2(1024, 1024)));
+  FFBO.Add(TTextureLayerAttachment.Create(TDepthAttachment.Create, ALightSystem.DirectionalLightTexArray, Index));
+  FFBO.Complete;
   Send(7, 1, ShadedBool);
 end;
 
@@ -536,9 +535,8 @@ begin
   for Side := Low(TGLCubeMapSide) to High(TGLCubeMapSide) do
   begin
     FFBOs[Side] := TFBO.Create(ALightSystem.GLState, IVec2(1024, 1024));
-    FFBOs[Side].EnableTextureCubeMapLayer(fbaDepth, ALightSystem.PointLightTexArray, Index, Side);
-    if not FFBOs[Side].Finish then
-      raise Exception.Create('IT DOESN''T WORK!');
+    FFBOs[Side].Add(TCubeMapLayerAttachment.Create(TDepthAttachment.Create, ALightSystem.PointLightTexArray, Side, Index));
+    FFBOs[Side].Complete;
   end;
   Send(7, 1, ShadedBool);
 
@@ -670,9 +668,8 @@ begin
   inherited Create(ALightSystem);
   FCamera.FOV := FullCutoff;
   FFBO := TFBO.Create(ALightSystem.GLState, IVec2(1024, 1024));
-  FFBO.EnableTexture2DLayer(fbaDepth, LightSystem.SpotLightTexArray, Index);
-  if not FFBO.Finish then
-    raise Exception.Create('IT DOESNT WORK!');
+  FFBO.Add(TTextureLayerAttachment.Create(TDepthAttachment.Create, LightSystem.SpotLightTexArray, Index));
+  FFBO.Complete;
   Send(12, 1, ShadedBool);
 end;
 
@@ -1082,17 +1079,17 @@ begin
   FPointLights := TRefArray<TPointLight>.Create;
   FSpotLights := TRefArray<TSpotLight>.Create;
 
-  FDirectionalLightTexArray := TEmptyTexture2DArray.Create(FGLState, 1024, 1024, TDirectionalLight.MaxLights, pfDepthComponent);
-  FDirectionalLightTexArray.MagFilter := magLinear;
-  FDirectionalLightTexArray.TextureCompareMode := tcmCompareRefToTexture;
+  FDirectionalLightTexArray := TTexture2DArray.Create(FGLState, IVec3(1024, 1024, TDirectionalLight.MaxLights), pfDepthComponent);
+  FDirectionalLightTexArray.MinFilter := minLinear;
+  FDirectionalLightTexArray.CompareMode := tcmCompareRefToTexture;
 
-  FPointLightTexArray := TEmptyTextureCubeMapArray.Create(FGLState, 1024, TPointLight.MaxLights, pfDepthComponent);
-  FPointLightTexArray.MagFilter := magLinear;
-  FPointLightTexArray.TextureCompareMode := tcmCompareRefToTexture;
+  FPointLightTexArray := TTextureCubeMapArray.Create(FGLState, 1024, TPointLight.MaxLights, pfDepthComponent);
+  FPointLightTexArray.MinFilter := minLinear;
+  FPointLightTexArray.CompareMode := tcmCompareRefToTexture;
 
-  FSpotLightTexArray := TEmptyTexture2DArray.Create(FGLState, 1024, 1024, TSpotLight.MaxLights, pfDepthComponent);
-  FSpotLightTexArray.MagFilter := magLinear;
-  FSpotLightTexArray.TextureCompareMode := tcmCompareRefToTexture;
+  FSpotLightTexArray := TTexture2DArray.Create(FGLState, IVec3(1024, 1024, TSpotLight.MaxLights), pfDepthComponent);
+  FSpotLightTexArray.MinFilter := minLinear;
+  FSpotLightTexArray.CompareMode := tcmCompareRefToTexture;
 
   FUBO := TUBO.Create(FGLState);
   FUBO.GLLabel := 'Light-Data';

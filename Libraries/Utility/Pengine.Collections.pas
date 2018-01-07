@@ -39,7 +39,7 @@ type
     constructor Create;
   end;
 
-  /// <summary>Raised, if a negative Buckets is tried to assigned to an array.</summary>
+  /// <summary>Raised, if a negative capacity is tried to assigned to an array.</summary>
   EArrayNegativeCapacity = class(Exception)
   public
     constructor Create;
@@ -281,13 +281,14 @@ type
     end;
 
     TReader = class(TArray.TReader)
-      private
-        function GetFirst: T;
-        function GetItem(I: Integer): T;
-        function GetLast: T;
-        procedure SetFirst(const Value: T);
-        procedure SetItem(I: Integer; const Value: T);
-        procedure SetLast(const Value: T);
+    private
+      function GetFirst: T;
+      function GetItem(I: Integer): T;
+      function GetLast: T;
+      procedure SetFirst(const Value: T);
+      procedure SetItem(I: Integer; const Value: T);
+      procedure SetLast(const Value: T);
+
     public
 
       {$REGION 'Find Functions'}
@@ -401,7 +402,12 @@ type
     // TODO: XmlDoc
     procedure Add(AItems: IIterable<T>); overload;
     // TODO: XmlDoc
+    procedure Add<S: T>(AItems: IIterable<S>); overload;
+    // TODO: XmlDoc
+    procedure Add<S: T>(AItems: TArray<S>.TReader); overload;
+    // TODO: XmlDoc
     procedure Add(AItems: IEnumerable<T>); overload;
+
     // TODO: XmlDoc: Remarks: Insert can also add item at the end
     function Insert(AItem: T; AIndex: Integer): T;
 
@@ -1052,21 +1058,21 @@ end;
 
 constructor EArrayRangeError.Create;
 begin
-  inherited Create('The array-index is out of bounds.');
+  inherited Create('The array index is out of bounds.');
 end;
 
 { EArrayItemNoStringRepresentative }
 
 constructor EArrayItemNoStringRepresentative.Create;
 begin
-  inherited Create('Items in array do not have a string representative.');
+  inherited Create('The items in the array do not have a string representative.');
 end;
 
 { EArrayNegativeCapacity }
 
 constructor EArrayNegativeCapacity.Create;
 begin
-  inherited Create('Capacity cannot be negative.');
+  inherited Create('The array capacity cannot be negative.');
 end;
 
 { EArrayInvalidGrowAmount }
@@ -1442,6 +1448,22 @@ end;
 procedure TArray<T>.Add(AItems: IEnumerable<T>);
 var
   Item: T;
+begin
+  for Item in AItems do
+    Add(Item);
+end;
+
+procedure TArray<T>.Add<S>(AItems: IIterable<S>);
+var
+  Item: S;
+begin
+  for Item in AItems do
+    Add(Item);
+end;
+
+procedure TArray<T>.Add<S>(AItems: TArray<S>.TReader);
+var
+  Item: S;
 begin
   for Item in AItems do
     Add(Item);

@@ -1471,12 +1471,12 @@ end;
 
 function TIntBounds2.GetLineX: TIntBounds1;
 begin
-  Result := IBounds1(C1.X, C2.X);
+  Result.Create(C1.X, C2.X);
 end;
 
 function TIntBounds2.GetLineY: TIntBounds1;
 begin
-  Result := IBounds1(C1.Y, C2.Y);
+  Result.Create(C1.Y, C2.Y);
 end;
 
 procedure TIntBounds2.SetLineX(const Value: TIntBounds1);
@@ -1664,17 +1664,17 @@ end;
 
 function TIntBounds3.GetLineX: TIntBounds1;
 begin
-  Result := IBounds1(C1.X, C2.X);
+  Result.Create(C1.X, C2.X);
 end;
 
 function TIntBounds3.GetLineY: TIntBounds1;
 begin
-  Result := IBounds1(C1.Y, C2.Y);
+  Result.Create(C1.Y, C2.Y);
 end;
 
 function TIntBounds3.GetLineZ: TIntBounds1;
 begin
-  Result := IBounds1(C1.Z, C2.Z);
+  Result.Create(C1.Z, C2.Z);
 end;
 
 procedure TIntBounds3.SetLineX(const Value: TIntBounds1);

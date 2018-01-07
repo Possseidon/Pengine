@@ -18,6 +18,7 @@ uses
   Vcl.Forms,
   Vcl.Graphics,
 
+  Pengine.Renderbuffer,
   Pengine.GLState,
   Pengine.ResourceManager,
   Pengine.Color,
@@ -47,9 +48,13 @@ type
     FGLState: TGLState;
     FDC: HDC;
     FRC: HGLRC;
+
     FFBO: TFBO;
     FFBOBinding: TGLObjectBinding<TFBO>;
-    FMultiSampled: Boolean;
+
+    FColorRenderbuffer: TRenderbufferMS;
+    FDepthRenderbuffer: TRenderbufferMS;
+
     FSamples: Integer;
     FMaxSamples: Integer;
     FSize: TIntVector2;
@@ -63,7 +68,7 @@ type
     function GetFPSInt: Cardinal;
     function GetSeconds: Single;
 
-    procedure SetMultiSampling(Value: Boolean);
+    procedure SetMultiSampled(Value: Boolean);
     procedure SetSamples(Value: Integer);
     procedure SetVSync(Value: Boolean);
     procedure SetFPSLimit(Value: Single);
@@ -85,6 +90,7 @@ type
     procedure SetDebugOutputSynced(const Value: Boolean);
     procedure SetGLDebugLogLevels(const Value: TGLDebugSeverities);
     procedure SetGLDebugRaiseLevels(const Value: TGLDebugSeverities);
+    function GetMultiSampled: Boolean;
 
   public
     constructor Create(ADC: HDC; ASize: TIntVector2; ARenderCallback: TRenderCallback);
@@ -114,7 +120,7 @@ type
 
     property GLState: TGLState read FGLState;
 
-    property MultiSampled: Boolean read FMultiSampled write SetMultiSampling;
+    property MultiSampled: Boolean read GetMultiSampled write SetMultiSampled;
     property MaxSamples: Integer read FMaxSamples;
     property Samples: Integer read FSamples write SetSamples;
 
@@ -477,6 +483,11 @@ begin
   Result := Floor(FTimer.FPS + 0.5);
 end;
 
+function TGLContext.GetMultiSampled: Boolean;
+begin
+  Result := FFBO <> nil;
+end;
+
 function TGLContext.GetSeconds: Single;
 begin
   Result := FTimer.Seconds;
@@ -503,44 +514,51 @@ begin
   end;
 end;
 
-procedure TGLContext.SetMultiSampling(Value: Boolean);
+procedure TGLContext.SetMultiSampled(Value: Boolean);
 begin
-  if FMultiSampled = Value then
+  if MultiSampled = Value then
     Exit;
-  FMultiSampled := Value;
 
-  if FMultiSampled then
+  if MultiSampled then
   begin
-    FFBO := TFBO.Create(GLState, FSize);
-    FFBO.EnableRenderBufferMS(fbaColor, pfRGBA, Samples);
-    FFBO.EnableRenderBufferMS(fbaDepth, pfDepthComponent, Samples);
-    if not FFBO.Finish then
-      raise Exception.Create('Multisampling Framebuffer could not be created!');
+    FreeAndNil(FFBO);
+    FreeAndNil(FColorRenderbuffer);
+    FreeAndNil(FDepthRenderbuffer);
   end
   else
-    FFBO.Free;
+  begin
+    FColorRenderbuffer := TRenderbufferMS.Create(GLState, Size, Samples, pfRGBA);
+    FDepthRenderbuffer := TRenderbufferMS.Create(GLState, Size, Samples, pfDepthComponent);
+    FFBO := TFBO.Create(GLState, IBounds2(FSize));
+    FFBO.Add(TRenderbufferAttachment.Create(TColorAttachment.Create, FColorRenderbuffer));
+    FFBO.Add(TRenderbufferAttachment.Create(TDepthAttachment.Create, FDepthRenderbuffer));
+    FFBO.Complete;
+  end;
 end;
 
 procedure TGLContext.SetSamples(Value: Integer);
 begin
-  if (Value < 1) or (Value > MaxSamples) then
+  if not (Value in IBounds1(1, MaxSamples)) then
     raise Exception.Create('Unspported number of samples!');
 
   if (FSamples = Value) and MultiSampled then
     Exit;
-  FSamples := Value;
 
-  if not MultiSampled then
-    MultiSampled := True
-  else
-    FFBO.SetSamples(FSamples);
+  FSamples := Value;
+  MultiSampled := False;
+  MultiSampled := True;
 end;
 
 procedure TGLContext.SetSize(const Value: TIntVector2);
 begin
+  if FSize = Value then
+    Exit;
   FSize := Value;
   if MultiSampled then
-    FFBO.Resize(FSize);
+  begin
+    MultiSampled := False;
+    MultiSampled := True;
+  end;
 end;
 
 procedure TGLContext.SetVSync(Value: Boolean);
@@ -650,8 +668,9 @@ end;
 
 destructor TGLContext.Destroy;
 begin
-  if MultiSampled then
-    FFBO.Free;
+  FFBO.Free;
+  FColorRenderbuffer.Free;
+  FDepthRenderbuffer.Free;
   FinalizeGL;
   FTimer.Free;
   inherited;
@@ -664,7 +683,7 @@ end;
 
 procedure TGLContext.Render;
 begin
-  if FMultiSampled then
+  if MultiSampled then
   begin
     FFBO.Bind;
     glClear(ToGLBitfield(ClearMask));

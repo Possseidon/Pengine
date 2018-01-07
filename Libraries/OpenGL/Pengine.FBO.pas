@@ -8,24 +8,137 @@ uses
   System.SysUtils,
 
   Pengine.GLEnums,
-  Pengine.RBO,
+  Pengine.Renderbuffer,
   Pengine.Texture,
   Pengine.GLState,
-  Pengine.IntMaths;
+  Pengine.IntMaths,
+  Pengine.Collections;
 
 type
 
-  TFBO = class;
+  EFramebufferNotComplete = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  EFramebufferViewportDifferent = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  TAttachmentPoint = class
+  public
+    function GLEnum: Cardinal; virtual; abstract;
+  end;
+
+  TColorAttachment = class(TAttachmentPoint)
+  private
+    FIndex: Integer;
+  public
+    constructor Create(AIndex: Integer = 0);
+    property Index: Integer read FIndex;
+    function GLEnum: Cardinal; override;
+  end;
+
+  TDepthAttachment = class(TAttachmentPoint)
+  public
+    function GLEnum: Cardinal; override;
+  end;
+
+  TStencilAttachment = class(TAttachmentPoint)
+  public
+    function GLEnum: Cardinal; override;
+  end;
+
+  TDepthStencilAttachment = class(TAttachmentPoint)
+  public
+    function GLEnum: Cardinal; override;
+  end;
+
+  TAttachment = class abstract
+  private
+    FAttachmentPoint: TAttachmentPoint;
+
+  public
+    constructor Create(AAttachmentPoint: TAttachmentPoint);
+    destructor Destroy; override;
+
+    property AttachmentPoint: TAttachmentPoint read FAttachmentPoint;
+
+    procedure Attach; virtual; abstract;
+
+  end;
+
+  TTexture2DAttachment = class(TAttachment)
+  private
+    FTexture: TTexture2D;
+
+  public
+    constructor Create(AAttachmentPoint: TAttachmentPoint; ATexture: TTexture2D);
+
+    property Texture: TTexture2D read FTexture;
+
+    procedure Attach; override;
+
+  end;
+
+  TTextureLayerAttachment = class(TAttachment)
+  private
+    FTexture: TTexture2DArray;
+    FLayer: Integer;
+
+  public
+    constructor Create(AAttachmentPoint: TAttachmentPoint; ATexture: TTexture2DArray; ALayer: Integer);
+
+    property Texture: TTexture2DArray read FTexture;
+    property Layer: Integer read FLayer;
+
+    procedure Attach; override;
+
+  end;
+
+  TCubeMapLayerAttachment = class(TAttachment)
+  private
+    FTexture: TTextureCubeMapArray;
+    FSide: TGLCubeMapSide;
+    FLayer: Integer;
+
+  public
+    constructor Create(AAttachmentPoint: TAttachmentPoint; ATexture: TTextureCubeMapArray; ASide: TGLCubeMapSide; ALayer: Integer);
+
+    property Texture: TTextureCubeMapArray read FTexture;
+    property Side: TGLCubeMapSide read FSide;
+    property Layer: Integer read FLayer;
+
+    procedure Attach; override;
+
+  end;
+
+  TRenderbufferAttachment = class(TAttachment)
+  private
+    FRenderbuffer: TRenderbuffer;
+
+  public
+    constructor Create(AAttachmentPoint: TAttachmentPoint; ARenderbuffer: TRenderbuffer);
+
+    property Renderbuffer: TRenderbuffer read FRenderbuffer;
+
+    procedure Attach; override;
+
+  end;
 
   TFBO = class(TGLObject)
+  public type
+
+    TAttachments = TObjectArray<TAttachment>;
+
   private
-    FOutputs: array [TGLFBOAttachment] of TObject;
-    FReferenced: array [TGLFBOAttachment] of Boolean;
+    FAttachments: TAttachments;
+    FViewport: TIntBounds2;
 
-    FSize: TIntVector2;
+    function GetAttachments: TAttachments.TReader;
 
-    function GetRenderBuffer(AType: TGLFBOAttachment): TBasicRenderBuffer;
-    function GetTexture(AType: TGLFBOAttachment): TTexture;
+    procedure SetViewport(const Value: TIntBounds2);
 
   protected
     procedure GenObject(out AGLName: Cardinal); override;
@@ -35,35 +148,23 @@ type
     procedure UnbindGLObject; override;
 
   public
-    constructor Create(AGLState: TGLState; ASize: TIntVector2);
+    constructor Create(AGLState: TGLState; AViewport: TIntBounds2);
     destructor Destroy; override;
 
     class function GetObjectType: TGLObjectType; override;
     class function GetBindingClass: TGLObjectBindingClass; override;
 
-    procedure EnableTexture2D(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat); overload;
-    procedure EnableTexture2D(AType: TGLFBOAttachment; ATexture: TTexture2D); overload;
+    property Attachments: TAttachments.TReader read GetAttachments;
 
-    procedure EnableTexture2DLayer(AType: TGLFBOAttachment; ATexture: TTexture2DArray; ALayer: Cardinal);
-    procedure EnableTextureCubeMapLayer(AType: TGLFBOAttachment; ATexture: TTextureCubeMapArray; ALayer: Cardinal;
-      ASide: TGLCubeMapSide);
-
-    procedure EnableTexture2DMS(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
-    procedure EnableRenderBuffer(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat);
-    procedure EnableRenderBufferMS(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
-
-    property Textures[AType: TGLFBOAttachment]: TTexture read GetTexture;
-    property RenderBuffers[AType: TGLFBOAttachment]: TBasicRenderBuffer read GetRenderBuffer;
-
-    function Finish: Boolean;
+    procedure Add(AAttachment: TAttachment);
+    procedure Complete;
 
     procedure CopyTo(AFBO: TFBO; AMask: TGLAttribMaskFlags);
     procedure StretchTo(AFBO: TFBO; AMask: TGLAttribMaskFlags);
     procedure CopyToScreen(AMask: TGLAttribMaskFlags);
     procedure StretchToScreen(AMask: TGLAttribMaskFlags; ASize: TIntVector2);
 
-    procedure Resize(ASize: TIntVector2);
-    procedure SetSamples(ASamples: Integer);
+    property Viewport: TIntBounds2 read FViewport write SetViewport;
 
     // Use when you don't actually have an FBO Object at hand but need to unbind
     class procedure BindScreen(ASize: TIntVector2; AFBOBinding: TGLObjectBinding<TFBO>);
@@ -73,16 +174,6 @@ type
 implementation
 
 { TFBO }
-
-function TFBO.GetRenderBuffer(AType: TGLFBOAttachment): TBasicRenderBuffer;
-begin
-  Result := FOutputs[AType] as TBasicRenderBuffer;
-end;
-
-function TFBO.GetTexture(AType: TGLFBOAttachment): TTexture;
-begin
-  Result := FOutputs[AType] as TTexture;
-end;
 
 procedure TFBO.GenObject(out AGLName: Cardinal);
 begin
@@ -94,10 +185,17 @@ begin
   glDeleteFramebuffers(1, @GLName);
 end;
 
+procedure TFBO.Add(AAttachment: TAttachment);
+begin
+  FAttachments.Add(AAttachment);
+  Bind;
+  AAttachment.Attach;
+end;
+
 procedure TFBO.BindGLObject;
 begin
   glBindFramebuffer(GL_FRAMEBUFFER, GLName);
-  glViewport(0, 0, FSize.X, FSize.Y);
+  glViewport(Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y);
 end;
 
 procedure TFBO.UnbindGLObject;
@@ -106,20 +204,22 @@ begin
   glViewport(0, 0, GLState.ScreenSize.X, GLState.ScreenSize.Y);
 end;
 
-constructor TFBO.Create(AGLState: TGLState; ASize: TIntVector2);
+constructor TFBO.Create(AGLState: TGLState; AViewport: TIntBounds2);
 begin
   inherited Create(AGLState);
-  FSize := ASize;
+  FViewport := AViewport;
+  FAttachments := TAttachments.Create;
 end;
 
 destructor TFBO.Destroy;
-var
-  T: TGLFBOAttachment;
 begin
-  for T := Low(TGLFBOAttachment) to High(TGLFBOAttachment) do
-    if (FOutputs[T] <> nil) and not FReferenced[T] then
-      FOutputs[T].Free;
+  FAttachments.Free;
   inherited;
+end;
+
+function TFBO.GetAttachments: TAttachments.TReader;
+begin
+  Result := FAttachments.Reader;
 end;
 
 class function TFBO.GetBindingClass: TGLObjectBindingClass;
@@ -132,100 +232,6 @@ begin
   Result := otFramebuffer;
 end;
 
-procedure TFBO.EnableTexture2D(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat);
-begin
-  if FOutputs[AType] <> nil then
-    raise Exception.Create('Multiple Framebuffer outputs for same Type!');
-
-  FOutputs[AType] := TEmptyTexture2D.Create(GLState, FSize.X, FSize.Y, APixelFormat);
-
-  Bind;
-  glFramebufferTexture2D(GL_FRAMEBUFFER, Ord(AType), GL_TEXTURE_2D, Textures[AType].GLName, 0);
-end;
-
-procedure TFBO.EnableTexture2D(AType: TGLFBOAttachment; ATexture: TTexture2D);
-begin
-  if FOutputs[AType] <> nil then
-    raise Exception.Create('Multiple Framebuffer outputs for same Type!');
-
-  FOutputs[AType] := ATexture;
-  FReferenced[AType] := True;
-
-  Bind;
-  glFramebufferTexture2D(GL_FRAMEBUFFER, Ord(AType), ATexture.TargetType, Textures[AType].GLName, 0);
-end;
-
-procedure TFBO.EnableTexture2DLayer(AType: TGLFBOAttachment; ATexture: TTexture2DArray; ALayer: Cardinal);
-begin
-  if FOutputs[AType] <> nil then
-    raise Exception.Create('Multiple Framebuffer outputs for same Type!');
-
-  FOutputs[AType] := ATexture;
-  FReferenced[AType] := True;
-
-  Bind;
-  glFramebufferTextureLayer(GL_FRAMEBUFFER, Ord(AType), Textures[AType].GLName, 0, ALayer);
-end;
-
-procedure TFBO.EnableTextureCubeMapLayer(AType: TGLFBOAttachment; ATexture: TTextureCubeMapArray; ALayer: Cardinal;
-  ASide: TGLCubeMapSide);
-begin
-  if FOutputs[AType] <> nil then
-    raise Exception.Create('Multiple Framebuffer outputs for same Type!');
-
-  FOutputs[AType] := ATexture;
-  FReferenced[AType] := True;
-
-  Bind;
-  glFramebufferTextureLayer(GL_FRAMEBUFFER, Ord(AType), Textures[AType].GLName, 0,
-    ALayer * 6 + Ord(ASide) - Ord(cmsPosX));
-end;
-
-procedure TFBO.EnableTexture2DMS(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
-begin
-  if FOutputs[AType] <> nil then
-    raise Exception.Create('Multiple Framebuffer outputs for same Type!');
-
-  FOutputs[AType] := TEmptyTexture2DMS.Create(GLState, FSize.X, FSize.Y, APixelFormat, ASamples);
-
-  Bind;
-  glFramebufferTexture2D(GL_FRAMEBUFFER, Ord(AType), GL_TEXTURE_2D_MULTISAMPLE, Textures[AType].GLName, 0);
-end;
-
-procedure TFBO.EnableRenderBuffer(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat);
-begin
-  if FOutputs[AType] <> nil then
-    raise Exception.Create('Multiple Framebuffer outputs for same Type!');
-
-  FOutputs[AType] := TRenderBuffer.Create(FSize.X, FSize.Y, APixelFormat);
-
-  Bind;
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, Ord(AType), GL_RENDERBUFFER, RenderBuffers[AType].ID);
-end;
-
-procedure TFBO.EnableRenderBufferMS(AType: TGLFBOAttachment; APixelFormat: TGLPixelFormat; ASamples: Cardinal);
-begin
-  if FOutputs[AType] <> nil then
-    raise Exception.Create('Multiple Framebuffer outputs for same Type!');
-
-  FOutputs[AType] := TRenderBufferMS.Create(FSize.X, FSize.Y, APixelFormat, ASamples);
-
-  Bind;
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, Ord(AType), GL_RENDERBUFFER, RenderBuffers[AType].ID);
-end;
-
-function TFBO.Finish: Boolean;
-const
-  DrawBuffers: array [0 .. 0] of Cardinal = (GL_COLOR_ATTACHMENT0);
-var
-  Status: Cardinal;
-begin
-  Bind;
-  glDrawBuffers(1, @DrawBuffers[0]);
-  Status := glCheckFramebufferStatus(GL_FRAMEBUFFER);
-  Result := Status = GL_FRAMEBUFFER_COMPLETE;
-end;
-
 class procedure TFBO.BindScreen(ASize: TIntVector2; AFBOBinding: TGLObjectBinding<TFBO>);
 begin
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -233,16 +239,38 @@ begin
   AFBOBinding.BoundObject := nil;
 end;
 
+procedure TFBO.Complete;
+const
+  DrawBuffers: TGLenum = GL_COLOR_ATTACHMENT0;
+begin
+  Bind;
+  glDrawBuffers(1, @DrawBuffers);
+  if glCheckFramebufferStatus(GL_FRAMEBUFFER) <> GL_FRAMEBUFFER_COMPLETE then
+    raise EFramebufferNotComplete.Create;
+end;
+
 procedure TFBO.CopyTo(AFBO: TFBO; AMask: TGLAttribMaskFlags);
 begin
-  if FSize <> AFBO.FSize then
-    raise Exception.Create('Framebuffer Dimension are not equal!');
+  if Viewport.Size <> AFBO.Viewport.Size then
+    raise EFramebufferViewportDifferent.Create;
 
   glBindFramebuffer(GL_READ_FRAMEBUFFER, GLName);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, AFBO.GLName);
   Binding.BoundObject := AFBO;
 
-  glBlitFramebuffer(0, 0, FSize.X, FSize.Y, 0, 0, FSize.X, FSize.Y, ToGLBitfield(AMask), GL_NEAREST);
+  glBlitFramebuffer(
+    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y,
+    AFBO.Viewport.C1.X, AFBO.Viewport.C1.Y, AFBO.Viewport.C2.X, AFBO.Viewport.C2.Y,
+    ToGLBitfield(AMask), GL_NEAREST);
+end;
+
+procedure TFBO.SetViewport(const Value: TIntBounds2);
+begin
+  if Viewport = Value then
+    Exit;
+  FViewport := Value;
+  if Bound then
+    glViewport(Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y);
 end;
 
 procedure TFBO.StretchTo(AFBO: TFBO; AMask: TGLAttribMaskFlags);
@@ -251,7 +279,10 @@ begin
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, AFBO.GLName);
   Binding.BoundObject := AFBO;
 
-  glBlitFramebuffer(0, 0, FSize.X, FSize.Y, 0, 0, AFBO.FSize.X, AFBO.FSize.Y, ToGLBitfield(AMask), GL_NEAREST);
+  glBlitFramebuffer(
+    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y,
+    AFBO.Viewport.C1.X, AFBO.Viewport.C1.Y, AFBO.Viewport.C2.X, AFBO.Viewport.C2.Y,
+    ToGLBitfield(AMask), GL_NEAREST);
 end;
 
 procedure TFBO.CopyToScreen(AMask: TGLAttribMaskFlags);
@@ -260,7 +291,10 @@ begin
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
   Binding.BoundObject := nil;
 
-  glBlitFramebuffer(0, 0, FSize.X, FSize.Y, 0, 0, FSize.X, FSize.Y, ToGLBitfield(AMask), GL_NEAREST);
+  glBlitFramebuffer(
+    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y,
+    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y,
+    ToGLBitfield(AMask), GL_NEAREST);
 end;
 
 procedure TFBO.StretchToScreen(AMask: TGLAttribMaskFlags; ASize: TIntVector2);
@@ -269,9 +303,12 @@ begin
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
   Binding.BoundObject := nil;
 
-  glBlitFramebuffer(0, 0, FSize.X, FSize.Y, 0, 0, ASize.X, ASize.Y, ToGLBitfield(AMask), GL_NEAREST);
+  glBlitFramebuffer(
+    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y,
+    0, 0, ASize.X, ASize.Y,
+    ToGLBitfield(AMask), GL_NEAREST);
 end;
-
+ {
 procedure TFBO.Resize(ASize: TIntVector2);
 var
   I: TGLFBOAttachment;
@@ -281,45 +318,160 @@ begin
   FSize := ASize;
   for I := Low(TGLFBOAttachment) to High(TGLFBOAttachment) do
   begin
-    if FOutputs[I] is TRenderBuffer then
+    if FOutputs[I] is TTexture2D then
     begin
-      F := TRenderBuffer(FOutputs[I]).Format;
-      FOutputs[I].Free;
-      FOutputs[I] := nil;
-      EnableRenderBuffer(I, F);
-    end;
-    if FOutputs[I] is TRenderBufferMS then
+      TTexture2D(FOutputs[I]).Size := FSize;
+    end
+    else if FOutputs[I] is TRenderbufferMS then
     begin
-      F := TRenderBufferMS(FOutputs[I]).Format;
-      S := TRenderBufferMS(FOutputs[I]).Samples;
-      FOutputs[I].Free;
-      FOutputs[I] := nil;
+      F := TRenderbufferMS(FOutputs[I]).Format;
+      S := TRenderbufferMS(FOutputs[I]).Samples;
+      FreeAndNil(FOutputs[I]);
       EnableRenderBufferMS(I, F, S);
-    end;
-    if FOutputs[I] is TEmptyTexture2D then
-      TEmptyTexture2D(FOutputs[I]).Resize(FSize.X, FSize.Y);
-    if FOutputs[I] is TEmptyTexture2DMS then
-      TEmptyTexture2DMS(FOutputs[I]).Resize(FSize.X, FSize.Y);
+    end
+    else if FOutputs[I] is TRenderbuffer then
+    begin
+      F := TRenderbuffer(FOutputs[I]).Format;
+      FreeAndNil(FOutputs[I]);
+      EnableRenderBuffer(I, F);
+    end
   end;
 end;
 
 procedure TFBO.SetSamples(ASamples: Integer);
 var
-  I: TGLFBOAttachment;
-  F: TGLPixelFormat;
+  Attachment: TGLFBOAttachment;
+  PixelFormat: TGLPixelFormat;
 begin
-  for I := Low(TGLFBOAttachment) to High(TGLFBOAttachment) do
+  for Attachment := Low(TGLFBOAttachment) to High(TGLFBOAttachment) do
   begin
-    if FOutputs[I] is TEmptyTexture2DMS then
-      TEmptyTexture2DMS(FOutputs[I]).SetSamples(ASamples);
-    if FOutputs[I] is TRenderBufferMS then
+    if FOutputs[Attachment] is TTexture2DMS then
     begin
-      F := TRenderBufferMS(FOutputs[I]).Format;
-      FOutputs[I].Free;
-      FOutputs[I] := nil;
-      EnableRenderBufferMS(I, F, ASamples);
+      TTexture2DMS(FOutputs[Attachment]).Samples := ASamples;
+    end
+    else if FOutputs[Attachment] is TRenderbufferMS then
+    begin
+      PixelFormat := TRenderbufferMS(FOutputs[Attachment]).Format;
+      FreeAndNil(FOutputs[Attachment]);
+      EnableRenderBufferMS(Attachment, PixelFormat, ASamples);
     end;
   end;
+end; }
+
+{ TColorAttachment }
+
+constructor TColorAttachment.Create(AIndex: Integer);
+begin
+  FIndex := AIndex;
+end;
+
+function TColorAttachment.GLEnum: Cardinal;
+begin
+  Result := GL_COLOR_ATTACHMENT0 + Index;
+end;
+
+{ TDepthAttachment }
+
+function TDepthAttachment.GLEnum: Cardinal;
+begin
+  Result := GL_DEPTH_ATTACHMENT;
+end;
+
+{ TStencilAttachment }
+
+function TStencilAttachment.GLEnum: Cardinal;
+begin
+  Result := GL_STENCIL_ATTACHMENT;
+end;
+
+{ TDepthStencilAttachment }
+
+function TDepthStencilAttachment.GLEnum: Cardinal;
+begin
+  Result := GL_DEPTH_STENCIL_ATTACHMENT;
+end;
+
+{ EFramebufferNotComplete }
+
+constructor EFramebufferNotComplete.Create;
+begin
+  inherited Create('The framebuffer is not complete.');
+end;
+
+{ TAttachment }
+
+constructor TAttachment.Create(AAttachmentPoint: TAttachmentPoint);
+begin
+  FAttachmentPoint := AAttachmentPoint;
+end;
+
+destructor TAttachment.Destroy;
+begin
+  FAttachmentPoint.Free;
+  inherited;
+end;
+
+{ TTexture2DAttachment }
+
+procedure TTexture2DAttachment.Attach;
+begin
+  glFramebufferTexture2D(GL_FRAMEBUFFER, AttachmentPoint.GLEnum, FTexture.TargetType, FTexture.GLName, 0);
+end;
+
+constructor TTexture2DAttachment.Create(AAttachmentPoint: TAttachmentPoint; ATexture: TTexture2D);
+begin
+  inherited Create(AAttachmentPoint);
+  FTexture := ATexture;
+end;
+
+{ TRenderbufferAttachment }
+
+procedure TRenderbufferAttachment.Attach;
+begin
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, AttachmentPoint.GLEnum, GL_RENDERBUFFER, Renderbuffer.GLName);
+end;
+
+constructor TRenderbufferAttachment.Create(AAttachmentPoint: TAttachmentPoint; ARenderbuffer: TRenderbuffer);
+begin
+  inherited Create(AAttachmentPoint);
+  FRenderbuffer := ARenderbuffer;
+end;
+
+{ TTextureLayerAttachment }
+
+procedure TTextureLayerAttachment.Attach;
+begin
+  glFramebufferTextureLayer(GL_FRAMEBUFFER, AttachmentPoint.GLEnum, Texture.GLName, 0, Layer);
+end;
+
+constructor TTextureLayerAttachment.Create(AAttachmentPoint: TAttachmentPoint; ATexture: TTexture2DArray;
+  ALayer: Integer);
+begin
+  inherited Create(AAttachmentPoint);
+  FTexture := ATexture;
+  FLayer := ALayer;
+end;
+
+{ EFramebufferViewportDifferent }
+
+constructor EFramebufferViewportDifferent.Create;
+begin
+  inherited Create('Framebuffer viewports are not equal in size.');
+end;
+
+{ TCubeMapLayerAttachment }
+
+procedure TCubeMapLayerAttachment.Attach;
+begin
+  glFramebufferTextureLayer(GL_FRAMEBUFFER, AttachmentPoint.GLEnum, Texture.GLName, 0, Layer * 6 + Ord(Side) - Ord(cmsPosX));
+end;
+
+constructor TCubeMapLayerAttachment.Create(AAttachmentPoint: TAttachmentPoint; ATexture: TTextureCubeMapArray; ASide: TGLCubeMapSide; ALayer: Integer);
+begin
+  inherited Create(AAttachmentPoint);
+  FTexture := ATexture;
+  FSide := ASide;
+  FLayer := ALayer;
 end;
 
 end.

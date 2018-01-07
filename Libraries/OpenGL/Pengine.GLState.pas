@@ -90,11 +90,15 @@ type
     property Binding: TGLObjectBinding read FBinding;
 
   public
+    destructor Destroy; override;
+
     class function GetObjectType: TGLObjectType; virtual; abstract;
     class function GetBindingClass: TGLObjectBindingClass; virtual; abstract;
 
     procedure Bind;
     procedure Unbind;
+
+    function Bound: Boolean;
 
     property GLState: TGLState read FGLState;
     property GLLabel: AnsiString read FGLLabel write SetGLLabel;
@@ -788,10 +792,22 @@ begin
   Result := GLName;
 end;
 
+function TGLObjectBase.Bound: Boolean;
+begin
+  Result := Binding.BoundObject = Self;
+end;
+
 constructor TGLObjectBase.Create(AGLState: TGLState);
 begin
   FGLState := AGLState;
   FBinding := GLState.GLObjectBindings.Get(TGLObjectBaseClass(ClassType));
+end;
+
+destructor TGLObjectBase.Destroy;
+begin
+  if Bound then
+    Unbind;
+  inherited;
 end;
 
 procedure TGLObjectBase.SetGLLabel(const Value: AnsiString);

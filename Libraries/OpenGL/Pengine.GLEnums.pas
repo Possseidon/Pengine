@@ -123,8 +123,7 @@ type
     );
 
   /// <remarks>
-  /// Don't use:
-  /// <para>
+  /// Don't use:<p>
   /// <c>dtByte</c>,
   /// <c>dtUByte</c>,
   /// <c>dtShort</c>,
@@ -132,8 +131,7 @@ type
   /// <c>dt2Bytes</c>,
   /// <c>dt3Bytes</c>,
   /// <c>dt4Bytes</c>
-  /// </para>
-  /// </remarks>
+  /// </p></remarks>
   TGLDataType = (
     dtByte = GL_BYTE, // don't use
     dtUByte, // don't use
@@ -363,12 +361,6 @@ type
     buDynamicCopy
     );
 
-  TGLFBOAttachment = (
-    fbaColor = GL_COLOR_ATTACHMENT0,
-    fbaDepth = GL_DEPTH_ATTACHMENT,
-    fbaStencil = GL_STENCIL_ATTACHMENT
-    );
-
   TGLCubeMapSide = (
     cmsPosX = GL_TEXTURE_CUBE_MAP_POSITIVE_X,
     cmsNegX,
@@ -444,6 +436,28 @@ type
   /// - <c>bfMapCoherent</c> requires <c>bfMapPersistent</c>.
   /// </remarks>
   TGLBufferFlags = set of TGLBufferFlag;
+
+  TGLDepthStencilTextureMode = (
+    tmStencilIndex = GL_STENCIL_INDEX,
+    tmDepthComponent
+    );
+
+  TGLTextureSwizzle = (
+    tsZero = GL_ZERO,
+    tsOne = GL_ONE,
+    tsRed = GL_RED,
+    tsGreen,
+    tsBlue,
+    tsAlpha
+    );
+
+  TGLTextureWrap = (
+    twRepeat = GL_REPEAT,
+    twClampToBorder = GL_CLAMP_TO_BORDER,
+    twClampToEdge = GL_CLAMP_TO_EDGE,
+    twMirroredRepeat = GL_MIRRORED_REPEAT,
+    twMirrorClampToEdge = GL_MIRROR_CLAMP_TO_EDGE
+    );
 
 const
 
