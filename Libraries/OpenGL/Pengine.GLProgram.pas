@@ -80,6 +80,11 @@ type
     constructor Create(ALog: AnsiString);
   end;
 
+  EShaderNotFound = class(Exception)
+  public
+    constructor Create(AName: string);
+  end;
+
   TGLProgram = class(TGLHandleObject)
   public type
 
@@ -505,14 +510,21 @@ procedure TGLProgram.LoadFromFile(AFileName: string);
 var
   ShaderType: TType;
   Name: string;
+  ShaderFound: Boolean;
 begin
   GLLabel := AnsiString(AFileName);
+  ShaderFound := False;
   for ShaderType := Low(TType) to High(TType) do
   begin
     Name := AFileName + FileExtensions[ShaderType];
     if FileExists(Name) then
+    begin
       AddShaderFromFile(ShaderType, Name);
+      ShaderFound := True;
+    end;
   end;
+  if not ShaderFound then
+    raise EShaderNotFound.Create(AFileName);
   Link;
 end;
 
@@ -883,6 +895,13 @@ begin
     Result.Free;
     raise;
   end;
+end;
+
+{ EShaderNotFound }
+
+constructor EShaderNotFound.Create(AName: string);
+begin
+  inherited CreateFmt('No shader with the name "%s" could be found.', [AName]);
 end;
 
 end.

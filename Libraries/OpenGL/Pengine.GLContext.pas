@@ -64,10 +64,10 @@ type
     FGLDebugLogLevels: TGLDebugSeverities;
     FGLDebugRaiseLevels: TGLDebugSeverities;
 
-    function GetDeltaTime: Single;
+    function GetDeltaTime: TSeconds;
     function GetFPS: Single;
     function GetFPSInt: Cardinal;
-    function GetSeconds: Single;
+    function GetTime: TSeconds;
 
     procedure SetMultiSampled(Value: Boolean);
     procedure SetSamples(Value: Integer);
@@ -108,11 +108,11 @@ type
     property MaxDeltaTime: Single read FMaxDeltaTime write FMaxDeltaTime;
 
     property Timer: TDeltaTimer read FTimer;
-    property DeltaTime: Single read GetDeltaTime;
+    property DeltaTime: TSeconds read GetDeltaTime;
     property FPS: Single read GetFPS;
     property FPSLimit: Single read FFPSLimit write SetFPSLimit;
     property FPSInt: Cardinal read GetFPSInt;
-    property Seconds: Single read GetSeconds;
+    property Time: TSeconds read GetTime;
     property MustUpdateFPS: Boolean read FMustUpdateFPS;
 
     property GLDebug: Boolean read GetDebugOutput write SetDebugOutput;
@@ -460,7 +460,7 @@ begin
   Result := GLState[stDebugOutputSynced];
 end;
 
-function TGLContext.GetDeltaTime: Single;
+function TGLContext.GetDeltaTime: TSeconds;
 begin
   Result := FTimer.DeltaTime;
 end;
@@ -480,14 +480,14 @@ begin
   Result := FFBO <> nil;
 end;
 
-function TGLContext.GetSeconds: Single;
+function TGLContext.GetTime: TSeconds;
 begin
-  Result := FTimer.Seconds;
+  Result := FTimer.Time;
 end;
 
 procedure TGLContext.InitGL;
 begin
-  FRC := CreateRenderingContextVersion(FDC, [opDoubleBuffered], 4, 5, True, 32, 32, 0, 0, 0, 0);
+  FRC := CreateRenderingContextVersion(FDC, [opDoubleBuffered], 4, 2, True, 32, 32, 0, 0, 0, 0);
   ActivateRenderingContext(FDC, FRC);
 
   glDebugMessageCallback(DebugCallback, Self);

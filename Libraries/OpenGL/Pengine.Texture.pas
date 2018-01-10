@@ -22,7 +22,8 @@ uses
   Pengine.GLProgram,
   Pengine.IntMaths,
   Pengine.GLState,
-  Pengine.Color;
+  Pengine.Color,
+  Pengine.Vector;
 
 type
 
@@ -86,6 +87,10 @@ type
 
     property Data: TArray<TColorRGBA.TBytes> read GetData write SetData;
     property SubData[ABounds: TIntBounds2]: TArray<TColorRGBA.TBytes> read GetSubData write SetSubData;
+
+    function CreateSubTexture(ABounds: TIntBounds2): TTextureData; overload;
+    function CreateSubTexture(ABounds: TBounds2): TTextureData; overload;
+    function CreateSubTexture(ADivisions, ASelected: TIntVector2): TTextureData; overload;
 
   end;
 
@@ -511,6 +516,29 @@ class function TTextureData.CreateFromResource(AResource: string): TTextureData;
 begin
   Result := TTextureData.Create;
   Result.LoadFromResource(AResource);
+end;
+
+function TTextureData.CreateSubTexture(ADivisions, ASelected: TIntVector2): TTextureData;
+var
+  ResultSize: TIntVector2;
+begin
+  ResultSize := Size div ADivisions;
+  Result  := CreateSubTexture(IBounds2(ResultSize) + ASelected * ResultSize);
+end;
+
+function TTextureData.CreateSubTexture(ABounds: TIntBounds2): TTextureData;
+var
+  NewData: TArray<TColorRGBA.TBytes>;
+begin
+  Result := TTextureData.Create(ABounds.Size);
+  NewData := SubData[ABounds];
+  Result.Data := NewData;
+  NewData.Free;
+end;
+
+function TTextureData.CreateSubTexture(ABounds: TBounds2): TTextureData;
+begin
+  Result := CreateSubTexture((ABounds * TVector2(Size)).Floor);
 end;
 
 destructor TTextureData.Destroy;

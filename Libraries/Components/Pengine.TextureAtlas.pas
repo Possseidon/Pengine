@@ -114,7 +114,7 @@ type
 
       TSubTextures = TObjectArray<TTextureData>;
 
-      TSubTiles = TObjectArray<TTile>;
+      TSubTiles = TRefArray<TTile>;
 
     private
       FAtlas: TTextureAtlas;
@@ -285,7 +285,15 @@ begin
 end;
 
 destructor TTextureAtlas.TTile.Destroy;
+var
+  I: Integer;
 begin
+  if HasSubTiles and (Self = FSubTiles[0]) then
+  begin
+    for I := 1 to FSubTiles.MaxIndex do
+      FSubTiles[I].Free;
+    FSubTiles.Free;
+  end;
   FSubTextures.Free;
   FTexture.Free;
   inherited;
@@ -364,6 +372,7 @@ var
   I: Integer;
   FileName: string;
   Info: TInfo;
+  Textures: TArray<TTextureData>;
 begin
   Data := TTextureData.CreateFromFile(AFileName);
   FileName := TRegex.Replace(AFileName, '\.\w+$', '.info');
@@ -372,8 +381,10 @@ begin
     // load with .info file
     try
       Info := TInfo.Create(TFile.ReadAllText(FileName));
-      Result := Add(AName, Info.GetTextureArray(Data));
-      Info.Free;    
+      Textures := Info.GetTextureArray(Data);
+      Result := Add(AName, Textures);
+      Textures.Free;
+      Info.Free;
     finally
       Data.Free;
     end;
@@ -998,6 +1009,7 @@ begin
   if not TexturesNode.TryGetValue<TJSONNumber>('Y', JSONNumber) then
     raise ETextureAtlasInvalidInfoFile.Create;
   FTextures.Y := JSONNumber.AsInt;
+  Info.Free;
 end;
 
 function TTextureAtlas.TInfo.GetTextureArray(ATexture: TTextureData): TArray<TTextureData>;
@@ -1007,12 +1019,7 @@ var
 begin
   Result := TArray<TTextureData>.Create;
   for Pos in FTextures do
-  begin
-    TextureSize := ATexture.Size div FTextures;
-    Data := ATexture.SubData[IBounds2(ATexture.Size) div FTextures + Pos * TextureSize];
-    Result.Add(TTextureData.Create(TextureSize)).Data := Data;
-    Data.Free;    
-  end;
+    Result.Add(ATexture.CreateSubTexture(FTextures, Pos));
 end;
 
 end.

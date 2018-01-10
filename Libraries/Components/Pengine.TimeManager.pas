@@ -7,6 +7,8 @@ uses
 
 type
 
+  TSeconds = type Single;
+
   TTimeFormat = (
     tfNanoseconds,
     tfMicroseconds,
@@ -23,22 +25,26 @@ type
   private
     FLastTime: Int64;
 
-    FFPS, FDeltaTime, FUpdateTime, FSeconds: Single;
-    FUpdateSpeed, FUpdateInterval: Single; // update speed: 0 = no update; inf = raw
+    FFPS: Single;
+    FDeltaTime: TSeconds;
+    FUpdateTime: TSeconds;
+    FSeconds: TSeconds;
+    FUpdateSpeed: Single;
+    FUpdateInterval: TSeconds; // update speed: 0 = no update; inf = raw
 
     procedure SetUpdateSpeed(const Value: Single);
-    procedure SetUpdateInterval(const Value: Single);
+    procedure SetUpdateInterval(const Value: TSeconds);
 
   public
-    constructor Create(AUpdateSpeed: Single = 4; AUpdateInterval: Single = 0.5);
+    constructor Create(AUpdateSpeed: Single = 4; AUpdateInterval: TSeconds = 0.5);
 
     function Update: Boolean;
 
     property UpdateSpeed: Single read FUpdateSpeed write SetUpdateSpeed;
-    property UpdateInterval: Single read FUpdateInterval write SetUpdateInterval;
-    property DeltaTime: Single read FDeltaTime;
+    property UpdateInterval: TSeconds read FUpdateInterval write SetUpdateInterval;
+    property DeltaTime: TSeconds read FDeltaTime;
     property FPS: Single read FFPS;
-    property Seconds: Single read FSeconds;
+    property Time: TSeconds read FSeconds;
 
     procedure ForceFPSUpdate;
   end;
@@ -143,7 +149,7 @@ end;
 
 { TGLTimer }
 
-constructor TDeltaTimer.Create(AUpdateSpeed: Single = 4; AUpdateInterval: Single = 0.5);
+constructor TDeltaTimer.Create(AUpdateSpeed: Single = 4; AUpdateInterval: TSeconds = 0.5);
 begin
   FUpdateSpeed := AUpdateSpeed;
   FUpdateInterval := AUpdateInterval;
@@ -156,7 +162,7 @@ begin
   FUpdateSpeed := Value;
 end;
 
-procedure TDeltaTimer.SetUpdateInterval(const Value: Single);
+procedure TDeltaTimer.SetUpdateInterval(const Value: TSeconds);
 begin
   FUpdateInterval := Value;
 end;

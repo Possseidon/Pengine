@@ -26,7 +26,7 @@ type
     function GetOnUpdate: TEvent.TAccess;
     function GetOnRender: TEvent.TAccess;
     function GetDeltaTime: Single;
-    function GetSeconds: Single;
+    function GetTime: TSeconds;
     function GetFPS: Single;
     function GetAspect: Single;
 
@@ -43,7 +43,7 @@ type
 
     property Timer: TDeltaTimer read FTimer;
     property DeltaTime: Single read GetDeltaTime;
-    property Seconds: Single read GetSeconds;
+    property Time: TSeconds read GetTime;
     property FPS: Single read GetFPS;
 
     property Resolution: TIntVector2 read FResolution;
@@ -84,9 +84,9 @@ begin
   Result := Timer.FPS;
 end;
 
-function TGLGame.GetSeconds: Single;
+function TGLGame.GetTime: TSeconds;
 begin
-  Result := Timer.Seconds;
+  Result := Timer.Time;
 end;
 
 function TGLGame.GetOnRender: TEvent.TAccess;

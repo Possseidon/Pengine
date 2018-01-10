@@ -113,9 +113,9 @@ procedure TfrmMain.Init;
 var
   Sprite: TSprite;
 begin
-  Context.VSync := False;
+  Context.VSync := True;
 
-  Context.Samples := Context.MaxSamples;
+  // Context.Samples := Context.MaxSamples;
 
   FSpriteGLProgram := TSpriteGLProgram.Make(GLState.ResParam);
 

@@ -615,6 +615,11 @@ type
     /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: Single): TBounds1;
 
+    /// <returns>THe bounds with all values rounded down.</returns>
+    function Floor: TIntBounds1;
+    /// <returns>THe bounds with all values rounded up.</returns>
+    function Ceil: TIntBounds1;
+
     class operator Add(const A, B: TBounds1): TBounds1;
     class operator Subtract(const A, B: TBounds1): TBounds1;
     class operator Multiply(const A, B: TBounds1): TBounds1;
@@ -774,6 +779,11 @@ type
     function Inset(AAmount: TVector2): TBounds2;
     /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: TVector2): TBounds2;
+
+    /// <returns>THe bounds with all values rounded down.</returns>
+    function Floor: TIntBounds2;
+    /// <returns>THe bounds with all values rounded up.</returns>
+    function Ceil: TIntBounds2;
 
     class operator Add(const A, B: TBounds2): TBounds2;
     class operator Subtract(const A, B: TBounds2): TBounds2;
@@ -979,6 +989,11 @@ type
     function Inset(AAmount: TVector3): TBounds3;
     /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: TVector3): TBounds3;
+
+    /// <returns>THe bounds with all values rounded down.</returns>
+    function Floor: TIntBounds3;
+    /// <returns>THe bounds with all values rounded up.</returns>
+    function Ceil: TIntBounds3;
 
     class operator Add(const A, B: TBounds3): TBounds3;
     class operator Subtract(const A, B: TBounds3): TBounds3;
@@ -2882,6 +2897,12 @@ begin
   Result := C2 - C1;
 end;
 
+function TBounds1.Ceil: TIntBounds1;
+begin
+  Result.C1 := System.Math.Ceil(C1);
+  Result.C2 := System.Math.Ceil(C2);
+end;
+
 function TBounds1.Center: Single;
 begin
   Result := (C1 + C2) / 2;
@@ -2908,7 +2929,7 @@ function TBounds1.RangedModL(AValue: Single): Single;
 // Copy of System.Math.FMod, but that uses Trunc, which results in a symmetric behavior
   function FMod(const ANumerator, ADenominator: Single): Single;
   begin
-    Result := ANumerator - Floor(ANumerator / ADenominator) * ADenominator;
+    Result := ANumerator - System.Math.Floor(ANumerator / ADenominator) * ADenominator;
   end;
 
 begin
@@ -2920,7 +2941,7 @@ function TBounds1.RangedModR(AValue: Single): Single;
 // Copy of System.Math.FMod, but that uses Trunc, which results in a symmetric behavior
   function FMod(const ANumerator, ADenominator: Single): Single;
   begin
-    Result := ANumerator - (Ceil(ANumerator / ADenominator) - 1) * ADenominator;
+    Result := ANumerator - (System.Math.Ceil(ANumerator / ADenominator) - 1) * ADenominator;
   end;
 
 begin
@@ -2989,6 +3010,12 @@ end;
 class operator TBounds1.Equal(const A, B: TBounds1): Boolean;
 begin
   Result := (A.C1 = B.C1) and (A.C2 = B.C2);
+end;
+
+function TBounds1.Floor: TIntBounds1;
+begin
+  Result.C1 := System.Math.Floor(C1);
+  Result.C2 := System.Math.Floor(C2);
 end;
 
 class operator TBounds1.NotEqual(const A, B: TBounds1): Boolean;
@@ -3156,6 +3183,12 @@ begin
   Result := LineY.Length;
 end;
 
+function TBounds2.Ceil: TIntBounds2;
+begin
+  Result.C1 := C1.Ceil;
+  Result.C2 := C2.Ceil;
+end;
+
 function TBounds2.Center: TVector2;
 begin
   Result := (C1 + C2) / 2;
@@ -3250,6 +3283,12 @@ end;
 class operator TBounds2.Equal(const A, B: TBounds2): Boolean;
 begin
   Result := (A.C1 = B.C1) and (A.C2 = B.C2);
+end;
+
+function TBounds2.Floor: TIntBounds2;
+begin
+  Result.C1 := C1.Floor;
+  Result.C2 := C2.Floor;
 end;
 
 class operator TBounds2.NotEqual(const A, B: TBounds2): Boolean;
@@ -3514,6 +3553,12 @@ begin
   Result := LineZ.Length;
 end;
 
+function TBounds3.Ceil: TIntBounds3;
+begin
+  Result.C1 := C1.Ceil;
+  Result.C2 := C2.Ceil;
+end;
+
 function TBounds3.Center: TVector3;
 begin
   Result := (C1 + C2) / 2;
@@ -3613,6 +3658,12 @@ end;
 class operator TBounds3.Equal(const A, B: TBounds3): Boolean;
 begin
   Result := (A.C1 = B.C1) and (A.C2 = B.C2);
+end;
+
+function TBounds3.Floor: TIntBounds3;
+begin
+  Result.C1 := C1.Floor;
+  Result.C2 := C2.Floor;
 end;
 
 class operator TBounds3.NotEqual(const A, B: TBounds3): Boolean;

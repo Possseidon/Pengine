@@ -6,6 +6,7 @@ uses
   System.SysUtils,
   System.Math,
 
+  Pengine.TimeManager,
   Pengine.GLState,
   Pengine.Collections,
   Pengine.VAO,
@@ -157,21 +158,57 @@ type
 
     TFadeBehavior = class(TBehavior)
     private
-      FDuration: Single;
-      FTimeLeft: Single;
+      FDuration: TSeconds;
+      FTimeLeft: TSeconds;
 
       function GetProgress: Single;
 
     public
       constructor Create(ASprite: TSprite); overload; override;
-      constructor Create(ASprite: TSprite; ATexture: string; ADuration: Single); reintroduce; overload;
-      constructor Create(ASprite: TSprite; ATexture: TTextureAtlas.TTile; ADuration: Single); reintroduce; overload;
+      constructor Create(ASprite: TSprite; ATexture: string; ADuration: TSeconds); reintroduce; overload;
+      constructor Create(ASprite: TSprite; ATexture: TTextureAtlas.TTile; ADuration: TSeconds); reintroduce; overload;
 
       procedure Update; override;
 
-      property Duration: Single read FDuration;
-      property TimeLeft: Single read FTimeLeft;
+      property Duration: TSeconds read FDuration;
+      property TimeLeft: TSeconds read FTimeLeft;
       property Progress: Single read GetProgress;
+
+    end;
+
+    TSimpleAnimationBeavior = class(TBehavior)
+    private
+      FFrameTime: TSeconds;
+      FTimeLeft: TSeconds;
+      FFadePercentage: Single;
+      FFrame: Integer;
+
+      procedure SpriteChanged(AInfo: TChangeEventInfo);
+
+      function GetDuration: TSeconds;
+      function GetFrameFadePercentage: Single;
+        procedure SetDuration(const Value: TSeconds);
+        procedure SetFadePercentage(const Value: Single);
+        procedure SetFrame(const Value: Integer);
+        procedure SetFrameTime(const Value: TSeconds);
+
+    protected
+      procedure AddEvents; override;
+      procedure DelEvents; override;
+
+    public
+      constructor Create(ASrite: TSprite); override; overload;
+      constructor Create(ASrite: TSprite; ADuration: TSeconds; AFadePercentage: Single = 1); overload; reintroduce;
+
+      property FadePercentage: Single read FFadePercentage write SetFadePercentage;
+      property Duration: TSeconds read GetDuration write SetDuration;
+      property FrameTime: TSeconds read FFrameTime write SetFrameTime;
+
+      property Frame: Integer read FFrame write SetFrame;
+      property FrameTimeLeft: TSeconds read FTimeLeft;
+      property FrameFadePercantage: Single read GetFrameFadePercentage;
+
+      procedure Update; override;
 
     end;
 
@@ -253,8 +290,11 @@ type
 
     property Texture: string read FTexture write SetTexture;
     property TextureTile: TTextureAtlas.TTile read FTextureTile write SetTextureTile;
+    property SubTextureIndex: Integer read GetTextureIndex write SetTextureIndex;
+
     property FadeTexture: string read FFadeTexture write SetFadeTexture;
     property FadeTextureTile: TTextureAtlas.TTile read FFadeTextureTile write SetFadeTextureTile;
+    property FadeSubTextureIndex: Integer read GetFadeSubTextureIndex write SetFadeSubTextureIndex;
     property Fade: Single read FFade write SetFade;
 
     property Bounds: TPlane2 read GetBounds;
@@ -847,12 +887,12 @@ begin
   raise ESpriteBehaviorNoDefault.Create;
 end;
 
-constructor TSprite.TFadeBehavior.Create(ASprite: TSprite; ATexture: string; ADuration: Single);
+constructor TSprite.TFadeBehavior.Create(ASprite: TSprite; ATexture: string; ADuration: TSeconds);
 begin
   Create(ASprite, ASprite.SpriteSystem.SpriteAtlas[ATexture], ADuration);
 end;
 
-constructor TSprite.TFadeBehavior.Create(ASprite: TSprite; ATexture: TTextureAtlas.TTile; ADuration: Single);
+constructor TSprite.TFadeBehavior.Create(ASprite: TSprite; ATexture: TTextureAtlas.TTile; ADuration: TSeconds);
 begin
   inherited Create(ASprite);
   Sprite.FadeTextureTile := ATexture;
@@ -888,6 +928,75 @@ end;
 function TSprite.TBehavior.TSenderEventInfo.Sender: TBehavior;
 begin
   Result := FSender;
+end;
+
+{ TSprite.TSimpleAnimationBeavior }
+
+procedure TSprite.TSimpleAnimationBeavior.AddEvents;
+begin
+  Sprite.OnChanged.Add(SpriteChanged);
+end;
+
+constructor TSprite.TSimpleAnimationBeavior.Create(ASrite: TSprite);
+begin
+  inherited;
+  FFrameTime := 0.1;
+  FTimeLeft := FrameTime;
+  FFadePercentage := 1;
+  FFrame := 0;
+end;
+
+constructor TSprite.TSimpleAnimationBeavior.Create(ASrite: TSprite; ADuration: TSeconds; AFadePercentage: Single);
+begin
+  inherited Create(ASprite);
+  Duration := ADuration;
+  FFadePercentage := AFadePerdentage;
+end;
+
+procedure TSprite.TSimpleAnimationBeavior.DelEvents;
+begin
+  Sprite.OnChanged.Del(SpriteChanged);
+end;
+
+function TSprite.TSimpleAnimationBeavior.GetDuration: TSeconds;
+begin
+
+end;
+
+function TSprite.TSimpleAnimationBeavior.GetFrameFadePercentage: Single;
+begin
+
+end;
+
+procedure TSprite.TSimpleAnimationBeavior.SetDuration(const Value: TSeconds);
+begin
+
+end;
+
+procedure TSprite.TSimpleAnimationBeavior.SetFadePercentage(const Value: Single);
+begin
+  FFadePercentage := Value;
+end;
+
+procedure TSprite.TSimpleAnimationBeavior.SetFrame(const Value: Integer);
+begin
+  FFrame := Value;
+end;
+
+procedure TSprite.TSimpleAnimationBeavior.SetFrameTime(const Value: TSeconds);
+begin
+  FFrameTime := Value;
+end;
+
+procedure TSprite.TSimpleAnimationBeavior.SpriteChanged(AInfo: TChangeEventInfo);
+begin
+
+end;
+
+procedure TSprite.TSimpleAnimationBeavior.Update;
+begin
+  inherited;
+
 end;
 
 end.
