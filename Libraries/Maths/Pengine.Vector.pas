@@ -155,6 +155,11 @@ type
     /// <returns>A <see cref="Pengine.Vector|TVector2"/>, with a specified <see cref="Pengine.Vector|TVector2.Slope"/>.</returns>
     class function FromSlope(ASlope: Single): TVector2; static;
 
+    /// <returns>A normlaized <see cref="Pengine.Vector|TVector2"/>, with a specified angle in radians.</returns>
+    class function FromAngleRad(AAngle: Single): TVector2; static;
+    /// <returns>A normlaized <see cref="Pengine.Vector|TVector2"/>, with a specified angle in degrees.</returns>
+    class function FromAngle(AAngle: Single): TVector2; static;
+
     /// <returns>A <see cref="Pengine.Vector|TVector2"/>, with each component being a random value in the interval: <c>[0, 1)</c></returns>
     class function Random: TVector2; static;
     /// <returns>A <see cref="Pengine.Vector|TVector2"/>, with each component being a random value in the interval: <c>[-1, 1)</c></returns>
@@ -1182,6 +1187,8 @@ type
   /// <summary>Represents a 2-Dimensional plane, described by one support vector S and two direction vectors D1 and D2.</summary>
   TPlane2 = record
   private
+    function GetPoint(APos: TVector2): TVector2;
+    function GetInvPoints(APos: TVector2): TVector2;
 
   public
     /// <summary>The support vector S of the line.</summary>
@@ -1193,6 +1200,17 @@ type
 
     /// <summary>Creates a plane with the given support vector and direction vectors.</summary>
     constructor Create(const S, D1, D2: TVector2);
+
+    /// <returns>The area of the paralellogram.</returns>
+    function Area: Single; inline;
+
+    /// <summary>Gets a point on the plane, where <c>[0, 1]</c> turns into <c>[S, S + D1 + D2]</c></summary>
+    /// <remarks>Default property.</remarks>
+    property Point[APos: TVector2]: TVector2 read GetPoint; default;
+    /// <summary>Gets where a point lies on the plane, where <c>[S, S + D1 + D2]</c> turns into <c>[0, 1]</c></summary>
+    property InvPoint[APos: TVector2]: TVector2 read GetInvPoints;
+
+    class operator in(const A: TVector2; const B: TPlane2): Boolean;
 
     class operator Equal(const A, B: TPlane2): Boolean;
     class operator NotEqual(const A, B: TPlane2): Boolean;
@@ -1335,14 +1353,16 @@ type
     private
       FSender: TLocation;
       FChanges: TChanges;
+
     public
       constructor Create(ASender: TLocation; AChanges: TChanges);
 
       function Sender: TLocation;
       property Changes: TChanges read FChanges;
+
     end;
 
-    TOnChangeEvent = TObservableEvent<TChangeEventInfo>;
+    TChangeEvent = TEvent<TChangeEventInfo>;
 
   private
     FPos: TVector3;
@@ -1367,6 +1387,8 @@ type
     FChanged: Boolean;
 
     FParent: TLocation;
+
+    FOnChanged: TChangeEvent;
 
     procedure SetLook(AValue: TVector3);
     procedure TriggerChanges(AChanges: TChanges);
@@ -1406,6 +1428,8 @@ type
 
     procedure ParentChanged(AInfo: TChangeEventInfo);
     procedure SetParent(const Value: TLocation);
+
+    function GetOnChanged: TChangeEvent.TAccess; inline;
 
   public
     /// <summary>Creates a <see cref="Pengine.Vector|TLocation"/>.</summary>
@@ -1488,9 +1512,7 @@ type
     procedure FromMatrix(AMatrix: TMatrix4);
     procedure FromRotMatrix(AMatrix: TMatrix3);
 
-  public
-    // Events
-    OnChanged: TOnChangeEvent;
+    property OnChanged: TChangeEvent.TAccess read GetOnChanged;
 
   end;
 
@@ -1891,6 +1913,16 @@ end;
 class function TVector2.FromSlope(ASlope: Single): TVector2;
 begin
   Result.Create(1, ASlope);
+end;
+
+class function TVector2.FromAngleRad(AAngle: Single): TVector2;
+begin
+  SinCos(AAngle, Result.Y, Result.X);
+end;
+
+class function TVector2.FromAngle(AAngle: Single): TVector2;
+begin
+  Result := FromAngleRad(DegToRad(AAngle));
 end;
 
 class function TVector2.Random: TVector2;
@@ -3908,11 +3940,35 @@ end;
 
 { TPlane2 }
 
+function TPlane2.GetPoint(APos: TVector2): TVector2;
+begin
+  Result := S + APos.X * D1 + APos.Y * D2;
+end;
+
+class operator TPlane2.in(const A: TVector2; const B: TPlane2): Boolean;
+begin
+  Result := B.InvPoint[A] in Bounds2(0, 1);
+end;
+
+function TPlane2.GetInvPoints(APos: TVector2): TVector2;
+begin
+  Result.X := (D2.Y * (APos.X - S.X) - D2.X * (APos.Y - S.Y)) / (D1.X * D2.Y - D1.Y * D2.X);
+  if (Abs(D2.X) > 1e-3) or (D2.Y = 0) then
+    Result.Y := (APos.X - S.X - Result.X * D1.X) / D2.X
+  else
+    Result.Y := (APos.Y - S.Y - Result.X * D1.Y) / D2.Y;
+end;
+
 constructor TPlane2.Create(const S, D1, D2: TVector2);
 begin
   Self.S := S;
   Self.D1 := D1;
   Self.D2 := D2;
+end;
+
+function TPlane2.Area: Single;
+begin
+  Result := Vec3(D1.X, D1.Y, 0).Cross(Vec3(D2.X, D2.Y, 0)).Z;
 end;
 
 class operator TPlane2.Equal(const A, B: TPlane2): Boolean;
@@ -4138,7 +4194,7 @@ begin
   FChanged := True;
   if AChanges - [ctFreeScale, ctFreeTranslation, ctFreeRotation] = AChanges then // free changes matrix > no notify
     FMatrixChanged := True;
-  OnChanged.Execute(TChangeEventInfo.Create(Self, AChanges));
+  FOnChanged.Execute(TChangeEventInfo.Create(Self, AChanges));
 end;
 
 function TLocation.GetMatrix: TMatrix4;
@@ -4148,6 +4204,11 @@ begin
   FInvMatrixChanged := True;
   FRotMatrixChanged := True;
   Result := FMatrix;
+end;
+
+function TLocation.GetOnChanged: TChangeEvent.TAccess;
+begin
+  Result := FOnChanged.Access;
 end;
 
 function TLocation.GetInvMatrix: TMatrix4;
@@ -4255,7 +4316,7 @@ end;
 
 procedure TLocation.BuildMatrix;
 begin
-  OnChanged.Disable;
+  FOnChanged.Disable;
   if Parent <> nil then
     FMatrix := Parent.Matrix
   else
@@ -4281,7 +4342,7 @@ begin
   FMatrixChanged := False;
   FFreeChanged := False;
   FChanged := True;
-  OnChanged.Enable;
+  FOnChanged.Enable;
 end;
 
 procedure TLocation.SetPos(AValue: TVector3);
@@ -4467,7 +4528,7 @@ begin
   FRotation := 0;
   FMatrix.LoadIdentity;
   FChanged := True;
-  OnChanged.Execute(TChangeEventInfo.Create(Self, [
+  FOnChanged.Execute(TChangeEventInfo.Create(Self, [
     ctPosition,
     ctOffset,
     ctScale,

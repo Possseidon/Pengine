@@ -3,13 +3,24 @@ unit Pengine.Color;
 interface
 
 uses
-  Vcl.Graphics;
+  Vcl.Graphics,
+
+  Pengine.Vector;
 
 type
 
-  { TColorRGBA }
-
   TColorRGBA = record
+  public type
+
+    PBytes = ^TBytes;
+    TBytes = packed record
+      R, G, B, A: Byte;
+
+      function Convert: TColorRGBA;
+
+    end;
+
+  public
     R, G, B, A: Single;
 
     class operator Add(A, B: TColorRGBA): TColorRGBA;
@@ -38,11 +49,23 @@ type
     class operator Implicit(AValue: TColor): TColorRGBA;
 
     function ToWinColor: TColor;
+    function ToBytes: TBytes;
 
     function EnsureColor: TColorRGBA;
   end;
 
   TColorRGB = record
+  public type
+
+    PBytes = ^TBytes;
+    TBytes = packed record
+      R, G, B: Byte;
+
+      function Convert: TColorRGB;
+
+    end;
+
+  public
     R, G, B: Single;
 
     class operator Add(A, B: TColorRGB): TColorRGB;
@@ -76,6 +99,7 @@ type
     class operator Implicit(AValue: Single): TColorRGB;
 
     function ToWinColor: TColor;
+    function ToBytes: TBytes;
 
     function EnsureColor: TColorRGB;
   end;
@@ -218,7 +242,7 @@ class function TColorRGB.HSV(H, S, V: Single): TColorRGB;
   end;
 
 begin
-  H := Frac(H / 6);
+  H := Bounds1(0, 6).RangedModL(H) / 6;
   case HMod(H) of
     0:
       Result := TColorRGB.Create(V, T(V, S, F(H)), P(V, S));
@@ -255,6 +279,13 @@ end;
 class operator TColorRGB.Subtract(A: TColorRGB; V: Single): TColorRGB;
 begin
 
+end;
+
+function TColorRGB.ToBytes: TBytes;
+begin
+  Result.R := Floor(R * High(Byte) + 0.5);
+  Result.G := Floor(G * High(Byte) + 0.5);
+  Result.B := Floor(B * High(Byte) + 0.5);
 end;
 
 function TColorRGB.ToRGBA(A: Single): TColorRGBA;
@@ -421,6 +452,14 @@ begin
   Result := TColorRGBA.Create(AValue, 1);
 end;
 
+function TColorRGBA.ToBytes: TBytes;
+begin
+  Result.R := Floor(R * High(Byte) + 0.5);
+  Result.G := Floor(G * High(Byte) + 0.5);
+  Result.B := Floor(B * High(Byte) + 0.5);
+  Result.A := Floor(A * High(Byte) + 0.5);
+end;
+
 function TColorRGBA.ToWinColor: TColor;
 begin
   Result := TColorRGB(Self).ToWinColor;
@@ -452,6 +491,25 @@ end;
 function ColorRGBA(R, G, B: Single; A: Single = 1): TColorRGBA;
 begin
   Result := TColorRGBA.Create(R, G, B, A);
+end;
+
+{ TColorRGBA.TBytes }
+
+function TColorRGBA.TBytes.Convert: TColorRGBA;
+begin
+  Result.R := R / 255;
+  Result.G := G / 255;
+  Result.B := B / 255;
+  Result.A := A / 255;
+end;
+
+{ TColorRGB.TBytes }
+
+function TColorRGB.TBytes.Convert: TColorRGB;
+begin
+  Result.R := R / 255;
+  Result.G := G / 255;
+  Result.B := B / 255;
 end;
 
 end.

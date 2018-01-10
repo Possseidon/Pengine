@@ -646,9 +646,21 @@ type
     property Current: TIntVector3 read FCurrent;
   end;
 
+  TIntVector2Helper = record helper for TIntVector2
+  public
+    /// <returns>A <see cref="Pengine.IntMaths|TIntBounds2"/> for the interval: <c>[Self, Self + ASize)</c></returns>
+    function Bounds(ASize: TIntVector2): TIntBounds2;
+  end;
+
+  TIntVector3Helper = record helper for TIntVector3
+  public
+    /// <returns>A <see cref="Pengine.IntMaths|TIntBounds3"/> for the interval: <c>[Self, Self + ASize)</c></returns>
+    function Bounds(ASize: TIntVector3): TIntBounds3;
+  end;
+
   { Shorthand Constructors }
 
-  /// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given values for X and Y.</returns>
+/// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given values for X and Y.</returns>
 function IVec2(X, Y: Integer): TIntVector2; overload; inline;
 /// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given value for X and Y.</returns>
 function IVec2(V: Integer): TIntVector2; overload; inline;
@@ -657,69 +669,30 @@ function IVec3(X, Y, Z: Integer): TIntVector3; overload; inline;
 /// <returns>A <see cref="Pengine.IntMaths|TIntVector3"/> with the given value for X, Y and Z.</returns>
 function IVec3(V: Integer): TIntVector3; overload; inline;
 
-/// <returns>A <see cref="Pengine.IntMaths|TIntBounds1"/> for the interval: <c>[A, B]</c></returns>
+/// <returns>A <see cref="Pengine.IntMaths|TIntBounds1"/> for the interval: <c>[A, B)</c></returns>
 function IBounds1(A, B: Integer): TIntBounds1; overload; inline;
+/// <returns>A <see cref="Pengine.IntMaths|TIntBounds1"/> for the interval: <c>[A, B]</c></returns>
+function IBounds1I(A, B: Integer): TIntBounds1; overload; inline;
 /// <returns>A <see cref="Pengine.IntMaths|TIntBounds1"/> for the interval: <c>[0, A)</c></returns>
 function IBounds1(A: Integer): TIntBounds1; overload; inline;
 
-/// <returns>A <see cref="Pengine.IntMaths|TIntBounds2"/> for the interval: <c>[A, B]</c></returns>
+/// <returns>A <see cref="Pengine.IntMaths|TIntBounds2"/> for the interval: <c>[A, B)</c></returns>
 function IBounds2(A, B: TIntVector2): TIntBounds2; overload; inline;
+/// <returns>A <see cref="Pengine.IntMaths|TIntBounds2"/> for the interval: <c>[A, B]</c></returns>
+function IBounds2I(A, B: TIntVector2): TIntBounds2; overload; inline;
 /// <returns>A <see cref="Pengine.IntMaths|TIntBounds2"/> for the interval: <c>[0, A)</c></returns>
 function IBounds2(A: TIntVector2): TIntBounds2; overload; inline;
 
-/// <returns>A <see cref="Pengine.IntMaths|TIntBounds3"/> for the interval: <c>[A, B]</c></returns>
+/// <returns>A <see cref="Pengine.IntMaths|TIntBounds3"/> for the interval: <c>[A, B)</c></returns>
 function IBounds3(A, B: TIntVector3): TIntBounds3; overload; inline;
+/// <returns>A <see cref="Pengine.IntMaths|TIntBounds3"/> for the interval: <c>[A, B]</c></returns>
+function IBounds3I(A, B: TIntVector3): TIntBounds3; overload; inline;
 /// <returns>A <see cref="Pengine.IntMaths|TIntBounds3"/> for the interval: <c>[0, A)</c></returns>
 function IBounds3(A: TIntVector3): TIntBounds3; overload; inline;
 
 implementation
 
 { TIntVector2 }
-
-{$REGION 'All version of rearrangement TIntVector2'}
-
-function TIntVector2.GetEnumerator: TIntBounds2Iterator;
-begin
-  Result := TIntBounds2Iterator.Create(IBounds2(Self));
-end;
-
-function TIntVector2.GetXX: TIntVector2;
-begin
-  Result.X := X;
-  Result.Y := X;
-end;
-
-function TIntVector2.GetXY: TIntVector2;
-begin
-  Result.X := X;
-  Result.Y := Y;
-end;
-
-function TIntVector2.GetYX: TIntVector2;
-begin
-  Result.X := Y;
-  Result.Y := X;
-end;
-
-function TIntVector2.GetYY: TIntVector2;
-begin
-  Result.X := Y;
-  Result.Y := Y;
-end;
-
-procedure TIntVector2.SetXY(const Value: TIntVector2);
-begin
-  X := Value.X;
-  Y := Value.Y;
-end;
-
-procedure TIntVector2.SetYX(const Value: TIntVector2);
-begin
-  Y := Value.X;
-  X := Value.Y;
-end;
-
-{$ENDREGION}
 
 constructor TIntVector2.Create(X, Y: Integer);
 begin
@@ -831,6 +804,11 @@ begin
   Result := A.ToString;
 end;
 
+function TIntVector2.GetEnumerator: TIntBounds2Iterator;
+begin
+  Result := TIntBounds2Iterator.Create(IBounds2(Self));
+end;
+
 function TIntVector2.Abs: TIntVector2;
 begin
   Result.X := System.Abs(X);
@@ -848,6 +826,46 @@ begin
   Result.X := System.Math.Max(X, A.X);
   Result.Y := System.Math.Max(Y, A.Y);
 end;
+
+{$REGION 'All version of rearrangement TIntVector2'}
+
+function TIntVector2.GetXX: TIntVector2;
+begin
+  Result.X := X;
+  Result.Y := X;
+end;
+
+function TIntVector2.GetXY: TIntVector2;
+begin
+  Result.X := X;
+  Result.Y := Y;
+end;
+
+function TIntVector2.GetYX: TIntVector2;
+begin
+  Result.X := Y;
+  Result.Y := X;
+end;
+
+function TIntVector2.GetYY: TIntVector2;
+begin
+  Result.X := Y;
+  Result.Y := Y;
+end;
+
+procedure TIntVector2.SetXY(const Value: TIntVector2);
+begin
+  X := Value.X;
+  Y := Value.Y;
+end;
+
+procedure TIntVector2.SetYX(const Value: TIntVector2);
+begin
+  Y := Value.X;
+  X := Value.Y;
+end;
+
+{$ENDREGION}
 
 { TIntVector3 }
 
@@ -2025,6 +2043,11 @@ end;
 
 function IBounds1(A, B: Integer): TIntBounds1;
 begin
+  Result.Create(A, B);
+end;
+
+function IBounds1I(A, B: Integer): TIntBounds1;
+begin
   Result.Create(A, B + 1);
 end;
 
@@ -2034,6 +2057,11 @@ begin
 end;
 
 function IBounds2(A, B: TIntVector2): TIntBounds2;
+begin
+  Result.Create(A, B);
+end;
+
+function IBounds2I(A, B: TIntVector2): TIntBounds2;
 begin
   Result.Create(A, B + 1);
 end;
@@ -2045,12 +2073,31 @@ end;
 
 function IBounds3(A, B: TIntVector3): TIntBounds3;
 begin
+  Result.Create(A, B);
+end;
+
+function IBounds3I(A, B: TIntVector3): TIntBounds3;
+begin
   Result.Create(A, B + 1);
 end;
 
 function IBounds3(A: TIntVector3): TIntBounds3;
 begin
   Result.Create(0, A);
+end;
+
+{ TIntVector2Helper }
+
+function TIntVector2Helper.Bounds(ASize: TIntVector2): TIntBounds2;
+begin
+  Result.Create(Self, Self + ASize);
+end;
+
+{ TIntVector3Helper }
+
+function TIntVector3Helper.Bounds(ASize: TIntVector3): TIntBounds3;
+begin
+  Result.Create(Self, Self + ASize);
 end;
 
 end.

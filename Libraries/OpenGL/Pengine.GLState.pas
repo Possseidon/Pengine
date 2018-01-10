@@ -22,7 +22,8 @@ uses
   Pengine.TimeManager,
   Pengine.ResourceManager,
   Pengine.Hasher,
-  Pengine.IntMaths;
+  Pengine.IntMaths,
+  Pengine.EventHandling;
 
 type
 
@@ -328,9 +329,8 @@ type
   private
     FStates: TAllStates;
     FChangeStack: TChangeStack;
-    FTimer: TDeltaTimer;
     FGLObjectBindings: TGLObjectBindings;
-    FScreenSize: PIntVector2;
+    FScreenSize: TIntVector2;
 
     procedure InitStates;
 
@@ -352,13 +352,13 @@ type
     function GetState(AState: TGLSingleState.TBlendFuncType): TGLBlendFunc; overload;
     procedure SetState(AState: TGLSingleState.TBlendFuncType; const Value: TGLBlendFunc); overload;
 
-    function GetDeltaTime: Single;
     function GetResourceParam: TGLObjectParam;
-    function GetScreenSize: TIntVector2;
-
+    
   public
-    constructor Create(ATimer: TDeltaTimer; AScreenSize: PIntVector2);
+    constructor Create;
     destructor Destroy; override;
+
+    procedure SetScreenSize(AScreenSize: TIntVector2);
 
     procedure Push;
     procedure Pop;
@@ -369,13 +369,11 @@ type
     property State[AState: TGLSingleState.TCullFaceType]: TGLCullFace read GetState write SetState; default;
     property State[AState: TGLSingleState.TBlendFuncType]: TGLBlendFunc read GetState write SetState; default;
 
-    property DeltaTime: Single read GetDeltaTime;
-
     property GLObjectBindings: TGLObjectBindings read FGLObjectBindings;
 
-    property ResourceParam: TGLObjectParam read GetResourceParam;
+    property ResParam: TGLObjectParam read GetResourceParam;
 
-    property ScreenSize: TIntVector2 read GetScreenSize;
+    property ScreenSize: TIntVector2 read FScreenSize;
 
   end;
 
@@ -390,8 +388,7 @@ type
 
   public
     constructor Create(AStates: TGLState.TAllStates);
-    destructor Destroy;
-      override;
+    destructor Destroy; override;
 
     procedure Save(AState: TGLSingleState);
 
@@ -459,19 +456,9 @@ begin
   Result := GetState<TGLCullFace>(AState);
 end;
 
-function TGLState.GetDeltaTime: Single;
-begin
-  Result := FTimer.DeltaTime;
-end;
-
 function TGLState.GetResourceParam: TGLObjectParam;
 begin
   Result := TGLObjectParam.Create(Self);
-end;
-
-function TGLState.GetScreenSize: TIntVector2;
-begin
-  Result := FScreenSize^;
 end;
 
 function TGLState.GetState(AState: TGLSingleState.TBlendFuncType): TGLBlendFunc;
@@ -492,6 +479,11 @@ end;
 procedure TGLState.SetState(AState: TGLSingleState.TCullFaceType; const Value: TGLCullFace);
 begin
   SetState<TGLCullFace>(AState, Value);
+end;
+
+procedure TGLState.SetScreenSize(AScreenSize: TIntVector2);
+begin
+  FScreenSize := AScreenSize;
 end;
 
 procedure TGLState.SetState(AState: TGLSingleState.TBlendFuncType; const Value: TGLBlendFunc);
@@ -526,10 +518,8 @@ begin
   SetState<TColorRGBA>(AState, Value);
 end;
 
-constructor TGLState.Create(ATimer: TDeltaTimer; AScreenSize: PIntVector2);
+constructor TGLState.Create;
 begin
-  FTimer := ATimer;
-  FScreenSize := AScreenSize;
   InitStates;
   FChangeStack := TChangeStack.Create(True);
   FGLObjectBindings := TGLObjectBindings.Create;

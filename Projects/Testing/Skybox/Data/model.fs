@@ -16,8 +16,6 @@ uniform sampler2DArrayShadow spotshadowmaps;
 
 uniform bool depthonly;
 
-uniform float blink;
-
 struct directionalLight // size 24
 {
   vec3 color;
@@ -261,6 +259,4 @@ void main()
       add *= 0.5 + cos(PI * clamp((angle - sLights[i].cutoff) / sLights[i].cutoffBonus, 0, 1)) / 2;
     outcolor.rgb += add * shadowFactor;
   }
-  
-  outcolor += blink;
 }

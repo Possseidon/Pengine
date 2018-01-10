@@ -81,7 +81,7 @@ type
 
     DataBytes = SizeOf(TData);
     DataBits = DataBytes * 8;
-
+  
   private
     FData: PData;
     FSize: Integer;
@@ -97,8 +97,10 @@ type
     function GetZeros: Integer;
 
   public
+    /// <summary>Creates an empty bitfield.</summary>
+    constructor Create; overload;
     /// <summary>Creates a cleared bitfield with a specific size.</summary>
-    constructor Create(ABits: Integer);
+    constructor Create(ABits: Integer); overload;
     destructor Destroy; override;
                           
     /// <summary>Calculates the required count of data sets to store the given amount of bits.</summary>
@@ -184,6 +186,19 @@ type
     /// <exception><see cref="Pengine.Bitfield|EBitfieldEmptyOrFull"/> if there is no false bit.</exception>
     function LastZero: Integer;
 
+    /// <returns>True, if any bit in the range is true.</returns>
+    function AnyTrue(ABounds: TIntBounds1): Boolean; inline;
+    /// <returns>True, if any bit in the range is false.</returns>
+    function AnyFalse(ABounds: TIntBounds1): Boolean; inline;
+    /// <returns>True, if all bits in the range are true.</returns>
+    function AllTrue(ABounds: TIntBounds1): Boolean;
+    /// <returns>True, if all bits in the range are false.</returns>
+    function AllFalse(ABounds: TIntBounds1): Boolean;
+
+    /// <summary>Finds a row of the same bits.</summary>
+    /// <returns>The index of the found position or -1 if no row was found.</returns>
+    function Find(AValue: Boolean; ACount: Integer): Integer;  
+    
     /// <returns>An iteration wrapper, which can be used with for-in.</returns>
     function Iterate(AFindBits: Boolean = True; AReversed: Boolean = False): TIterateWrapper;
     
@@ -213,7 +228,7 @@ type
   /// <summary>Represents a two-dimensional bitfield.</summary>
   /// <remarks>Resizing, but still keeping the data is very quick for this version.<p/>
   /// Operations are slightly faster along the X-axis, as the Y-axis is only an array of simple bitfields.</remarks>
-  TBitfield2 = class
+  TBitfieldArray = class
   public type
   
     TData = TObjectArray<TBitfield>;
@@ -221,14 +236,14 @@ type
     /// <summary>Iterates over each true or false bit in the bitfield.</summary>
     TIterator = class(TIterator<TIntVector2>)
     private
-      FBitfield: TBitfield2;
+      FBitfield: TBitfieldArray;
       FCurrent: TIntVector2;
       FFindBits: Boolean;
       FReversed: Boolean;
 
     public
       /// <summary>Creates and iterator, to iterate over either true of false bits in either direction.</summary>
-      constructor Create(ABitfield: TBitfield2; AFindBits: Boolean = True; AReversed: Boolean = False);
+      constructor Create(ABitfield: TBitfieldArray; AFindBits: Boolean = True; AReversed: Boolean = False);
 
       /// <returns>The index of the current found bit.</returns>
       function GetCurrent: TIntVector2; override;
@@ -239,12 +254,12 @@ type
 
     TIterateWrapper = record
     private
-      FBitfield: TBitfield2;
+      FBitfield: TBitfieldArray;
       FFindBits: Boolean;
       FReversed: Boolean;
           
     public
-      constructor Create(ABitfield: TBitfield2; AFindBits: Boolean = True; AReversed: Boolean = False);
+      constructor Create(ABitfield: TBitfieldArray; AFindBits: Boolean = True; AReversed: Boolean = False);
     
       function GetEnumerator: TIterator;
       
@@ -263,8 +278,10 @@ type
     function GetZeros: Integer;
 
   public
+    /// <summary>Creates an empty bitfield.</summary>
+    constructor Create; overload;
     /// <summary>Creates a cleared bitfield with a specific size.</summary>
-    constructor Create(ASize: TIntVector2);
+    constructor Create(ASize: TIntVector2); overload;
     destructor Destroy; override;
                     
     /// <summary>Gives access to each bit as boolean.</summary>
@@ -298,22 +315,22 @@ type
     procedure Invert(ARange: TIntBounds2); overload;
 
     /// <returns>A new bitfield, of a bitwise not operation.</returns>
-    function Bnot: TBitfield2;
+    function Bnot: TBitfieldArray;
     /// <returns>A new bitfield, of a bitwise and operation.</returns>
     /// <exception><see cref="Pengine.Bitfield|EBitfieldSizeError"/> if the bitfields have different sizes.</exception>
-    function Band(ABitfield: TBitfield2): TBitfield2;
+    function Band(ABitfield: TBitfieldArray): TBitfieldArray;
     /// <returns>A new bitfield, of a bitwise or operation.</returns>
     /// <exception><see cref="Pengine.Bitfield|EBitfieldSizeError"/> if the bitfields have different sizes.</exception>
-    function Bor(ABitfield: TBitfield2): TBitfield2;
+    function Bor(ABitfield: TBitfieldArray): TBitfieldArray;
     /// <returns>A new bitfield, of a bitwise xor operation.</returns>
     /// <exception><see cref="Pengine.Bitfield|EBitfieldSizeError"/> if the bitfields have different sizes.</exception>
-    function Bxor(ABitfield: TBitfield2): TBitfield2;
+    function Bxor(ABitfield: TBitfieldArray): TBitfieldArray;
 
     /// <returns>A copy of the bitfield.</returns>
-    function Copy: TBitfield2;
+    function Copy: TBitfieldArray;
     /// <summary>Copies the data from another bitfield.</summary>
     /// <exception><see cref="Pengine.Bitfield|EBitfieldSizeError"/> if the bitfields have different sizes.</exception>
-    procedure Assign(ABitfield: TBitfield2);
+    procedure Assign(ABitfield: TBitfieldArray);
 
     /// <summary>The amount of bits, that the bitfield has.</summary>
     /// <remarks>When changing, existing bits preserve their state and new bits are initialized with false.</remarks>
@@ -323,6 +340,15 @@ type
     property Ones: Integer read GetOnes;
     /// <summary>The amount of false bits in the bitfield.</summary>
     property Zeros: Integer read GetZeros;
+                 
+    /// <returns>True, if any bit in the range is true.</returns>
+    function AnyTrue(ABounds: TIntBounds2): Boolean; inline;
+    /// <returns>True, if any bit in the range is false.</returns>
+    function AnyFalse(ABounds: TIntBounds2): Boolean; inline;
+    /// <returns>True, if all bits in the range are true.</returns>
+    function AllTrue(ABounds: TIntBounds2): Boolean;
+    /// <returns>True, if all bits in the range are false.</returns>
+    function AllFalse(ABounds: TIntBounds2): Boolean;
 
     /// <returns>An iteration wrapper, which can be used with for-in.</returns>
     function Iterate(AFindBits: Boolean = True; AReversed: Boolean = False): TIterateWrapper;
@@ -335,7 +361,7 @@ type
 
     /// <returns>True, each bit in both bitfields is equal.</returns>
     /// <exception><see cref="Pengine.Bitfield|EBitfieldSizeError"/> if the bitfields have different sizes.</exception>
-    function Equals(ABitfield: TBitfield2): Boolean; reintroduce; overload; 
+    function Equals(ABitfield: TBitfieldArray): Boolean; reintroduce; overload;
     function Equals(Obj: TObject): Boolean; overload; override; 
     
     /// <summary>Checks, if the index is out of bounds.</summary>
@@ -495,6 +521,11 @@ begin
   Result := Size - Ones;
 end;
 
+constructor TBitfield.Create;
+begin
+  // nothing
+end;
+
 constructor TBitfield.Create(ABits: Integer);
 begin
   FSize := ABits;
@@ -556,6 +587,30 @@ begin
       ((TData(not 0) shl (ARange.C1 mod DataBits)) and 
        (TData(not 0) shr (DataBits - ARange.C2 mod DataBits)));
   end;  
+end;
+
+function TBitfield.Find(AValue: Boolean; ACount: Integer): Integer;
+var
+  Found: Boolean;
+  I: Integer;
+begin
+  Result := 0;
+  while Result + ACount < Size do
+  begin
+    Found := True;
+    for I := Result to Result + ACount - 1 do
+    begin
+      if Bit[I] <> AValue then
+      begin
+        Found := False;
+        Result := I + 1;
+        Break;
+      end;
+    end;
+    if Found then
+      Exit;
+  end;
+  Exit(-1);
 end;
 
 procedure TBitfield.Clear;
@@ -755,6 +810,38 @@ begin
   raise EBitfieldEmptyOrFull.Create;
 end;
 
+function TBitfield.AnyTrue(ABounds: TIntBounds1): Boolean;       
+begin
+  Result := not AllFalse(ABounds);
+end;
+
+function TBitfield.AnyFalse(ABounds: TIntBounds1): Boolean;
+begin
+  Result := not AllTrue(ABounds);
+end;
+
+function TBitfield.AllTrue(ABounds: TIntBounds1): Boolean;
+var
+  I: Integer;
+begin
+  // TODO: optimize
+  for I in ABounds do
+    if not Bit[I] then
+      Exit(False);
+  Result := True;
+end;
+
+function TBitfield.AllFalse(ABounds: TIntBounds1): Boolean;
+var
+  I: Integer;
+begin
+  // TODO: optimize
+  for I in ABounds do
+    if Bit[I] then
+      Exit(False);
+  Result := True;
+end;
+
 function TBitfield.Iterate(AFindBits, AReversed: Boolean): TIterateWrapper;
 begin
   Result.Create(Self, AFindBits, AReversed);
@@ -820,10 +907,10 @@ begin
   DataPos := FData + Size div DataBits;
   DataPos^ := DataPos^ and Mask;
 end;
-        
+
 { TBitfield2.TIterator }
 
-constructor TBitfield2.TIterator.Create(ABitfield: TBitfield2; AFindBits, AReversed: Boolean);
+constructor TBitfieldArray.TIterator.Create(ABitfield: TBitfieldArray; AFindBits, AReversed: Boolean);
 begin
   FBitfield := ABitfield;
   FFindBits := AFindBits;
@@ -837,12 +924,12 @@ begin
     FCurrent := IVec2(0, -1);  
 end;
 
-function TBitfield2.TIterator.GetCurrent: TIntVector2;
+function TBitfieldArray.TIterator.GetCurrent: TIntVector2;
 begin
   Result := FCurrent;
 end;
 
-function TBitfield2.TIterator.MoveNext: Boolean;
+function TBitfieldArray.TIterator.MoveNext: Boolean;
 begin
   if FReversed then
   begin
@@ -871,54 +958,55 @@ begin
   Result := True;  
 end;
 
-{ TBitfield2.TIterateWrapper }
+{ TBitfieldArray.TIterateWrapper }
 
-constructor TBitfield2.TIterateWrapper.Create(ABitfield: TBitfield2; AFindBits, AReversed: Boolean);
+constructor TBitfieldArray.TIterateWrapper.Create(ABitfield: TBitfieldArray; AFindBits, AReversed: Boolean);
 begin
   FBitfield := ABitfield;
   FFindBits := AFindBits;
   FReversed := AReversed;
 end;
 
-function TBitfield2.TIterateWrapper.GetEnumerator: TIterator;
+function TBitfieldArray.TIterateWrapper.GetEnumerator: TIterator;
 begin
   Result := TIterator.Create(FBitfield, FFindBits, FReversed);
 end;
           
-{ TBitfield2 }
+{ TBitfieldArray }
 
-function TBitfield2.GetBit(ABit: TIntVector2): Boolean;
+function TBitfieldArray.GetBit(ABit: TIntVector2): Boolean;
 begin
   RangeCheckException(ABit);
   Result := FData[ABit.Y][ABit.X];
 end;
 
-procedure TBitfield2.SetBit(ABit: TIntVector2; const Value: Boolean);
+procedure TBitfieldArray.SetBit(ABit: TIntVector2; const Value: Boolean);
 begin
   RangeCheckException(ABit);
   FData[ABit.Y][ABit.X] := Value;
 end;
 
-procedure TBitfield2.SetSize(const Value: TIntVector2);
+procedure TBitfieldArray.SetSize(const Value: TIntVector2);
 var
   Bitfield: TBitfield;
 begin
   if not (FSize >= 0) then
     raise EBitfieldNegativeSize.Create;
+    
   if FSize = Value then
     Exit;
+    
   FSize.X := Value.X;
-
   for Bitfield in FData do
     Bitfield.Size := FSize.X;
 
-  while FSize.Y > Value do
+  while FSize.Y > Value.Y do
   begin  
     FData.DelLast;
     Dec(FSize.Y);
   end;
   
-  while FSize.Y < Value do
+  while FSize.Y < Value.Y do
   begin
     FData.Add(TBitfield.Create(FSize.X)); 
     Inc(FSize.Y);    
@@ -926,7 +1014,7 @@ begin
 
 end;
 
-function TBitfield2.GetOnes: Integer;
+function TBitfieldArray.GetOnes: Integer;
 var
   Bitfield: TBitfield;
 begin
@@ -935,7 +1023,7 @@ begin
     Inc(Result, Bitfield.Ones);
 end;
 
-function TBitfield2.GetZeros: Integer;
+function TBitfieldArray.GetZeros: Integer;
 var
   Bitfield: TBitfield;
 begin
@@ -944,19 +1032,24 @@ begin
     Inc(Result, Bitfield.Zeros);
 end;
 
-constructor TBitfield2.Create(ASize: TIntVector2);
+constructor TBitfieldArray.Create;
 begin
   FData := TData.Create;
+end;
+
+constructor TBitfieldArray.Create(ASize: TIntVector2);
+begin
+  Create;
   Size := ASize;
 end;
 
-destructor TBitfield2.Destroy;
+destructor TBitfieldArray.Destroy;
 begin
   FData.Free;
   inherited;
 end;
 
-procedure TBitfield2.Fill;
+procedure TBitfieldArray.Fill;
 var
   Bitfield: TBitfield;
 begin
@@ -964,7 +1057,7 @@ begin
     Bitfield.Fill;
 end;
 
-procedure TBitfield2.Fill(ARange: TIntBounds2);
+procedure TBitfieldArray.Fill(ARange: TIntBounds2);
 var
   Y: Integer;
 begin
@@ -974,7 +1067,7 @@ begin
     FData[Y].Fill(ARange.LineX);
 end;
 
-procedure TBitfield2.Clear;
+procedure TBitfieldArray.Clear;
 var
   Bitfield: TBitfield;
 begin
@@ -982,7 +1075,7 @@ begin
     Bitfield.Clear;
 end;
 
-procedure TBitfield2.Clear(ARange: TIntBounds2);
+procedure TBitfieldArray.Clear(ARange: TIntBounds2);
 var
   Y: Integer;
 begin               
@@ -992,7 +1085,7 @@ begin
     FData[Y].Clear(ARange.LineX);
 end;
 
-procedure TBitfield2.Invert;
+procedure TBitfieldArray.Invert;
 var
   Bitfield: TBitfield;
 begin
@@ -1000,18 +1093,18 @@ begin
     Bitfield.Invert;
 end;
 
-procedure TBitfield2.Invert(ABit: TIntVector2);
+procedure TBitfieldArray.Invert(ABit: TIntVector2);
 begin
   Bit[ABit] := not Bit[ABit];
 end;
 
-function TBitfield2.InvertGet(ABit: TIntVector2): Boolean;
+function TBitfieldArray.InvertGet(ABit: TIntVector2): Boolean;
 begin
   Invert(ABit);
   Result := Bit[ABit];
 end;
 
-procedure TBitfield2.Invert(ARange: TIntBounds2);
+procedure TBitfieldArray.Invert(ARange: TIntBounds2);
 var
   Y: Integer;
 begin          
@@ -1021,11 +1114,11 @@ begin
     FData[Y].Invert(ARange.LineX);   
 end;
 
-function TBitfield2.Bnot: TBitfield2;
+function TBitfieldArray.Bnot: TBitfieldArray;
 var
   I: Integer;
 begin
-  Result := TBitfield2.Create(0);
+  Result := TBitfieldArray.Create(0);
   Result.FSize := Size;
   Result.FData.Capacity := Size.Y;
   Result.FData.ForceCount(Size.Y);
@@ -1033,13 +1126,13 @@ begin
     Result.FData[I] := FData[I].Bnot;
 end;
 
-function TBitfield2.Band(ABitfield: TBitfield2): TBitfield2;
+function TBitfieldArray.Band(ABitfield: TBitfieldArray): TBitfieldArray;
 var
   I: Integer;
 begin
   if Size <> ABitfield.Size then
     raise EBitfieldSizeError.Create;
-  Result := TBitfield2.Create(0);
+  Result := TBitfieldArray.Create(0);
   Result.FSize := Size;
   Result.FData.Capacity := Size.Y;
   Result.FData.ForceCount(Size.Y);
@@ -1047,13 +1140,13 @@ begin
     Result.FData[I] := FData[I].Band(ABitfield.FData[I]);
 end;
 
-function TBitfield2.Bor(ABitfield: TBitfield2): TBitfield2;
+function TBitfieldArray.Bor(ABitfield: TBitfieldArray): TBitfieldArray;
 var
   I: Integer;
 begin           
   if Size <> ABitfield.Size then
     raise EBitfieldSizeError.Create;
-  Result := TBitfield2.Create(0);
+  Result := TBitfieldArray.Create(0);
   Result.FSize := Size;
   Result.FData.Capacity := Size.Y;
   Result.FData.ForceCount(Size.Y);
@@ -1061,13 +1154,13 @@ begin
     Result.FData[I] := FData[I].Bor(ABitfield.FData[I]);
 end;
 
-function TBitfield2.Bxor(ABitfield: TBitfield2): TBitfield2;
+function TBitfieldArray.Bxor(ABitfield: TBitfieldArray): TBitfieldArray;
 var
   I: Integer;
 begin           
   if Size <> ABitfield.Size then
     raise EBitfieldSizeError.Create;
-  Result := TBitfield2.Create(0);
+  Result := TBitfieldArray.Create(0);
   Result.FSize := Size;
   Result.FData.Capacity := Size.Y;
   Result.FData.ForceCount(Size.Y);
@@ -1075,13 +1168,13 @@ begin
     Result.FData[I] := FData[I].Bxor(ABitfield.FData[I]);
 end;
 
-function TBitfield2.Copy: TBitfield2;
+function TBitfieldArray.Copy: TBitfieldArray;
 begin
-  Result := TBitfield2.Create(0);
+  Result := TBitfieldArray.Create(0);
   Result.Assign(Self);
 end;
 
-procedure TBitfield2.Assign(ABitfield: TBitfield2);
+procedure TBitfieldArray.Assign(ABitfield: TBitfieldArray);
 var
   I: Integer;
 begin
@@ -1090,17 +1183,47 @@ begin
     FData[I].Assign(ABitfield.FData[I]);
 end;
 
-function TBitfield2.Iterate(AFindBits, AReversed: Boolean): TIterateWrapper;
+function TBitfieldArray.AnyTrue(ABounds: TIntBounds2): Boolean;
+begin
+  Result := not AllFalse(ABounds);
+end;
+
+function TBitfieldArray.AnyFalse(ABounds: TIntBounds2): Boolean;
+begin
+  Result := not AllTrue(ABounds);
+end;
+
+function TBitfieldArray.AllTrue(ABounds: TIntBounds2): Boolean;
+var
+  Bitfield: TBitfield;
+begin
+  for Bitfield in FData do
+    if not Bitfield.AllTrue(ABounds.LineX) then
+      Exit(False);
+  Result := True;
+end;
+
+function TBitfieldArray.AllFalse(ABounds: TIntBounds2): Boolean;
+var
+  Bitfield: TBitfield;
+begin
+  for Bitfield in FData do
+    if not Bitfield.AllFalse(ABounds.LineX) then
+      Exit(False);
+  Result := True;
+end;
+
+function TBitfieldArray.Iterate(AFindBits, AReversed: Boolean): TIterateWrapper;
 begin
   Result.Create(Self, AFindBits, AReversed);
 end;
 
-function TBitfield2.GetEnumerator: TIterator;
+function TBitfieldArray.GetEnumerator: TIterator;
 begin
   Result := TIterator.Create(Self);
 end;
 
-function TBitfield2.ToString: string;
+function TBitfieldArray.ToString: string;
 var
   Bitfield: TBitfield;
 begin
@@ -1109,7 +1232,7 @@ begin
     Result := Result + Bitfield.ToString + sLineBreak;
 end;
 
-function TBitfield2.Equals(ABitfield: TBitfield2): Boolean;
+function TBitfieldArray.Equals(ABitfield: TBitfieldArray): Boolean;
 var
   I: Integer;
 begin
@@ -1121,18 +1244,18 @@ begin
   Result := True;
 end;
 
-function TBitfield2.Equals(Obj: TObject): Boolean;
+function TBitfieldArray.Equals(Obj: TObject): Boolean;
 begin
-  Result := Obj is TBitfield2 and Equals(TBitfield2(Obj));
+  Result := Obj is TBitfieldArray and Equals(TBitfieldArray(Obj));
 end;
 
-procedure TBitfield2.RangeCheckException(ABit: TIntVector2);
+procedure TBitfieldArray.RangeCheckException(ABit: TIntVector2);
 begin
   if not RangeCheck(ABit) then
     raise EBitfieldRangeError.Create;
 end;
 
-function TBitfield2.RangeCheck(ABit: TIntVector2): Boolean;
+function TBitfieldArray.RangeCheck(ABit: TIntVector2): Boolean;
 begin
   Result := ABit in Size;
 end;

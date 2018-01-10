@@ -258,7 +258,7 @@ type
   protected
     class function CreateData(AParam: TGLObjectParam): TGLProgram; override;
 
-    class function GetFileName: string; virtual; abstract;
+    class procedure GetData(out AName: string; out AResource: Boolean); virtual; abstract;
     class function GetAttributeOrder: TGLProgram.TAttributeOrder; virtual; abstract;
   end;
 
@@ -867,10 +867,17 @@ end;
 { TGLProgramResource }
 
 class function TGLProgramResource.CreateData(AParam: TGLObjectParam): TGLProgram;
+var
+  Name: string;
+  Resource: Boolean;
 begin
   Result := TGLProgram.Create(AParam.GLState);
   try
-    Result.LoadFromFile(GetFileName);
+    GetData(Name, Resource);
+    if Resource then
+      Result.LoadFromResource(Name)
+    else
+      Result.LoadFromFile(Name);
     Result.SetAttributeOrder(GetAttributeOrder);
   except
     Result.Free;

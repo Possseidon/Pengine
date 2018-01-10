@@ -1,5 +1,7 @@
 unit Pengine.Texture;
 
+{$POINTERMATH ON}
+
 interface
 
 uses
@@ -9,16 +11,15 @@ uses
   System.Math,
   System.Classes,
 
+  Vcl.Graphics,
   Vcl.Imaging.pngimage,
 
   Winapi.Windows,
 
+  Pengine.Collections,
   Pengine.Bitfield,
-  Pengine.Hasher,
-  Pengine.HashCollections,
   Pengine.GLEnums,
   Pengine.GLProgram,
-  Pengine.Vector,
   Pengine.IntMaths,
   Pengine.GLState,
   Pengine.Color;
@@ -29,17 +30,31 @@ type
   TTextureData = class
   private
     FSize: TIntVector2;
-    FBpp: Integer;
     FData: PByte;
 
+    function GetPixelCount: Integer;
     function GetDataSize: Integer;
-    
+    function GetPixel(APos: TIntVector2): TColorRGBA;
+    function GetPixelB(APos: TIntVector2): TColorRGBA.TBytes;
+    procedure SetPixel(APos: TIntVector2; const Value: TColorRGBA);
+    procedure SetPixelB(APos: TIntVector2; const Value: TColorRGBA.TBytes);
+
+    function GetData: TArray<TColorRGBA.TBytes>;
+    procedure SetData(const Value: TArray<TColorRGBA.TBytes>);
+    function GetSubData(ABounds: TIntBounds2): TArray<TColorRGBA.TBytes>;
+    procedure SetSubData(ABounds: TIntBounds2; const Value: TArray<TColorRGBA.TBytes>);
+
   public
     /// <summary>Creates an unintialized TTextureData object.</summary>
     constructor Create; overload;
     /// <summary>Creates a TTextureData object and reserves memory for the required amount of pixel-data.</summary>
-    constructor Create(ASize: TIntVector2; ABpp: Integer); overload;
+    constructor Create(ASize: TIntVector2); overload;
     destructor Destroy; override;
+
+    /// <summary>Creates a new texture directly from a file.</summary>
+    class function CreateFromFile(AFileName: string): TTextureData;
+    /// <summary>Creates a new texture directly from a resource.</summary>
+    class function CreateFromResource(AResource: string): TTextureData;
 
     /// <summary>Loads a texture from a stream.</summary>
     procedure LoadFromStream(AStream: TStream);
@@ -59,12 +74,18 @@ type
     property Width: Integer read FSize.X;
     /// <summary>The height of the texture.</summary>
     property Height: Integer read FSize.Y;
-    /// <summary>The amount of bytes per pixel.</summary>
-    property Bpp: Integer read FBpp;
+    /// <summary>The amount of pixels in the texture. Equal to width*heigt.</summary>
+    property PixelCount: Integer read GetPixelCount;
     /// <summary>A pointer to the pixel-data.</summary>
-    property Data: PByte read FData;
-    /// <summary>The size of the data in bytes. Equal to width*height*bpp.</summary>
+    property DataPointer: PByte read FData;
+    /// <summary>The size of the data in bytes. Equal to pixelcount*bpp.</summary>
     property DataSize: Integer read GetDataSize;
+
+    property PixelsB[APos: TIntVector2]: TColorRGBA.TBytes read GetPixelB write SetPixelB;
+    property Pixels[APos: TIntVector2]: TColorRGBA read GetPixel write SetPixel; default;
+
+    property Data: TArray<TColorRGBA.TBytes> read GetData write SetData;
+    property SubData[ABounds: TIntBounds2]: TArray<TColorRGBA.TBytes> read GetSubData write SetSubData;
 
   end;
 
@@ -281,6 +302,9 @@ type
     procedure Data(AData: PByte);
     procedure SubData(ABounds: TIntBounds2; AData: PByte);
 
+    procedure Fill(AColor: TColorRGBA); overload;
+    procedure Fill(ABounds: TIntBounds2; AColor: TColorRGBA); overload;
+
     procedure LoadTexture(ATexture: TTextureData);
 
   end;
@@ -411,44 +435,59 @@ type
 
   end;
 
-  TTextureAtlas = class
-  public type
-
-    TTile = class
-    private
-      FAtlas: TTextureAtlas;
-      FPosition: TIntBounds2;
-
-    public
-      constructor Create(AAtlas: TTextureAtlas; APosition: TIntBounds2);
-
-      property Atlas: TTextureAtlas read FAtlas;
-
-    end;
-
-    TTiles = TToObjectMap<string, TTile, TStringHasher>;
-
-  private
-    FTexture: TTexture2D;
-    FTiles: TTiles;
-
-    function GetGLState: TGLState;
-
-  public
-    constructor Create(AGLState: TGLState);
-    destructor Destroy; override;
-
-    property GLState: TGLState read GetGLState;
-
-  end;
-
 implementation
 
 { TTextureData }
 
+function TTextureData.GetData: TArray<TColorRGBA.TBytes>;
+var
+  P: TIntVector2;
+  Y: Integer;
+begin
+  Result := TArray<TColorRGBA.TBytes>.Create;
+  Result.Capacity := PixelCount;
+  Result.ForceCount(PixelCount);
+  for Y := 0 to Size.Y - 1 do
+    Move(
+    (TColorRGBA.PBytes(FData) + Y * Size.X)^,
+    (TColorRGBA.PBytes(Result.DataPointer) + Y * Size.X)^,
+    Size.X * SizeOf(TColorRGBA.TBytes)
+    );
+end;
+
 function TTextureData.GetDataSize: Integer;
 begin
-  Result := Width * Height * Bpp;
+  Result := PixelCount * 4;
+end;
+
+function TTextureData.GetPixel(APos: TIntVector2): TColorRGBA;
+begin
+  Result := PixelsB[APos].Convert;
+end;
+
+function TTextureData.GetPixelB(APos: TIntVector2): TColorRGBA.TBytes;
+begin
+  Result := (TColorRGBA.PBytes(FData) + APos.X mod Size.X + APos.Y * Size.X)^;
+end;
+
+function TTextureData.GetPixelCount: Integer;
+begin
+  Result := Width * Height;
+end;
+
+function TTextureData.GetSubData(ABounds: TIntBounds2): TArray<TColorRGBA.TBytes>;
+var
+  Y: Integer;
+begin
+  Result := TArray<TColorRGBA.TBytes>.Create;
+  Result.Capacity := ABounds.Width * ABounds.Height;
+  Result.ForceCount(Result.Capacity);
+  for Y := 0 to ABounds.Height - 1 do
+    Move(
+    (TColorRGBA.PBytes(FData) + ABounds.C1.X + (ABounds.C1.Y + Y) * Size.X)^,
+    (TColorRGBA.PBytes(Result.DataPointer) + Y * ABounds.Width)^,
+    ABounds.Width * SizeOf(TColorRGBA.TBytes)
+    );
 end;
 
 constructor TTextureData.Create;
@@ -456,11 +495,22 @@ begin
   // nothing
 end;
 
-constructor TTextureData.Create(ASize: TIntVector2; ABpp: Integer);
+constructor TTextureData.Create(ASize: TIntVector2);
 begin
   FSize := ASize;
-  FBpp := ABpp;
   GetMem(FData, DataSize);
+end;
+
+class function TTextureData.CreateFromFile(AFileName: string): TTextureData;
+begin
+  Result := TTextureData.Create;
+  Result.LoadFromFile(AFileName);
+end;
+
+class function TTextureData.CreateFromResource(AResource: string): TTextureData;
+begin
+  Result := TTextureData.Create;
+  Result.LoadFromResource(AResource);
 end;
 
 destructor TTextureData.Destroy;
@@ -480,6 +530,40 @@ begin
   finally
     Image.Free;
   end;
+end;
+
+procedure TTextureData.SetData(const Value: TArray<TColorRGBA.TBytes>);
+var
+  Y: Integer;
+begin
+  for Y := 0 to Size.Y - 1 do
+    Move(
+    (TColorRGBA.PBytes(Value.DataPointer) + Y * Size.X)^,
+    (TColorRGBA.PBytes(FData) + Y * Size.X)^,
+    Size.X * SizeOf(TColorRGBA.TBytes)
+    );
+end;
+
+procedure TTextureData.SetPixel(APos: TIntVector2; const Value: TColorRGBA);
+begin
+  PixelsB[APos] := Value.ToBytes;
+end;
+
+procedure TTextureData.SetPixelB(APos: TIntVector2; const Value: TColorRGBA.TBytes);
+begin
+  (TColorRGBA.PBytes(FData) + APos.X mod Size.X + APos.Y * Size.X)^ := Value;
+end;
+
+procedure TTextureData.SetSubData(ABounds: TIntBounds2; const Value: TArray<TColorRGBA.TBytes>);
+var
+  Y: Integer;
+begin
+  for Y := 0 to ABounds.Height - 1 do
+    Move(
+    (TColorRGBA.PBytes(Value.DataPointer) + Y * ABounds.Width)^,
+    (TColorRGBA.PBytes(FData) + Y * Size.X)^,
+    ABounds.Width * SizeOf(TColorRGBA.TBytes)
+    );
 end;
 
 procedure TTextureData.LoadFromFile(AFileName: string);
@@ -514,8 +598,7 @@ begin
   FreeData;
 
   FSize := IVec2(AImage.Width, AImage.Height);
-  FBpp := 4;
-
+  
   GetMem(FData, DataSize);
   Res := FData;
 
@@ -523,7 +606,8 @@ begin
   begin
     for X := 0 to Width - 1 do
     begin
-      Color := ByteSwap(AImage.Pixels[X, Y]) shr 8;
+      // Color := ByteSwap(AImage.Pixels[X, Y]) shr 8;
+      Color := AImage.Pixels[X, Y];
       Move(Color, Res^, 3);
       Inc(Res, 3);
       case AImage.TransparencyMode of
@@ -855,6 +939,7 @@ begin
   FCompareMode := tcmNone;
 
   FMinFilter := minNearestMipmapLinear;
+  MinFilter := minLinear;
   FMagFilter := magLinear;
 
   FMinLOD := -1000;
@@ -890,7 +975,7 @@ end;
 
 procedure TTexture.Deactivate;
 begin
-  if Active then
+  if not Active then
     Exit;
   Binding.Del(FUnitID);
   FUnitID := -1;
@@ -898,8 +983,7 @@ end;
 
 procedure TTexture.Uniform(AUniform: TGLProgram.TUniformSampler);
 begin
-  if not Active then
-    raise ETextureNotActive.Create;
+  Activate;
   AUniform.Value := FUnitID;
 end;
 
@@ -987,18 +1071,46 @@ end;
 
 procedure TTexture2D.Data(AData: PByte);
 begin
+  Bind;
   glTexImage2D(TargetType, 0, Ord(PixelFormat), Width, Height, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, AData);
 end;
 
 procedure TTexture2D.SubData(ABounds: TIntBounds2; AData: PByte);
 begin
+  Bind;
   glTexSubImage2D(TargetType, 0, ABounds.C1.X, ABounds.C1.Y, ABounds.Width, ABounds.Height, Ord(PixelFormat), GL_UNSIGNED_BYTE, AData);
+end;
+
+procedure TTexture2D.Fill(AColor: TColorRGBA);
+var
+  PixelData: array of TColorRGBA.TBytes;
+  I: Integer;
+begin
+  if Size = 0 then
+    Exit;
+  SetLength(PixelData, Width * Height);
+  PixelData[0] := AColor.ToBytes;
+  for I := 1 to Length(PixelData) - 1 do
+    PixelData[I] := PixelData[0];
+  Data(@PixelData[0]);
+end;
+
+procedure TTexture2D.Fill(ABounds: TIntBounds2; AColor: TColorRGBA);
+var
+  PixelData: array of TColorRGBA.TBytes;
+  I: Integer;
+begin
+  SetLength(PixelData, ABounds.Width * ABounds.Height);
+  PixelData[0] := AColor.ToBytes;
+  for I := 1 to Length(PixelData) - 1 do
+    PixelData[I] := PixelData[0];
+  SubData(ABounds, @PixelData[0]);
 end;
 
 procedure TTexture2D.LoadTexture(ATexture: TTextureData);
 begin
   FSize := ATexture.Size;
-  Data(ATexture.Data);
+  Data(ATexture.DataPointer);
 end;
 
 { TTexture3D }
@@ -1118,6 +1230,7 @@ end;
 
 procedure TTexture2DArray.Generate;
 begin
+  Bind;
   glTexImage3D(TargetType, 0, Ord(PixelFormat), Width, Height, Layers, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
 end;
 
@@ -1238,35 +1351,6 @@ end;
 procedure TTexture2DMSArray.Generate;
 begin
   glTexImage3DMultisample(TargetType, Samples, Ord(PixelFormat), Width, Height, Layers, True);
-end;
-
-{ TTextureAtlas.TTile }
-
-constructor TTextureAtlas.TTile.Create(AAtlas: TTextureAtlas; APosition: TIntBounds2);
-begin
-  FAtlas := AAtlas;
-  FPosition := APosition;
-end;
-
-{ TTextureAtlas }
-
-constructor TTextureAtlas.Create(AGLState: TGLState);
-begin
-  FTexture := TTexture2D.Create(AGLState);
-  FTiles := TTiles.Create;
-end;
-
-destructor TTextureAtlas.Destroy;
-begin
-  FTiles.Free;
-  FTexture.Free;
-  inherited;
-end;
-
-
-function TTextureAtlas.GetGLState: TGLState;
-begin
-  Result := FTexture.GLState;
 end;
 
 end.

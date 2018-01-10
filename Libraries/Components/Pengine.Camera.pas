@@ -122,15 +122,15 @@ type
 
     TUniform = class abstract
     public type
-      TUniformList = TRefArray<TGLProgram.TUniform<TMatrix4>>;
-      TRotationUniformList = TRefArray<TGLProgram.TUniform<TMatrix3>>;
+      TUniforms = TRefArray<TGLProgram.TUniform<TMatrix4>>;
+      TRotationUniforms = TRefArray<TGLProgram.TUniform<TMatrix3>>;
 
     private
       FCalculatesTo: TUniform;
       FValid: Boolean;
       FData: TMatrix4;
-      FUniforms: TUniformList;
-      FRotationUniforms: TRotationUniformList;
+      FUniforms: TUniforms;
+      FRotationUniforms: TRotationUniforms;
 
       function GetData: TMatrix4;
 
@@ -544,8 +544,7 @@ var
           RenderObject.Render;
         end;
         if RenderObject.RenderableChildren <> nil then
-          if not RenderObject.RenderableChildren.CountOptimized or not RenderObject.RenderableChildren.Empty then
-            RenderList(RenderObject.RenderableChildren);
+          RenderList(RenderObject.RenderableChildren);
       end;
     end;
   end;
@@ -606,7 +605,7 @@ end;
 
 function TCamera.GetHorizontalFOV: Single;
 begin
-  Result := arctan(Tan(FOV / 360 * Pi) * Aspect) * 360 / Pi;
+  Result := ArcTan(Tan(FOV / 360 * Pi) * Aspect) * 360 / Pi;
 end;
 
 function TCamera.GetLocation: TLocation;
@@ -724,8 +723,8 @@ end;
 
 constructor TCamera.TUniform.Create;
 begin
-  FUniforms := TUniformList.Create;
-  FRotationUniforms := TRotationUniformList.Create;
+  FUniforms := TUniforms.Create;
+  FRotationUniforms := TRotationUniforms.Create;
 end;
 
 procedure TCamera.TUniform.DelUniform(AUniform: TGLProgram.TUniform<TMatrix3>);
@@ -766,7 +765,8 @@ procedure TCamera.TUniform.SendToUniforms;
 var
   I: Integer;
 begin
-  // Use normal for loop for better performance
+  if FValid then
+    Exit;
   for I := 0 to FUniforms.MaxIndex do
     FUniforms[I].Value := Data;
   for I := 0 to FRotationUniforms.MaxIndex do

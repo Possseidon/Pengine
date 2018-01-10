@@ -18,7 +18,8 @@ uses
   Pengine.Camera,
   Pengine.FBO,
   Pengine.VAO,
-  Pengine.GLState;
+  Pengine.GLState,
+  Pengine.GLGame;
 
 type
 
@@ -288,11 +289,10 @@ type
 
   end;
 
-  { TLightSystem }
-
+  // make sure to create before camera, so that shadows get rendered first
   TLightSystem = class
   private
-    FGLState: TGLState;
+    FGame: TGLGame;
     FGLProgram: TGLProgram;
 
     FAmbient: TColorRGB;
@@ -319,12 +319,16 @@ type
     procedure SendDirectionalLightCount;
     procedure SendPointLightCount;
     procedure SendSpotLightCount;
+    function GetGLState: TGLState;
+
+    procedure RenderShadows;
 
   public
-    constructor Create(AGLState: TGLState);
+    constructor Create(AGame: TGLGame);
     destructor Destroy; override;
 
-    property GLState: TGLState read FGLState;
+    property Game: TGLGame read FGame;
+    property GLState: TGLState read GetGLState;
 
     property UBO: TUBO read FUBO;
     property DirectionalLightTexArray: TTexture2DArray read FDirectionalLightTexArray;
@@ -337,8 +341,6 @@ type
     property Ambient: TColorRGB read FAmbient write SetAmbient;
 
     procedure BindToGLProgram(AGLProgram: TGLProgram);
-
-    procedure RenderShadows;
 
   end;
 
@@ -429,6 +431,7 @@ begin
   inherited Create(ALightSystem);
   Size := 100;
   FFBO := TFBO.Create(ALightSystem.GLState, IBounds2(IVec2(1024, 1024)));
+  FFBO.GLLabel := AnsiString(Format('Directional-Light %d Shadow-FBO', [Index]));
   FFBO.Add(TTextureLayerAttachment.Create(TDepthAttachment.Create, ALightSystem.DirectionalLightTexArray, Index));
   FFBO.Complete;
   Send(7, 1, ShadedBool);
@@ -1071,27 +1074,31 @@ begin
   UBO.SubData(TSpotLight.MajorOffset, SizeOf(Integer), LightCount);
 end;
 
-constructor TLightSystem.Create(AGLState: TGLState);
+constructor TLightSystem.Create(AGame: TGLGame);
 begin
-  FGLState := AGLState;
+  FGame := AGame;
+  FGame.OnRender.Add(RenderShadows);
 
   FDirectionalLights := TRefArray<TDirectionalLight>.Create;
   FPointLights := TRefArray<TPointLight>.Create;
   FSpotLights := TRefArray<TSpotLight>.Create;
 
-  FDirectionalLightTexArray := TTexture2DArray.Create(FGLState, IVec3(1024, 1024, TDirectionalLight.MaxLights), pfDepthComponent);
+  FDirectionalLightTexArray := TTexture2DArray.Create(GLState, IVec3(1024, 1024, TDirectionalLight.MaxLights), pfDepthComponent);
+  FDirectionalLightTexArray.GLLabel := 'Directional-Light Texture-Array';
   FDirectionalLightTexArray.MinFilter := minLinear;
   FDirectionalLightTexArray.CompareMode := tcmCompareRefToTexture;
 
-  FPointLightTexArray := TTextureCubeMapArray.Create(FGLState, 1024, TPointLight.MaxLights, pfDepthComponent);
+  FPointLightTexArray := TTextureCubeMapArray.Create(GLState, 1024, TPointLight.MaxLights, pfDepthComponent);
+  FPointLightTexArray.GLLabel := 'Point-Light CubeMapTexture-Array';
   FPointLightTexArray.MinFilter := minLinear;
   FPointLightTexArray.CompareMode := tcmCompareRefToTexture;
 
-  FSpotLightTexArray := TTexture2DArray.Create(FGLState, IVec3(1024, 1024, TSpotLight.MaxLights), pfDepthComponent);
+  FSpotLightTexArray := TTexture2DArray.Create(GLState, IVec3(1024, 1024, TSpotLight.MaxLights), pfDepthComponent);
+  FSpotLightTexArray.GLLabel := 'Spot-Light Texture-Array';
   FSpotLightTexArray.MinFilter := minLinear;
   FSpotLightTexArray.CompareMode := tcmCompareRefToTexture;
 
-  FUBO := TUBO.Create(FGLState);
+  FUBO := TUBO.Create(GLState);
   FUBO.GLLabel := 'Light-Data';
   FUBO.Generate(TSpotLight.MajorOffset + 16 + TSpotLight.DataSize * TSpotLight.MaxLights, buStreamDraw);
 
@@ -1110,6 +1117,11 @@ begin
   FPointLightTexArray.Free;
   FUBO.Free;
   inherited Destroy;
+end;
+
+function TLightSystem.GetGLState: TGLState;
+begin
+  Result := Game.GLState;
 end;
 
 function TLightSystem.AddLight(ALight: TBaseLight): Integer;

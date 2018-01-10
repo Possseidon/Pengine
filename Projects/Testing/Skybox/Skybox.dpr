@@ -1,5 +1,7 @@
 program Skybox;
 
+{$R *.dres}
+
 uses
   Vcl.Forms,
   Main in 'Main.pas' {frmMain};

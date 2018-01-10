@@ -29,7 +29,8 @@ uses
   Pengine.Collections,
   Pengine.Hasher,
   Pengine.TimeManager,
-  Pengine.IntMaths;
+  Pengine.IntMaths,
+  Pengine.GLGame;
 
 type
 
@@ -106,6 +107,7 @@ type
     property ClearMask: TGLAttribMaskFlags read FClearMask write FClearMask;
     property MaxDeltaTime: Single read FMaxDeltaTime write FMaxDeltaTime;
 
+    property Timer: TDeltaTimer read FTimer;
     property DeltaTime: Single read GetDeltaTime;
     property FPS: Single read GetFPS;
     property FPSLimit: Single read FFPSLimit write SetFPSLimit;
@@ -128,6 +130,7 @@ type
 
   TGLForm = class(TForm)
   private
+    FGame: TGLGame;
     FInput: TInputHandler;
     FContext: TGLContext;
     FFullscreen: Boolean;
@@ -137,7 +140,6 @@ type
 
     procedure ActivateHandler(Sender: TObject);
     procedure DeactivateHandler(Sender: TObject);
-    function GetAspect: Single;
     function GetCursorVisible: Boolean;
 
     procedure SetFullscreen(Value: Boolean);
@@ -146,6 +148,8 @@ type
     procedure IdleHandler(Sender: TObject; var Done: Boolean);
     function GetGLState: TGLState;
     function GetDeltaTime: Single;
+
+    procedure RenderCallback;
 
   protected
     procedure Resize; override;
@@ -157,7 +161,8 @@ type
 
     property Fullscreen: Boolean read FFullscreen write SetFullscreen;
     property CursorVisible: Boolean read GetCursorVisible write SetCursorVisible;
-                     
+
+    property Game: TGLGame read FGame;
     property Input: TInputHandler read FInput;
     
     procedure Start;
@@ -168,12 +173,6 @@ type
 
     procedure Init; virtual;
     procedure Finalize; virtual;
-
-    procedure RenderGL; virtual;
-    procedure UpdateGL; virtual;
-    procedure ResizeGL; virtual;
-
-    property Aspect: Single read GetAspect;
 
     property Context: TGLContext read FContext;
     property GLState: TGLState read GetGLState;
@@ -208,11 +207,6 @@ begin
     WindowState := wsMinimized;
     // ShowWindow(Handle, SW_HIDE);
   end;
-end;
-
-function TGLForm.GetAspect: Single;
-begin
-  Result := ClientWidth / ClientHeight;
 end;
 
 function TGLForm.GetCursorVisible: Boolean;
@@ -275,7 +269,7 @@ begin
   if FContext.DeltaTime <= FContext.MaxDeltaTime then
   begin
     try
-      UpdateGL;
+      Game.Update;
     except
       on E: Exception do
       begin
@@ -308,14 +302,19 @@ begin
   Done := False;
 end;
 
+procedure TGLForm.RenderCallback;
+begin
+  Game.Render;
+end;
+
 procedure TGLForm.Resize;
 begin
   inherited;
   if not FRunning then
     Exit;
 
-  ResizeGL;
   FContext.Size := IVec2(ClientWidth, ClientHeight);
+  Game.Resize(FContext.Size);
 
   FContext.Render;
 end;
@@ -333,8 +332,9 @@ begin
   try
 
     FDC := GetDC(Handle);
-    FContext := TGLContext.Create(FDC, IVec2(ClientWidth, ClientHeight), RenderGL);
+    FContext := TGLContext.Create(FDC, IVec2(ClientWidth, ClientHeight), RenderCallback);
     FInput := TInputHandler.Create(Self);
+    FGame := TGLGame.Create(Context.GLState, Input, Context.Timer, IVec2(ClientWidth, ClientHeight));
 
     Constraints.MinWidth := 200;
     Constraints.MinHeight := 100;
@@ -381,10 +381,14 @@ begin
     on E: Exception do
       TGLContext.ErrorBox('Finalization Error!', E.Message, [mbOK], mbOK);
   end;
+
   if Fullscreen then
     Fullscreen := False;
+
+  FGame.Free;
   FInput.Free;
   FContext.Free;
+
   ReleaseDC(Handle, FDC);
   inherited;
 end;
@@ -430,7 +434,7 @@ begin
         // 0 - 31 = control charachters
         // 127 = Ctrl-Backspace
           if (W >= 32) and (W < 256) and (W <> 127) then
-            FInput.PressChar(AnsiChar(W));
+            FInput.PressChar(Char(W));
         end;
       end;
   end;
@@ -443,18 +447,6 @@ begin
 end;
 
 procedure TGLForm.Finalize;
-begin
-end;
-
-procedure TGLForm.RenderGL;
-begin
-end;
-
-procedure TGLForm.UpdateGL;
-begin
-end;
-
-procedure TGLForm.ResizeGL;
 begin
 end;
 
@@ -500,7 +492,7 @@ begin
 
   glDebugMessageCallback(DebugCallback, Self);
 
-  FGLState := TGLState.Create(FTimer, @FSize);
+  FGLState := TGLState.Create;
 end;
 
 procedure TGLContext.FinalizeGL;
@@ -538,7 +530,7 @@ end;
 
 procedure TGLContext.SetSamples(Value: Integer);
 begin
-  if not (Value in IBounds1(1, MaxSamples)) then
+  if not (Value in IBounds1I(1, MaxSamples)) then
     raise Exception.Create('Unspported number of samples!');
 
   if (FSamples = Value) and MultiSampled then
@@ -551,7 +543,7 @@ end;
 
 procedure TGLContext.SetSize(const Value: TIntVector2);
 begin
-  if FSize = Value then
+  if Size = Value then
     Exit;
   FSize := Value;
   if MultiSampled then
@@ -559,6 +551,7 @@ begin
     MultiSampled := False;
     MultiSampled := True;
   end;
+  FGLState.SetScreenSize(Size);
 end;
 
 procedure TGLContext.SetVSync(Value: Boolean);
@@ -615,7 +608,6 @@ end;
 constructor TGLContext.Create(ADC: HDC; ASize: TIntVector2; ARenderCallback: TRenderCallback);
 begin
   FDC := ADC;
-  FSize := ASize;
   FRenderCallback := ARenderCallback;
 
   FTimer := TDeltaTimer.Create;
@@ -623,6 +615,8 @@ begin
   InitGL;
 
   FFBOBinding := GLState.GLObjectBindings.Get<TFBO>;
+
+  Size := ASize;
 
   glGetIntegerv(GL_MAX_SAMPLES, @FMaxSamples);
   FSamples := 1;

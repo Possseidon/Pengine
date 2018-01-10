@@ -16,6 +16,9 @@ uses
   Vcl.Forms,
   Vcl.Dialogs,
 
+  Pengine.EventHandling,
+  Pengine.Hasher,
+  Pengine.TimeManager,
   Pengine.GLState,
   Pengine.GLContext,
   Pengine.ControlledCamera,
@@ -31,14 +34,16 @@ uses
   Pengine.ResourceManager,
   Pengine.Light,
   Pengine.Texture,
+  Pengine.TextureAtlas,
   Pengine.InputHandler,
-  Pengine.IntMaths;
+  Pengine.IntMaths,
+  Pengine.GLGame;
 
 type
 
   TSkyboxGLProgram = class(TSkyboxGLProgramBase)
   protected
-    class function GetFileName: string; override;
+    class procedure GetData(out AName: string; out AResource: Boolean); override;
   end;
 
   TModelGLProgram = class(TGLProgramResource)
@@ -55,7 +60,7 @@ type
 
   protected
     class function GetAttributeOrder: TGLProgram.TAttributeOrder; override;
-    class function GetFileName: string; override;
+    class procedure GetData(out AName: string; out AResource: Boolean); override;
   end;
 
   TTextureMap = class(TParamResource<TTextureAtlas, TGLObjectParam>)
@@ -72,6 +77,7 @@ type
   private
     FGLProgramResource: TGLProgramResourceClass;
     FTextureAtlas: TTextureAtlas;
+    FTextureTile: TTextureAtlas.TTile;
     FVAO: TVAO;
     FTexture: string;
     FLocation: TLocation;
@@ -79,10 +85,14 @@ type
     FChildren: TRefArray<TCube>;
     FRenderableChildren: TLinkedInterfaceArray<IRenderable, TCube>;
     FGLProgram: TGLProgram;
+    FVAOChanged: Boolean;
 
+    procedure VAOChanged;
     procedure BuildVAO;
+    procedure UpdateVAO;
 
     procedure SetTexture(const Value: string);
+    function GetTextureTile: TTextureAtlas.TTile;
 
   protected
     function GetLocation: TLocation; override;
@@ -97,6 +107,8 @@ type
     procedure Render; override;
 
     property Texture: string read FTexture write SetTexture;
+    property TextureTile: TTextureAtlas.TTile read GetTextureTile;
+
     function RenderableChildren: IIterable<IRenderable>; override;
 
     procedure AddChild(ARenderable: TCube);
@@ -112,14 +124,13 @@ type
     FCubes: TRefArray<TCube>;
     FLightSystem: TLightSystem;
     FSun: TDirectionalLightShaded;
+    FTextureAtlas: TTextureAtlas;
 
   public
     procedure Init; override;
     procedure Finalize; override;
 
-    procedure UpdateGL; override;
-    procedure RenderGL; override;
-    procedure ResizeGL; override;
+    procedure GameUpdate;
 
   end;
 
@@ -134,24 +145,33 @@ implementation
 
 procedure TfrmMain.Init;
 var
-  I, J: Integer;
   Cube: TCube;
-  SubCube: TCube;
+  Pos: TIntVector3;
 begin
+  Game.OnUpdate.Add(GameUpdate);
+
   Context.VSync := False;
 
-  Context.Samples := Context.MaxSamples;
+  Context.GLDebugRaiseLevels := [dmsLow, dmsMedium, dmsHigh];
+
+  // Context.Samples := Context.MaxSamples;
 
   RandSeed := 0;
 
-  FCamera := TSmoothControlledCamera.Create(60, Aspect, 0.01, 100, Self);
-  FCamera.OrthoFactor := 0.1;
-  FCamera.Location.OffsetZ := 10;
+  FSkyboxGLProgram := TSkyboxGLProgram.Make(GLState.ResParam);
+  FModelGLProgram := TModelGLProgram.Make(GLState.ResParam);
+
+  FLightSystem := TLightSystem.Create(Game);
+  FLightSystem.BindToGLProgram(FModelGLProgram);
+
+  FSun := TDirectionalLightShaded.Create(FLightSystem);
+  FSun.Direction := -Vec3(0.3, 1, 0.3);
+  FSun.Size := 40;
+
+  FCamera := TSmoothControlledCamera.Create(Game, 60, 0.01, 100);
+  FCamera.Location.OffsetZ := 9;
   FCamera.Location.TurnAngle := -30;
   FCamera.Location.PitchAngle := -20;
-
-  FSkyboxGLProgram := TSkyboxGLProgram.Make(GLState.ResourceParam);
-  FModelGLProgram := TModelGLProgram.Make(GLState.ResourceParam);
 
   FCamera.AddUniforms(FSkyboxGLProgram);
   FCamera.AddUniforms(FModelGLProgram);
@@ -166,87 +186,66 @@ begin
 
   FCamera.AddRenderable(FSkybox);
 
-  FLightSystem := TLightSystem.Create(GLState);
-  FLightSystem.BindToGLProgram(FModelGLProgram);
-  FSun := TDirectionalLightShaded.Create(FLightSystem);
-  FSun.Direction := -Vec3(0.3, 1, 0.3);
-  FSun.Size := 20;
-
-  FCubes.Capacity := 500;
-
-  for I := 0 to FCubes.Capacity - 1 do
+  for Pos in IBounds3I(-10, 10) do
   begin
+    if not (TVector3(Pos).Length in Bounds1(12, 13) + Random) then
+      Continue;
+
     Cube := FCubes.Add(TCube.Create(GLState, TModelGLProgram));
-    Cube.Location.Pos := TVector3.RandomNormal * 5;
+    Cube.Location.Pos := Pos;
 
     FCamera.AddRenderable(Cube);
     FSun.AddOccluder(Cube);
-
-    for J := 0 to -1 do
-    begin
-      SubCube := TCube.Create(GLState, TModelGLProgram);
-      SubCube.Location.Offset := TVector3.RandomNormal * 1;
-      Cube.AddChild(SubCube);
-    end;
   end;
+
+  FTextureAtlas := TTextureMap.Make(GLState.ResParam);
 end;
 
 procedure TfrmMain.Finalize;
 begin
+  TTextureMap.Release(GLState.ResParam);
   FSun.Free;
   FLightSystem.Free;
   FCamera.Free;
   FCubes.Free;
   FSkybox.Free;
   if FSkyboxGLProgram <> nil then
-    TSkyboxGLProgram.Release(GLState.ResourceParam);
+    TSkyboxGLProgram.Release(GLState.ResParam);
   if FModelGLProgram <> nil then
-    TModelGLProgram.Release(GLState.ResourceParam);
+    TModelGLProgram.Release(GLState.ResParam);
 end;
 
-procedure TfrmMain.UpdateGL;
+procedure TfrmMain.GameUpdate;
 var
   Cube: TCube;
 begin
   if Context.MustUpdateFPS then
     Caption := Format('FPS: %d', [Context.FPSInt]);
-  FCamera.Update;
 
   if Input.KeyDown('A') then
-    FCubes[Random(FCubes.Count)].Texture := 'stone_bricks.png';
+    FCubes[Random(FCubes.Count)].Texture := 'stone_bricks';
   if Input.KeyDown('S') then
-    FCubes[Random(FCubes.Count)].Texture := 'holed_ironplating.png';
+    FCubes[Random(FCubes.Count)].Texture := 'holed_ironplating';
   if Input.KeyDown('D') then
-    FCubes[Random(FCubes.Count)].Texture := 'stone.png';
+    FCubes[Random(FCubes.Count)].Texture := 'stone';
   if Input.KeyDown('F') then
-    FCubes[Random(FCubes.Count)].Texture := 'wooden_planks.png';
+    FCubes[Random(FCubes.Count)].Texture := 'wooden_planks';
 
   //for Cube in FCubes do
-  //  Cube.Location.Rotate(Vec3(DeltaTime * 10, DeltaTime * 90, DeltaTime * 30));
+  //  Cube.Location.Rotate(Cube.Location.Pos * DeltaTime * 10);
 
   FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0), Context.DeltaTime * 20);
 
   if Input.KeyTyped('M') then
     Context.MultiSampled := not Context.MultiSampled;
-
-end;
-
-procedure TfrmMain.RenderGL;
-begin
-  FLightSystem.RenderShadows;
-  FCamera.Render;
-end;
-
-procedure TfrmMain.ResizeGL;
-begin
-  FCamera.Aspect := Aspect;
 end;
 
 { TSkyboxGLProgram }
 
-class function TSkyboxGLProgram.GetFileName: string;
+class procedure TSkyboxGLProgram.GetData(out AName: string; out AResource: Boolean);
 begin
-  Result := 'Data\skybox';
+  AName := 'SKYBOX';
+  AResource := True;
 end;
 
 { TCube }
@@ -264,15 +263,14 @@ var
   Data: TVAO.TData;
   Border: TBounds2;
   Offset: TVector3;
-  I: Integer;
 begin
   FVAO.VBO.Generate(6 * 2 * 3, buStaticDraw);
-  with FVAO.VBO.Map do
-  begin
 
-    // Border := FTextureAtlas.GetBounds(Texture);
-    // Data.Border := FTextureAtlas.HalfPixelInset(Border);
-    Offset := 0; // TVector3.RandomNormal * 5;
+  with FVAO.VBO.Map do try
+
+    Border := TextureTile.Bounds;
+    Data.Border := TextureTile.BoundsHalfPixelInset;
+    Offset := 0;
 
     for P in CubePlanes do
     begin
@@ -283,22 +281,23 @@ begin
       begin
         Data.Pos := P[T] - 0.5 + Offset;
         Data.TexCoord := Border[T];
-
         AddToBuffer(Data);
       end;
     end;
 
+  finally
     Free;
   end;
+
+  FVAOChanged := False;
 end;
 
 constructor TCube.Create(AGLState: TGLState; AGLProgramResource: TGLProgramResourceClass);
-var
-  Corner: TVector3;
 begin
   FGLProgramResource := AGLProgramResource;
-  FGLProgram := FGLProgramResource.Make(AGLState.ResourceParam);
-  FTextureAtlas := TTextureMap.Make(AGLState.ResourceParam);
+  FGLProgram := FGLProgramResource.Make(AGLState.ResParam);
+  FTextureAtlas := TTextureMap.Make(AGLState.ResParam);
+  FTextureAtlas.OnChanged.Add(VAOChanged);
   FVAO := TVAO.Create(FGLProgram);
   FLocation := TLocation.Create;
   {
@@ -306,10 +305,11 @@ begin
   FOcclusionPoints.Capacity := TBounds3.CornerCount;
   for Corner in Bounds3(-0.5, 0.5).GetCorners do
     FOcclusionPoints.Add(Corner);
- }
+  }
   FChildren := TRefArray<TCube>.Create(True);
   FRenderableChildren := TLinkedInterfaceArray<IRenderable, TCube>.Create(FChildren);
-  Texture := 'stone_bricks.png';
+  Texture := 'stone_bricks';
+  BuildVAO;
 end;
 
 destructor TCube.Destroy;
@@ -318,8 +318,8 @@ begin
   FRenderableChildren.Free;
   FChildren.Free;
   FLocation.Free;
-  TTextureMap.Release(FTextureAtlas.GLState.ResourceParam);
-  FGLProgramResource.Release(FVAO.GLState.ResourceParam);
+  TTextureMap.Release(FTextureAtlas.GLState.ResParam);
+  FGLProgramResource.Release(FVAO.GLState.ResParam);
   FVAO.Free;
   inherited;
 end;
@@ -327,6 +327,13 @@ end;
 function TCube.GetLocation: TLocation;
 begin
   Result := FLocation;
+end;
+
+function TCube.GetTextureTile: TTextureAtlas.TTile;
+begin
+  if FTextureTile = nil then
+    FTextureTile := FTextureAtlas[Texture];
+  Result := FTextureTile;
 end;
 
 function TCube.CullPoints: IIterable<TVector3>;
@@ -341,6 +348,8 @@ end;
 
 procedure TCube.Render;
 begin
+  if FVAOChanged then
+    UpdateVAO;
   FVAO.Render;
 end;
 
@@ -354,7 +363,39 @@ begin
   if FTexture = Value then
     Exit;
   FTexture := Value;
-  BuildVAO;
+  FTextureTile := nil;
+  VAOChanged;
+end;
+
+procedure TCube.UpdateVAO;
+var
+  D: TBasicDir3;
+  T: TTexCoord2;
+  Border: TBounds2;
+begin
+  with FVAO.VBO.Map do try
+
+    Border := TextureTile.Bounds;
+    for D := Low(TBasicDir3) to High(TBasicDir3) do
+    begin
+      for T in QuadTexCoords do
+      begin
+        BufferData[BufferPos].Border := TextureTile.BoundsHalfPixelInset;
+        BufferData[BufferPos].TexCoord := Border[T];
+        NextBufferPos;
+      end;
+    end;
+
+  finally
+    Free;
+  end;
+
+  FVAOChanged := False;
+end;
+
+procedure TCube.VAOChanged;
+begin
+  FVAOChanged := True;
 end;
 
 { TModelGLProgram }
@@ -372,29 +413,39 @@ begin
     ];
 end;
 
-class function TModelGLProgram.GetFileName: string;
+class procedure TModelGLProgram.GetData(out AName: string; out AResource: Boolean);
 begin
-  Result := 'Data\model';
+  AName := 'MODEL';
+  AResource := True;
 end;
 
 { TTextureMap }
 
 class function TTextureMap.CreateData(AParam: TGLObjectParam): TTextureAtlas;
+var
+  GLProgram: TGLProgram;
 begin
   Result := TTextureAtlas.Create(AParam.GLState);
-  {
-  Result.Uniform(TModelGLProgram.Make(AParam.GLState.ResourceParam));
-  Result.AddTextureFromFile('Data\stone_bricks.png');
-  Result.AddTextureFromFile('Data\holed_ironplating.png');
-  Result.AddTextureFromFile('Data\stone.png');
-  Result.AddTextureFromFile('Data\wooden_planks.png');
-  Result.Build(32);
-  }
+
+  GLProgram := TModelGLProgram.Make(AParam.GLState.ResParam);
+  Result.Uniform(GLProgram.UniformSampler('diffusemap'));
+  Result.AddSubType('nmap', GLProgram.UniformSampler('normalmap'), ColorRGB(0.5, 1, 0.5));
+  Result.AddSubType('smap', GLProgram.UniformSampler('specularmap'), ColorRGB(0, 0, 0));
+
+  Result.Texture.MagFilter := magNearest;
+  Result.SubTypes[0].Texture.MagFilter := magNearest;
+  Result.SubTypes[1].Texture.MagFilter := magNearest;
+
+  Result.AddFromResource('stone_bricks', 'STONE_BRICKS');
+  Result.AddFromResource('holed_ironplating', 'HOLED_IRONPLATING');
+  Result.AddFromResource('stone', 'STONE');
+  Result.AddFromResource('wooden_planks', 'WOODEN_PLANKS');
+
 end;
 
 class procedure TTextureMap.ReleaseReferences(AParam: TGLObjectParam);
 begin
-  TModelGLProgram.Release(AParam.GLState.ResourceParam);
+  TModelGLProgram.Release(AParam.GLState.ResParam);
 end;
 
 end.

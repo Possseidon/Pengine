@@ -15,7 +15,8 @@ uses
   Pengine.Camera,
   Pengine.InputHandler,
   Pengine.Vector,
-  Pengine.GLContext;
+  Pengine.GLContext,
+  Pengine.GLGame;
 
 type
 
@@ -26,7 +27,7 @@ type
 
   TControlledCamera = class(TCamera)
   public const
-    DefaultMouseSensitivity = 200;
+    DefaultMouseSensitivity = 90;
     DefaultZoomSpeed = 0.1;
 
     DefaultPosBounds: TBounds3 = (
@@ -37,7 +38,7 @@ type
     DefaultZoomLimit: TBounds1 = (C1: 0.1; C2: Infinity);
 
   private
-    FInput: TInputHandler;
+    FGame: TGLGame;
     FMoving: Boolean;
 
     FOldMousePos: TVector2;
@@ -48,6 +49,8 @@ type
     FPosBounds: TBounds3;
     FPitchLimit: TBounds1;
     FZoomLimit: TBounds1;
+
+    function GetInputHandler: TInputHandler;
 
     procedure RecordMovement;
     procedure EnsureLimits;
@@ -72,6 +75,9 @@ type
     procedure SetZoomLowerLimit(const Value: Single);
     procedure SetZoomUpperLimit(const Value: Single);
 
+    procedure Update;
+    procedure Resize;
+
   protected
     FDeltaRotation: TVector3;
     FDeltaPos: TVector3;
@@ -80,7 +86,10 @@ type
     procedure ProcessMovement; virtual;
 
   public
-    constructor Create(AFOV, AAspect, ANearClip, AFarClip: Single; AInput: TInputHandler);
+    constructor Create(AGame: TGLGame; AFOV, ANearClip, AFarClip: Single);
+
+    property Game: TGLGame read FGame;
+    property Input: TInputHandler read GetInputHandler;
 
     property Moving: Boolean read FMoving;
 
@@ -108,8 +117,6 @@ type
     property ZoomLowerLimit: Single read FZoomLimit.C1 write SetZoomLowerLimit;
     property ZoomUpperLimit: Single read FZoomLimit.C2 write SetZoomUpperLimit;
 
-    procedure Update;
-
   end;
 
   TSmoothControlledCamera = class(TControlledCamera)
@@ -117,14 +124,13 @@ type
     DefaultSmoothSpeed = 42;
 
   private
-    FGLForm: TGLForm;
     FSmoothSpeed: Single;
 
   protected
     procedure ProcessMovement; override;
 
   public
-    constructor Create(AFOV, AAspect, ANearClip, AFarClip: Single; AGLForm: TGLForm);
+    constructor Create(AGLGame: TGLGame; AFOV, ANearClip, AFarClip: Single);
 
     property SmoothSpeed: Single read FSmoothSpeed write FSmoothSpeed;
 
@@ -145,20 +151,20 @@ procedure TControlledCamera.RecordMovement;
 var
   DeltaMouse: TVector2;
 begin
-  if FInput.ButtonPressed(mbRight) or FInput.ButtonPressed(mbLeft) then
-    FOldMousePos := FInput.MousePos;
+  if Input.ButtonPressed(mbRight) or Input.ButtonPressed(mbLeft) then
+    FOldMousePos := Input.MousePos;
 
-  DeltaMouse := FInput.MousePos - FOldMousePos;
+  DeltaMouse := Input.MousePos - FOldMousePos;
 
-  if FInput.KeyDown(VK_SHIFT) then
+  if Input.KeyDown(VK_SHIFT) then
   begin
     // Alt Mode
-    if FInput.ButtonDown(mbRight) then
+    if Input.ButtonDown(mbRight) then
     begin
       FDeltaRotation.Y := FDeltaRotation.Y + MouseSensitivity * DeltaMouse.X;
       FDeltaPos.Y := FDeltaPos.Y - Location.OffsetZ * DeltaMouse.Y;
     end
-    else if FInput.ButtonDown(mbLeft) then
+    else if Input.ButtonDown(mbLeft) then
     begin
       FDeltaPos := FDeltaPos - Location.Right * Location.OffsetZ * DeltaMouse.X;
       FDeltaPos := FDeltaPos - Location.Look * Location.OffsetZ * DeltaMouse.Y;
@@ -167,22 +173,27 @@ begin
   else
   begin
     // Normal Mode
-    if FInput.ButtonDown(mbRight) then
+    if Input.ButtonDown(mbRight) then
       FDeltaRotation.YX := FDeltaRotation.YX + MouseSensitivity * DeltaMouse
-    else if FInput.ButtonDown(mbLeft) then
+    else if Input.ButtonDown(mbLeft) then
     begin
       FDeltaPos := FDeltaPos - Location.Right * Location.OffsetZ * DeltaMouse.X;
       FDeltaPos := FDeltaPos - Location.Up * Location.OffsetZ * DeltaMouse.Y;
     end;
   end;
 
-  if FInput.ButtonDown(mbLeft) or FInput.ButtonDown(mbRight) then
-    FOldMousePos := FInput.MousePos;
+  if Input.ButtonDown(mbLeft) or Input.ButtonDown(mbRight) then
+    FOldMousePos := Input.MousePos;
 
-  if FInput.ScrolledUp then
+  if Input.ScrolledUp then
     FDeltaOffset.Z := Location.OffsetZ - Location.OffsetZ * (1 + FZoomSpeed);
-  if FInput.ScrolledDown then
+  if Input.ScrolledDown then
     FDeltaOffset.Z := Location.OffsetZ - Location.OffsetZ / (1 + FZoomSpeed);
+end;
+
+procedure TControlledCamera.Resize;
+begin
+  Aspect := Game.Aspect;
 end;
 
 procedure TControlledCamera.EnsureLimits;
@@ -190,6 +201,11 @@ begin
   Location.Pos := PosBounds.Clamp(Location.Pos);
   Location.PitchAngle := PitchLimit.Clamp(Location.PitchAngle);
   Location.OffsetZ := ZoomLimit.Clamp(Location.OffsetZ);
+end;
+
+function TControlledCamera.GetInputHandler: TInputHandler;
+begin
+  Result := Game.Input;
 end;
 
 procedure TControlledCamera.SetPosBounds(const Value: TBounds3);
@@ -327,11 +343,13 @@ begin
   FDeltaOffset := 0;
 end;
 
-constructor TControlledCamera.Create(AFOV, AAspect, ANearClip, AFarClip: Single; AInput: TInputHandler);
+constructor TControlledCamera.Create(AGame: TGLGame; AFOV, ANearClip, AFarClip: Single);
 begin
-  inherited Create(AFOV, AAspect, ANearClip, AFarClip);
-
-  FInput := AInput;
+  inherited Create(AFOV, AGame.Aspect, ANearClip, AFarClip);
+  FGame := AGame;
+  Game.OnUpdate.Add(Update);
+  Game.OnRender.Add(Render);
+  Game.OnResize.Add(Resize);
 
   MouseSensitivity := DefaultMouseSensitivity;
   ZoomSpeed := DefaultZoomSpeed;
@@ -343,10 +361,10 @@ end;
 
 procedure TControlledCamera.Update;
 begin
-  if (FInput.AsyncKeyDown(VK_CONTROL) or FInput.AsyncKeyDown(VK_SHIFT)) and
-      FInput.ButtonUp(mbLeft) and FInput.ButtonUp(mbRight) then
+  if (Input.AsyncKeyDown(VK_CONTROL) or Input.AsyncKeyDown(VK_SHIFT)) and
+      Input.ButtonUp(mbLeft) and Input.ButtonUp(mbRight) then
     FMoving := True
-  else if (FInput.AsyncKeyUp(VK_CONTROL) and FInput.AsyncKeyUp(VK_SHIFT)) then
+  else if (Input.AsyncKeyUp(VK_CONTROL) and Input.AsyncKeyUp(VK_SHIFT)) then
     FMoving := False;
 
   if FMoving then
@@ -363,7 +381,7 @@ var
   Factor: Single;
   DRotation, DPos, DOffset: TVector3;
 begin
-  Factor := 1 - Exp(-FSmoothSpeed * FGLForm.Context.DeltaTime);
+  Factor := 1 - Exp(-FSmoothSpeed * Game.DeltaTime);
 
   DRotation := FDeltaRotation * Factor;
   DPos := FDeltaPos * Factor;
@@ -378,10 +396,9 @@ begin
   FDeltaOffset := FDeltaOffset - DOffset;
 end;
 
-constructor TSmoothControlledCamera.Create(AFOV, AAspect, ANearClip, AFarClip: Single; AGLForm: TGLForm);
+constructor TSmoothControlledCamera.Create(AGLGame: TGLGame; AFOV, ANearClip, AFarClip: Single);
 begin
-  inherited Create(AFOV, AAspect, ANearClip, AFarClip, AGLForm.Input);
-  FGLForm := AGLForm;
+  inherited;
   FSmoothSpeed := DefaultSmoothSpeed;
 end;
 

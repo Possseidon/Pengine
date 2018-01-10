@@ -7,7 +7,7 @@ uses
 
 type
 
-  EHandlerNotFound = class(Exception)
+  EEventHandlerNotFound = class(Exception)
   public
     constructor Create;
   end;
@@ -30,29 +30,39 @@ type
   TEventInfo = class(TInterfacedObject)
   end;
 
-  TObservableEvent = record
+  TEvent = record
   public type
     THandlerStatic = procedure;
     THandler = procedure of object;
 
+    TAccess = record
+    private
+      FEvent: Pointer;
+
+      function Find(AHandler: THandler): Integer; inline;
+
+    public
+      /// <summary>Adds a new static event-handler to the list.</summary>
+      procedure Add(AHandler: THandlerStatic); overload; inline;
+      /// <summary>Adds a new event-handler to the list.</summary>
+      procedure Add(AHandler: THandler); overload;
+      /// <summary>Removes a static event-handler from the list.</summary>
+      procedure Del(AHandler: THandlerStatic); overload; inline;
+      /// <summary>Adds an event-handler from the list.</summary>
+      procedure Del(AHandler: THandler); overload;
+
+    end;
+
   private
     FDisableCounter: Integer;
-    FHandlers: array of THandler;
+    FHandlers: TArray<THandler>;
 
-    function Find(AHandler: THandler): Integer; inline;
-
-    function GetDisabled: Boolean;
-    function GetEnabled: Boolean;
+    function GetDisabled: Boolean; inline;
+    function GetEnabled: Boolean; inline;
 
   public
-    /// <summary>Adds a new static event-handler to the list.</summary>
-    procedure Add(AHandler: THandlerStatic); overload; inline;
-    /// <summary>Adds a new event-handler to the list.</summary>
-    procedure Add(AHandler: THandler); overload;
-    /// <summary>Removes a static event-handler from the list.</summary>
-    procedure Del(AHandler: THandlerStatic); overload; inline;
-    /// <summary>Adds an event-handler from the list.</summary>
-    procedure Del(AHandler: THandler); overload;
+    /// <summary>Grants access to adding and removing handlers.</summary>
+    function Access: TAccess; inline;
 
     /// <summary>Execute each event handler.</summary>
     procedure Execute; overload; inline;
@@ -73,30 +83,39 @@ type
 
   end;
 
-  /// <summary>
-  TObservableEvent<T: TEventInfo> = record
+  TEvent<T: TEventInfo> = record
   public type
     THandlerStatic = procedure(AInfo: T);
     THandler = procedure(AInfo: T) of object;
 
+    TAccess = record
+    private
+      FEvent: Pointer;
+
+      function Find(AHandler: THandler): Integer; inline;
+
+    public
+      /// <summary>Adds a new static event-handler to the list.</summary>
+      procedure Add(AHandler: THandlerStatic); overload; inline;
+      /// <summary>Adds a new event-handler to the list.</summary>
+      procedure Add(AHandler: THandler); overload;
+      /// <summary>Removes a static event-handler from the list.</summary>
+      procedure Del(AHandler: THandlerStatic); overload; inline;
+      /// <summary>Adds an event-handler from the list.</summary>
+      procedure Del(AHandler: THandler); overload;
+
+    end;
+
   private
     FDisableCounter: Integer;
-    FHandlers: array of THandler;
+    FHandlers: TArray<THandler>;
 
-    function Find(AHandler: THandler): Integer; inline;
-
-    function GetDisabled: Boolean;
-    function GetEnabled: Boolean;
+    function GetDisabled: Boolean; inline;
+    function GetEnabled: Boolean; inline;
 
   public
-    /// <summary>Adds a new static event-handler to the list.</summary>
-    procedure Add(AHandler: THandlerStatic); overload; inline;
-    /// <summary>Adds a new event-handler to the list.</summary>
-    procedure Add(AHandler: THandler); overload;
-    /// <summary>Removes a static event-handler from the list.</summary>
-    procedure Del(AHandler: THandlerStatic); overload; inline;
-    /// <summary>Adds an event-handler from the list.</summary>
-    procedure Del(AHandler: THandler); overload;
+    /// <summary>Grants access to adding and removing handlers.</summary>
+    function Access: TAccess;
 
     /// <summary>Execute each event handler with the given event-info object.</summary>
     procedure Execute(AInfo: T; AFreeInfo: Boolean = True); overload; inline;
@@ -119,34 +138,24 @@ type
 
 implementation
 
-{ EHandlerNotFound }
+{ EEventHandlerNotFound }
 
-constructor EHandlerNotFound.Create;
+constructor EEventHandlerNotFound.Create;
 begin
   inherited Create('Could not remove the event-handler as it does not exist.');
 end;
 
-{ TObservableEvent }
+{ TEvent.TAccess }
 
-function TObservableEvent.Find(AHandler: THandler): Integer;
+function TEvent.TAccess.Find(AHandler: THandler): Integer;
 begin
-  for Result := 0 to Length(FHandlers) - 1 do
-    if @FHandlers[Result] = @AHandler then
+  for Result := 0 to Length(TEvent(FEvent^).FHandlers) - 1 do
+    if TMethod(TEvent(FEvent^).FHandlers[Result]) = TMethod(AHandler) then
       Exit;
   Result := -1;
 end;
 
-function TObservableEvent.GetDisabled: Boolean;
-begin
-  Result := FDisableCounter > 0;
-end;
-
-function TObservableEvent.GetEnabled: Boolean;
-begin
-  Result := FDisableCounter <= 0;
-end;
-
-procedure TObservableEvent.Add(AHandler: THandlerStatic);
+procedure TEvent.TAccess.Add(AHandler: THandlerStatic);
 var
   M: TMethod;
 begin
@@ -155,13 +164,13 @@ begin
   Add(THandler(M));
 end;
 
-procedure TObservableEvent.Add(AHandler: THandler);
+procedure TEvent.TAccess.Add(AHandler: THandler);
 begin
-  SetLength(FHandlers, Length(FHandlers) + 1);
-  FHandlers[Length(FHandlers) - 1] := AHandler;
+  SetLength(TEvent(FEvent^).FHandlers, Length(TEvent(FEvent^).FHandlers) + 1);
+  TEvent(FEvent^).FHandlers[Length(TEvent(FEvent^).FHandlers) - 1] := AHandler;
 end;
 
-procedure TObservableEvent.Del(AHandler: THandlerStatic);
+procedure TEvent.TAccess.Del(AHandler: THandlerStatic);
 var
   M: TMethod;
 begin
@@ -170,23 +179,40 @@ begin
   Del(THandler(M));
 end;
 
-procedure TObservableEvent.Del(AHandler: THandler);
+procedure TEvent.TAccess.Del(AHandler: THandler);
 var
   I: Integer;
 begin
   I := Find(AHandler);
   if I <> -1 then
   begin
-    if Length(FHandlers) - I > 1 then
-      Move(FHandlers[I + 1], FHandlers[I], SizeOf(THandler) *
-        (Length(FHandlers) - I - 1));
-    SetLength(FHandlers, Length(FHandlers) - 1);
+    if Length(TEvent(FEvent^).FHandlers) - I > 1 then
+      Move(TEvent(FEvent^).FHandlers[I + 1], TEvent(FEvent^).FHandlers[I], SizeOf(THandler) *
+        (Length(TEvent(FEvent^).FHandlers) - I - 1));
+    SetLength(TEvent(FEvent^).FHandlers, Length(TEvent(FEvent^).FHandlers) - 1);
   end
   else
-    raise EHandlerNotFound.Create;
+    raise EEventHandlerNotFound.Create;
 end;
 
-procedure TObservableEvent.Execute;
+{ TEvent }
+
+function TEvent.GetDisabled: Boolean;
+begin
+  Result := FDisableCounter > 0;
+end;
+
+function TEvent.GetEnabled: Boolean;
+begin
+  Result := FDisableCounter <= 0;
+end;
+
+function TEvent.Access: TAccess;
+begin
+  Result.FEvent := @Self;
+end;
+
+procedure TEvent.Execute;
 var
   Handler: THandler;
 begin
@@ -201,37 +227,27 @@ begin
   end;
 end;
 
-procedure TObservableEvent.Disable;
+procedure TEvent.Disable;
 begin
   Inc(FDisableCounter);
 end;
 
-procedure TObservableEvent.Enable;
+procedure TEvent.Enable;
 begin
   Dec(FDisableCounter);
 end;
 
-{ TObservableEvent<T> }
+{ TEvent<T>.TAccess }
 
-function TObservableEvent<T>.Find(AHandler: THandler): Integer;
+function TEvent<T>.TAccess.Find(AHandler: THandler): Integer;
 begin
-  for Result := 0 to Length(FHandlers) - 1 do
-    if @FHandlers[Result] = @AHandler then
+  for Result := 0 to Length(TEvent<T>(FEvent^).FHandlers) - 1 do
+    if TMethod(TEvent<T>(FEvent^).FHandlers[Result]) = TMethod(AHandler) then
       Exit;
   Result := -1;
 end;
 
-function TObservableEvent<T>.GetDisabled: Boolean;
-begin
-  Result := FDisableCounter > 0;
-end;
-
-function TObservableEvent<T>.GetEnabled: Boolean;
-begin
-  Result := FDisableCounter <= 0;
-end;
-
-procedure TObservableEvent<T>.Add(AHandler: THandlerStatic);
+procedure TEvent<T>.TAccess.Add(AHandler: THandlerStatic);
 var
   M: TMethod;
 begin
@@ -240,13 +256,13 @@ begin
   Add(THandler(M));
 end;
 
-procedure TObservableEvent<T>.Add(AHandler: THandler);
+procedure TEvent<T>.TAccess.Add(AHandler: THandler);
 begin
-  SetLength(FHandlers, Length(FHandlers) + 1);
-  FHandlers[Length(FHandlers) - 1] := AHandler;
+  SetLength(TEvent<T>(FEvent^).FHandlers, Length(TEvent<T>(FEvent^).FHandlers) + 1);
+  TEvent<T>(FEvent^).FHandlers[Length(TEvent<T>(FEvent^).FHandlers) - 1] := AHandler;
 end;
 
-procedure TObservableEvent<T>.Del(AHandler: THandlerStatic);
+procedure TEvent<T>.TAccess.Del(AHandler: THandlerStatic);
 var
   M: TMethod;
 begin
@@ -255,23 +271,35 @@ begin
   Del(THandler(M));
 end;
 
-procedure TObservableEvent<T>.Del(AHandler: THandler);
+procedure TEvent<T>.TAccess.Del(AHandler: THandler);
 var
   I: Integer;
 begin
   I := Find(AHandler);
   if I <> -1 then
   begin
-    if Length(FHandlers) - I > 1 then
-      Move(FHandlers[I + 1], FHandlers[I], SizeOf(THandler) *
-        (Length(FHandlers) - I - 1));
-    SetLength(FHandlers, Length(FHandlers) - 1);
+    if Length(TEvent<T>(FEvent^).FHandlers) - I > 1 then
+      Move(TEvent<T>(FEvent^).FHandlers[I + 1], TEvent<T>(FEvent^).FHandlers[I], SizeOf(THandler) *
+        (Length(TEvent<T>(FEvent^).FHandlers) - I - 1));
+    SetLength(TEvent<T>(FEvent^).FHandlers, Length(TEvent<T>(FEvent^).FHandlers) - 1);
   end
   else
-    raise EHandlerNotFound.Create;
+    raise EEventHandlerNotFound.Create;
 end;
 
-procedure TObservableEvent<T>.Execute(AInfo: T; AFreeInfo: Boolean = True);
+{ TEvent<T> }
+
+function TEvent<T>.GetDisabled: Boolean;
+begin
+  Result := FDisableCounter > 0;
+end;
+
+function TEvent<T>.GetEnabled: Boolean;
+begin
+  Result := FDisableCounter <= 0;
+end;
+
+procedure TEvent<T>.Execute(AInfo: T; AFreeInfo: Boolean = True);
 var
   Handler: THandler;
 begin
@@ -289,12 +317,17 @@ begin
     AInfo.Free;
 end;
 
-procedure TObservableEvent<T>.Disable;
+function TEvent<T>.Access: TAccess;
+begin
+  Result.FEvent := @Self;
+end;
+
+procedure TEvent<T>.Disable;
 begin
   Inc(FDisableCounter);
 end;
 
-procedure TObservableEvent<T>.Enable;
+procedure TEvent<T>.Enable;
 begin
   Dec(FDisableCounter);
 end;

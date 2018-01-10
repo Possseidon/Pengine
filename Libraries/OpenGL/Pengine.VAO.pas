@@ -122,6 +122,11 @@ type
     end;
 
     TWriter = class(TMapping)
+    public type
+
+     TDataArray = array [0 .. 0] of TData;
+     PDataArray = ^TDataArray;
+
     private
       FPos: Integer;
 
@@ -131,10 +136,15 @@ type
       class function GetBufferAccess: TGLBufferAccess; override;
 
     public
-      property BufferData[APos: Integer]: TData write SetData; default;
+      /// <summary></summary>
+      /// <remarks>/!\ Only writeable, also do not change this pointer!</remarks>
+      BufferData: PDataArray;
+
+      constructor Create(AVBO: TVBO<TData>);
 
       property BufferPos: Integer read FPos write SetPos;
       procedure AddToBuffer(AData: TData);
+      procedure NextBufferPos;
 
     end;
 
@@ -148,16 +158,20 @@ type
     end;
 
   private
-    function GetData(APos: Integer): TData; overload;
-    function GetData(ABounds: TIntBounds1): TArray<TData>; overload;
-    procedure SetData(APos: Integer; const Value: TData); overload;
-    procedure SetData(ABounds: TIntBounds1; Value: TArray<TData>); overload;
+    function GetSubData(APos: Integer): TData; overload;
+    function GetSubData(ABounds: TIntBounds1): TArray<TData>; overload;
+    function GetData: TArray<TData>;
+    procedure SetSubData(APos: Integer; const Value: TData); overload;
+    procedure SetSubData(ABounds: TIntBounds1; const Value: TArray<TData>); overload;
+    procedure SetData(const Value: TArray<TData>);
 
   protected
     class function GetDataSize: Integer; override;
 
-    property Data[APos: Integer]: TData read GetData write SetData; default;
-    property Data[ABounds: TIntBounds1]: TArray<TData> read GetData write SetData; default;
+  public
+    property SubData[APos: Integer]: TData read GetSubData write SetSubData; default;
+    property SubData[ABounds: TIntBounds1]: TArray<TData> read GetSubData write SetSubData; default;
+    property Data: TArray<TData> read GetData write SetData;
 
   end;
 
@@ -428,7 +442,7 @@ end;
 
 procedure TVAO.BeforeRender;
 begin
-  FGLProgram.Bind;
+  GLProgram.Bind;
 end;
 
 procedure TVAO.AfterRender;
@@ -620,13 +634,13 @@ end;
 
 { TVBO<TData> }
 
-function TVBO<TData>.GetData(APos: Integer): TData;
+function TVBO<TData>.GetSubData(APos: Integer): TData;
 begin
   Bind;
   glGetBufferSubData(Ord(btArrayBuffer), APos * GetDataSize, GetDataSize, @Result);
 end;
 
-function TVBO<TData>.GetData(ABounds: TIntBounds1): TArray<TData>;
+function TVBO<TData>.GetSubData(ABounds: TIntBounds1): TArray<TData>;
 var
   Count: Integer;
 begin
@@ -637,17 +651,27 @@ begin
   Result.ForceCount(Count);
 end;
 
+function TVBO<TData>.GetData: TArray<TData>;
+begin
+  Result := SubData[IBounds1(Count)];
+end;
+
 class function TVBO<TData>.GetDataSize: Integer;
 begin
   Result := SizeOf(TData);
 end;
 
-procedure TVBO<TData>.SetData(ABounds: TIntBounds1; Value: TArray<TData>);
+procedure TVBO<TData>.SetData(const Value: TArray<TData>);
+begin
+  SubData[IBounds1(Count)] := Value;
+end;
+
+procedure TVBO<TData>.SetSubData(ABounds: TIntBounds1; const Value: TArray<TData>);
 begin
   glBufferSubData(Ord(btArrayBuffer), ABounds.C1 * GetDataSize, ABounds.Length * GetDataSize, Value.DataPointer);
 end;
 
-procedure TVBO<TData>.SetData(APos: Integer; const Value: TData);
+procedure TVBO<TData>.SetSubData(APos: Integer; const Value: TData);
 begin
   glBufferSubData(Ord(btArrayBuffer), APos * GetDataSize, GetDataSize, @Value);
 end;
@@ -664,7 +688,13 @@ end;
 procedure TVBO<TData>.TWriter.AddToBuffer(AData: TData);
 begin
   BufferData[BufferPos] := AData;
-  Inc(FPos);
+  NextBufferPos;
+end;
+
+constructor TVBO<TData>.TWriter.Create(AVBO: TVBO<TData>);
+begin
+  inherited;
+  BufferData := PDataArray(FData);
 end;
 
 class function TVBO<TData>.TWriter.GetBufferAccess: TGLBufferAccess;
@@ -672,9 +702,15 @@ begin
   Result := baWriteOnly;
 end;
 
+procedure TVBO<TData>.TWriter.NextBufferPos;
+begin
+  BufferPos := BufferPos + 1;
+end;
+
 procedure TVBO<TData>.TWriter.SetPos(const Value: Integer);
 begin
-  if (Value < 0) or (Value >= FVBO.Count) then
+  // one more, to allow the buffer to be one after the last value at the end
+  if not (Value in IBounds1(FVBO.Count + 1)) then
     raise EVBOOutOfRange.Create;
   FPos := Value;
 end;

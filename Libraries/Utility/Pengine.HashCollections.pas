@@ -88,23 +88,26 @@ type
     TBuckets = array of TBucket;
 
     // TODO: XmlDoc
-    TIterator<T> = class abstract(TInterfacedObject)
+    TIterator<T> = class abstract(TInterfacedObject, IIterator<T>)
     private
+      FHashBase: THashBase;
       FIndex: Integer;
       FBucketIndex: Integer;
 
-    protected
-      function GetBuckets: Integer; virtual; abstract;
-      function GetBucketSize(AIndex: Integer): Integer; virtual; abstract;
+      function GetBucketSize(AIndex: Integer): Integer;
 
+    protected
+      property HashBase: THashBase read FHashBase;
       property Index: Integer read FIndex;
       property BucketIndex: Integer read FBucketIndex;
 
     public
-      constructor Create;
+      constructor Create(AHashBase: THashBase);
 
       function MoveNext: Boolean;
       function GetCurrent: T; virtual; abstract;
+
+      property Current: T read GetCurrent;
 
     end;
 
@@ -214,14 +217,7 @@ type
     TBucket = TArray<T>;
 
     // TODO: XmlDoc
-    TIterator = class(THashBase.TIterator<T>, IIterator<T>)
-    private
-      FSet: TSet<T, H>;
-
-    protected
-      function GetBuckets: Integer; override;
-      function GetBucketSize(AIndex: Integer): Integer; override;
-
+    TIterator = class(THashBase.TIterator<T>)
     public
       constructor Create(ASet: TSet<T, H>);
 
@@ -300,19 +296,19 @@ type
     TBucket = TArray<TPair>;
 
     // TODO: XmlDoc
-    TIterator = class(THashBase.TIterator<TPair>, IIterator<TPair>)
-    private
-      FMap: TMap<K, V, H>;
-
-    protected
-      function GetBuckets: Integer; override;
-      function GetBucketSize(AIndex: Integer): Integer; override;
-
+    TIterator = class(THashBase.TIterator<TPair>)
     public
-      constructor Create(AMap: TMap<K, V, H>);
-
       function GetCurrent: TPair; override;
+    end;
 
+    TKeyIterator = class(THashBase.TIterator<K>)
+    public
+      function GetCurrent: K; override;
+    end;
+
+    TValueIterator = class(THashBase.TIterator<V>)
+    public
+      function GetCurrent: V; override;
     end;
 
     TReader = class(THashBase<K, H>.TReader)
@@ -340,6 +336,32 @@ type
 
     end;
 
+    TKeysWrapper = record
+    private
+      FMap: TMap<K, V, H>;
+
+    public
+      constructor Create(AMap: TMap<K, V, H>);
+
+      function GetEnumerator: IIterator<K>;
+
+      function ToArray(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8): TArray<K>;
+      function ToSet(AHashMode: THashMode = hmAuto): TSet<K, H>;
+
+    end;
+
+    TValuesWrapper = record
+    private
+      FMap: TMap<K, V, H>;
+    public
+      constructor Create(AMap: TMap<K, V, H>);
+
+      function GetEnumerator: IIterator<V>;
+
+      function ToArray(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8): TArray<V>;
+
+    end;
+
   private
     function GetValue(AKey: K): V;
     procedure SetValue(AKey: K; const Value: V);
@@ -347,6 +369,7 @@ type
     function GetActualKeyE(AKey: K): K;
     procedure SetActualKeyE(AKey: K; const Value: K);
     function GetPair(AKey: K): TPair;
+    function KeySet(AHashMode: THashMode): TSet<K, H>;
 
   protected
     function GetBuckets: Integer; override;
@@ -360,9 +383,9 @@ type
 
   public
     function Get(AKey: K; out AValue: V): Boolean; overload;
-    property Values[AKey: K]: V read GetValue write SetValue; default;
+    property Value[AKey: K]: V read GetValue write SetValue; default;
     function Get(AKey: K; out APair: TPair): Boolean; overload;
-    property Pairs[AKey: K]: TPair read GetPair;
+    property Pair[AKey: K]: TPair read GetPair;
 
     function TryDel(AKey: K): Boolean;
     procedure Del(AKey: K);
@@ -374,7 +397,8 @@ type
     function KeyExists(AKey: K): Boolean;
 
     function GetEnumerator: IIterator<TPair>;
-    function KeySet(AHashMode: THashMode = hmManual): TSet<K, H>;
+    function Keys: TKeysWrapper; inline;
+    function Values: TValuesWrapper; inline;
 
     function Copy(AHashMode: THashMode = hmAuto): TMap<K, V, H>; reintroduce; inline;
 
@@ -610,15 +634,23 @@ end;
 
 { THashBase.TIterator<T> }
 
-constructor THashBase.TIterator<T>.Create;
+constructor THashBase.TIterator<T>.Create(AHashBase: THashBase);
 begin
+  FHashBase := AHashBase;
   FIndex := 0;
   FBucketIndex := -1;
 end;
 
+function THashBase.TIterator<T>.GetBucketSize(AIndex: Integer): Integer;
+begin
+  if HashBase.FBuckets[AIndex] = nil then
+    Exit(0);
+  Result := HashBase.FBuckets[AIndex].Count;
+end;
+
 function THashBase.TIterator<T>.MoveNext: Boolean;
 begin
-  if GetBuckets = 0 then
+  if HashBase.Buckets = 0 then
     Exit(False);
 
   Inc(FBucketIndex);
@@ -632,7 +664,7 @@ begin
   end;
 
   repeat
-    if FIndex = GetBuckets - 1 then
+    if FIndex = HashBase.Buckets - 1 then
       Exit(False);
     Inc(FIndex);
   until GetBucketSize(FIndex) <> 0;
@@ -826,25 +858,12 @@ end;
 
 constructor TSet<T, H>.TIterator.Create(ASet: TSet<T, H>);
 begin
-  inherited Create;
-  FSet := ASet;
-end;
-
-function TSet<T, H>.TIterator.GetBuckets: Integer;
-begin
-  Result := FSet.Buckets;
-end;
-
-function TSet<T, H>.TIterator.GetBucketSize(AIndex: Integer): Integer;
-begin
-  if FSet.FBuckets[AIndex] = nil then
-    Exit(0);
-  Result := FSet.FBuckets[AIndex].Count;
+  inherited Create(ASet);
 end;
 
 function TSet<T, H>.TIterator.GetCurrent: T;
 begin
-  Result := TBucket(FSet.FBuckets[Index])[BucketIndex];
+  Result := TBucket(HashBase.FBuckets[Index])[BucketIndex];
 end;
 
 { TSet<T, H> }
@@ -1087,28 +1106,23 @@ end;
 
 { TMap<K, V, H>.TIterator }
 
-constructor TMap<K, V, H>.TIterator.Create(AMap: TMap<K, V, H>);
-begin
-  FMap := AMap;
-  FIndex := 0;
-  FBucketIndex := -1;
-end;
-
-function TMap<K, V, H>.TIterator.GetBuckets: Integer;
-begin
-  Result := FMap.Buckets;
-end;
-
-function TMap<K, V, H>.TIterator.GetBucketSize(AIndex: Integer): Integer;
-begin
-  if FMap.FBuckets[AIndex] = nil then
-    Exit(0);
-  Result := FMap.FBuckets[AIndex].Count;
-end;
-
 function TMap<K, V, H>.TIterator.GetCurrent: TPair;
 begin
-  Result := TBucket(FMap.FBuckets[Index])[BucketIndex];
+  Result := TBucket(HashBase.FBuckets[Index])[BucketIndex];
+end;
+
+{ TMap<K, V, H>.TKeyIterator }
+
+function TMap<K, V, H>.TKeyIterator.GetCurrent: K;
+begin
+  Result := TBucket(HashBase.FBuckets[Index])[BucketIndex].Key;
+end;
+
+{ TMap<K, V, H>.TValueIterator }
+
+function TMap<K, V, H>.TValueIterator.GetCurrent: V;
+begin
+  Result := TBucket(HashBase.FBuckets[Index])[BucketIndex].Value;
 end;
 
 { TMap<K, V, H> }
@@ -1330,6 +1344,11 @@ begin
   Result := True;
 end;
 
+function TMap<K, V, H>.Values: TValuesWrapper;
+begin
+  Result.Create(Self);
+end;
+
 function TMap<K, V, H>.GetEnumerator: IIterator<TPair>;
 begin
   Result := TIterator.Create(Self);
@@ -1364,6 +1383,11 @@ begin
       Exit(True);
 
   Result := False;
+end;
+
+function TMap<K, V, H>.Keys: TKeysWrapper;
+begin
+  Result.Create(Self);
 end;
 
 function TMap<K, V, H>.KeySet(AHashMode: THashMode): TSet<K, H>;
@@ -1646,7 +1670,7 @@ end;
 
 function TMap<K, V, H>.TReader.GetPair(AKey: K): TPair;
 begin
-  Result := TMap<K, V, H>(Self).Pairs[AKey];
+  Result := TMap<K, V, H>(Self).Pair[AKey];
 end;
 
 function TMap<K, V, H>.TReader.GetValue(AKey: K): V;
@@ -1687,6 +1711,61 @@ end;
 function TMap<K, V, H>.TReader.Copy(AHashMode: THashMode): TMap<K, V, H>;
 begin
   Result := TMap<K, V, H>(Self).Copy(AHashMode);
+end;
+
+{ TMap<K, V, H>.TKeysWrapper }
+
+constructor TMap<K, V, H>.TKeysWrapper.Create(AMap: TMap<K, V, H>);
+begin
+  FMap := AMap;
+end;
+
+function TMap<K, V, H>.TKeysWrapper.GetEnumerator: IIterator<K>;
+begin
+  Result := TKeyIterator.Create(FMap);
+end;
+
+function TMap<K, V, H>.TKeysWrapper.ToArray(AGrowAmount, AShrinkRetain: Integer): TArray<K>;
+var
+  Key: K;
+begin
+  Result := TArray<K>.Create(AGrowAmount, AShrinkRetain);
+  Result.Capacity := FMap.Count;
+  for Key in Self do
+    Result.Add(Key);
+end;
+
+function TMap<K, V, H>.TKeysWrapper.ToSet(AHashMode: THashMode): TSet<K, H>;
+var
+  Key: K;
+begin
+  Result := TSet<K, H>.Create(hmManual);
+  Result.Buckets := FMap.Count;
+  for Key in Self do
+    Result.Add(Key);
+  Result.HashMode := AHashMode;  
+end;
+
+{ TMap<K, V, H>.TValuesWrapper }
+
+constructor TMap<K, V, H>.TValuesWrapper.Create(AMap: TMap<K, V, H>);
+begin
+  FMap := AMap;
+end;
+
+function TMap<K, V, H>.TValuesWrapper.GetEnumerator: IIterator<V>;
+begin
+  Result := TValueIterator.Create(FMap);
+end;
+
+function TMap<K, V, H>.TValuesWrapper.ToArray(AGrowAmount, AShrinkRetain: Integer): TArray<V>;
+var
+  Value: V;
+begin
+  Result := TArray<V>.Create(AGrowAmount, AShrinkRetain);
+  Result.Capacity := FMap.Count;
+  for Value in Self do
+    Result.Add(Value);  
 end;
 
 { TClassRefMap<T> }
