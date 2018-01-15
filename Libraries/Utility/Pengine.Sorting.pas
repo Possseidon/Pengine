@@ -103,13 +103,6 @@ begin
   end;
 end;
 
-{ TQuickSorter }
-
-procedure TQuickSorter.DiscardPivot;
-begin
-  // possibly nothing
-end;
-
 function TQuickSorter.QuickSortRecursive(LBound, RBound: Integer): Boolean;
 var
   L, R: Integer;
@@ -150,13 +143,14 @@ begin
     Result := Result and QuickSortRecursive(L, RBound);
 end;
 
-procedure TQuickSorter.Sort(AAutoFree: Boolean);
+{ TQuickSorter }
+
+procedure TQuickSorter.DiscardPivot;
 begin
-  if not TrySort(AAutoFree) then
-    raise EInvalidSortFunction.Create;
+  // possibly nothing
 end;
 
-function TQuickSorter.TrySort(AAutoFree: Boolean = True): Boolean;
+function TQuickSorter.TrySort(AAutoFree: Boolean): Boolean;
 var
   B: TIntBounds1;
 begin
@@ -170,6 +164,12 @@ begin
     if AAutoFree then
       Free;
   end;
+end;
+
+procedure TQuickSorter.Sort(AAutoFree: Boolean);
+begin
+  if not TrySort(AAutoFree) then
+    raise EInvalidSortFunction.Create;
 end;
 
 end.

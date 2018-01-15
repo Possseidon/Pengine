@@ -3,7 +3,7 @@ unit Pengine.EventHandling;
 interface
 
 uses
-  SysUtils;
+  System.SysUtils;
 
 type
 
@@ -55,12 +55,13 @@ type
 
   private
     FDisableCounter: Integer;
-    FHandlers: TArray<THandler>;
 
     function GetDisabled: Boolean; inline;
     function GetEnabled: Boolean; inline;
 
   public
+    Handlers: TArray<THandler>;
+
     /// <summary>Grants access to adding and removing handlers.</summary>
     function Access: TAccess; inline;
 
@@ -81,6 +82,9 @@ type
     /// <summary>Whether the event handlers are executed.</summary>
     property Enabled: Boolean read GetEnabled;
 
+    /// <returns>True, if the event has at least one event handler.</returns>
+    function HasHandler: Boolean;
+
   end;
 
   TEvent<T: TEventInfo> = record
@@ -97,7 +101,7 @@ type
     public
       /// <summary>Adds a new static event-handler to the list.</summary>
       procedure Add(AHandler: THandlerStatic); overload; inline;
-      /// <summary>Adds a new event-handler to the list.</summary>
+      /// <summary>Adds a new reference event-handler to the list.</summary>
       procedure Add(AHandler: THandler); overload;
       /// <summary>Removes a static event-handler from the list.</summary>
       procedure Del(AHandler: THandlerStatic); overload; inline;
@@ -108,12 +112,13 @@ type
 
   private
     FDisableCounter: Integer;
-    FHandlers: TArray<THandler>;
 
     function GetDisabled: Boolean; inline;
     function GetEnabled: Boolean; inline;
 
   public
+    Handlers: TArray<THandler>;
+
     /// <summary>Grants access to adding and removing handlers.</summary>
     function Access: TAccess;
 
@@ -134,6 +139,20 @@ type
     /// <summary>Whether the event handlers are executed.</summary>
     property Enabled: Boolean read GetEnabled;
 
+    /// <returns>True, if the event has at least one event handler.</returns>
+    function HasHandler: Boolean;
+
+  end;
+
+  TSenderEventInfo<T> = class(TEventInfo, IEventSender<T>)
+  private
+    FSender: T;
+
+  public
+    constructor Create(ASender: T);
+
+    function Sender: T;
+
   end;
 
 implementation
@@ -148,10 +167,17 @@ end;
 { TEvent.TAccess }
 
 function TEvent.TAccess.Find(AHandler: THandler): Integer;
+var
+  Method, FindMethod: TMethod;
 begin
-  for Result := 0 to Length(TEvent(FEvent^).FHandlers) - 1 do
-    if TMethod(TEvent(FEvent^).FHandlers[Result]) = TMethod(AHandler) then
+  FindMethod := TMethod(AHandler);
+  for Result := Length(TEvent(FEvent^).Handlers) - 1 downto 0 do
+  begin
+    Method := TMethod(TEvent(FEvent^).Handlers[Result]);
+    if (Method.Code = FindMethod.Code) and
+       ((Method.Data = FindMethod.Data) or (Method.Data = nil)) then
       Exit;
+  end;
   Result := -1;
 end;
 
@@ -166,8 +192,8 @@ end;
 
 procedure TEvent.TAccess.Add(AHandler: THandler);
 begin
-  SetLength(TEvent(FEvent^).FHandlers, Length(TEvent(FEvent^).FHandlers) + 1);
-  TEvent(FEvent^).FHandlers[Length(TEvent(FEvent^).FHandlers) - 1] := AHandler;
+  SetLength(TEvent(FEvent^).Handlers, Length(TEvent(FEvent^).Handlers) + 1);
+  TEvent(FEvent^).Handlers[Length(TEvent(FEvent^).Handlers) - 1] := AHandler;
 end;
 
 procedure TEvent.TAccess.Del(AHandler: THandlerStatic);
@@ -186,10 +212,10 @@ begin
   I := Find(AHandler);
   if I <> -1 then
   begin
-    if Length(TEvent(FEvent^).FHandlers) - I > 1 then
-      Move(TEvent(FEvent^).FHandlers[I + 1], TEvent(FEvent^).FHandlers[I], SizeOf(THandler) *
-        (Length(TEvent(FEvent^).FHandlers) - I - 1));
-    SetLength(TEvent(FEvent^).FHandlers, Length(TEvent(FEvent^).FHandlers) - 1);
+    if Length(TEvent(FEvent^).Handlers) - I > 1 then
+      Move(TEvent(FEvent^).Handlers[I + 1], TEvent(FEvent^).Handlers[I], SizeOf(THandler) *
+        (Length(TEvent(FEvent^).Handlers) - I - 1));
+    SetLength(TEvent(FEvent^).Handlers, Length(TEvent(FEvent^).Handlers) - 1);
   end
   else
     raise EEventHandlerNotFound.Create;
@@ -207,6 +233,11 @@ begin
   Result := FDisableCounter <= 0;
 end;
 
+function TEvent.HasHandler: Boolean;
+begin
+  Result := Length(Handlers) > 0;
+end;
+
 function TEvent.Access: TAccess;
 begin
   Result.FEvent := @Self;
@@ -216,9 +247,9 @@ procedure TEvent.Execute;
 var
   Handler: THandler;
 begin
-  if (FHandlers = nil) or Disabled then
+  if (Handlers = nil) or Disabled then
     Exit;
-  for Handler in FHandlers do
+  for Handler in Handlers do
   begin
     if TMethod(Handler).Data = nil then
       THandlerStatic(TMethod(Handler).Code)
@@ -240,10 +271,17 @@ end;
 { TEvent<T>.TAccess }
 
 function TEvent<T>.TAccess.Find(AHandler: THandler): Integer;
+var
+  Method, FindMethod: TMethod;
 begin
-  for Result := 0 to Length(TEvent<T>(FEvent^).FHandlers) - 1 do
-    if TMethod(TEvent<T>(FEvent^).FHandlers[Result]) = TMethod(AHandler) then
+  FindMethod := TMethod(AHandler);
+  for Result := 0 to Length(TEvent(FEvent^).Handlers) - 1 do
+  begin
+    Method := TMethod(TEvent(FEvent^).Handlers[Result]);
+    if (Method.Code = FindMethod.Code) and
+       ((Method.Data = FindMethod.Data) or (Method.Data = nil)) then
       Exit;
+  end;
   Result := -1;
 end;
 
@@ -258,8 +296,8 @@ end;
 
 procedure TEvent<T>.TAccess.Add(AHandler: THandler);
 begin
-  SetLength(TEvent<T>(FEvent^).FHandlers, Length(TEvent<T>(FEvent^).FHandlers) + 1);
-  TEvent<T>(FEvent^).FHandlers[Length(TEvent<T>(FEvent^).FHandlers) - 1] := AHandler;
+  SetLength(TEvent<T>(FEvent^).Handlers, Length(TEvent<T>(FEvent^).Handlers) + 1);
+  TEvent<T>(FEvent^).Handlers[Length(TEvent<T>(FEvent^).Handlers) - 1] := AHandler;
 end;
 
 procedure TEvent<T>.TAccess.Del(AHandler: THandlerStatic);
@@ -278,10 +316,10 @@ begin
   I := Find(AHandler);
   if I <> -1 then
   begin
-    if Length(TEvent<T>(FEvent^).FHandlers) - I > 1 then
-      Move(TEvent<T>(FEvent^).FHandlers[I + 1], TEvent<T>(FEvent^).FHandlers[I], SizeOf(THandler) *
-        (Length(TEvent<T>(FEvent^).FHandlers) - I - 1));
-    SetLength(TEvent<T>(FEvent^).FHandlers, Length(TEvent<T>(FEvent^).FHandlers) - 1);
+    if Length(TEvent<T>(FEvent^).Handlers) - I > 1 then
+      Move(TEvent<T>(FEvent^).Handlers[I + 1], TEvent<T>(FEvent^).Handlers[I], SizeOf(THandler) *
+        (Length(TEvent<T>(FEvent^).Handlers) - I - 1));
+    SetLength(TEvent<T>(FEvent^).Handlers, Length(TEvent<T>(FEvent^).Handlers) - 1);
   end
   else
     raise EEventHandlerNotFound.Create;
@@ -299,22 +337,30 @@ begin
   Result := FDisableCounter <= 0;
 end;
 
+function TEvent<T>.HasHandler: Boolean;
+begin
+  Result := Length(Handlers) > 0;
+end;
+
 procedure TEvent<T>.Execute(AInfo: T; AFreeInfo: Boolean = True);
 var
   Handler: THandler;
 begin
-  if (FHandlers <> nil) and Enabled then
-  begin
-    for Handler in FHandlers do
+  try
+    if (Handlers <> nil) and Enabled then
     begin
-      if TMethod(Handler).Data = nil then
-        THandlerStatic(TMethod(Handler).Code)(AInfo)
-      else
-        Handler(AInfo);
+      for Handler in Handlers do
+      begin
+        if TMethod(Handler).Data = nil then
+          THandlerStatic(TMethod(Handler).Code)(AInfo)
+        else
+          Handler(AInfo);
+      end;
     end;
+  finally
+    if AFreeInfo then
+      AInfo.Free;
   end;
-  if AFreeInfo then
-    AInfo.Free;
 end;
 
 function TEvent<T>.Access: TAccess;
@@ -330,6 +376,18 @@ end;
 procedure TEvent<T>.Enable;
 begin
   Dec(FDisableCounter);
+end;
+
+{ TSenderEventInfo<T> }
+
+constructor TSenderEventInfo<T>.Create(ASender: T);
+begin
+  FSender := ASender;
+end;
+
+function TSenderEventInfo<T>.Sender: T;
+begin
+  Result := FSender;
 end;
 
 end.

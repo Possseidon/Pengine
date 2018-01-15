@@ -12,6 +12,7 @@ uses
 
   Pengine.GLContext,
   Pengine.GLState,
+  Pengine.GLForm,
   Pengine.Camera,
   Pengine.ControlledCamera,
   Pengine.Skybox,
@@ -23,6 +24,7 @@ uses
   Pengine.GLProgram,
   Pengine.InputHandler,
   Pengine.IntMaths,
+  Pengine.TimeManager,
 
   ModelShader,
   RopeDefine;
@@ -31,7 +33,7 @@ type
 
   TSkyboxGLProgram = class(TSkyboxGLProgramBase)
   protected
-    class function GetFileName: string; override;
+    class procedure GetData(out AName: string; out AResource: Boolean); override;
   end;
 
   TRopes = TObjectArray<TRopeProxy>;
@@ -47,13 +49,12 @@ type
     FLightSystem: TLightSystem;
     FSun: TDirectionalLightShaded;
 
+    procedure UpdateGame;
+    procedure UpdateFPS(ATimer: TDeltaTimer.TEventInfo);
+
   public
     procedure Init; override;
     procedure Finalize; override;
-
-    procedure UpdateGL; override;
-    procedure RenderGL; override;
-    procedure ResizeGL; override;
 
   end;
 
@@ -88,8 +89,8 @@ begin
   GLState[stBlend] := True;
   GLState[stBlendFunc] := TGLBlendFunc.Make(bfsOne, bfdOneMinusSrcAlpha);
 
-  FSkyboxGLProgram := TSkyboxGLProgram.Make(GLState.ResourceParam);
-  FModelGLProgram := TModelGLProgram.Make(GLState.ResourceParam);
+  FSkyboxGLProgram := TSkyboxGLProgram.Make(GLState.ResParam);
+  FModelGLProgram := TModelGLProgram.Make(GLState.ResParam);
 
   FSkybox := TSkybox.Create(FSkyboxGLProgram);
 
@@ -97,7 +98,11 @@ begin
   FSkybox.AddStripe(ColorRGB(0.4, 0.6, 0.9), 0);
   FSkybox.AddStripe(ColorRGB(0.1, 0.2, 0.9), +90);
 
-  FCamera := TSmoothControlledCamera.Create(60, Aspect, 0.01, 100, Self);
+  FLightSystem := TLightSystem.Create(Game);
+  FLightSystem.BindToGLProgram(FModelGLProgram);
+  FLightSystem.Ambient := 0.25;
+
+  FCamera := TSmoothControlledCamera.Create(Game, 60, 0.01, 100);
   FCamera.Location.OffsetZ := 15;
   FCamera.Location.TurnAngle := -70;
   FCamera.Location.PitchAngle := -30;
@@ -105,10 +110,6 @@ begin
   FCamera.AddUniforms(FModelGLProgram);
 
   FCamera.AddRenderable(FSkybox);
-
-  FLightSystem := TLightSystem.Create(GLState);
-  FLightSystem.BindToGLProgram(FModelGLProgram);
-  FLightSystem.Ambient := 0.25;
 
   FSun := TDirectionalLightShaded.Create(FLightSystem);
   FSun.Size := 20;
@@ -134,14 +135,17 @@ begin
     FCamera.AddRenderable(Rope);
     FSun.AddOccluder(Rope);
   end;
+
+  Game.Timer.OnFPSUpdate.Add(UpdateFPS);
+  Game.OnUpdate.Add(UpdateGame);
 end;
 
 procedure TfrmMain.Finalize;
 begin
   if FSkyboxGLProgram <> nil then
-    TSkyboxGLProgram.Release(GLState.ResourceParam);
+    TSkyboxGLProgram.Release(GLState.ResParam);
   if FModelGLProgram <> nil then
-    TModelGLProgram.Release(GLState.ResourceParam);
+    TModelGLProgram.Release(GLState.ResParam);
   FSun.Free;
   FLightSystem.Free;
   FCamera.Free;
@@ -150,37 +154,29 @@ begin
   FSkybox.Free;
 end;
 
-procedure TfrmMain.UpdateGL;
+procedure TfrmMain.UpdateFPS(ATimer: TDeltaTimer.TEventInfo);
 begin
-  if Context.MustUpdateFPS then
-    Caption := Format('Rope Renderer - FPS: %d', [Context.FPSInt]);
+  Caption := Format('Rope Renderer - FPS: %d', [Context.FPSInt]);
+end;
 
-  FCamera.Update;
-
+procedure TfrmMain.UpdateGame;
+begin
   if Input.KeyDown(VK_SPACE) then
     FSun.Direction := FCamera.Location.Look;
 
   if Input.KeyTyped('M') then
     Context.MultiSampled := not Context.MultiSampled;
-
 end;
 
-procedure TfrmMain.RenderGL;
-begin
-  FLightSystem.RenderShadows;
-  FCamera.Render;
-end;
+{ TSkyboxGLProgram }
 
-procedure TfrmMain.ResizeGL;
+class procedure TSkyboxGLProgram.GetData(out AName: string; out AResource: Boolean);
 begin
-  FCamera.Aspect := Aspect;
-end;
-
-{ TSkyboxShader }
-
-class function TSkyboxGLProgram.GetFileName: string;
-begin
-  Result := 'Data\skybox';
+  AResource := True;
+  if AResource then
+    AName := 'SKYBOX'
+  else
+    AName := 'Data/skybox';
 end;
 
 end.

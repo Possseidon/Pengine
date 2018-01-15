@@ -8,14 +8,15 @@ uses
   System.SysUtils,
   System.SyncObjs,
   System.Classes,
+  System.IOUtils,
 
   Pengine.LuaHeader,
   Pengine.Collections,
+  Pengine.Hasher,
   Pengine.HashCollections,
   Pengine.LuaConf,
   Pengine.TimeManager,
-  Pengine.DebugConsole,
-  Pengine.Hasher;
+  Pengine.DebugConsole;
 
 type
 
@@ -199,11 +200,22 @@ type
 
     { TAllocationList }
 
-    TAllocationList = class(TPointerSet)
+    TAllocationList = class(TSet<Pointer, TPointerHasher>)
+    private
+      FOwnsPointers: Boolean;
+      FStoredOwnsPointers: Boolean;
+
+    protected
+      procedure UnownObjects; override;
+      procedure ReownObjects; override;
+
     public
+      // don't override, so that copy will be referenced
+      constructor Create(AHashMode: THashMode = hmAuto); reintroduce;
       destructor Destroy; override;
 
       procedure PerformCleanup;
+
     end;
 
   private
@@ -212,7 +224,7 @@ type
     FMemoryLimit: NativeUInt;
     FMemoryUsage: NativeUInt;
     FLock: TCriticalSection;
-    FLockCounter, A: Integer;
+    FLockCounter: Integer;
     FThread: TLuaThread;
     FLibs: TClassRefMap<TLuaLib>;
 
@@ -267,8 +279,8 @@ begin
       begin
         Self.FAllocations.Del(ptr);
         Dec(Self.FMemoryUsage, osize);
+        FreeMemory(ptr);
       end;
-      FreeMemory(ptr);
       Result := nil;
     end
     else
@@ -412,9 +424,27 @@ end;
 
 { TLua.TAllocationList }
 
+procedure TLua.TAllocationList.UnownObjects;
+begin
+  FStoredOwnsPointers := FOwnsPointers;
+  FOwnsPointers := False;
+end;
+
+procedure TLua.TAllocationList.ReownObjects;
+begin
+  FOwnsPointers := FStoredOwnsPointers;
+end;
+
+constructor TLua.TAllocationList.Create(AHashMode: THashMode);
+begin
+  inherited;
+  FOwnsPointers := True;
+end;
+
 destructor TLua.TAllocationList.Destroy;
 begin
-  PerformCleanup;
+  if FOwnsPointers then
+    PerformCleanup;
   inherited;
 end;
 
@@ -424,6 +454,7 @@ var
 begin
   for P in Self do
     FreeMemory(P);
+  Clear;
 end;
 
 { TLua.TLuaThread }

@@ -30,8 +30,8 @@ type
     ['{ADF8AA5E-F78C-482C-8CD5-DCDB03B71D20}']
 
     function GetVisible: Boolean;
-    function GetLocation: TLocation;
-    procedure SetLocation(const Value: TLocation);
+    function GetLocation: TLocation3;
+    procedure SetLocation(const Value: TLocation3);
 
     /// <summary>Completly supresses the rendering of the object, if set to false.</summary>
     property Visible: Boolean read GetVisible;
@@ -39,8 +39,8 @@ type
     /// <summary>A location, to transform the rendered object.</summary>
     /// <remarks>Returning nil causes no transformation to happen.<p/>
     /// Setting this property is not used by the <see cref="Pengine.Camera|TCamera"/>, but should call
-    /// <see cref="Pengine.Vector|TLocation.Assign"/>.</remarks>
-    property Location: TLocation read GetLocation write SetLocation;
+    /// <see cref="Pengine.Vector|TLocation3.Assign"/>.</remarks>
+    property Location: TLocation3 read GetLocation write SetLocation;
 
     /// <returns>An iterable of points of a convex polyhedron, which is used to check, whether the object is visible
     /// in the <see cref="Pengine.Camera|TCamera"/>'s view-frustum.</returns>
@@ -82,17 +82,17 @@ type
   /// </remarks>
   TRenderable = class(TInterfaceBase, IRenderable)
   private
-    procedure SetLocation(const Value: TLocation);
+    procedure SetLocation(const Value: TLocation3);
 
   protected
     function GetVisible: Boolean; virtual;
 
-    function GetLocation: TLocation; virtual;
+    function GetLocation: TLocation3; virtual;
 
   public
     property Visible: Boolean read GetVisible;
 
-    property Location: TLocation read GetLocation write SetLocation;
+    property Location: TLocation3 read GetLocation write SetLocation;
     function CullPoints: IIterable<TVector3>; virtual;
     function CullRadius: Single; virtual;
     function RenderableChildren: IIterable<IRenderable>; virtual;
@@ -180,7 +180,7 @@ type
   private
     FRenderObjects: TInterfaceArray<IRenderable>;
 
-    FLocation: TLocation;
+    FLocation: TLocation3;
 
     FFOV: Single;
     FAspect: Single;
@@ -193,7 +193,7 @@ type
 
     FMat: array [TMatrixType] of TUniform;
 
-    FModelLocation: TLocation;
+    FModelLocation: TLocation3;
 
     function GetHorizontalFOV: Single;
 
@@ -211,14 +211,14 @@ type
     function GetMatrix(AMatrixType: TMatrixType): TMatrix4;
     function GetRotMatrix(AMatrixType: TMatrixType): TMatrix3;
 
-    procedure LocationChanged(AInfo: TLocation.TChangeEventInfo);
+    procedure LocationChanged(AInfo: TLocation3.TChangeEventInfo);
 
     function OcclusionRadiusVisible(const AFrustum: THexahedron; ARenderable: IRenderable): Boolean;
     function OcclusionPointsVisible(const AFrustum: THexahedron; ARenderable: IRenderable): Boolean;
 
   protected
-    function GetLocation: TLocation; virtual;
-    procedure SetLocation(const Value: TLocation); virtual;
+    function GetLocation: TLocation3; virtual;
+    procedure SetLocation(const Value: TLocation3); virtual;
 
     function RenderableVisible(const AFrustum: THexahedron; ARenderable: IRenderable): Boolean; overload;
 
@@ -238,7 +238,7 @@ type
     property Ortho: Boolean read FOrtho write SetOrtho;
     property OrthoFactor: Single read FOrthoFactor write SetOrthoFactor;
 
-    property Location: TLocation read GetLocation write SetLocation;
+    property Location: TLocation3 read GetLocation write SetLocation;
 
     procedure SlideLift(AVector: TVector2; AVertical: Boolean = False);
     procedure SlideMove(AVector: TVector2; AVertical: Boolean = False);
@@ -334,7 +334,7 @@ begin
   FNearClip := ANearClip;
   FFarClip := AFarClip;
 
-  FLocation := TLocation.Create(True);
+  FLocation := TLocation3.Create(True);
   FLocation.OnChanged.Add(LocationChanged);
 
   FMat[mtModel] := TUniformBasic.Create(GetModelMatrix);
@@ -526,7 +526,7 @@ var
   procedure RenderList(AList: IIterable<IRenderable>);
   var
     RenderObject: IRenderable;
-    NewModelLocation: TLocation;
+    NewModelLocation: TLocation3;
   begin
     for RenderObject in AList do
     begin
@@ -579,7 +579,7 @@ begin
   FMat[mtProjection].Invalidate;
 end;
 
-procedure TCamera.SetLocation(const Value: TLocation);
+procedure TCamera.SetLocation(const Value: TLocation3);
 begin
   FLocation.Assign(Value);
 end;
@@ -608,7 +608,7 @@ begin
   Result := ArcTan(Tan(FOV / 360 * Pi) * Aspect) * 360 / Pi;
 end;
 
-function TCamera.GetLocation: TLocation;
+function TCamera.GetLocation: TLocation3;
 begin
   Result := FLocation;
 end;
@@ -662,7 +662,7 @@ begin
   Result := FMat[AMatrixType].Data.Minor[3];
 end;
 
-procedure TCamera.LocationChanged(AInfo: TLocation.TChangeEventInfo);
+procedure TCamera.LocationChanged(AInfo: TLocation3.TChangeEventInfo);
 begin
   FMat[mtView].Invalidate;
 end;
@@ -765,8 +765,6 @@ procedure TCamera.TUniform.SendToUniforms;
 var
   I: Integer;
 begin
-  if FValid then
-    Exit;
   for I := 0 to FUniforms.MaxIndex do
     FUniforms[I].Value := Data;
   for I := 0 to FRotationUniforms.MaxIndex do
@@ -813,7 +811,7 @@ end;
 
 { TRenderable }
 
-function TRenderable.GetLocation: TLocation;
+function TRenderable.GetLocation: TLocation3;
 begin
   Result := nil;
 end;
@@ -844,9 +842,10 @@ begin
   Result := nil;
 end;
 
-procedure TRenderable.SetLocation(const Value: TLocation);
+procedure TRenderable.SetLocation(const Value: TLocation3);
 begin
   Location.Assign(Value);
 end;
 
 end.
+

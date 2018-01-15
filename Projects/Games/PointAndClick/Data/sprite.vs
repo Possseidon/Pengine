@@ -34,5 +34,5 @@ void main()
   ftexcoord0 = vtexcoord0;
   ftexcoord1 = vtexcoord1;
 
-  gl_Position = vec4(vpos.x / aspect, vpos.y, vpos.z, 1);
+  gl_Position = vec4(vpos.x / aspect, vpos.y, -vpos.z * (1 - 1e-6), 1);
 }

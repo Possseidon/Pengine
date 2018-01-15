@@ -20,7 +20,7 @@ type
     end;
 
   protected
-    class function GetFileName: string; override;
+    class procedure GetData(out AName: string; out AResource: Boolean); override;
     class function GetAttributeOrder: TGLProgram.TAttributeOrder; override;
   end;
 
@@ -33,9 +33,13 @@ begin
   Result := ['vpos', 'vcolor', 'vnormal'];
 end;
 
-class function TModelGLProgram.GetFileName: string;
+class procedure TModelGLProgram.GetData(out AName: string; out AResource: Boolean);
 begin
-  Result := 'Data\model';
+  AResource := True;
+  if AResource then
+    AName := 'MODEL'
+  else
+    AName := 'Data/model';
 end;
 
 end.

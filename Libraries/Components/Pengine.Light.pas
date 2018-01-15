@@ -746,9 +746,9 @@ procedure TSpotLightShaded.RenderShadows;
 begin
   FFBO.Bind;
   glClear(Ord(amDepth));
-  FCamera.Render;
   if FCameraChanged then
     SendCamera;
+  FCamera.Render;
 end;
 
 { TSpotLight }

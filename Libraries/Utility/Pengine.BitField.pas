@@ -473,7 +473,7 @@ var
 begin
   RangeCheckException(I);
   DataPos := FData + I div DataBits;
-  Mask := 1 shl (I mod DataBits);
+  Mask := TData(1) shl (I mod DataBits);
   if Value then
     DataPos^ := DataPos^ or Mask
   else
@@ -671,7 +671,7 @@ var
   DataPos: PData;
 begin
   DataPos := FData + ABit div DataBits;
-  DataPos^ := DataPos^ xor (1 shl (ABit mod DataBits));
+  DataPos^ := DataPos^ xor (TData(1) shl (ABit mod DataBits));
 end;
 
 function TBitfield.InvertGet(ABit: Integer): Boolean;

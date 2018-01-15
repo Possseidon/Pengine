@@ -298,7 +298,7 @@ end;
 constructor TRopeBase.Create(AGLState: TGLState; APoint1, APoint2: TVector3; AOsculatingRadius: Single);
 begin
   FGLState := AGLState;
-  FVAO := TVAO.Create(TModelGLProgram.Make(FGLState.ResourceParam));
+  FVAO := TVAO.Create(TModelGLProgram.Make(FGLState.ResParam));
 
   Point1 := APoint1;
   Point2 := APoint2;
@@ -307,7 +307,7 @@ end;
 
 destructor TRopeBase.Destroy;
 begin
-  TModelGLProgram.Release(FGLState.ResourceParam);
+  TModelGLProgram.Release(FGLState.ResParam);
   FVAO.Free;
   inherited;
 end;

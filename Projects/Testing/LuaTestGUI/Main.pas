@@ -3,9 +3,31 @@ unit Main;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, SynEdit, LuaDefine, LuaHeader, Vcl.Samples.Spin,
-  TimeManager, LuaDefaultLibs, System.Actions, Vcl.ActnList;
+  Winapi.Windows,
+  Winapi.Messages,
+
+  System.SysUtils,
+  System.Variants,
+  System.Classes,
+
+  Vcl.Graphics,
+  Vcl.Controls,
+  Vcl.Forms,
+  Vcl.Dialogs,
+  Vcl.ExtCtrls,
+  Vcl.StdCtrls,
+  Vcl.Samples.Spin,
+  Vcl.ActnList,
+
+  System.Actions,
+
+  SynEdit,
+
+  Pengine.Lua,
+  Pengine.LuaHeader,
+  Pengine.TimeManager,
+  Pengine.LuaDefaultLibs,
+  Pengine.Collections;
 
 type
 

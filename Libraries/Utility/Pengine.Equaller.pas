@@ -107,11 +107,6 @@ type
     class function Equal(const AValue1, AValue2: TLine3): Boolean; override;
   end;
 
-  TPlane2Equaller = class(TEqualler<TPlane2>)
-  public
-    class function Equal(const AValue1, AValue2: TPlane2): Boolean; override;
-  end;
-
   TPlane3Equaller = class(TEqualler<TPlane3>)
   public
     class function Equal(const AValue1, AValue2: TPlane3): Boolean; override;
@@ -277,13 +272,6 @@ end;
 { TLine3Equaller }
 
 class function TLine3Equaller.Equal(const AValue1, AValue2: TLine3): Boolean;
-begin
-  Result := AValue1 = AValue2;
-end;
-
-{ TPlane2Equaller }
-
-class function TPlane2Equaller.Equal(const AValue1, AValue2: TPlane2): Boolean;
 begin
   Result := AValue1 = AValue2;
 end;

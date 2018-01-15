@@ -3,7 +3,9 @@ unit Pengine.TimeManager;
 interface
 
 uses
-  Windows;
+  Winapi.Windows,
+
+  Pengine.EventHandling;
 
 type
 
@@ -22,6 +24,11 @@ type
   );
 
   TDeltaTimer = class
+  public type
+
+    TEventInfo = TSenderEventInfo<TDeltaTimer>;
+    TEvent = TEvent<TEventInfo>;
+
   private
     FLastTime: Int64;
 
@@ -30,23 +37,30 @@ type
     FUpdateTime: TSeconds;
     FSeconds: TSeconds;
     FUpdateSpeed: Single;
-    FUpdateInterval: TSeconds; // update speed: 0 = no update; inf = raw
+    FUpdateInterval: TSeconds;
+
+    FOnFPSUpdate: TEvent;
 
     procedure SetUpdateSpeed(const Value: Single);
     procedure SetUpdateInterval(const Value: TSeconds);
+    function GetOnFPSUpdate: TEvent.TAccess;
 
   public
     constructor Create(AUpdateSpeed: Single = 4; AUpdateInterval: TSeconds = 0.5);
 
-    function Update: Boolean;
+    procedure Update;
 
+    /// <summary>0 = no update; inf = raw</summary>
     property UpdateSpeed: Single read FUpdateSpeed write SetUpdateSpeed;
     property UpdateInterval: TSeconds read FUpdateInterval write SetUpdateInterval;
     property DeltaTime: TSeconds read FDeltaTime;
     property FPS: Single read FFPS;
     property Time: TSeconds read FSeconds;
 
+    property OnFPSUpdate: TEvent.TAccess read GetOnFPSUpdate;
+
     procedure ForceFPSUpdate;
+
   end;
 
   { TStopWatch }
@@ -167,7 +181,7 @@ begin
   FUpdateInterval := Value;
 end;
 
-function TDeltaTimer.Update: Boolean;
+procedure TDeltaTimer.Update;
 var
   F: Single;
   NewTime: Int64;
@@ -184,14 +198,18 @@ begin
   if FUpdateTime >= UpdateInterval then
   begin
     FUpdateTime := 0;
-    Exit(True);
+    FOnFPSUpdate.Execute(TEventInfo.Create(Self));
   end;
-  Result := False;
 end;
 
 procedure TDeltaTimer.ForceFPSUpdate;
 begin
   FUpdateTime := FUpdateInterval;
+end;
+
+function TDeltaTimer.GetOnFPSUpdate: TEvent.TAccess;
+begin
+  Result := FOnFPSUpdate.Access;
 end;
 
 { TStopWatch }

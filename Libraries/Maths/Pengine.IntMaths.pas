@@ -374,7 +374,7 @@ type
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds2"/> with both bounds laying on the same, given value.</summary>
     constructor Create(A: TIntVector2); overload;
 
-    class operator Implicit(A: Integer): TIntBounds2; inline;
+    // class operator Implicit(A: Integer): TIntBounds2; inline;
     class operator Implicit(A: TIntVector2): TIntBounds2; inline;
 
     /// <returns>The difference between C1 and C2.</returns>
@@ -1345,8 +1345,7 @@ end;
 
 class operator TIntBounds1.Implicit(A: Integer): TIntBounds1;
 begin
-  Result.C1 := A;
-  Result.C2 := A;
+  Result.Create(A);
 end;
 
 function TIntBounds1.Length: Integer;
@@ -1520,17 +1519,15 @@ begin
   C1 := A;
   C2 := A;
 end;
-
+                                                            {
 class operator TIntBounds2.Implicit(A: Integer): TIntBounds2;
 begin
-  Result.C1 := A;
-  Result.C2 := A;
+  Result.Create(A);
 end;
-
+                                                             }
 class operator TIntBounds2.Implicit(A: TIntVector2): TIntBounds2;
 begin
-  Result.C1 := A;
-  Result.C2 := A;
+  Result.Create(A);
 end;
 
 function TIntBounds2.Size: TIntVector2;
@@ -1799,8 +1796,7 @@ end;
 
 class operator TIntBounds3.Implicit(A: TIntVector3): TIntBounds3;
 begin
-  Result.C1 := A;
-  Result.C2 := A;
+  Result.Create(A);
 end;
 
 function TIntBounds3.Size: TIntVector3;

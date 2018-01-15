@@ -57,10 +57,12 @@ type
 
     FOnKeyDown: TKeyEvent;
     FOnKeyUp: TKeyEvent;
+    FOnKeyTyped: TKeyEvent;
     FOnType: TTypeEvent;
 
     function GetOnKeyDown: TKeyEvent.TAccess;
     function GetOnKeyUp: TKeyEvent.TAccess;
+    function GetOnKeyTyped: TKeyEvent.TAccess;
     function GetOnType: TTypeEvent.TAccess;
 
   public
@@ -96,6 +98,7 @@ type
 
     property OnKeyDown: TKeyEvent.TAccess read GetOnKeyDown;
     property OnKeyUp: TKeyEvent.TAccess read GetOnKeyUp;
+    property OnKeyTyped: TKeyEvent.TAccess read GetOnKeyTyped;
     property OnType: TTypeEvent.TAccess read GetOnType;
 
   end;
@@ -128,6 +131,7 @@ type
 
   TMouseInput = class
   private
+    FForm: TForm;
     FButtons, FNotifyUp, FNotifyDown: TBitField;
     FScrolledUp, FScrolledDown: Boolean;
     FWidth, FHeight: Integer;
@@ -151,6 +155,8 @@ type
     function GetOnLeaveScreen: TEvent.TAccess;
     function GetOnScroll: TScrollEvent.TAccess;
 
+    function ConvertMousePos(APoint: TPoint): TVector2;
+
   public
     constructor Create(AForm: TForm);
     destructor Destroy; override;
@@ -168,7 +174,7 @@ type
     procedure PressButton(AButton: TMouseButton);
     procedure ReleaseButton(AButton: TMouseButton);
     procedure ReleaseAllButtons;
-    procedure SetPosition(APos: TVector2);
+    procedure SetPosition(APoint: TPoint);
     procedure ScrollUp;
     procedure ScrollDown;
     procedure Leave;
@@ -183,6 +189,7 @@ type
     function ButtonReleased(AButton: TMouseButton): Boolean;
     function AnyButtonDown: Boolean;
     function MousePos: TVector2;
+    function MousePosRaw: TVector2;
     function MouseMoved: Boolean;
     function ScrolledUp: Boolean;
     function ScrolledDown: Boolean;
@@ -228,6 +235,7 @@ type
 
     function GetOnKeyDown: TKeyEvent.TAccess;
     function GetOnKeyUp: TKeyEvent.TAccess;
+    function GetOnKeyTyped: TKeyEvent.TAccess;
     function GetOnType: TTypeEvent.TAccess;
 
     function GetOnButtonDown: TButtonEvent.TAccess;
@@ -252,6 +260,8 @@ type
     function AnyButtonDown: Boolean; inline;
 
     function MousePos: TVector2; inline;
+    // slower
+    function MousePosRaw: TVector2; inline;
     function MouseMoved: Boolean; inline;
 
     function ScrolledUp: Boolean; inline;
@@ -303,6 +313,7 @@ type
 
     property OnKeyDown: TKeyEvent.TAccess read GetOnKeyDown;
     property OnKeyUp: TKeyEvent.TAccess read GetOnKeyUp;
+    property OnKeyTyped: TKeyEvent.TAccess read GetOnKeyTyped;
     property OnType: TTypeEvent.TAccess read GetOnType;
 
     // Both
@@ -319,6 +330,16 @@ implementation
 const
   MouseButtonCount = Ord(High(TMouseButton)) + 1;
 
+function TInputHandler.GetTextBuffer: string;
+begin
+  Result := FKeyboard.TextBuffer;
+end;
+
+function TInputHandler.GetTextBufferEmpty: Boolean;
+begin
+  Result := FKeyboard.TextBuffer <> '';
+end;
+
 { TInputHandler }
 
 procedure TInputHandler.KeyDownHandler(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -326,61 +347,6 @@ begin
   FKeyboard.PressKey(Key);
   if Assigned(FOldKeyDown) then
     FOldKeyDown(Sender, Key, Shift);
-end;
-
-function TInputHandler.GetTextBuffer: string;
-begin
-  Result := FKeyboard.TextBuffer;
-end;
-
-function TInputHandler.GetOnButtonDown: TButtonEvent.TAccess;
-begin
-  Result := FMouse.OnButtonDown;
-end;
-
-function TInputHandler.GetOnButtonUp: TButtonEvent.TAccess;
-begin
-  Result := FMouse.OnButtonUp;
-end;
-
-function TInputHandler.GetOnEnterScreen: TEvent.TAccess;
-begin
-  Result := FMouse.OnEnterScreen;
-end;
-
-function TInputHandler.GetOnKeyDown: TKeyEvent.TAccess;
-begin
-  Result := FKeyboard.OnKeyDown;
-end;
-
-function TInputHandler.GetOnKeyUp: TKeyEvent.TAccess;
-begin
-  Result := FKeyboard.OnKeyUp;
-end;
-
-function TInputHandler.GetOnLeaveScreen: TEvent.TAccess;
-begin
-  Result := FMouse.OnLeaveScreen;
-end;
-
-function TInputHandler.GetOnMouseMove: TEvent.TAccess;
-begin
-  Result := FMouse.OnMouseMove;
-end;
-
-function TInputHandler.GetOnScroll: TScrollEvent.TAccess;
-begin
-  Result := FMouse.OnScroll;
-end;
-
-function TInputHandler.GetOnType: TTypeEvent.TAccess;
-begin
-  Result := FKeyboard.OnType;
-end;
-
-function TInputHandler.GetTextBufferEmpty: Boolean;
-begin
-  Result := FKeyboard.TextBuffer <> '';
 end;
 
 procedure TInputHandler.KeyUpHandler(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -399,7 +365,7 @@ end;
 
 procedure TInputHandler.MouseMoveHandler(Sender: TObject; Shift: TShiftState; X, Y: Integer);
 begin
-  FMouse.SetPosition(TVector2.Create(X, Y));
+  FMouse.SetPosition(Point(X, Y));
   if Assigned(FOldMouseMove) then
     FOldMouseMove(Sender, Shift, X, Y);
 end;
@@ -428,6 +394,56 @@ begin
     FMouse.Resize(ClientWidth, ClientHeight);
   if Assigned(FOldResize) then
     FOldResize(Sender);
+end;
+
+function TInputHandler.GetOnKeyDown: TKeyEvent.TAccess;
+begin
+  Result := FKeyboard.OnKeyDown;
+end;
+
+function TInputHandler.GetOnKeyTyped: TKeyEvent.TAccess;
+begin
+  Result := FKeyboard.OnKeyTyped;
+end;
+
+function TInputHandler.GetOnKeyUp: TKeyEvent.TAccess;
+begin
+  Result := FKeyboard.OnKeyUp;
+end;
+
+function TInputHandler.GetOnType: TTypeEvent.TAccess;
+begin
+  Result := FKeyboard.OnType;
+end;
+
+function TInputHandler.GetOnButtonDown: TButtonEvent.TAccess;
+begin
+  Result := FMouse.OnButtonDown;
+end;
+
+function TInputHandler.GetOnButtonUp: TButtonEvent.TAccess;
+begin
+  Result := FMouse.OnButtonUp;
+end;
+
+function TInputHandler.GetOnMouseMove: TEvent.TAccess;
+begin
+  Result := FMouse.OnMouseMove;
+end;
+
+function TInputHandler.GetOnEnterScreen: TEvent.TAccess;
+begin
+  Result := FMouse.OnEnterScreen;
+end;
+
+function TInputHandler.GetOnLeaveScreen: TEvent.TAccess;
+begin
+  Result := FMouse.OnLeaveScreen;
+end;
+
+function TInputHandler.GetOnScroll: TScrollEvent.TAccess;
+begin
+  Result := FMouse.OnScroll;
 end;
 
 constructor TInputHandler.Create(AForm: TForm);
@@ -485,9 +501,19 @@ begin
   Result := FMouse.ButtonReleased(AButton);
 end;
 
+function TInputHandler.AnyButtonDown: Boolean;
+begin
+  Result := FMouse.AnyButtonDown;
+end;
+
 function TInputHandler.MousePos: TVector2;
 begin
   Result := FMouse.MousePos;
+end;
+
+function TInputHandler.MousePosRaw: TVector2;
+begin
+  Result := FMouse.MousePosRaw;
 end;
 
 function TInputHandler.MouseMoved: Boolean;
@@ -550,14 +576,9 @@ begin
   Result := FKeyboard.KeyDown(AKey);
 end;
 
-function TInputHandler.KeyPressed(AKey: TKey): Boolean;
+function TInputHandler.KeyDown(AKey: Char): Boolean;
 begin
-  Result := FKeyboard.KeyPressed(AKey);
-end;
-
-function TInputHandler.KeyTyped(AKey: TKey): Boolean;
-begin
-  Result := FKeyboard.KeyTyped(AKey);
+  Result := KeyDown(Ord(AKey));
 end;
 
 function TInputHandler.KeyUp(AKey: TKey): Boolean;
@@ -565,9 +586,9 @@ begin
   Result := FKeyboard.KeyUp(AKey);
 end;
 
-function TInputHandler.KeyReleased(AKey: TKey): Boolean;
+function TInputHandler.KeyUp(AKey: Char): Boolean;
 begin
-  Result := FKeyboard.KeyReleased(AKey);
+  Result := KeyUp(Ord(AKey));
 end;
 
 function TInputHandler.AsyncKeyDown(AKey: TKey): Boolean;
@@ -575,14 +596,24 @@ begin
   Result := FKeyboard.AsyncKeyDown(AKey);
 end;
 
+function TInputHandler.AsyncKeyDown(AKey: Char): Boolean;
+begin
+  Result := FKeyboard.AsyncKeyDown(Ord(AKey));
+end;
+
 function TInputHandler.AsyncKeyUp(AKey: TKey): Boolean;
 begin
   Result := FKeyboard.AsyncKeyUp(AKey);
 end;
 
-function TInputHandler.KeyDown(AKey: Char): Boolean;
+function TInputHandler.AsyncKeyUp(AKey: Char): Boolean;
 begin
-  Result := KeyDown(Ord(AKey));
+  Result := FKeyboard.AsyncKeyUp(Ord(AKey));
+end;
+
+function TInputHandler.KeyPressed(AKey: TKey): Boolean;
+begin
+  Result := FKeyboard.KeyPressed(AKey);
 end;
 
 function TInputHandler.KeyPressed(AKey: Char): Boolean;
@@ -590,14 +621,9 @@ begin
   Result := KeyPressed(Ord(AKey));
 end;
 
-function TInputHandler.KeyTyped(AKey: Char): Boolean;
+function TInputHandler.KeyReleased(AKey: TKey): Boolean;
 begin
-  Result := KeyTyped(Ord(AKey));
-end;
-
-function TInputHandler.KeyUp(AKey: Char): Boolean;
-begin
-  Result := KeyUp(Ord(AKey));
+  Result := FKeyboard.KeyReleased(AKey);
 end;
 
 function TInputHandler.KeyReleased(AKey: Char): Boolean;
@@ -605,14 +631,14 @@ begin
   Result := KeyReleased(Ord(AKey));
 end;
 
-function TInputHandler.AsyncKeyDown(AKey: Char): Boolean;
+function TInputHandler.KeyTyped(AKey: TKey): Boolean;
 begin
-  Result := FKeyboard.AsyncKeyDown(Ord(AKey));
+  Result := FKeyboard.KeyTyped(AKey);
 end;
 
-function TInputHandler.AsyncKeyUp(AKey: Char): Boolean;
+function TInputHandler.KeyTyped(AKey: Char): Boolean;
 begin
-  Result := FKeyboard.AsyncKeyUp(Ord(AKey));
+  Result := KeyTyped(Ord(AKey));
 end;
 
 function TInputHandler.AnyKeyDown: Boolean;
@@ -623,11 +649,6 @@ end;
 function TInputHandler.AnyAction: Boolean;
 begin
   Result := AnyKeyDown or AnyButtonDown or Scrolled;
-end;
-
-function TInputHandler.AnyButtonDown: Boolean;
-begin
-  Result := FMouse.AnyButtonDown;
 end;
 
 procedure TInputHandler.NotifyChanges;
@@ -659,17 +680,21 @@ end;
 
 { TMouseInput }
 
-constructor TMouseInput.Create(AForm: TForm);
-var
-  P: TPoint;
+function TMouseInput.ConvertMousePos(APoint: TPoint): TVector2;
 begin
+  Result.X := (APoint.X * 2 - FWidth) / FHeight; // -aspect <-> +aspect
+  Result.Y := 1 - APoint.Y / FHeight * 2;       // -1      <-> +1
+end;
+
+constructor TMouseInput.Create(AForm: TForm);
+begin
+  FForm := AForm;
   FButtons := TBitField.Create(MouseButtonCount);
   FNotifyUp := TBitField.Create(MouseButtonCount);
   FNotifyDown := TBitField.Create(MouseButtonCount);
   FWidth := AForm.ClientWidth;
   FHeight := AForm.ClientHeight;
-  P := AForm.ScreenToClient(Mouse.CursorPos);
-  SetPosition(Vec2(P.X, P.Y));
+  SetPosition(AForm.ScreenToClient(Mouse.CursorPos));
 end;
 
 destructor TMouseInput.Destroy;
@@ -745,10 +770,9 @@ begin
   FNotifyUp.Fill;
 end;
 
-procedure TMouseInput.SetPosition(APos: TVector2);
+procedure TMouseInput.SetPosition(APoint: TPoint);
 begin
-  FPos.X := (APos.X * 2 - FWidth) / FHeight; // -aspect <-> +aspect
-  FPos.Y := 1 - APos.Y / FHeight * 2;       // -1      <-> +1
+  FPos := ConvertMousePos(APoint);
   FPosNotify := True;
   FOnMouseMove.Execute;
 end;
@@ -847,6 +871,14 @@ begin
   Result := FPos;
 end;
 
+function TMouseInput.MousePosRaw: TVector2;
+var
+  Pos: TPoint;
+begin
+  Pos := FForm.ScreenToClient(Mouse.CursorPos);
+  Result := ConvertMousePos(Pos);
+end;
+
 function TMouseInput.MouseMoved: Boolean;
 begin
   Result := FPosNotify;
@@ -911,6 +943,11 @@ begin
   Result := FOnKeyDown.Access;
 end;
 
+function TKeyboardInput.GetOnKeyTyped: TKeyEvent.TAccess;
+begin
+  Result := FOnKeyTyped.Access;
+end;
+
 function TKeyboardInput.GetOnKeyUp: TKeyEvent.TAccess;
 begin
   Result := FOnKeyUp.Access;
@@ -961,6 +998,9 @@ end;
 
 procedure TKeyboardInput.PressKey(AKey: TKey);
 begin
+  if not FKeys[AKey] then
+    FOnKeyDown.Execute(TKeyEventInfo.Create(AKey));
+
   FNotifyDown[AKey] := not FKeys[AKey];
   FKeys[AKey] := True;
   FNotifyTyped[AKey] := True;
@@ -971,14 +1011,15 @@ begin
     FOnType.Execute(TTypeEventInfo.Create(Clipboard.AsText));
   end;
 
-  FOnKeyDown.Execute(TKeyEventInfo.Create(AKey));
+  FOnKeyTyped.Execute(TKeyEventInfo.Create(AKey));
 end;
 
 procedure TKeyboardInput.ReleaseKey(AKey: TKey);
 begin
+  if FKeys[AKey] then
+    FOnKeyUp.Execute(TKeyEventInfo.Create(AKey));
   FNotifyUp[AKey] := FKeys[AKey];
   FKeys[AKey] := False;
-  FOnKeyUp.Execute(TKeyEventInfo.Create(AKey));
 end;
 
 procedure TKeyboardInput.PressChar(AChar: Char);

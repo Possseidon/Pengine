@@ -58,11 +58,23 @@ type
   TCompareFuncRef<T> = reference to function(ALeft, ARight: T): Boolean;
   TCompareFunc<T> = function(ALeft, ARight: T): Boolean of object;
 
+  TForEachProcStatic<T> = procedure(AItem: T);
+  TForEachProcRef<T> = reference to procedure(AItem: T);
+  TForEachProc<T> = procedure(AItem: T) of object;
+
+  TForEachFuncStatic<T, R> = function(AItem: T): R;
+  TForEachFuncRef<T, R> = reference to function(AItem: T): R;
+  TForEachFunc<T, R> = function(AItem: T): R of object;
+
   /// <summary>A generic base class for iteratable types. Implements <see cref="Pengine.Collections|IIterable`1"/>.</summary>
   /// <remarks>The Count function should almost definitly be overriden in the derived class.</remarks>
   TIterable<T> = class abstract(TInterfaceBase, IIterable<T>)
   public
     function GetEnumerator: IIterator<T>; virtual; abstract;
+
+    procedure ForEach(AFunc: TForEachProcStatic<T>); overload;
+    procedure ForEach(AFunc: TForEachProcRef<T>); overload;
+    procedure ForEach(AFunc: TForEachProc<T>); overload;
 
     /// <remarks>This function should almost definitely be overwritten.</remarks>
     function Count: Integer; virtual;
@@ -93,6 +105,30 @@ end;
 function TIterable<T>.Empty: Boolean;
 begin
   Result := Count = 0;
+end;
+
+procedure TIterable<T>.ForEach(AFunc: TForEachProcStatic<T>);
+var
+  AItem: T;
+begin
+  for AItem in Self do
+    AFunc(AItem);
+end;
+
+procedure TIterable<T>.ForEach(AFunc: TForEachProcRef<T>);
+var
+  AItem: T;
+begin
+  for AItem in Self do
+    AFunc(AItem);
+end;
+
+procedure TIterable<T>.ForEach(AFunc: TForEachProc<T>);
+var
+  AItem: T;
+begin
+  for AItem in Self do
+    AFunc(AItem);
 end;
 
 end.

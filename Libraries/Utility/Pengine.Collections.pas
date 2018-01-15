@@ -9,8 +9,8 @@ uses
 
   Pengine.Interfaces,
   Pengine.Sorting,
-  Pengine.IntMaths,
   Pengine.Vector,
+  Pengine.IntMaths,
   Pengine.CollectionInterfaces;
 
 type
@@ -53,11 +53,6 @@ type
 
   // TODO: XmlDoc
   EArrayInvalidShrinkRetain = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  EOptWrapperNoValue = class(Exception)
   public
     constructor Create;
   end;
@@ -162,7 +157,7 @@ type
     // TODO: XmlDoc
     procedure DelLast; inline;
     // TODO: XmlDoc
-    procedure Clear;
+    procedure Clear(AZeroCapacity: Boolean = True);
 
     // TODO: XmlDoc
     property Capacity: Integer read GetCapacity write SetCapacity;
@@ -188,8 +183,6 @@ type
   end;
 
   TArrayClass = class of TArray;
-
-  TIntArray = class;
 
   // TODO: XmlDoc
   TArray<T> = class(TArray, IIterable<T>)
@@ -327,11 +320,11 @@ type
       function FindLast(AFunc: TFindFunc<T>): T; overload; inline;
 
       // TODO: XmlDoc
-      function FindIndexAsArray(AFunc: TFindFuncStatic<T>): TIntArray; overload; inline;
+      function FindIndexAsArray(AFunc: TFindFuncStatic<T>): TArray<Integer>; overload; inline;
       // TODO: XmlDoc
-      function FindIndexAsArray(AFunc: TFindFuncRef<T>): TIntArray; overload; inline;
+      function FindIndexAsArray(AFunc: TFindFuncRef<T>): TArray<Integer>; overload; inline;
       // TODO: XmlDoc
-      function FindIndexAsArray(AFunc: TFindFunc<T>): TIntArray; overload; inline;
+      function FindIndexAsArray(AFunc: TFindFunc<T>): TArray<Integer>; overload; inline;
 
       // TODO: XmlDoc
       function FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>; overload; inline;
@@ -352,6 +345,14 @@ type
       function Sorted(AFunc: TCompareFunc<T>): Boolean; overload; inline;
 
       {$ENDREGION}
+
+      procedure ForEach(AFunc: TForEachProcStatic<T>); overload;
+      procedure ForEach(AFunc: TForEachProcRef<T>); overload;
+      procedure ForEach(AFunc: TForEachProc<T>); overload;
+
+      function ForEach<R>(AFunc: TForEachFuncStatic<T, R>): TArray<R>; overload;
+      function ForEach<R>(AFunc: TForEachFuncRef<T, R>): TArray<R>; overload;
+      function ForEach<R>(AFunc: TForEachFunc<T, R>): TArray<R>; overload;
 
       // TODO: XmlDoc
       function BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer; overload; inline;
@@ -453,11 +454,11 @@ type
     function FindLast(AFunc: TFindFunc<T>): T; overload;
 
     // TODO: XmlDoc
-    function FindIndexAsArray(AFunc: TFindFuncStatic<T>): TIntArray; overload;
+    function FindIndexAsArray(AFunc: TFindFuncStatic<T>): TArray<Integer>; overload;
     // TODO: XmlDoc
-    function FindIndexAsArray(AFunc: TFindFuncRef<T>): TIntArray; overload;
+    function FindIndexAsArray(AFunc: TFindFuncRef<T>): TArray<Integer>; overload;
     // TODO: XmlDoc
-    function FindIndexAsArray(AFunc: TFindFunc<T>): TIntArray; overload;
+    function FindIndexAsArray(AFunc: TFindFunc<T>): TArray<Integer>; overload;
 
     // TODO: XmlDoc
     function FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>; overload;
@@ -492,6 +493,14 @@ type
     function Sorted(AFunc: TCompareFunc<T>): Boolean; overload;
 
     {$ENDREGION}
+
+    procedure ForEach(AFunc: TForEachProcStatic<T>); overload;
+    procedure ForEach(AFunc: TForEachProcRef<T>); overload;
+    procedure ForEach(AFunc: TForEachProc<T>); overload;
+
+    function ForEach<R>(AFunc: TForEachFuncStatic<T, R>): TArray<R>; overload;
+    function ForEach<R>(AFunc: TForEachFuncRef<T, R>): TArray<R>; overload;
+    function ForEach<R>(AFunc: TForEachFunc<T, R>): TArray<R>; overload;
 
     // TODO: XmlDoc
     function BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer; overload;
@@ -529,18 +538,8 @@ type
   end;
 
   // TODO: XmlDoc
-  TIntArray = class(TArray<Integer>)
-  public
-    // TODO: XmlDoc
-    function FindAsIntArray(AFunc: TFindFuncStatic<Integer>): TIntArray; overload; inline;
-    // TODO: XmlDoc
-    function FindAsIntArray(AFunc: TFindFuncRef<Integer>): TIntArray; overload; inline;
-    // TODO: XmlDoc
-    function FindAsIntArray(AFunc: TFindFunc<Integer>): TIntArray; overload; inline;
-
-    // TODO: XmlDoc
-    function Copy: TIntArray; reintroduce; inline;
-
+  TIntArray = TArray<Integer>;
+  TIntArrayHelper = class helper for TIntArray
     // TODO: XmlDoc
     function Sum: Integer;
     // TODO: XmlDoc
@@ -553,25 +552,10 @@ type
     function Max: Integer;
     // TODO: XmlDoc
     function Bounds: TIntBounds1;
-
-    // TODO: XmlDoc
-    class function ItemToString(AItem: Integer): string; override;
-
   end;
 
-  // TODO: XmlDoc
-  TSingleArray = class(TArray<Single>)
-  public
-    // TODO: XmlDoc
-    function FindAsSingleArray(AFunc: TFindFuncStatic<Single>): TSingleArray; overload; inline;
-    // TODO: XmlDoc
-    function FindAsSingleArray(AFunc: TFindFuncRef<Single>): TSingleArray; overload; inline;
-    // TODO: XmlDoc
-    function FindAsSingleArray(AFunc: TFindFunc<Single>): TSingleArray; overload; inline;
-
-    // TODO: XmlDoc
-    function Copy: TSingleArray; reintroduce; inline;
-
+  TSingleArray = TArray<Single>;
+  TSingleArrayHelper = class helper for TSingleArray
     // TODO: XmlDoc
     function Sum: Single;
     // TODO: XmlDoc
@@ -584,51 +568,6 @@ type
     function Max: Single;
     // TODO: XmlDoc
     function Bounds: TBounds1;
-
-    // TODO: XmlDoc
-    class function ItemToString(AItem: Single): string; override;
-
-  end;
-
-  // TODO: TIntVector2Array
-  // TODO: TIntVector3Array
-  // TODO: TVector2Array
-  // TODO: TVector3Array
-
-  // TODO: XmlDoc
-  TStringArray = class(TArray<string>)
-  public
-    // TODO: XmlDoc
-    function FindAsStringArray(AFunc: TFindFuncStatic<string>): TStringArray; overload; inline;
-    // TODO: XmlDoc
-    function FindAsStringArray(AFunc: TFindFuncRef<string>): TStringArray; overload; inline;
-    // TODO: XmlDoc
-    function FindAsStringArray(AFunc: TFindFunc<string>): TStringArray; overload; inline;
-
-    // TODO: XmlDoc
-    function Copy: TStringArray; reintroduce; inline;
-
-    // TODO: XmlDoc
-    class function ItemToString(AItem: string): string; override;
-
-  end;
-
-  // TODO: XmlDoc
-  TAnsiStringArray = class(TArray<AnsiString>)
-  public
-    // TODO: XmlDoc
-    function FindAsAnsiStringArray(AFunc: TFindFuncStatic<AnsiString>): TAnsiStringArray; overload; inline;
-    // TODO: XmlDoc
-    function FindAsAnsiStringArray(AFunc: TFindFuncRef<AnsiString>): TAnsiStringArray; overload; inline;
-    // TODO: XmlDoc
-    function FindAsAnsiStringArray(AFunc: TFindFunc<AnsiString>): TAnsiStringArray; overload; inline;
-
-    // TODO: XmlDoc
-    function Copy: TAnsiStringArray; reintroduce; inline;
-
-    // TODO: XmlDoc
-    class function ItemToString(AItem: AnsiString): string; override;
-
   end;
 
   TFindableArray<T> = class abstract(TArray<T>)
@@ -1043,69 +982,6 @@ type
     class function CanIndex(AKey: K): Boolean; virtual;
   end;
 
-  /// <summary>A wrapper, to make a reference out of any type.</summary>
-  TRef<T> = class
-  public
-    Value: T;
-
-    constructor Create(AValue: T);
-
-  end;
-
-  /// <summary>A wrapper, to make any type optional.</summary>
-  TOpt<T> = class
-  private
-    FHasValue: Boolean;
-    FValue: T;
-
-    function GetValue: T;
-    procedure SetValue(const Value: T);
-
-  public
-    /// <summary>Creates a new object without value.</summary>
-    constructor Create; overload;
-    /// <summary>Creates a new object with value.</summary>
-    constructor Create(AValue: T); overload;
-
-    /// <summary>Wether there currently is a valid value.</summary>
-    property HasValue: Boolean read FHasValue;
-    /// <summary>The value.</summary>
-    /// <exception><see cref="Pengine.Collections|EOptWrapperNoValue"/> if there is no value.</exception>
-    property Value: T read GetValue write SetValue;
-
-    /// <summary>Removes the value.</summary>
-    procedure Clear;
-
-  end;
-
-  /// <summary>A wrapper, that allows value types of any size.</summary>
-  TOptRef<T> = class
-  private
-    FValueRef: TRef<T>;
-
-    function GetHasValue: Boolean;
-
-    function GetValue: T;
-    procedure SetValue(const Value: T);
-
-  public
-    /// <summary>Creates a new object without value.</summary>
-    constructor Create; overload;
-    /// <summary>Creates a new object with value.</summary>
-    constructor Create(AValue: T); overload;
-    destructor Destroy; override;
-
-    /// <summary>Wether there currently is a valid value.</summary>
-    property HasValue: Boolean read GetHasValue;
-    /// <summary>The value.</summary>
-    /// <exception><see cref="Pengine.Collections|EOptWrapperNoValue"/> if there is no value.</exception>
-    property Value: T read GetValue write SetValue;
-
-    /// <summary>Removes the value.</summary>
-    procedure Clear;
-
-  end;
-
 implementation
 
 { EEmptyGenericArray }
@@ -1155,13 +1031,6 @@ end;
 constructor EArrayInvalidShrinkRetain.Create;
 begin
   inherited Create('The array shrink retain must be at least zero.');
-end;
-
-{ EOptWrapperNoValue }
-
-constructor EOptWrapperNoValue.Create;
-begin
-  inherited Create('The optional wrapper does not have a wrapper.');
 end;
 
 { TPair<K, V> }
@@ -1228,14 +1097,17 @@ begin
   DelAt(MaxIndex);
 end;
 
-procedure TArray.Clear;
+procedure TArray.Clear(AZeroCapacity: Boolean);
 var
   I: Integer;
 begin
   if ShouldFreeItems then
     for I := 0 to MaxIndex do
       ItemRemoved(I);
-  Capacity := 0;
+  if AZeroCapacity then
+    Capacity := 0
+  else
+    FCount := 0;
 end;
 
 function TArray.MaxIndex: Integer;
@@ -1643,6 +1515,63 @@ begin
   Result := -1;
 end;
 
+procedure TArray<T>.ForEach(AFunc: TForEachProcStatic<T>);
+var
+  AItem: T;
+begin
+  for AItem in Self do
+    AFunc(AItem);
+end;
+
+procedure TArray<T>.ForEach(AFunc: TForEachProcRef<T>);
+var
+  AItem: T;
+begin
+  for AItem in Self do
+    AFunc(AItem);
+end;
+
+procedure TArray<T>.ForEach(AFunc: TForEachProc<T>);
+var
+  AItem: T;
+begin
+  for AItem in Self do
+    AFunc(AItem);
+end;
+
+function TArray<T>.ForEach<R>(AFunc: TForEachFuncStatic<T, R>): TArray<R>;
+var
+  I: Integer;
+begin
+  Result := TArray<R>.Create;
+  Result.Capacity := Count;
+  Result.ForceCount(Count);
+  for I := 0 to MaxIndex do
+    Result[I] := AFunc(Self[I]);
+end;
+
+function TArray<T>.ForEach<R>(AFunc: TForEachFuncRef<T, R>): TArray<R>;
+var
+  I: Integer;
+begin
+  Result := TArray<R>.Create;
+  Result.Capacity := Count;
+  Result.ForceCount(Count);
+  for I := 0 to MaxIndex do
+    Result[I] := AFunc(Self[I]);
+end;
+
+function TArray<T>.ForEach<R>(AFunc: TForEachFunc<T, R>): TArray<R>;
+var
+  I: Integer;
+begin
+  Result := TArray<R>.Create;
+  Result.Capacity := Count;
+  Result.ForceCount(Count);
+  for I := 0 to MaxIndex do
+    Result[I] := AFunc(Self[I]);
+end;
+
 function TArray<T>.FindLast(AFunc: TFindFuncStatic<T>): T;
 var
   I: Integer;
@@ -1866,24 +1795,9 @@ begin
   raise ENotImplemented.Create('BinarySearch not implemented.');
 end;
 
-{ TIntArray }
+{ TIntArrayHelper }
 
-function TIntArray.FindAsIntArray(AFunc: TFindFuncStatic<Integer>): TIntArray;
-begin
-  Result := TIntArray(FindAsArray(AFunc));
-end;
-
-function TIntArray.FindAsIntArray(AFunc: TFindFuncRef<Integer>): TIntArray;
-begin
-  Result := TIntArray(FindAsArray(AFunc));
-end;
-
-function TIntArray.FindAsIntArray(AFunc: TFindFunc<Integer>): TIntArray;
-begin
-  Result := TIntArray(FindAsArray(AFunc));
-end;
-
-function TIntArray.Sum: Integer;
+function TIntArrayHelper.Sum: Integer;
 var
   I: Integer;
 begin
@@ -1892,17 +1806,17 @@ begin
     Result := Result + I;
 end;
 
-function TIntArray.Difference: Integer;
+function TIntArrayHelper.Difference: Integer;
 begin
   Result := Bounds.Length;
 end;
 
-function TIntArray.Average: Single;
+function TIntArrayHelper.Average: Single;
 begin
   Result := Sum / Count;
 end;
 
-function TIntArray.Min: Integer;
+function TIntArrayHelper.Min: Integer;
 var
   I: Integer;
 begin
@@ -1913,7 +1827,7 @@ begin
     Result := System.Math.Min(Result, Self[I]);
 end;
 
-function TIntArray.Max: Integer;
+function TIntArrayHelper.Max: Integer;
 var
   I: Integer;
 begin
@@ -1924,7 +1838,7 @@ begin
     Result := System.Math.Max(Result, Self[I]);
 end;
 
-function TIntArray.Bounds: TIntBounds1;
+function TIntArrayHelper.Bounds: TIntBounds1;
 var
   I: Integer;
 begin
@@ -1938,154 +1852,6 @@ begin
     else if Self[I] > Result.High then
       Result.High := Self[I];
   end;
-end;
-
-function TIntArray.Copy: TIntArray;
-begin
-  Result := TIntArray(CreateCopy);
-end;
-
-class function TIntArray.ItemToString(AItem: Integer): string;
-begin
-  Result := AItem.ToString;
-end;
-
-{ TSingleArray }
-
-function TSingleArray.FindAsSingleArray(AFunc: TFindFuncStatic<Single>): TSingleArray;
-begin
-  Result := TSingleArray(FindAsArray(AFunc));
-end;
-
-function TSingleArray.FindAsSingleArray(AFunc: TFindFuncRef<Single>): TSingleArray;
-begin
-  Result := TSingleArray(FindAsArray(AFunc));
-end;
-
-function TSingleArray.FindAsSingleArray(AFunc: TFindFunc<Single>): TSingleArray;
-begin
-  Result := TSingleArray(FindAsArray(AFunc));
-end;
-
-function TSingleArray.Copy: TSingleArray;
-begin
-  Result := TSingleArray(CreateCopy);
-end;
-
-function TSingleArray.Sum: Single;
-var
-  I: Single;
-begin
-  Result := 0;
-  for I in Self do
-    Result := Result + I;
-end;
-
-function TSingleArray.Difference: Single;
-begin
-  Result := Bounds.Length;
-end;
-
-function TSingleArray.Average: Single;
-begin
-  Result := Sum / Count;
-end;
-
-function TSingleArray.Min: Single;
-var
-  I: Integer;
-begin
-  if Empty then
-    raise EArrayEmpty.Create;
-  Result := Self[0];
-  for I := 1 to MaxIndex do
-    Result := System.Math.Min(Result, Self[I]);
-end;
-
-function TSingleArray.Max: Single;
-var
-  I: Integer;
-begin
-  if Empty then
-    raise EArrayEmpty.Create;
-  Result := Self[0];
-  for I := 1 to MaxIndex do
-    Result := System.Math.Max(Result, Self[I]);
-end;
-
-function TSingleArray.Bounds: TBounds1;
-var
-  I: Integer;
-begin
-  if Empty then
-    raise EArrayEmpty.Create;
-  Result := Self[0];
-  for I := 0 to MaxIndex do
-  begin
-    if Self[I] < Result.Low then
-      Result.Low := Self[I]
-    else if Self[I] > Result.High then
-      Result.High := Self[I];
-  end;
-end;
-
-class function TSingleArray.ItemToString(AItem: Single): string;
-begin
-  Result := Format('%f', [AItem]);
-end;
-
-{ TStringArray }
-
-function TStringArray.FindAsStringArray(AFunc: TFindFuncStatic<string>): TStringArray;
-begin
-  Result := TStringArray(FindAsArray(AFunc));
-end;
-
-function TStringArray.FindAsStringArray(AFunc: TFindFuncRef<string>): TStringArray;
-begin
-  Result := TStringArray(FindAsArray(AFunc));
-end;
-
-function TStringArray.FindAsStringArray(AFunc: TFindFunc<string>): TStringArray;
-begin
-  Result := TStringArray(FindAsArray(AFunc));
-end;
-
-function TStringArray.Copy: TStringArray;
-begin
-  Result := TStringArray(CreateCopy);
-end;
-
-class function TStringArray.ItemToString(AItem: string): string;
-begin
-  Result := AItem;
-end;
-
-{ TAnsiStringArray }
-
-function TAnsiStringArray.FindAsAnsiStringArray(AFunc: TFindFuncStatic<AnsiString>): TAnsiStringArray;
-begin
-  Result := TAnsiStringArray(FindAsArray(AFunc));
-end;
-
-function TAnsiStringArray.FindAsAnsiStringArray(AFunc: TFindFuncRef<AnsiString>): TAnsiStringArray;
-begin
-  Result := TAnsiStringArray(FindAsArray(AFunc));
-end;
-
-function TAnsiStringArray.FindAsAnsiStringArray(AFunc: TFindFunc<AnsiString>): TAnsiStringArray;
-begin
-  Result := TAnsiStringArray(FindAsArray(AFunc));
-end;
-
-function TAnsiStringArray.Copy: TAnsiStringArray;
-begin
-  Result := TAnsiStringArray(CreateCopy);
-end;
-
-class function TAnsiStringArray.ItemToString(AItem: AnsiString): string;
-begin
-  Result := string(AItem);
 end;
 
 { TRefArray<T> }
@@ -2846,6 +2612,36 @@ begin
   Result := TArray<T>(Self).FindLastIndex(AFunc);
 end;
 
+procedure TArray<T>.TReader.ForEach(AFunc: TForEachProcStatic<T>);
+begin
+  TArray<T>(Self).ForEach(AFunc);
+end;
+
+procedure TArray<T>.TReader.ForEach(AFunc: TForEachProcRef<T>);
+begin
+  TArray<T>(Self).ForEach(AFunc);
+end;
+
+procedure TArray<T>.TReader.ForEach(AFunc: TForEachProc<T>);
+begin
+  TArray<T>(Self).ForEach(AFunc);
+end;
+
+function TArray<T>.TReader.ForEach<R>(AFunc: TForEachFuncStatic<T, R>): TArray<R>;
+begin
+  Result := TArray<T>(Self).ForEach<R>(AFunc);
+end;
+
+function TArray<T>.TReader.ForEach<R>(AFunc: TForEachFuncRef<T, R>): TArray<R>;
+begin
+  Result := TArray<T>(Self).ForEach<R>(AFunc);
+end;
+
+function TArray<T>.TReader.ForEach<R>(AFunc: TForEachFunc<T, R>): TArray<R>;
+begin
+  Result := TArray<T>(Self).ForEach<R>(AFunc);
+end;
+
 function TArray<T>.TReader.FindLastIndex(AFunc: TFindFuncRef<T>): Integer;
 begin
   Result := TArray<T>(Self).FindLastIndex(AFunc);
@@ -2916,84 +2712,63 @@ begin
   Result := TArray<T>(Self).ToString;
 end;
 
-{ TRef<T> }
+{ TSingleArrayHelper }
 
-constructor TRef<T>.Create(AValue: T);
+function TSingleArrayHelper.Sum: Single;
+var
+  I: Single;
 begin
-  Value := AValue;
+  Result := 0;
+  for I in Self do
+    Result := Result + I;
 end;
 
-{ TOpt<T> }
-
-function TOpt<T>.GetValue: T;
+function TSingleArrayHelper.Difference: Single;
 begin
-  if not HasValue then
-    raise EOptWrapperNoValue.Create;
-  Result := FValue;
+  Result := Bounds.Length;
 end;
 
-procedure TOpt<T>.SetValue(const Value: T);
+function TSingleArrayHelper.Average: Single;
 begin
-  FHasValue := True;
-  FValue := Value;
+  Result := Sum / Count;
 end;
 
-constructor TOpt<T>.Create;
+function TSingleArrayHelper.Min: Single;
+var
+  I: Integer;
 begin
-  // nothing
+  if Empty then
+    raise EArrayEmpty.Create;
+  Result := Self[0];
+  for I := 1 to MaxIndex do
+    Result := System.Math.Min(Result, Self[I]);
 end;
 
-constructor TOpt<T>.Create(AValue: T);
+function TSingleArrayHelper.Max: Single;
+var
+  I: Integer;
 begin
-  Value := AValue;
+  if Empty then
+    raise EArrayEmpty.Create;
+  Result := Self[0];
+  for I := 1 to MaxIndex do
+    Result := System.Math.Max(Result, Self[I]);
 end;
 
-procedure TOpt<T>.Clear;
+function TSingleArrayHelper.Bounds: TBounds1;
+var
+  I: Integer;
 begin
-  FHasValue := False;
-end;
-
-{ TOptRef<T> }
-
-function TOptRef<T>.GetHasValue: Boolean;
-begin
-  Result := FValueRef <> nil;
-end;
-
-function TOptRef<T>.GetValue: T;
-begin
-  if not HasValue then
-    raise EOptWrapperNoValue.Create;
-  Result := FValueRef.Value;
-end;
-
-procedure TOptRef<T>.SetValue(const Value: T);
-begin
-  if FValueRef = nil then
-    FValueRef := TRef<T>.Create(Value)
-  else
-    FValueRef.Value := Value;
-end;
-
-constructor TOptRef<T>.Create;
-begin
-  // nothing
-end;
-
-constructor TOptRef<T>.Create(AValue: T);
-begin
-  Value := AValue;
-end;
-
-destructor TOptRef<T>.Destroy;
-begin
-  FValueRef.Free;
-  inherited;
-end;
-
-procedure TOptRef<T>.Clear;
-begin
-  FValueRef := nil;
+  if Empty then
+    raise EArrayEmpty.Create;
+  Result := Self[0];
+  for I := 0 to MaxIndex do
+  begin
+    if Self[I] < Result.Low then
+      Result.Low := Self[I]
+    else if Self[I] > Result.High then
+      Result.High := Self[I];
+  end;
 end;
 
 end.

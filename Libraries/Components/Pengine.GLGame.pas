@@ -3,17 +3,20 @@ unit Pengine.GLGame;
 interface
 
 uses
+  System.IOUtils,
+
   Pengine.InputHandler,
   Pengine.GLState,
   Pengine.EventHandling,
   Pengine.TimeManager,
-  Pengine.IntMaths;
+  Pengine.IntMaths,
+  Pengine.GLContext;
 
 type
 
   TGLGame = class
   private
-    FGLState: TGLState;
+    FGLContext: TGLContext;
     FInput: TInputHandler;
     FTimer: TDeltaTimer;
     FResolution: TIntVector2;
@@ -25,24 +28,26 @@ type
     function GetOnResize: TEvent.TAccess;
     function GetOnUpdate: TEvent.TAccess;
     function GetOnRender: TEvent.TAccess;
-    function GetDeltaTime: Single;
+    function GetDeltaTime: TSeconds;
     function GetTime: TSeconds;
     function GetFPS: Single;
     function GetAspect: Single;
+    function GetGLState: TGLState;
 
   public
-    constructor Create(AGLState: TGLState; AInput: TInputHandler; ATimer: TDeltaTimer; AResolution: TIntVector2);
+    constructor Create(AGLContext: TGLContext; AInput: TInputHandler; ATimer: TDeltaTimer; AResolution: TIntVector2);
 
     procedure Resize(AResolution: TIntVector2);
     procedure Update;
     procedure Render;
 
-    property GLState: TGLState read FGLState;
+    property GLContext: TGLContext read FGLContext;
+    property GLState: TGLState read GetGLState;
 
     property Input: TInputHandler read FInput;
 
     property Timer: TDeltaTimer read FTimer;
-    property DeltaTime: Single read GetDeltaTime;
+    property DeltaTime: TSeconds read GetDeltaTime;
     property Time: TSeconds read GetTime;
     property FPS: Single read GetFPS;
 
@@ -74,7 +79,7 @@ begin
   Result := Resolution.X / Resolution.Y;
 end;
 
-function TGLGame.GetDeltaTime: Single;
+function TGLGame.GetDeltaTime: TSeconds;
 begin
   Result := Timer.DeltaTime;
 end;
@@ -82,6 +87,11 @@ end;
 function TGLGame.GetFPS: Single;
 begin
   Result := Timer.FPS;
+end;
+
+function TGLGame.GetGLState: TGLState;
+begin
+  Result := GLContext.GLState;
 end;
 
 function TGLGame.GetTime: TSeconds;
@@ -94,9 +104,9 @@ begin
   Result := FOnRender.Access;
 end;
 
-constructor TGLGame.Create(AGLState: TGLState; AInput: TInputHandler; ATimer: TDeltaTimer; AResolution: TIntVector2);
+constructor TGLGame.Create(AGLContext: TGLContext; AInput: TInputHandler; ATimer: TDeltaTimer; AResolution: TIntVector2);
 begin
-  FGLState := AGLState;
+  FGLContext := AGLContext;
   FInput := AInput;
   FTimer := ATimer;
   FResolution := AResolution;

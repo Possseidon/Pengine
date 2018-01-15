@@ -219,8 +219,8 @@ type
     function GetVisible: Boolean;
     procedure SetVisible(const Value: Boolean);
 
-    function GetLocation: TLocation;
-    procedure SetLocation(const Value: TLocation);
+    function GetLocation: TLocation3;
+    procedure SetLocation(const Value: TLocation3);
 
   protected
     procedure GenObject(out AGLName: GLuint); override;
@@ -242,7 +242,7 @@ type
     class function GetBindingClass: TGLObjectBindingClass; override;
 
     property Visible: Boolean read GetVisible write SetVisible;
-    property Location: TLocation read GetLocation write SetLocation;
+    property Location: TLocation3 read GetLocation write SetLocation;
     function CullPoints: IIterable<TVector3>; virtual;
     function CullRadius: Single; virtual;
     function RenderableChildren: IIterable<IRenderable>; virtual;
@@ -297,7 +297,7 @@ type
   private
     FVisible: Boolean;
     FSourceVAO: TVAO;
-    FLocation: TLocation;
+    FLocation: TLocation3;
 
     procedure SetVisible(const Value: Boolean);
 
@@ -404,12 +404,12 @@ begin
   FVisible := Value;
 end;
 
-function TVAO.GetLocation: TLocation;
+function TVAO.GetLocation: TLocation3;
 begin
   Result := nil;
 end;
 
-procedure TVAO.SetLocation(const Value: TLocation);
+procedure TVAO.SetLocation(const Value: TLocation3);
 begin
   Location.Assign(Value);
 end;
@@ -587,7 +587,7 @@ constructor TVAOProxy.Create(ASourceVAO: TVAO);
 begin
   FVisible := True;
   FSourceVAO := ASourceVAO;
-  FLocation := TLocation.Create;
+  FLocation := TLocation3.Create;
 end;
 
 destructor TVAOProxy.Destroy;

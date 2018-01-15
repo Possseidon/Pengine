@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{2B86CAAF-057B-4B9F-9C15-0DECCEDA270F}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="TArrayVisualizer.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="CollectionsVisualizerTestProject.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="TArrayVisualizer">
+        <MSBuild Projects="TArrayVisualizer.dproj"/>
+    </Target>
+    <Target Name="TArrayVisualizer:Clean">
+        <MSBuild Projects="TArrayVisualizer.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TArrayVisualizer:Make">
+        <MSBuild Projects="TArrayVisualizer.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="CollectionsVisualizerTestProject">
+        <MSBuild Projects="CollectionsVisualizerTestProject.dproj"/>
+    </Target>
+    <Target Name="CollectionsVisualizerTestProject:Clean">
+        <MSBuild Projects="CollectionsVisualizerTestProject.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="CollectionsVisualizerTestProject:Make">
+        <MSBuild Projects="CollectionsVisualizerTestProject.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="TArrayVisualizer;CollectionsVisualizerTestProject"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="TArrayVisualizer:Clean;CollectionsVisualizerTestProject:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="TArrayVisualizer:Make;CollectionsVisualizerTestProject:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

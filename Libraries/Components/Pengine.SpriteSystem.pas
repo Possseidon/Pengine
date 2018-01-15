@@ -3,9 +3,12 @@ unit Pengine.SpriteSystem;
 interface
 
 uses
+  dglOpenGL,
+
   System.SysUtils,
   System.Math,
 
+  Pengine.IntMaths,
   Pengine.TimeManager,
   Pengine.GLState,
   Pengine.Collections,
@@ -18,12 +21,26 @@ uses
   Pengine.HashCollections,
   Pengine.Hasher,
   Pengine.EventHandling,
+  Pengine.EventMap,
   Pengine.GLGame,
-  Pengine.GLEnums;
+  Pengine.GLEnums,
+  Pengine.FBO,
+  Pengine.Utility,
+  Pengine.InputHandler;
 
 type
 
   ESpriteBehaviorNoDefault = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  ECharSpriteInvalidFont = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  ESpriteRemovedAlready = class(Exception)
   public
     constructor Create;
   end;
@@ -45,30 +62,6 @@ type
 
   end;
 
-  TAnimation = class
-  public type
-
-    TFrame = class
-    private
-      FTile: TTextureAtlas.TTile;
-      FDuration: Single;
-      FFadePercentage: Single;
-
-    public
-
-    end;
-
-    TFrames = TObjectArray<TFrame>;
-
-  private
-    FFrames: TFrames;
-
-  public
-    constructor Create;
-    destructor Destroy; override;
-
-  end;
-
   TSpriteSystem = class;
 
   TSprite = class
@@ -77,30 +70,20 @@ type
     TBehavior = class
     public type
 
-      TSenderEventInfo = class(TEventInfo, IEventSender<TBehavior>)
-      private
-        FSender: TBehavior;
-
-      public
-        constructor Create(ASender: TBehavior);
-
-        function Sender: TBehavior;
-
-      end;
-
-      TSenderEvent = TEvent<TSenderEventInfo>;
+      TEventInfo = TSenderEventInfo<TBehavior>;
+      TEvent = TEvent<TEventInfo>;
 
     private
       FSprite: TSprite;
       FEnabled: Boolean;
       FRemoved: Boolean;
-      FOnDone: TSenderEvent;
+      FOnDone: TEvent;
 
       function GetGame: TGLGame;
 
       procedure SetEnabled(const Value: Boolean);
 
-      function GetOnDone: TSenderEvent.TAccess;
+      function GetOnDone: TEvent.TAccess;
 
     protected
       procedure AddEvents; virtual;
@@ -108,6 +91,7 @@ type
 
     public
       constructor Create(ASprite: TSprite); virtual;
+      class procedure Add(ASprite: TSprite);
       destructor Destroy; override;
 
       property Game: TGLGame read GetGame;
@@ -120,9 +104,7 @@ type
       procedure Remove;
       property Removed: Boolean read FRemoved;
 
-      property OnDone: TSenderEvent.TAccess read GetOnDone;
-
-      procedure Update; virtual;
+      property OnDone: TEvent.TAccess read GetOnDone;
 
     end;
 
@@ -130,13 +112,16 @@ type
 
     TBehaviors = TRefSet<TBehavior, TRefHasher<TBehavior>>;
 
+    TEventInfo = TSenderEventInfo<TSprite>;
+
+    TEvent = TEvent<TEventInfo>;
+
     TChange = (
-      scPosX,
-      scPosY,
+      scPos,
       scZOrder,
       scColor,
       scFade,
-      scTexCoords
+      scTexture
       );
 
     TChanges = set of TChange;
@@ -156,7 +141,17 @@ type
 
     TChangeEvent = TEvent<TChangeEventInfo>;
 
-    TFadeBehavior = class(TBehavior)
+    TUpdateBehavior = class(TBehavior)
+    protected
+      procedure AddEvents; override;
+      procedure DelEvents; override;
+
+    protected
+      procedure Update; virtual; abstract;
+
+    end;
+
+    TFadeBehavior = class(TUpdateBehavior)
     private
       FDuration: TSeconds;
       FTimeLeft: TSeconds;
@@ -176,54 +171,73 @@ type
 
     end;
 
-    TSimpleAnimationBeavior = class(TBehavior)
+    TAnimationBeavior = class(TUpdateBehavior)
     private
+      FBaseTextureTile: TTextureAtlas.TTile;
       FFrameTime: TSeconds;
       FTimeLeft: TSeconds;
       FFadePercentage: Single;
-      FFrame: Integer;
+      FRange: TIntBounds1;
+      FReversed: Boolean;
 
       procedure SpriteChanged(AInfo: TChangeEventInfo);
 
       function GetDuration: TSeconds;
+      procedure SetDuration(const Value: TSeconds);
+      procedure SetFrameTime(const Value: TSeconds);
+
+      function GetFrame: Integer;
+      procedure SetRange(const Value: TIntBounds1);
+      procedure SetFrame(const Value: Integer);
       function GetFrameFadePercentage: Single;
-        procedure SetDuration(const Value: TSeconds);
-        procedure SetFadePercentage(const Value: Single);
-        procedure SetFrame(const Value: Integer);
-        procedure SetFrameTime(const Value: TSeconds);
+
+      procedure SetFrameWithoutFrameTime(AFrame: Integer);
+
+      procedure SetReversed(const Value: Boolean);
 
     protected
       procedure AddEvents; override;
       procedure DelEvents; override;
 
     public
-      constructor Create(ASrite: TSprite); override; overload;
-      constructor Create(ASrite: TSprite; ADuration: TSeconds; AFadePercentage: Single = 1); overload; reintroduce;
+      constructor Create(ASrite: TSprite); overload; override;
+      constructor Create(ASprite: TSprite; ADuration: TSeconds; AFadePercentage: Single = 1); reintroduce; overload;
 
-      property FadePercentage: Single read FFadePercentage write SetFadePercentage;
+      property FadePercentage: Single read FFadePercentage write FFadePercentage;
       property Duration: TSeconds read GetDuration write SetDuration;
       property FrameTime: TSeconds read FFrameTime write SetFrameTime;
 
-      property Frame: Integer read FFrame write SetFrame;
+      property Frame: Integer read GetFrame write SetFrame;
+      property Range: TIntBounds1 read FRange write SetRange;
       property FrameTimeLeft: TSeconds read FTimeLeft;
-      property FrameFadePercantage: Single read GetFrameFadePercentage;
+      property FrameFadePercentage: Single read GetFrameFadePercentage;
+
+      property Reversed: Boolean read FReversed write SetReversed;
+
+      procedure Restart;
 
       procedure Update; override;
 
     end;
 
+    TFollowMouseBehavior = class(TUpdateBehavior)
+    protected
+      procedure Update; override;
+    end;
+
   private
     FSpriteSystem: TSpriteSystem;
     FRemoved: Boolean;
+    FIndex: Integer;
     FChanges: TChanges;
+    FInChangedSprites: Boolean;
+    FUpdateCounter: Integer;
     FBehaviors: TBehaviors;
     FOnChanged: TChangeEvent;
+    FOnRemove: TEvent;
 
-    FPos: TVector2;
-    FOffset: TVector2;
-    FRotation: Single;
+    FLocation: TLocation2;
     FZOrder: Single;
-    FScale: TVector2;
 
     FColor: TColorRGBA;
     FTexture: string;
@@ -232,38 +246,46 @@ type
     FFadeTextureTile: TTextureAtlas.TTile;
     FFade: Single;
 
-    FBounds: TOpt<TPlane2>;
+    FBounds: TOpt<TAxisSystem2>;
 
     function GetGame: TGLGame;
 
-    procedure SetPos(const Value: TVector2);
-    procedure SetPosX(const Value: Single);
-    procedure SetPosY(const Value: Single);
-
-    procedure SetOffset(const Value: TVector2);
-    procedure SetOffsetX(const Value: Single);
-    procedure SetOffsetY(const Value: Single);
-
-    procedure SetRotation(Value: Single);
-
     procedure SetZOrder(const Value: Single);
 
-    procedure SetScale(const Value: TVector2);
-
     procedure SetColor(const Value: TColorRGBA);
+
     procedure SetTexture(const Value: string);
+    procedure SetTextureTile(const Value: TTextureAtlas.TTile);
+    function GetTextureIndex: Integer;
+    procedure SetTextureIndex(const Value: Integer);
+
     procedure SetFadeTexture(const Value: string);
+    procedure SetFadeTextureTile(const Value: TTextureAtlas.TTile);
+    function GetFadeSubTextureIndex: Integer;
+    procedure SetFadeSubTextureIndex(const Value: Integer);
+
     procedure SetFade(const Value: Single);
 
-    function GetBounds: TPlane2;
+    function GetAspect: Single;
+    function GetAspectPlus(APixels: Single): Single;
+    function GetAspectScaled: Single;
+    function GetAspectScaledPlus(APixels: Single): Single;
+
+    function GetBounds: TAxisSystem2;
+
+    function GetBehaviors: TBehaviors.TReader;
 
     function GetOnChanged: TChangeEvent.TAccess;
-    function GetBehaviors: TBehaviors.TReader;
-    procedure SetFadeTextureTile(const Value: TTextureAtlas.TTile);
-    procedure SetTextureTile(const Value: TTextureAtlas.TTile);
+    function GetOnUpdate: Pengine.EventHandling.TEvent.TAccess;
+
+    procedure Changed(AChange: TChange); overload;
+    procedure Changed(AChanges: TChanges); overload;
+
+    procedure LocationChanged(AInfo: TLocation2.TChangeEventInfo);
+    function GetOnRemove: TEvent.TAccess;
 
   public
-    constructor Create(ASpriteSystem: TSpriteSystem; ATextureTile: TTextureAtlas.TTile);
+    constructor Create(ASpriteSystem: TSpriteSystem; ATextureTile: TTextureAtlas.TTile); virtual;
     destructor Destroy; override;
 
     property SpriteSystem: TSpriteSystem read FSpriteSystem;
@@ -272,19 +294,9 @@ type
     procedure Remove;
     property Removed: Boolean read FRemoved;
 
-    property Pos: TVector2 read FPos write SetPos;
-    property PosX: Single read FPos.X write SetPosX;
-    property PosY: Single read FPos.Y write SetPosY;
-
-    property Offset: TVector2 read FOffset write SetOffset;
-    property OffsetX: Single read FOffset.X write SetOffsetX;
-    property OffsetY: Single read FOffset.Y write SetOffsetY;
-
-    property Rotation: Single read FRotation write SetRotation;
+    property Location: TLocation2 read FLocation;
 
     property ZOrder: Single read FZOrder write SetZOrder;
-
-    property Scale: TVector2 read FScale write SetScale;
 
     property Color: TColorRGBA read FColor write SetColor;
 
@@ -297,14 +309,24 @@ type
     property FadeSubTextureIndex: Integer read GetFadeSubTextureIndex write SetFadeSubTextureIndex;
     property Fade: Single read FFade write SetFade;
 
-    property Bounds: TPlane2 read GetBounds;
+    property Aspect: Single read GetAspect;
+    property AspectPlus[APixels: Single]: Single read GetAspectPlus;
+    property AspectScaled: Single read GetAspectScaled;
+    property AspectScaledPlus[APixels: Single]: Single read GetAspectScaledPlus;
+
+    property Bounds: TAxisSystem2 read GetBounds;
 
     property Behaviors: TBehaviors.TReader read GetBehaviors;
 
-    procedure Update;
     procedure UpdateVAO(AWriter: TVBO<TSpriteGLProgamBase.TData>.TWriter);
 
+    procedure BeginUpdate;
+    procedure EndUpdate;
+
     property OnChanged: TChangeEvent.TAccess read GetOnChanged;
+    property OnRemove: TEvent.TAccess read GetOnRemove;
+
+    property OnUpdate: Pengine.EventHandling.TEvent.TAccess read GetOnUpdate;
 
   end;
 
@@ -312,23 +334,29 @@ type
   public type
 
     TSprites = TRefArray<TSprite>;
+    TSpriteUpdater = TEventMap<TSprite, TRefHasher<TSprite>>;
     TVAO = TVAOMutable<TSpriteGLProgamBase.TData>;
 
   private
     FGame: TGLGame;
+    FFBOBinding: TGLObjectBinding<TFBO>;
     FAspectUniform: TGLProgram.TUniform<Single>;
     FSpriteAtlas: TTextureAtlas;
     FSprites: TSprites;
+    FChangedSprites: TSprites;
+    FRemovedSprites: TSprites;
+    FSpriteUpdater: TSpriteUpdater;
     FSpritesSorted: Boolean;
     FVAOChanged: Boolean;
     FVAO: TVAO;
 
     procedure SortSprites;
-    procedure UpdateVAO;
+    procedure UpdateVAO(AUpdateAll: Boolean);
 
     function GetSprites: TSprites.TReader;
 
     procedure SpriteChanged(AInfo: TSprite.TChangeEventInfo);
+    procedure SpriteRemoved(AInfo: TSprite.TEventInfo);
 
     procedure Update;
     procedure Render;
@@ -340,12 +368,42 @@ type
 
     property Game: TGLGame read FGame;
 
-    function AddSprite(ATexture: string): TSprite; overload;
-    function AddSprite(ATexture: TTextureAtlas.TTile): TSprite; overload;
-    function AddSprite(AAnimation: TAnimation): TSprite; overload;
+    function Add<T: TSprite>(ATexture: string): T; overload;
+    function Add<T: TSprite>(ATexture: TTextureAtlas.TTile): T; overload;
 
     property Sprites: TSprites.TReader read GetSprites;
     property SpriteAtlas: TTextureAtlas read FSpriteAtlas;
+
+  end;
+
+  TCharSprite = class(TSprite)
+  private
+    FOldFontTile: TTextureAtlas.TTile;
+    FSpacePixels: Single;
+
+    function GetChar: Char;
+    procedure SetChar(const Value: Char);
+    function GetFontTile: TTextureAtlas.TTile;
+    procedure SetFontTile(const Value: TTextureAtlas.TTile);
+    function GetFont: string;
+    procedure SetFont(const Value: string);
+    function GetWidth: Single;
+    function GetWidthSpaced: Single;
+
+    procedure SpriteChanged(AInfo: TSprite.TChangeEventInfo);
+
+  public
+    constructor Create(ASpriteSystem: TSpriteSystem; ATextureTile: TTextureAtlas.TTile); override;
+
+    property Char: Char read GetChar write SetChar;
+    property FontTile: TTextureAtlas.TTile read GetFontTile write SetFontTile;
+    property Font: string read GetFont write SetFont;
+    property Width: Single read GetWidth;
+    property WidthSpaced: Single read GetWidthSpaced;
+
+  end;
+
+  TCursorSprite = class(TSprite)
 
   end;
 
@@ -370,86 +428,12 @@ end;
 
 { TSprite }
 
-procedure TSprite.SetPos(const Value: TVector2);
-begin
-  if Pos = Value then
-    Exit;
-  FPos := Value;
-  FChanges := FChanges + [scPosX, scPosY];
-  FBounds.Clear;
-end;
-
-procedure TSprite.SetPosX(const Value: Single);
-begin
-  if PosX = Value then
-    Exit;
-  FPos.X := Value;
-  Include(FChanges, scPosX);
-  FBounds.Clear;
-end;
-
-procedure TSprite.SetPosY(const Value: Single);
-begin
-  if PosY = Value then
-    Exit;
-  FPos.Y := Value;
-  Include(FChanges, scPosY);
-  FBounds.Clear;
-end;
-
-procedure TSprite.SetOffset(const Value: TVector2);
-begin
-  if Offset = Value then
-    Exit;
-  FOffset := Value;
-  FChanges := FChanges + [scPosX, scPosY];
-  FBounds.Clear;
-end;
-
-procedure TSprite.SetOffsetX(const Value: Single);
-begin
-  if OffsetX = Value then
-    Exit;
-  FOffset.X := Value;
-  Include(FChanges, scPosX);
-  FBounds.Clear;
-end;
-
-procedure TSprite.SetOffsetY(const Value: Single);
-begin
-  if OffsetY = Value then
-    Exit;
-  FOffset.Y := Value;
-  Include(FChanges, scPosY);
-  FBounds.Clear;
-end;
-
-procedure TSprite.SetRotation(Value: Single);
-begin
-  Value := Bounds1(0, 360).RangedModL(Value);
-  if Rotation = Value then
-    Exit;
-  FRotation := Value;
-  FChanges := FChanges + [scPosX, scPosY];
-  FBounds.Clear;
-end;
-
 procedure TSprite.SetZOrder(const Value: Single);
 begin
   if ZOrder = Value then
     Exit;
   FZOrder := Value;
-  Include(FChanges, scZOrder);
-  FBounds.Clear;
-end;
-
-procedure TSprite.SetScale(const Value: TVector2);
-begin
-  if Scale = Value then
-    Exit;
-  FScale := Value;
-  FChanges := FChanges + [scPosX, scPosY];
-  FBounds.Clear;
+  Changed(scZOrder);
 end;
 
 procedure TSprite.SetColor(const Value: TColorRGBA);
@@ -457,7 +441,7 @@ begin
   if Color = Value then
     Exit;
   FColor := Value;
-  Include(FChanges, scColor);
+  Changed(scColor);
 end;
 
 procedure TSprite.SetTexture(const Value: string);
@@ -465,7 +449,12 @@ begin
   if Texture = Value then
     Exit;
   FTexture := Value;
-  TextureTile := SpriteSystem.SpriteAtlas[Texture];
+  FTextureTile := SpriteSystem.SpriteAtlas[Texture];
+end;
+
+procedure TSprite.SetTextureIndex(const Value: Integer);
+begin
+  TextureTile := TextureTile.SubTiles[Value];
 end;
 
 procedure TSprite.SetTextureTile(const Value: TTextureAtlas.TTile);
@@ -479,10 +468,10 @@ begin
   if (OldTile <> nil) and (OldTile.Aspect <> TextureTile.Aspect) then
   begin
     FBounds.Clear;
-    FChanges := FChanges + [scPosX, scPosY];
+    Changed(scPos);
   end;
-  Include(FChanges, scTexCoords);
-  Texture := TextureTile.Name;
+  Changed(scTexture);
+  FTexture := TextureTile.Name;
 end;
 
 procedure TSprite.SetFadeTexture(const Value: string);
@@ -494,20 +483,40 @@ begin
 end;
 
 procedure TSprite.SetFadeTextureTile(const Value: TTextureAtlas.TTile);
-var
-  OldTile: TTextureAtlas.TTile;
 begin
   if FadeTextureTile = Value then
     Exit;
-  OldTile := FFadeTextureTile;
   FFadeTextureTile := Value;
-  if (OldTile <> nil) and (OldTile.Aspect <> FadeTextureTile.Aspect) then
-  begin
-    FBounds.Clear;
-    FChanges := FChanges + [scPosX, scPosY];
-  end;
-  Include(FChanges, scTexCoords);
-  FadeTexture := FadeTextureTile.Name;
+  Changed(scTexture);
+  FFadeTexture := FadeTextureTile.Name;
+end;
+
+function TSprite.GetAspect: Single;
+begin
+  if FadeTextureTile <> nil then
+    Result := (1 - Fade) * TextureTile.Aspect + Fade * FadeTextureTile.Aspect
+  else
+    Result := TextureTile.Aspect;
+end;
+
+function TSprite.GetAspectPlus(APixels: Single): Single;
+begin
+  if FadeTextureTile <> nil then
+    Result :=
+      (1 - Fade) * (TextureTile.Size.X + APixels) / TextureTile.Size.Y +
+      Fade * (FadeTextureTile.Size.X + APixels) / FadeTextureTile.Size.Y
+  else
+    Result := (TextureTile.Size.X + APixels) / TextureTile.Size.Y;
+end;
+
+function TSprite.GetAspectScaled: Single;
+begin
+  Result := Aspect * Location.Scale.X / Location.Scale.Y;
+end;
+
+function TSprite.GetAspectScaledPlus(APixels: Single): Single;
+begin
+  Result := AspectPlus[APixels] * Location.Scale.X / Location.Scale.Y;
 end;
 
 function TSprite.GetBehaviors: TBehaviors.TReader;
@@ -515,20 +524,22 @@ begin
   Result := FBehaviors.Reader;
 end;
 
-function TSprite.GetBounds: TPlane2;
+function TSprite.GetBounds: TAxisSystem2;
 begin
   if not FBounds.HasValue then
   begin
-    Result.Create(
-      Pos,
-      TVector2.FromAngle(Rotation) * Scale.X * TextureTile.Size.X / TextureTile.Size.Y,
-      TVector2.FromAngle(Rotation + 90) * Scale.Y
-      );
-    Result.S := Result.S + Result.D1 * (Offset.X - 0.5) + Result.D2 * (Offset.Y - 0.5);
+    Result := Location.AxisSystem;
+    Result.S := Result.S - Aspect * 0.5 * Result.DX - 0.5 * Result.DY;
+    Result.DX := Result.DX * Aspect;
     FBounds.Value := Result;
   end
   else
     Result := FBounds.Value;
+end;
+
+function TSprite.GetFadeSubTextureIndex: Integer;
+begin
+  Result := FadeTextureTile.SubTileIndex;
 end;
 
 function TSprite.GetGame: TGLGame;
@@ -541,7 +552,15 @@ begin
   if Fade = Value then
     Exit;
   FFade := Value;
-  Include(FChanges, scFade);
+  if (FadeTextureTile <> nil) and (TextureTile.Aspect <> FadeTextureTile.Aspect) then
+    Changed([scFade, scPos])
+  else
+    Changed(scFade);
+end;
+
+procedure TSprite.SetFadeSubTextureIndex(const Value: Integer);
+begin
+  FadeTextureTile := FadeTextureTile.SubTiles[Value];
 end;
 
 function TSprite.GetOnChanged: TChangeEvent.TAccess;
@@ -549,50 +568,107 @@ begin
   Result := FOnChanged.Access;
 end;
 
+function TSprite.GetOnRemove: TEvent.TAccess;
+begin
+  Result := FOnRemove.Access;
+end;
+
+function TSprite.GetOnUpdate: Pengine.EventHandling.TEvent.TAccess;
+begin
+  Result := FSpriteSystem.FSpriteUpdater.Access[Self];
+end;
+
+function TSprite.GetTextureIndex: Integer;
+begin
+  Result := TextureTile.SubTileIndex;
+end;
+
+procedure TSprite.LocationChanged(AInfo: TLocation2.TChangeEventInfo);
+begin
+  Changed(scPos);
+end;
+
+procedure TSprite.Changed(AChange: TChange);
+begin
+  if not FInChangedSprites then
+  begin
+    SpriteSystem.FChangedSprites.Add(Self);
+    FInChangedSprites := True;
+  end;
+  if FUpdateCounter = 0 then
+    FOnChanged.Execute(TChangeEventInfo.Create(Self, [AChange]));
+  Include(FChanges, AChange);
+  if AChange = scPos then
+    FBounds.Clear;
+end;
+
+procedure TSprite.BeginUpdate;
+begin
+  Inc(FUpdateCounter);
+end;
+
+procedure TSprite.Changed(AChanges: TChanges);
+begin
+  if not FInChangedSprites then
+  begin
+    SpriteSystem.FChangedSprites.Add(Self);
+    FInChangedSprites := True;
+  end;
+  if FUpdateCounter = 0 then
+    FOnChanged.Execute(TChangeEventInfo.Create(Self, AChanges));
+  FChanges := FChanges + AChanges;
+  if scPos in AChanges then
+    FBounds.Clear;
+end;
+
 constructor TSprite.Create(ASpriteSystem: TSpriteSystem; ATextureTile: TTextureAtlas.TTile);
 begin
   FSpriteSystem := ASpriteSystem;
   FBehaviors := TBehaviors.Create;
-  FBounds := TOpt<TPlane2>.Create;
-  FScale := Vec2(1, 1);
+  FBounds := TOpt<TAxisSystem2>.Create;
+  FLocation := TLocation2.Create;
   FColor := ColorWhite;
   TextureTile := ATextureTile;
+  Location.OnChanged.Add(LocationChanged);
 end;
 
 destructor TSprite.Destroy;
 var
   Behavior: TBehavior;
+  I: Integer;
 begin
+  FLocation.Free;
   FBounds.Free;
   for Behavior in FBehaviors do
     Behavior.Free;
   FBehaviors.Free;
   if FRemoved then
-    SpriteSystem.FSprites.Del(Self);
+  begin
+    if FInChangedSprites then
+      SpriteSystem.FChangedSprites.Del(Self);
+    SpriteSystem.FSprites.DelAt(Self.FIndex);
+    for I := FIndex to SpriteSystem.Sprites.MaxIndex do
+    begin
+      Dec(SpriteSystem.FSprites[I].FIndex);
+      SpriteSystem.FSprites[I].Changed([Low(TChange) .. High(TChange)]);
+    end;
+  end;
   inherited;
+end;
+
+procedure TSprite.EndUpdate;
+begin
+  Dec(FUpdateCounter);
+  if FUpdateCounter = 0 then
+    FOnChanged.Execute(TChangeEventInfo.Create(Self, FChanges));
 end;
 
 procedure TSprite.Remove;
 begin
+  if FRemoved then
+    raise ESpriteRemovedAlready.Create;
   FRemoved := True;
-end;
-
-procedure TSprite.Update;
-var
-  Behavior: TBehavior;
-  Removed: TObjectArray<TBehavior>;
-begin
-  Removed := TObjectArray<TBehavior>.Create;
-  for Behavior in FBehaviors do
-  begin
-    if Behavior.Enabled then
-      Behavior.Update;
-    if Behavior.Removed then
-      Removed.Add(Behavior);
-  end;
-  Removed.Free;
-  if FChanges <> [] then
-    FOnChanged.Execute(TChangeEventInfo.Create(Self, FChanges));
+  FOnRemove.Execute(TEventInfo.Create(Self));
 end;
 
 procedure TSprite.UpdateVAO(AWriter: TVBO<TSpriteGLProgamBase.TData>.TWriter);
@@ -601,19 +677,13 @@ var
 begin
   with AWriter do
   begin
-    if FChanges = [] then
-    begin
-      BufferPos := BufferPos + 6;
-      Exit;
-    end;
+    FInChangedSprites := False;
 
-    if scPosX in FChanges then
-      for I := Low(TQuadIndex) to High(TQuadIndex) do
-        BufferData[BufferPos + I].Pos.X := Bounds[QuadTexCoords[I]].X;
+    BufferPos := FIndex * 6;
 
-    if scPosY in FChanges then
+    if scPos in FChanges then
       for I := Low(TQuadIndex) to High(TQuadIndex) do
-        BufferData[BufferPos + I].Pos.Y := Bounds[QuadTexCoords[I]].Y;
+        BufferData[BufferPos + I].Pos := Bounds[QuadTexCoords[I]];
 
     if scZOrder in FChanges then
       for I := Low(TQuadIndex) to High(TQuadIndex) do
@@ -631,7 +701,7 @@ begin
       BufferData[BufferPos + 5].Fade := Fade;
     end;
 
-    if scTexCoords in FChanges then
+    if scTexture in FChanges then
     begin
       if TextureTile <> nil then
       begin
@@ -656,31 +726,25 @@ begin
     end;
 
     FChanges := [];
-
-    BufferPos := BufferPos + 6;
   end;
 end;
 
 { TSpriteSystem }
 
-function TSpriteSystem.AddSprite(ATexture: string): TSprite;
+function TSpriteSystem.Add<T>(ATexture: string): T;
 begin
-  Result := AddSprite(SpriteAtlas[ATexture]);
+  Result := Add<T>(SpriteAtlas[ATexture]);
 end;
 
-function TSpriteSystem.AddSprite(ATexture: TTextureAtlas.TTile): TSprite;
+function TSpriteSystem.Add<T>(ATexture: TTextureAtlas.TTile): T;
 begin
-  Result := TSprite.Create(Self, ATexture);
+  Result := T.Create(Self, ATexture);
   Result.OnChanged.Add(SpriteChanged);
+  Result.OnRemove.Add(SpriteRemoved);
+  Result.FIndex := FSprites.Count;
   FSprites.Add(Result);
   FSpritesSorted := False;
-  FVAO.VBO.Generate(FSprites.Count * 6, buDynamicDraw);
   FVAOChanged := True;
-end;
-
-function TSpriteSystem.AddSprite(AAnimation: TAnimation): TSprite;
-begin
-  raise ENotImplemented.Create('AddSprite(Animation)');
 end;
 
 constructor TSpriteSystem.Create(AGame: TGLGame; AGLProgram: TGLProgram);
@@ -690,17 +754,27 @@ begin
   Game.OnRender.Add(Render);
   Game.OnResize.Add(Resize);
   FAspectUniform := AGLProgram.Uniform<Single>('aspect');
+  FFBOBinding := Game.GLState.GLObjectBindings.Get<TFBO>;
   FVAO := TVAO.Create(AGLProgram);
   FSpriteAtlas := TTextureAtlas.Create(AGame.GLState);
   FSprites := TSprites.Create;
+  FChangedSprites := TSprites.Create;
+  FRemovedSprites := TSprites.Create;
+  FSpriteUpdater := TSpriteUpdater.Create;
+  FSpritesSorted := True;
 end;
 
 destructor TSpriteSystem.Destroy;
 var
   Sprite: TSprite;
 begin
-  for Sprite in FSprites do
+  StartTimer;
+  // in reverse, so that (behavior) event handlers are found faster
+  for Sprite in FSprites.InReverse do
     Sprite.Free;
+  FSpriteUpdater.Free;
+  FRemovedSprites.Free;
+  FChangedSprites.Free;
   FSprites.Free;
   FSpriteAtlas.Free;
   FVAO.Free;
@@ -715,29 +789,44 @@ end;
 procedure TSpriteSystem.Update;
 var
   Sprite: TSprite;
-  Removed: TObjectArray<TSprite>;
 begin
-  Removed := TObjectArray<TSprite>.Create;
-  for Sprite in FSprites do
+  FSpriteUpdater.Execute;
+
+  if not FRemovedSprites.Empty then
   begin
-    Sprite.Update;
-    if Sprite.Removed then
-      Removed.Add(Sprite);
+    for Sprite in FRemovedSprites do
+    begin
+      Sprite.Free;
+      FSpritesSorted := False;
+    end;
+    FRemovedSprites.Clear;
   end;
-  Removed.Free;
+
   if not FSpritesSorted then
     SortSprites;
 end;
 
-procedure TSpriteSystem.UpdateVAO;
+procedure TSpriteSystem.UpdateVAO(AUpdateAll: Boolean);
 var
   Writer: TVBO<TSpriteGLProgamBase.TData>.TWriter;
   Sprite: TSprite;
 begin
   Writer := FVAO.VBO.Map;
   try
-    for Sprite in FSprites do
-      Sprite.UpdateVAO(Writer);
+    if AUpdateAll then
+    begin
+      for Sprite in FSprites do
+      begin
+        Sprite.FChanges := [Low(TSprite.TChange) .. High(TSprite.TChange)];
+        Sprite.UpdateVAO(Writer);
+      end;
+    end
+    else
+    begin
+      for Sprite in FChangedSprites do
+        Sprite.UpdateVAO(Writer);
+    end;
+
   finally
     Writer.Free;
   end;
@@ -745,10 +834,45 @@ begin
 end;
 
 procedure TSpriteSystem.Render;
+var
+  Sprite: TSprite;
+  VBOCountChanged: Boolean;
+  VBOCount: Integer;
 begin
-  if FVAOChanged then
-    UpdateVAO;
-  FVAO.Render;
+  if not FChangedSprites.Empty then
+  begin
+    VBOCountChanged := False;
+    VBOCount := FVAO.VBO.Count div 6;
+    while FSprites.Count > VBOCount do
+    begin
+      VBOCount := Max(VBOCount, 1) shl 1;
+      VBOCountChanged := True;
+    end;
+    while FSprites.Count * 4 < VBOCount do
+    begin
+      VBOCount := VBOCount shr 1;
+      VBOCountChanged := True;
+    end;
+    if VBOCountChanged then
+      FVAO.VBO.Generate(VBOCount * 6, buDynamicDraw);
+    if not FChangedSprites.Empty then
+    begin
+      UpdateVAO(VBOCountChanged);
+      FChangedSprites.Clear;
+    end;
+  end;
+
+  Game.GLContext.Clear([amDepth]);
+
+  Game.GLState.Push;
+
+  Game.GLState[stBlend] := True;
+  Game.GLState[stBlendFunc] := TGLBlendFunc.Make(bfsSrcAlpha, bfdOneMinusSrcAlpha);
+  Game.GLState[stCullFace] := False;
+
+  FVAO.Render(IBounds1(FSprites.Count * 6));
+
+  Game.GLState.Pop;
 end;
 
 procedure TSpriteSystem.Resize;
@@ -758,16 +882,23 @@ end;
 
 procedure TSpriteSystem.SortSprites;
 var
-  Sprite: TSprite;
+  I: Integer;
 begin
   FSprites.Sort(
     function(ALeft, ARight: TSprite): Boolean
     begin
-      Result := ALeft.ZOrder > ARight.ZOrder;
+      Result := (ALeft.ZOrder < ARight.ZOrder) or
+        (ALeft.ZOrder = ARight.ZOrder) and (ALeft.FIndex < ARight.FIndex);
     end
     );
-  for Sprite in FSprites do
-    Sprite.FChanges := [Low(TSprite.TChange) .. High(TSprite.TChange)];
+  for I := 0 to FSprites.MaxIndex do
+  begin
+    if FSprites[I].FIndex <> I then
+    begin
+      FSprites[I].FIndex := I;
+      FSprites[I].FChanges := [Low(TSprite.TChange) .. High(TSprite.TChange)];
+    end;
+  end;
   FSpritesSorted := True;
 end;
 
@@ -778,17 +909,9 @@ begin
   FVAOChanged := True;
 end;
 
-{ TAnimation }
-
-constructor TAnimation.Create;
+procedure TSpriteSystem.SpriteRemoved(AInfo: TSprite.TEventInfo);
 begin
-  FFrames := TFrames.Create;
-end;
-
-destructor TAnimation.Destroy;
-begin
-  FFrames.Free;
-  inherited;
+  FRemovedSprites.Add(AInfo.Sender);
 end;
 
 { TSprite.TChangeEventInfo }
@@ -805,6 +928,11 @@ begin
 end;
 
 { TSprite.TBehavior }
+
+class procedure TSprite.TBehavior.Add(ASprite: TSprite);
+begin
+  Self.Create(ASprite);
+end;
 
 procedure TSprite.TBehavior.AddEvents;
 begin
@@ -846,7 +974,7 @@ begin
   Result := Sprite.SpriteSystem.Game;
 end;
 
-function TSprite.TBehavior.GetOnDone: TSenderEvent.TAccess;
+function TSprite.TBehavior.GetOnDone: TBehavior.TEvent.TAccess;
 begin
   Result := FOnDone.Access;
 end;
@@ -854,7 +982,7 @@ end;
 procedure TSprite.TBehavior.Remove;
 begin
   FRemoved := True;
-  FOnDone.Execute(TSenderEventInfo.Create(Self));
+  FOnDone.Execute(TSenderEventInfo<TBehavior>.Create(Self));
 end;
 
 procedure TSprite.TBehavior.SetEnabled(const Value: Boolean);
@@ -866,11 +994,6 @@ begin
     AddEvents
   else
     DelEvents;
-end;
-
-procedure TSprite.TBehavior.Update;
-begin
-  // nothing by default
 end;
 
 { ESpriteBehaviorNoDefault }
@@ -918,85 +1041,228 @@ begin
     Sprite.Fade := Progress;
 end;
 
-{ TSprite.TBehavior.TSenderEventInfo }
-
-constructor TSprite.TBehavior.TSenderEventInfo.Create(ASender: TBehavior);
-begin
-  FSender := ASender;
-end;
-
-function TSprite.TBehavior.TSenderEventInfo.Sender: TBehavior;
-begin
-  Result := FSender;
-end;
-
 { TSprite.TSimpleAnimationBeavior }
 
-procedure TSprite.TSimpleAnimationBeavior.AddEvents;
+procedure TSprite.TAnimationBeavior.SpriteChanged(AInfo: TChangeEventInfo);
 begin
-  Sprite.OnChanged.Add(SpriteChanged);
+  if (scTexture in AInfo.Changes) and (FBaseTextureTile <> Sprite.TextureTile.SubTiles[0]) then
+  begin
+    FBaseTextureTile := Sprite.TextureTile;
+    Restart;
+  end;
 end;
 
-constructor TSprite.TSimpleAnimationBeavior.Create(ASrite: TSprite);
+function TSprite.TAnimationBeavior.GetDuration: TSeconds;
 begin
-  inherited;
-  FFrameTime := 0.1;
-  FTimeLeft := FrameTime;
-  FFadePercentage := 1;
-  FFrame := 0;
+  Result := FFrameTime * Range.Length;
 end;
 
-constructor TSprite.TSimpleAnimationBeavior.Create(ASrite: TSprite; ADuration: TSeconds; AFadePercentage: Single);
+procedure TSprite.TAnimationBeavior.SetDuration(const Value: TSeconds);
 begin
-  inherited Create(ASprite);
-  Duration := ADuration;
-  FFadePercentage := AFadePerdentage;
+  if Duration = Value then
+    Exit;
+  FFrameTime := Value / Range.Length;
 end;
 
-procedure TSprite.TSimpleAnimationBeavior.DelEvents;
+procedure TSprite.TAnimationBeavior.SetFrameTime(const Value: TSeconds);
 begin
-  Sprite.OnChanged.Del(SpriteChanged);
-end;
-
-function TSprite.TSimpleAnimationBeavior.GetDuration: TSeconds;
-begin
-
-end;
-
-function TSprite.TSimpleAnimationBeavior.GetFrameFadePercentage: Single;
-begin
-
-end;
-
-procedure TSprite.TSimpleAnimationBeavior.SetDuration(const Value: TSeconds);
-begin
-
-end;
-
-procedure TSprite.TSimpleAnimationBeavior.SetFadePercentage(const Value: Single);
-begin
-  FFadePercentage := Value;
-end;
-
-procedure TSprite.TSimpleAnimationBeavior.SetFrame(const Value: Integer);
-begin
-  FFrame := Value;
-end;
-
-procedure TSprite.TSimpleAnimationBeavior.SetFrameTime(const Value: TSeconds);
-begin
+  if FrameTime = Value then
+    Exit;
+  FTimeLeft := FrameTimeLeft * Value / FFrameTime;
   FFrameTime := Value;
 end;
 
-procedure TSprite.TSimpleAnimationBeavior.SpriteChanged(AInfo: TChangeEventInfo);
+procedure TSprite.TAnimationBeavior.SetFrameWithoutFrameTime(AFrame: Integer);
 begin
-
+  Sprite.SubTextureIndex := AFrame;
+  Sprite.FadeTextureTile := FBaseTextureTile.SubTiles[Range.RangedMod(AFrame + 1)];
 end;
 
-procedure TSprite.TSimpleAnimationBeavior.Update;
+procedure TSprite.TAnimationBeavior.SetRange(const Value: TIntBounds1);
+begin
+  if FRange = Value then
+    Exit;
+  FRange := Value;
+  Frame := FRange.C1;
+end;
+
+procedure TSprite.TAnimationBeavior.SetReversed(const Value: Boolean);
+begin
+  if Reversed = Value then
+    Exit;
+  FReversed := Value;
+  FTimeLeft := FFrameTime - FTimeLeft;
+end;
+
+function TSprite.TAnimationBeavior.GetFrame: Integer;
+begin
+  Result := Sprite.SubTextureIndex;
+end;
+
+procedure TSprite.TAnimationBeavior.SetFrame(const Value: Integer);
+begin
+  FTimeLeft := FrameTime;
+  SetFrameWithoutFrameTime(Value);
+end;
+
+function TSprite.TAnimationBeavior.GetFrameFadePercentage: Single;
+begin
+  if FadePercentage = 0 then
+    Exit(0);
+  Result := Max(0, 1 - FrameTimeLeft / FrameTime / FadePercentage);
+  if Reversed then
+    Result := 1 - Result;
+end;
+
+procedure TSprite.TAnimationBeavior.Restart;
+begin
+  Frame := 0;
+end;
+
+procedure TSprite.TAnimationBeavior.AddEvents;
 begin
   inherited;
+  Sprite.OnChanged.Add(SpriteChanged);
+end;
 
+procedure TSprite.TAnimationBeavior.DelEvents;
+begin
+  inherited;
+  Sprite.OnChanged.Del(SpriteChanged);
+end;
+
+constructor TSprite.TAnimationBeavior.Create(ASrite: TSprite);
+begin
+  inherited;
+  FBaseTextureTile := Sprite.TextureTile.SubTiles[0];
+  Range := IBounds1(FBaseTextureTile.SubTiles.Count);
+  FFrameTime := 0.1;
+  FTimeLeft := FrameTime;
+  FFadePercentage := 1;
+end;
+
+constructor TSprite.TAnimationBeavior.Create(ASprite: TSprite; ADuration: TSeconds; AFadePercentage: Single);
+begin
+  inherited Create(ASprite);
+  FBaseTextureTile := Sprite.TextureTile.SubTiles[0];
+  Range := IBounds1(FBaseTextureTile.SubTiles.Count);
+  Duration := ADuration;
+  FTimeLeft := FrameTime;
+  FFadePercentage := AFadePercentage;
+end;
+
+procedure TSprite.TAnimationBeavior.Update;
+begin
+  FTimeLeft := FrameTimeLeft - Game.DeltaTime;
+  while FTimeLeft < 0 do
+  begin
+    FTimeLeft := FrameTimeLeft + FrameTime;
+    if Reversed then
+      Frame := Range.RangedMod(Frame - 1)
+    else
+      Frame := Range.RangedMod(Frame + 1);
+  end;
+  Sprite.Fade := FrameFadePercentage;
+end;
+
+{ TSprite.TUpdateBehavior }
+
+procedure TSprite.TUpdateBehavior.AddEvents;
+begin
+  Sprite.OnUpdate.Add(Update);
+end;
+
+procedure TSprite.TUpdateBehavior.DelEvents;
+begin
+  Sprite.OnUpdate.Del(Update);
+end;
+
+{ TSprite.TFollowMouseBehavior }
+
+procedure TSprite.TFollowMouseBehavior.Update;
+begin
+  Sprite.Location.Pos := Game.Input.MousePosRaw;
+end;
+
+{ TCharSprite }
+
+function TCharSprite.GetChar: Char;
+begin
+  Result := System.Char(SubTextureIndex);
+end;
+
+function TCharSprite.GetFont: string;
+begin
+  Result := Texture;
+end;
+
+function TCharSprite.GetFontTile: TTextureAtlas.TTile;
+begin
+  Result := TextureTile;
+end;
+
+function TCharSprite.GetWidth: Single;
+begin
+  Result := Aspect;
+end;
+
+function TCharSprite.GetWidthSpaced: Single;
+begin
+  Result := AspectPlus[FSpacePixels];
+end;
+
+procedure TCharSprite.SetChar(const Value: Char);
+begin
+  SubTextureIndex := Ord(Value);
+end;
+
+procedure TCharSprite.SetFont(const Value: string);
+begin
+  FontTile := SpriteSystem.SpriteAtlas[Value];
+end;
+
+procedure TCharSprite.SetFontTile(const Value: TTextureAtlas.TTile);
+begin
+  TextureTile := Value.SubTiles[SubTextureIndex];
+end;
+
+procedure TCharSprite.SpriteChanged(AInfo: TSprite.TChangeEventInfo);
+begin
+  if scTexture in AInfo.Changes then
+  begin
+    if TextureTile.SubTiles.Count <> 256 then
+      raise ECharSpriteInvalidFont.Create;
+    if (FadeTextureTile <> nil) and (FadeTextureTile.SubTiles.Count <> 256) then
+      raise ECharSpriteInvalidFont.Create;
+    if (FOldFontTile = nil) or not FOldFontTile.HasSubTiles or not TextureTile.HasSubTiles or
+      (FOldFontTile.SubTiles[0] <> TextureTile.SubTiles[0]) then
+    begin
+      FOldFontTile := TextureTile;
+      FSpacePixels := 0;
+      if TextureTile.InfoValues <> nil then
+        TextureTile.InfoValues.Get(TTextureAtlas.TTile.CharSpacingPixelsIdentifier, FSpacePixels);
+    end;
+  end;
+end;
+
+constructor TCharSprite.Create(ASpriteSystem: TSpriteSystem; ATextureTile: TTextureAtlas.TTile);
+begin
+  OnChanged.Add(SpriteChanged);
+  inherited;
+end;
+
+{ ECharSpriteInvalidFont }
+
+constructor ECharSpriteInvalidFont.Create;
+begin
+  inherited Create('The texture for the char sprite is not a valid font.');
+end;
+
+{ ESpriteRemovedAlready }
+
+constructor ESpriteRemovedAlready.Create;
+begin
+  inherited Create('The sprite got removed already.');
 end;
 
 end.

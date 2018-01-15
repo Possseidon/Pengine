@@ -17,7 +17,7 @@ interface
   Add various inline to functions with different compiler switches. }
 
 { TODO 5 -oPossseidon -cXmlDoc :
-  TLocation XmlDoc }
+  TLocation3 XmlDoc }
 
 { TODO 3 -oPossseidon -cClass :
   Code TAxisSystem. }
@@ -38,7 +38,8 @@ uses
   Pengine.EventHandling,
   Pengine.IntMaths,
   Pengine.Matrix,
-  Pengine.CollectionInterfaces;
+  Pengine.CollectionInterfaces,
+  Pengine.Utility;
 
 type
 
@@ -1198,41 +1199,7 @@ type
 
   end;
 
-  { TODO 1 -oPossseidon -cRecord : Code TPlane2 record }
-  /// <summary>Represents a 2-Dimensional plane, described by one support vector S and two direction vectors D1 and D2.</summary>
-  TPlane2 = record
-  private
-    function GetPoint(APos: TVector2): TVector2;
-    function GetInvPoints(APos: TVector2): TVector2;
-
-  public
-    /// <summary>The support vector S of the line.</summary>
-    S: TVector2;
-    /// <summary>The first direction vector D1 of the line.</summary>
-    D1: TVector2;
-    /// <summary>The second direction vector D2 of the line.</summary>
-    D2: TVector2;
-
-    /// <summary>Creates a plane with the given support vector and direction vectors.</summary>
-    constructor Create(const S, D1, D2: TVector2);
-
-    /// <returns>The area of the paralellogram.</returns>
-    function Area: Single; inline;
-
-    /// <summary>Gets a point on the plane, where <c>[0, 1]</c> turns into <c>[S, S + D1 + D2]</c></summary>
-    /// <remarks>Default property.</remarks>
-    property Point[APos: TVector2]: TVector2 read GetPoint; default;
-    /// <summary>Gets where a point lies on the plane, where <c>[S, S + D1 + D2]</c> turns into <c>[0, 1]</c></summary>
-    property InvPoint[APos: TVector2]: TVector2 read GetInvPoints;
-
-    class operator in(const A: TVector2; const B: TPlane2): Boolean;
-
-    class operator Equal(const A, B: TPlane2): Boolean;
-    class operator NotEqual(const A, B: TPlane2): Boolean;
-
-  end;
-
-  /// <summary>Represents a 3-Dimensional plane, described by one support vector S and two direction vectors D1 and D2.</summary>
+  /// <summary>Represents a 3-Dimensional plane, described by one support vector S and two direction vectors X and Y.</summary>
   TPlane3 = record
   private
     function GetPoint(Value: TVector2): TVector3;
@@ -1250,10 +1217,10 @@ type
   public
     /// <summary>The support vector S of the line.</summary>
     S: TVector3;
-    /// <summary>The first direction vector D1 of the line.</summary>
-    D1: TVector3;
-    /// <summary>The second direction vector D2 of the line.</summary>
-    D2: TVector3;
+    /// <summary>The direction vector DX of the line.</summary>
+    DX: TVector3;
+    /// <summary>The direction vector DY of the line.</summary>
+    DY: TVector3;
 
     /// <returns>The perpendicular of the plane with an arbitrary length.</returns>
     /// <remarks>The length is actually the area of the paralellogram, hence the cross-product.</remarks>
@@ -1263,15 +1230,15 @@ type
     /// <returns>The normal of the plane.</returns>
     function Normal: TVector3; inline;
 
-    /// <summary>Gets a point on the plane, where <c>[0, 1]</c> turns into <c>[S, S + D1 + D2]</c></summary>
+    /// <summary>Gets a point on the plane, where <c>[0, 1]</c> turns into <c>[S, S + X + Y]</c></summary>
     /// <remarks>Default property.</remarks>
     property Point[APos: TVector2]: TVector3 read GetPoint; default;
 
     /// <summary>Creates a plane with the given support vector and direction vectors.</summary>
-    constructor Create(const S, D1, D2: TVector3);
+    constructor Create(const S, X, Y: TVector3);
 
     /// <returns>The multiplication-factors, to reach the point on the plane, which is closest to the given point.</returns>
-    /// <exception><see cref="System.SysUtils|EZeroDivide"/> if either D1 or D2 is 0.</exception>
+    /// <exception><see cref="System.SysUtils|EZeroDivide"/> if either X or Y is 0.</exception>
     function OrthoProj(const A: TVector3): TVector2; overload;
 
     /// <summary>Calculates the shortest distance between the line and a point</summary>
@@ -1335,49 +1302,211 @@ type
   TVector2Helper = record helper for TVector2
     /// <returns>Creates a <see cref="Pengine.Vector|TLine2"/> between two vectors.</returns>
     function LineTo(const A: TVector2): TLine2;
+    function Bounds(const ASize: TVector2): TBounds2;
   end;
 
   /// <summary>Record helper for <see cref="Pengine.Vector|TVector3"/></summary>
   TVector3Helper = record helper for TVector3
     /// <returns>Creates a <see cref="Pengine.Vector|TLine3"/> between two vectors.</returns>
     function LineTo(const A: TVector3): TLine3;
+    function Bounds(const ASize: TVector3): TBounds3;
   end;
 
-  // TODO: Remove the constructor parameter and calculate invmatrix with the current inverted calculation
-  /// <summary>A class for an oriented position in 3D space.</summary>
-  TLocation = class
+  /// <summary>Represents a 2-Dimensional plane, described by one support vector S and two direction vectors X and Y.</summary>
+  TAxisSystem2 = record
+  private
+    function GetPoint(APos: TVector2): TVector2;
+    function GetInvPoints(APos: TVector2): TVector2;
+
+  public
+    /// <summary>The support vector S of the line.</summary>
+    S: TVector2;
+    /// <summary>The direction vector DX of the line.</summary>
+    DX: TVector2;
+    /// <summary>The direction vector DY of the line.</summary>
+    DY: TVector2;
+
+    /// <summary>Creates a plane with the given support vector and direction vectors.</summary>
+    constructor Create(const S, X, Y: TVector2);
+
+    /// <returns>The area of the paralellogram.</returns>
+    function Area: Single; inline;
+
+    /// <summary>Gets a point on the plane, where <c>[0, 1]</c> turns into <c>[S, S + X + Y]</c></summary>
+    /// <remarks>Default property.</remarks>
+    property Point[APos: TVector2]: TVector2 read GetPoint; default;
+    /// <summary>Gets where a point lies on the plane, where <c>[S, S + X + Y]</c> turns into <c>[0, 1]</c></summary>
+    property InvPoint[APos: TVector2]: TVector2 read GetInvPoints;
+
+    class operator in(const A: TVector2; const B: TAxisSystem2): Boolean;
+
+    class operator Equal(const A, B: TAxisSystem2): Boolean;
+    class operator NotEqual(const A, B: TAxisSystem2): Boolean;
+
+  end;
+
+  TAxisSystem3 = record
+  private
+    function GetPoint(APos: TVector3): TVector3;
+    function GetInvPoint(APos: TVector3): TVector3;
+
+  public
+    S: TVector3;
+    DX: TVector3;
+    DY: TVector3;
+    DZ: TVector3;
+
+    /// <summary>Creates an axis system with the given support vector and direction vectors.</summary>
+    constructor Create(const S, X, Y, Z: TVector3);
+
+    /// <summary>Gets a point in axis system, where <c>[0, 1]</c> turns into <c>[S, S + X + Y + Z]</c></summary>
+    /// <remarks>Default property.</remarks>
+    property Point[APos: TVector3]: TVector3 read GetPoint; default;
+    /// <summary>Gets where a point lies in the axis system, where <c>[S, S + X + Y]</c> turns into <c>[0, 1]</c></summary>
+    property InvPoint[APos: TVector3]: TVector3 read GetInvPoint;
+
+    class operator in(const A: TVector3; const B: TAxisSystem3): Boolean;
+
+    class operator Equal(const A, B: TAxisSystem3): Boolean;
+    class operator NotEqual(const A, B: TAxisSystem3): Boolean;
+
+  end;
+
+  TLocationChange = (
+    lcParent,
+    lcPos,
+    lcOffset,
+    lcScale,
+    lcTurn,
+    lcPitch,
+    lcRoll,
+    lcFreeTranslation,
+    lcFreeScale,
+    lcFreeRotation,
+    lcFreeMirror
+    );
+
+  TLocation2 = class
   public type
 
-    TChangeType = (
-      ctPosition,
-      ctOffset,
-      ctScale,
-      ctTurn,
-      ctPitch,
-      ctRoll,
-      ctFreeTranslation,
-      ctFreeScale,
-      ctFreeRotation,
-      ctFreeMirror,
-      ctParent
-      );
+    TChange = lcParent .. lcTurn;
 
-    TChanges = set of TChangeType;
+    TChanges = set of TChange;
 
-    TChangeEventInfo = class(TEventInfo, IEventSender<TLocation>)
+    TChangeEventInfo = class(TEventInfo, IEventSender<TLocation2>)
     private
-      FSender: TLocation;
+      FSender: TLocation2;
       FChanges: TChanges;
 
     public
-      constructor Create(ASender: TLocation; AChanges: TChanges);
+      constructor Create(ASender: TLocation2; AChanges: TChanges);
 
-      function Sender: TLocation;
+      function Sender: TLocation2;
+
       property Changes: TChanges read FChanges;
 
     end;
 
     TChangeEvent = TEvent<TChangeEventInfo>;
+
+  private
+    FParent: TLocation2;
+    FPos: TVector2;
+    FOffset: TVector2;
+    FScale: TVector2;
+    FRotation: Single;
+    FAxisSystem: TOpt<TAxisSystem2>;
+    FUpdateCounter: Integer;
+    FChanges: TChanges;
+    FOnChanged: TChangeEvent;
+
+    procedure SetParent(const Value: TLocation2);
+
+    procedure SetPos(const Value: TVector2);
+    procedure SetPosX(const Value: Single);
+    procedure SetPosY(const Value: Single);
+
+    procedure SetOffset(const Value: TVector2);
+    procedure SetOffsetX(const Value: Single);
+    procedure SetOffsetY(const Value: Single);
+
+    procedure SetRotation(Value: Single);
+
+    procedure SetScale(const Value: TVector2);
+    procedure SetScaleX(const Value: Single);
+    procedure SetScaleY(const Value: Single);
+
+    function GetAxisSystem: TAxisSystem2;
+    function GetInvPoint(APoint: TVector2): TVector2;
+    function GetPoint(APoint: TVector2): TVector2;
+
+    function GetOnChanged: TChangeEvent.TAccess;
+
+    procedure Changed(AChange: TChange);
+
+    procedure ParentChanged(AInfo: TChangeEventInfo);
+    
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure Reset;
+
+    property Parent: TLocation2 read FParent write SetParent;
+
+    property Pos: TVector2 read FPos write SetPos;
+    property PosX: Single read FPos.X write SetPosX;
+    property PosY: Single read FPos.Y write SetPosY;
+
+    property Offset: TVector2 read FOffset write SetOffset;
+    property OffsetX: Single read FOffset.X write SetOffsetX;
+    property OffsetY: Single read FOffset.Y write SetOffsetY;
+
+    property Rotation: Single read FRotation write SetRotation;
+
+    property Scale: TVector2 read FScale write SetScale;
+    property ScaleX: Single read FScale.X write SetScaleX;
+    property ScaleY: Single read FScale.Y write SetScaleY;
+
+    property AxisSystem: TAxisSystem2 read GetAxisSystem;
+    property Point[APoint: TVector2]: TVector2 read GetPoint; default;
+    property InvPoint[APoint: TVector2]: TVector2 read GetInvPoint;
+
+    procedure BeginUpdate;
+    procedure EndUpdate;
+
+    property OnChanged: TChangeEvent.TAccess read GetOnChanged;
+
+  end;
+
+  // TODO: Remove the constructor parameter and calculate invmatrix with the current inverted calculation
+  /// <summary>A class for an oriented position in 3D space.</summary>
+  TLocation3 = class
+  public type
+
+    TChange = lcParent .. lcFreeMirror;
+
+    TChanges = set of TChange;
+
+    TChangeEventInfo = class(TEventInfo, IEventSender<TLocation3>)
+    private
+      FSender: TLocation3;
+      FChanges: TChanges;
+
+    public
+      constructor Create(ASender: TLocation3; AChanges: TChanges);
+
+      function Sender: TLocation3;
+
+      property Changes: TChanges read FChanges;
+
+    end;
+
+    TChangeEvent = TEvent<TChangeEventInfo>;
+
+  public const
+
+    FreeChange = [lcFreeTranslation .. lcFreeMirror];
 
   private
     FPos: TVector3;
@@ -1401,12 +1530,11 @@ type
 
     FChanged: Boolean;
 
-    FParent: TLocation;
+    FParent: TLocation3;
 
     FOnChanged: TChangeEvent;
 
     procedure SetLook(AValue: TVector3);
-    procedure TriggerChanges(AChanges: TChanges);
 
     function GetMatrix: TMatrix4;
     function GetInvMatrix: TMatrix4;
@@ -1442,25 +1570,32 @@ type
     procedure SetTurn(AValue: Single);
 
     procedure ParentChanged(AInfo: TChangeEventInfo);
-    procedure SetParent(const Value: TLocation);
+    procedure SetParent(const Value: TLocation3);
 
-    function GetOnChanged: TChangeEvent.TAccess; inline;
+    procedure Changed(AChange: TChange); overload;
+    procedure Changed(AChanges: TChanges); overload;
+
+    function GetAxisSystem: TAxisSystem3;
+    function GetPoint(APos: TVector3): TVector3;
+    function GetInvPoint(APos: TVector3): TVector3;
+
+    function GetOnChanged: TChangeEvent.TAccess;
 
   public
-    /// <summary>Creates a <see cref="Pengine.Vector|TLocation"/>.</summary>
+    /// <summary>Creates a <see cref="Pengine.Vector|TLocation3"/>.</summary>
     /// <param name="AInverted">Output matrix is inverse, mainly used for cameras.</param>
     constructor Create(AInverted: Boolean = False);
 
     /// <summary>The 4x4 output transformation-matrix.</summary>
     property Matrix: TMatrix4 read GetMatrix;
-    /// <summary>The inverse of <see cref="Pengine.Vector|TLocation.Matrix"/>.</summary>
+    /// <summary>The inverse of <see cref="Pengine.Vector|TLocation3.Matrix"/>.</summary>
     /// <remarks>If only the inverse matrix is used, flip both matrices with the constructor parameter.</remarks>
     property InvMatrix: TMatrix4 read GetInvMatrix;
 
     property RotMatrix: TMatrix3 read GetRotMatrix;
     property InvRotMatrix: TMatrix3 read GetInvRotMatrix;
 
-    property Parent: TLocation read FParent write SetParent;
+    property Parent: TLocation3 read FParent write SetParent;
 
     property Pos: TVector3 read FPos write SetPos;
     property PosX: Single read FPos.X write SetPosX;
@@ -1509,9 +1644,9 @@ type
     procedure MoveOffset(const AVector: TVector3);
     procedure ScaleBy(const AScale: TVector3);
 
-    procedure Approach(ALocation: TLocation; ADelta: Single);
-    procedure Assign(ALocation: TLocation);
-    procedure Swap(ALocation: TLocation);
+    procedure Approach(ALocation: TLocation3; ADelta: Single);
+    procedure Assign(ALocation: TLocation3);
+    procedure Swap(ALocation: TLocation3);
 
     // Those will directly change the current Matrix and thus not trigger the rebuild
     // FTurn/FPitch/FRoll/FPos/FOffset won't be correct anymore
@@ -1526,6 +1661,10 @@ type
 
     procedure FromMatrix(AMatrix: TMatrix4);
     procedure FromRotMatrix(AMatrix: TMatrix3);
+
+    property AxisSystem: TAxisSystem3 read GetAxisSystem;
+    property Point[APos: TVector3]: TVector3 read GetPoint; default;
+    property InvPoint[APos: TVector3]: TVector3 read GetInvPoint;
 
     property OnChanged: TChangeEvent.TAccess read GetOnChanged;
 
@@ -1581,7 +1720,7 @@ type
   // TODO: XmlDoc
   TBlock3Raycaster = class
   private
-    FLocation: TLocation;
+    FLocation: TLocation3;
     FSize: TIntVector3;
 
     FLine: TLine3;
@@ -1593,7 +1732,7 @@ type
     FPosition: TVector3;
 
   public
-    constructor Create(ALocation: TLocation; ASize: TIntVector3);
+    constructor Create(ALocation: TLocation3; ASize: TIntVector3);
 
     procedure AddMin(AMin: Single);
     procedure AddMax(AMax: Single);
@@ -1645,7 +1784,7 @@ type
   PVectorDir = ^TVectorDir;
   PLine2 = ^TLine2;
   PLine3 = ^TLine3;
-  PPlane2 = ^TPlane2;
+  PPlane2 = ^TAxisSystem2;
   PPlane3 = ^TPlane3;
 
 const
@@ -1814,12 +1953,12 @@ const
     );
 
   CubePlanes: array [TBasicDir3] of TPlane3 = (
-    (S: (X: 0; Y: 0; Z: 0); D1: (X: 0; Y: 0; Z: 1); D2: (X: 0; Y: 1; Z: 0)),
-    (S: (X: 1; Y: 0; Z: 1); D1: (X: 0; Y: 0; Z: - 1); D2: (X: 0; Y: 1; Z: 0)),
-    (S: (X: 0; Y: 0; Z: 0); D1: (X: 1; Y: 0; Z: 0); D2: (X: 0; Y: 0; Z: 1)),
-    (S: (X: 0; Y: 1; Z: 1); D1: (X: 1; Y: 0; Z: 0); D2: (X: 0; Y: 0; Z: - 1)),
-    (S: (X: 1; Y: 0; Z: 0); D1: (X: - 1; Y: 0; Z: 0); D2: (X: 0; Y: 1; Z: 0)),
-    (S: (X: 0; Y: 0; Z: 1); D1: (X: 1; Y: 0; Z: 0); D2: (X: 0; Y: 1; Z: 0))
+    (S: (X: 0; Y: 0; Z: 0); DX: (X: 0; Y: 0; Z: 1); DY: (X: 0; Y: 1; Z: 0)),
+    (S: (X: 1; Y: 0; Z: 1); DX: (X: 0; Y: 0; Z: - 1); DY: (X: 0; Y: 1; Z: 0)),
+    (S: (X: 0; Y: 0; Z: 0); DX: (X: 1; Y: 0; Z: 0); DY: (X: 0; Y: 0; Z: 1)),
+    (S: (X: 0; Y: 1; Z: 1); DX: (X: 1; Y: 0; Z: 0); DY: (X: 0; Y: 0; Z: - 1)),
+    (S: (X: 1; Y: 0; Z: 0); DX: (X: - 1; Y: 0; Z: 0); DY: (X: 0; Y: 1; Z: 0)),
+    (S: (X: 0; Y: 0; Z: 1); DX: (X: 1; Y: 0; Z: 0); DY: (X: 0; Y: 1; Z: 0))
     );
 
 function FlipDir(ADir: TBasicDir): TBasicDir; inline;
@@ -1858,10 +1997,10 @@ function Line2(S, D: TVector2): TLine2; inline;
 /// <returns>A <see cref="Pengine.Vector|TLine3"/> with the given values for S and D.</returns>
 function Line3(S, D: TVector3): TLine3; inline;
 
-/// <returns>A <see cref="Pengine.Vector|TPlane2"/> with the given values for S, D1 and D2.</returns>
-function Plane2(S, D1, D2: TVector2): TPlane2; inline;
-/// <returns>A <see cref="Pengine.Vector|TPlane3"/> with the given values for S, D1 and D2.</returns>
-function Plane3(S, D1, D2: TVector3): TPlane3; inline;
+/// <returns>A <see cref="Pengine.Vector|TPlane2"/> with the given values for S, X and Y.</returns>
+function Plane2(S, X, Y: TVector2): TAxisSystem2; inline;
+/// <returns>A <see cref="Pengine.Vector|TPlane3"/> with the given values for S, X and Y.</returns>
+function Plane3(S, X, Y: TVector3): TPlane3; inline;
 
 implementation
 
@@ -3935,8 +4074,8 @@ var
   Factors: TPlane3.TLineIntsecFactors;
 begin
   Plane.S := S;
-  Plane.D1 := D;
-  Plane.D2 := D.Cross(A.D);
+  Plane.DX := D;
+  Plane.DY := D.Cross(A.D);
   Result := Plane.Intsec(A, Factors);
   if Result then
     AFactor := Factors.LineFactor;
@@ -3991,57 +4130,57 @@ end;
 
 { TPlane2 }
 
-function TPlane2.GetPoint(APos: TVector2): TVector2;
+function TAxisSystem2.GetPoint(APos: TVector2): TVector2;
 begin
-  Result := S + APos.X * D1 + APos.Y * D2;
+  Result := S + APos.X * DX + APos.Y * DY;
 end;
 
-class operator TPlane2.in(const A: TVector2; const B: TPlane2): Boolean;
+class operator TAxisSystem2.in(const A: TVector2; const B: TAxisSystem2): Boolean;
 begin
   Result := B.InvPoint[A] in Bounds2(0, 1);
 end;
 
-function TPlane2.GetInvPoints(APos: TVector2): TVector2;
+function TAxisSystem2.GetInvPoints(APos: TVector2): TVector2;
 begin
-  Result.X := (D2.Y * (APos.X - S.X) - D2.X * (APos.Y - S.Y)) / (D1.X * D2.Y - D1.Y * D2.X);
-  if (Abs(D2.X) > 1e-3) or (D2.Y = 0) then
-    Result.Y := (APos.X - S.X - Result.X * D1.X) / D2.X
+  Result.X := (DY.Y * (APos.X - S.X) - DY.X * (APos.Y - S.Y)) / (DX.X * DY.Y - DX.Y * DY.X);
+  if (Abs(DY.X) > 1E-3) or (DY.Y = 0) then
+    Result.Y := (APos.X - S.X - Result.X * DX.X) / DY.X
   else
-    Result.Y := (APos.Y - S.Y - Result.X * D1.Y) / D2.Y;
+    Result.Y := (APos.Y - S.Y - Result.X * DX.Y) / DY.Y;
 end;
 
-constructor TPlane2.Create(const S, D1, D2: TVector2);
+constructor TAxisSystem2.Create(const S, X, Y: TVector2);
 begin
   Self.S := S;
-  Self.D1 := D1;
-  Self.D2 := D2;
+  Self.DX := X;
+  Self.DY := Y;
 end;
 
-function TPlane2.Area: Single;
+function TAxisSystem2.Area: Single;
 begin
-  Result := Vec3(D1.X, D1.Y, 0).Cross(Vec3(D2.X, D2.Y, 0)).Z;
+  Result := Vec3(DX.X, DX.Y, 0).Cross(Vec3(DY.X, DY.Y, 0)).Z;
 end;
 
-class operator TPlane2.Equal(const A, B: TPlane2): Boolean;
+class operator TAxisSystem2.Equal(const A, B: TAxisSystem2): Boolean;
 begin
-  Result := (A.S = B.S) and (A.D1 = B.D1) and (A.D2 = B.D2);
+  Result := (A.S = B.S) and (A.DX = B.DX) and (A.DY = B.DY);
 end;
 
-class operator TPlane2.NotEqual(const A, B: TPlane2): Boolean;
+class operator TAxisSystem2.NotEqual(const A, B: TAxisSystem2): Boolean;
 begin
-  Result := (A.S <> B.S) or (A.D1 <> B.D1) or (A.D2 <> B.D2);
+  Result := (A.S <> B.S) or (A.DX <> B.DX) or (A.DY <> B.DY);
 end;
 
 { TPlane3 }
 
 function TPlane3.GetPoint(Value: TVector2): TVector3;
 begin
-  Result := S + Value.X * D1 + Value.Y * D2;
+  Result := S + Value.X * DX + Value.Y * DY;
 end;
 
 function TPlane3.Perpendicular: TVector3;
 begin
-  Result := D1.Cross(D2);
+  Result := DX.Cross(DY);
 end;
 
 function TPlane3.Area: Single;
@@ -4056,26 +4195,26 @@ end;
 
 class operator TPlane3.NotEqual(const A, B: TPlane3): Boolean;
 begin
-  Result := (A.S <> B.S) or (A.D1 <> B.D1) or (A.D2 <> B.D2);
+  Result := (A.S <> B.S) or (A.DX <> B.DX) or (A.DY <> B.DY);
 end;
 
-constructor TPlane3.Create(const S, D1, D2: TVector3);
+constructor TPlane3.Create(const S, X, Y: TVector3);
 begin
   Self.S := S;
-  Self.D1 := D1;
-  Self.D2 := D2;
+  Self.DX := X;
+  Self.DY := Y;
 end;
 
 class operator TPlane3.Equal(const A, B: TPlane3): Boolean;
 begin
-  Result := (A.S = B.S) and (A.D1 = B.D1) and (A.D2 = B.D2);
+  Result := (A.S = B.S) and (A.DX = B.DX) and (A.DY = B.DY);
 end;
 
 function TPlane3.OrthoProj(const A: TVector3): TVector2;
 begin
   // Yes, this is probably the fastest I can get :)
-  Result.X := (D2.SqrDot * D1.Dot(A - S) - D2.Dot(D1) * D2.Dot(A - S)) / (D1.SqrDot * D2.SqrDot - Sqr(D1.Dot(D2)));
-  Result.Y := (D1.SqrDot * D2.Dot(A - S) - D1.Dot(D2) * D1.Dot(A - S)) / (D2.SqrDot * D1.SqrDot - Sqr(D2.Dot(D1)));
+  Result.X := (DY.SqrDot * DX.Dot(A - S) - DY.Dot(DX) * DY.Dot(A - S)) / (DX.SqrDot * DY.SqrDot - Sqr(DX.Dot(DY)));
+  Result.Y := (DX.SqrDot * DY.Dot(A - S) - DX.Dot(DY) * DX.Dot(A - S)) / (DY.SqrDot * DX.SqrDot - Sqr(DY.Dot(DX)));
 end;
 
 function TPlane3.Height(const A: TVector3): Single;
@@ -4094,16 +4233,16 @@ function TPlane3.Intsec(const A: TLine3; out AFactors: TLineIntsecFactors): Bool
 var
   R: array [0 .. 2] of Single;
 begin
-  M4x3[0, 0] := D1.X;
-  M4x3[1, 0] := D2.X;
+  M4x3[0, 0] := DX.X;
+  M4x3[1, 0] := DY.X;
   M4x3[2, 0] := -A.D.X;
   M4x3[3, 0] := A.S.X - S.X;
-  M4x3[0, 1] := D1.Y;
-  M4x3[1, 1] := D2.Y;
+  M4x3[0, 1] := DX.Y;
+  M4x3[1, 1] := DY.Y;
   M4x3[2, 1] := -A.D.Y;
   M4x3[3, 1] := A.S.Y - S.Y;
-  M4x3[0, 2] := D1.Z;
-  M4x3[1, 2] := D2.Z;
+  M4x3[0, 2] := DX.Z;
+  M4x3[1, 2] := DY.Z;
   M4x3[2, 2] := -A.D.Z;
   M4x3[3, 2] := A.S.Z - S.Z;
 
@@ -4202,6 +4341,11 @@ end;
 
 { TVector2Helper }
 
+function TVector2Helper.Bounds(const ASize: TVector2): TBounds2;
+begin
+  Result.Create(Self, Self + ASize);
+end;
+
 function TVector2Helper.LineTo(const A: TVector2): TLine2;
 begin
   Result.Create(Self, VectorTo(A));
@@ -4209,27 +4353,32 @@ end;
 
 { TVector3Helper }
 
+function TVector3Helper.Bounds(const ASize: TVector3): TBounds3;
+begin
+  Result.Create(Self, Self + ASize);
+end;
+
 function TVector3Helper.LineTo(const A: TVector3): TLine3;
 begin
   Result.Create(Self, VectorTo(A));
 end;
 
-{ TLocation.TChangeEventInfo }
+{ TLocation3.TChangeEventInfo }
 
-constructor TLocation.TChangeEventInfo.Create(ASender: TLocation; AChanges: TChanges);
+constructor TLocation3.TChangeEventInfo.Create(ASender: TLocation3; AChanges: TChanges);
 begin
   FSender := ASender;
   FChanges := AChanges;
 end;
 
-function TLocation.TChangeEventInfo.Sender: TLocation;
+function TLocation3.TChangeEventInfo.Sender: TLocation3;
 begin
   Result := FSender;
 end;
 
-{ TLocation }
+{ TLocation3 }
 
-procedure TLocation.SetLook(AValue: TVector3);
+procedure TLocation3.SetLook(AValue: TVector3);
 var
   D: TVectorDir;
 begin
@@ -4240,15 +4389,15 @@ begin
   PitchAngle := D.PitchAngle;
 end;
 
-procedure TLocation.TriggerChanges(AChanges: TChanges);
+procedure TLocation3.Changed(AChanges: TChanges);
 begin
   FChanged := True;
-  if AChanges - [ctFreeScale, ctFreeTranslation, ctFreeRotation] = AChanges then // free changes matrix > no notify
+  if AChanges - FreeChange = AChanges then // free changes matrix > no notify
     FMatrixChanged := True;
   FOnChanged.Execute(TChangeEventInfo.Create(Self, AChanges));
 end;
 
-function TLocation.GetMatrix: TMatrix4;
+function TLocation3.GetMatrix: TMatrix4;
 begin
   if FMatrixChanged then
     BuildMatrix;
@@ -4257,12 +4406,27 @@ begin
   Result := FMatrix;
 end;
 
-function TLocation.GetOnChanged: TChangeEvent.TAccess;
+function TLocation3.GetOnChanged: TChangeEvent.TAccess;
 begin
   Result := FOnChanged.Access;
 end;
 
-function TLocation.GetInvMatrix: TMatrix4;
+function TLocation3.GetPoint(APos: TVector3): TVector3;
+begin
+  Result := Matrix * APos;
+end;
+
+function TLocation3.GetAxisSystem: TAxisSystem3;
+begin
+  Result.Create(
+    Vec3(Matrix[3, 0], Matrix[3, 1], Matrix[3, 2]),
+    Vec3(Matrix[0, 0], Matrix[0, 1], Matrix[0, 2]),
+    Vec3(Matrix[1, 0], Matrix[1, 1], Matrix[1, 2]),
+    Vec3(Matrix[2, 0], Matrix[2, 1], Matrix[2, 2])
+    );
+end;
+
+function TLocation3.GetInvMatrix: TMatrix4;
 begin
   if FMatrixChanged or FInvMatrixChanged then
     FInvMatrix := Matrix.Inverse;
@@ -4270,7 +4434,12 @@ begin
   FInvMatrixChanged := False;
 end;
 
-function TLocation.GetRotMatrix: TMatrix3;
+function TLocation3.GetInvPoint(APos: TVector3): TVector3;
+begin
+  Result := InvMatrix * APos;
+end;
+
+function TLocation3.GetRotMatrix: TMatrix3;
 begin
   if FMatrixChanged or FRotMatrixChanged then
     FRotMatrix := Matrix.Minor[3];
@@ -4279,7 +4448,7 @@ begin
   FInvRotMatrixChanged := True;
 end;
 
-function TLocation.GetInvRotMatrix: TMatrix3;
+function TLocation3.GetInvRotMatrix: TMatrix3;
 begin
   if FMatrixChanged or FRotMatrixChanged or FInvRotMatrixChanged then
     FInvRotMatrix := RotMatrix.Inverse;
@@ -4287,7 +4456,7 @@ begin
   FInvRotMatrixChanged := False;
 end;
 
-function TLocation.GetRealPosition: TVector3;
+function TLocation3.GetRealPosition: TVector3;
 begin
   Result := TVector3.Create(
     Matrix[3, 0],
@@ -4299,7 +4468,7 @@ begin
     Result := -Result;
 end;
 
-function TLocation.GetRight: TVector3;
+function TLocation3.GetRight: TVector3;
 begin
   if FMatrixChanged then
     BuildMatrix;
@@ -4321,7 +4490,7 @@ begin
   end;
 end;
 
-function TLocation.GetLook: TVector3;
+function TLocation3.GetLook: TVector3;
 begin
   if FMatrixChanged then
     BuildMatrix;
@@ -4343,7 +4512,7 @@ begin
   end;
 end;
 
-function TLocation.GetUp: TVector3;
+function TLocation3.GetUp: TVector3;
 begin
   if FMatrixChanged then
     BuildMatrix;
@@ -4365,7 +4534,7 @@ begin
   end;
 end;
 
-procedure TLocation.BuildMatrix;
+procedure TLocation3.BuildMatrix;
 begin
   FOnChanged.Disable;
   if Parent <> nil then
@@ -4396,135 +4565,135 @@ begin
   FOnChanged.Enable;
 end;
 
-procedure TLocation.SetPos(AValue: TVector3);
+procedure TLocation3.SetPos(AValue: TVector3);
 begin
   if FPos = AValue then
     Exit;
   FPos := AValue;
-  TriggerChanges([ctPosition]);
+  Changed(lcPos);
 end;
 
-procedure TLocation.SetPosX(AValue: Single);
+procedure TLocation3.SetPosX(AValue: Single);
 begin
   if FPos.X = AValue then
     Exit;
   FPos.X := AValue;
-  TriggerChanges([ctPosition]);
+  Changed(lcPos);
 end;
 
-procedure TLocation.SetPosY(AValue: Single);
+procedure TLocation3.SetPosY(AValue: Single);
 begin
   if FPos.Y = AValue then
     Exit;
   FPos.Y := AValue;
-  TriggerChanges([ctPosition]);
+  Changed(lcPos);
 end;
 
-procedure TLocation.SetPosZ(AValue: Single);
+procedure TLocation3.SetPosZ(AValue: Single);
 begin
   if FPos.Z = AValue then
     Exit;
   FPos.Z := AValue;
-  TriggerChanges([ctPosition]);
+  Changed(lcPos);
 end;
 
-procedure TLocation.SetOffset(AValue: TVector3);
+procedure TLocation3.SetOffset(AValue: TVector3);
 begin
   if FOffset = AValue then
     Exit;
   FOffset := AValue;
-  TriggerChanges([ctOffset]);
+  Changed(lcOffset);
 end;
 
-procedure TLocation.SetOffsetX(AValue: Single);
+procedure TLocation3.SetOffsetX(AValue: Single);
 begin
   if FOffset.X = AValue then
     Exit;
   FOffset.X := AValue;
-  TriggerChanges([ctOffset]);
+  Changed(lcOffset);
 end;
 
-procedure TLocation.SetOffsetY(AValue: Single);
+procedure TLocation3.SetOffsetY(AValue: Single);
 begin
   if FOffset.Y = AValue then
     Exit;
   FOffset.Y := AValue;
-  TriggerChanges([ctOffset]);
+  Changed(lcOffset);
 end;
 
-procedure TLocation.SetOffsetZ(AValue: Single);
+procedure TLocation3.SetOffsetZ(AValue: Single);
 begin
   if FOffset.Z = AValue then
     Exit;
   FOffset.Z := AValue;
-  TriggerChanges([ctOffset]);
+  Changed(lcOffset);
 end;
 
-procedure TLocation.SetScale(AValue: TVector3);
+procedure TLocation3.SetScale(AValue: TVector3);
 begin
   if FScale = AValue then
     Exit;
   FScale := AValue;
-  TriggerChanges([ctScale]);
+  Changed(lcScale);
 end;
 
-procedure TLocation.SetScaleX(AValue: Single);
+procedure TLocation3.SetScaleX(AValue: Single);
 begin
   if FScale.X = AValue then
     Exit;
   FScale.X := AValue;
-  TriggerChanges([ctScale]);
+  Changed(lcScale);
 end;
 
-procedure TLocation.SetScaleY(AValue: Single);
+procedure TLocation3.SetScaleY(AValue: Single);
 begin
   if FScale.Y = AValue then
     Exit;
   FScale.Y := AValue;
-  TriggerChanges([ctScale]);
+  Changed(lcScale);
 end;
 
-procedure TLocation.SetScaleZ(AValue: Single);
+procedure TLocation3.SetScaleZ(AValue: Single);
 begin
   if FScale.Z = AValue then
     Exit;
   FScale.Z := AValue;
-  TriggerChanges([ctScale]);
+  Changed(lcScale);
 end;
 
-procedure TLocation.SetPitch(AValue: Single);
+procedure TLocation3.SetPitch(AValue: Single);
 begin
   AValue := RotationLimit.RangedModL(AValue);
   if FRotation.X = AValue then
     Exit;
   FRotation.X := AValue;
-  TriggerChanges([ctPitch]);
+  Changed(lcPitch);
 end;
 
-procedure TLocation.SetRoll(AValue: Single);
+procedure TLocation3.SetRoll(AValue: Single);
 begin
   AValue := RotationLimit.RangedModL(AValue);
   if FRotation.Z = AValue then
     Exit;
   FRotation.Z := AValue;
-  TriggerChanges([ctRoll]);
+  Changed(lcRoll);
 end;
 
-procedure TLocation.SetTurn(AValue: Single);
+procedure TLocation3.SetTurn(AValue: Single);
 begin
   AValue := RotationLimit.RangedModL(AValue);
   if FRotation.Y = AValue then
     Exit;
   FRotation.Y := AValue;
-  TriggerChanges([ctTurn]);
+  Changed(lcTurn);
 end;
 
-procedure TLocation.ParentChanged(AInfo: TChangeEventInfo);
+procedure TLocation3.ParentChanged(AInfo: TChangeEventInfo);
 begin
-  TriggerChanges([ctParent]);
+  Changed(lcParent);
 end;
 
-procedure TLocation.SetParent(const Value: TLocation);
+procedure TLocation3.SetParent(const Value: TLocation3);
 begin
   if FParent = Value then
     Exit;
@@ -4533,16 +4702,28 @@ begin
   FParent := Value;
   if FParent <> nil then
     FParent.OnChanged.Add(ParentChanged);
-  TriggerChanges([ctParent]);
+  Changed(lcParent);
 end;
 
-constructor TLocation.Create(AInverted: Boolean);
+procedure TLocation3.Changed(AChange: TChange);
 begin
-  Reset;
-  FInverted := AInverted;
+  FChanged := True;
+  if not(AChange in FreeChange) then // free changes matrix > no notify
+    FMatrixChanged := True;
+  FOnChanged.Execute(TChangeEventInfo.Create(Self, [AChange]));
 end;
 
-procedure TLocation.Slide(ADistance: Single; AHorizontal: Boolean);
+constructor TLocation3.Create(AInverted: Boolean);
+begin
+  FInverted := AInverted;
+  FPos := 0;
+  FOffset := 0;
+  FScale := 1;
+  FRotation := 0;
+  FChanged := True;
+end;
+
+procedure TLocation3.Slide(ADistance: Single; AHorizontal: Boolean);
 begin
   if AHorizontal then
     Pos := Pos + Vec3(Right.X * ADistance, 0, Right.Z * ADistance)
@@ -4550,7 +4731,7 @@ begin
     Pos := Pos + Right * ADistance;
 end;
 
-procedure TLocation.Lift(ADistance: Single; AYOnly: Boolean);
+procedure TLocation3.Lift(ADistance: Single; AYOnly: Boolean);
 begin
   if AYOnly then
     Pos := Pos + Vec3(0, Up.Y * ADistance, 0)
@@ -4558,7 +4739,7 @@ begin
     Pos := Pos + Up * ADistance;
 end;
 
-procedure TLocation.Move(ADistance: Single; AHorizontal: Boolean);
+procedure TLocation3.Move(ADistance: Single; AHorizontal: Boolean);
 begin
   if AHorizontal then
     Pos := Pos + Vec3(Look.X * ADistance, 0, Look.Z * ADistance)
@@ -4566,12 +4747,12 @@ begin
     Pos := Pos + Look * ADistance;
 end;
 
-procedure TLocation.LookAt(APoint: TVector3);
+procedure TLocation3.LookAt(APoint: TVector3);
 begin
   Look := RealPosition.VectorTo(APoint);
 end;
 
-procedure TLocation.Reset;
+procedure TLocation3.Reset;
 begin
   Pos := 0;
   Offset := 0;
@@ -4579,99 +4760,93 @@ begin
   FRotation := 0;
   FMatrix.LoadIdentity;
   FChanged := True;
-  FOnChanged.Execute(TChangeEventInfo.Create(Self, [
-    ctPosition,
-    ctOffset,
-    ctScale,
-    ctTurn,
-    ctPitch,
-    ctRoll]));
+  FOnChanged.Execute(TChangeEventInfo.Create(Self, [lcPos .. lcRoll]));
 end;
 
-procedure TLocation.ResetTranslation;
+procedure TLocation3.ResetTranslation;
 begin
   if Pos = 0 then
     Exit;
   Pos := 0;
-  TriggerChanges([ctPosition]);
+  Changed(lcPos);
 end;
 
-procedure TLocation.ResetOffset;
+procedure TLocation3.ResetOffset;
 begin
   if Offset = 0 then
     Exit;
   Offset := 0;
-  TriggerChanges([ctOffset]);
+  Changed(lcOffset);
 end;
 
-procedure TLocation.ResetScale;
+procedure TLocation3.ResetScale;
 begin
   if Scale = 0 then
     Exit;
   Scale := 0;
-  TriggerChanges([ctScale]);
+  Changed(lcScale);
 end;
 
-procedure TLocation.ResetRotation;
+procedure TLocation3.ResetRotation;
 begin
   if FRotation = 0 then
     Exit;
   FRotation := 0;
-  TriggerChanges([ctTurn, ctPitch, ctRoll]);
+  Changed([lcTurn, lcPitch, lcRoll]);
 end;
 
-procedure TLocation.Turn(const ATurn: Single);
+procedure TLocation3.Turn(const ATurn: Single);
 begin
   TurnAngle := TurnAngle + ATurn;
 end;
 
-procedure TLocation.Pitch(const APitch: Single);
+procedure TLocation3.Pitch(const APitch: Single);
 begin
   PitchAngle := PitchAngle + APitch;
 end;
 
-procedure TLocation.Roll(const ARoll: Single);
+procedure TLocation3.Roll(const ARoll: Single);
 begin
   RollAngle := RollAngle + ARoll;
 end;
 
-procedure TLocation.Rotate(const ARotation: TVector3);
+procedure TLocation3.Rotate(const ARotation: TVector3);
 var
   Changes: TChanges;
 begin
   Changes := [];
   if ARotation.X <> 0 then
-    Include(Changes, ctPitch);
+    Include(Changes, lcPitch);
   if ARotation.Y <> 0 then
-    Include(Changes, ctTurn);
+    Include(Changes, lcTurn);
   if ARotation.Z <> 0 then
-    Include(Changes, ctRoll);
+    Include(Changes, lcRoll);
   if Changes <> [] then
   begin
     FRotation := FRotation + ARotation;
     FFreeChanged := True;
-    TriggerChanges(Changes);
+    Changed(Changes);
   end;
 end;
 
-procedure TLocation.Translate(const AVector: TVector3);
+procedure TLocation3.Translate(const AVector: TVector3);
 begin
   FPos := FPos + AVector;
-  TriggerChanges([ctPosition]);
+  Changed(lcPos);
 end;
 
-procedure TLocation.MoveOffset(const AVector: TVector3);
+procedure TLocation3.MoveOffset(const AVector: TVector3);
 begin
   FOffset := FOffset + AVector;
-  TriggerChanges([ctOffset]);
+  Changed(lcOffset);
 end;
 
-procedure TLocation.ScaleBy(const AScale: TVector3);
+procedure TLocation3.ScaleBy(const AScale: TVector3);
 begin
   Scale := Scale * AScale;
 end;
 
-procedure TLocation.Approach(ALocation: TLocation; ADelta: Single);
+procedure TLocation3.Approach(ALocation: TLocation3; ADelta: Single);
 
   function ApproachRotation(AValue, AFinal: Single): Single;
   begin
@@ -4696,7 +4871,7 @@ begin
 
 end;
 
-procedure TLocation.Assign(ALocation: TLocation);
+procedure TLocation3.Assign(ALocation: TLocation3);
 begin
   Pos := ALocation.Pos;
   Offset := ALocation.Offset;
@@ -4706,18 +4881,18 @@ begin
   RollAngle := ALocation.RollAngle;
 end;
 
-procedure TLocation.Swap(ALocation: TLocation);
+procedure TLocation3.Swap(ALocation: TLocation3);
 var
-  Tmp: TLocation;
+  Tmp: TLocation3;
 begin
-  Tmp := TLocation.Create;
+  Tmp := TLocation3.Create;
   Tmp.Assign(ALocation);
   ALocation.Assign(Self);
   Self.Assign(Tmp);
   Tmp.Free;
 end;
 
-procedure TLocation.FreeRotate(AVector: TVector3; const AAngle: Single);
+procedure TLocation3.FreeRotate(AVector: TVector3; const AAngle: Single);
 var
   S, C, CInv: Single;
   M: TMatrix4;
@@ -4746,10 +4921,10 @@ begin
 
   FMatrix := FMatrix * M;
 
-  TriggerChanges([ctFreeRotation]);
+  Changed(lcFreeRotation);
 end;
 
-procedure TLocation.FreeTurn(ATurn: Single);
+procedure TLocation3.FreeTurn(ATurn: Single);
 var
   M: TMatrix4;
 begin
@@ -4763,10 +4938,10 @@ begin
   M[2, 2] := Cos(ATurn);
   FMatrix := FMatrix * M;
   FFreeChanged := True;
-  TriggerChanges([ctFreeRotation]);
+  Changed(lcFreeRotation);
 end;
 
-procedure TLocation.FreePitch(APitch: Single);
+procedure TLocation3.FreePitch(APitch: Single);
 var
   M: TMatrix4;
 begin
@@ -4780,10 +4955,10 @@ begin
   M[2, 2] := Cos(APitch);
   FMatrix := FMatrix * M;
   FFreeChanged := True;
-  TriggerChanges([ctFreeRotation]);
+  Changed(lcFreeRotation);
 end;
 
-procedure TLocation.FreeRoll(ARoll: Single);
+procedure TLocation3.FreeRoll(ARoll: Single);
 var
   M: TMatrix4;
 begin
@@ -4797,10 +4972,10 @@ begin
   M[1, 1] := Cos(ARoll);
   FMatrix := FMatrix * M;
   FFreeChanged := True;
-  TriggerChanges([ctFreeRotation]);
+  Changed(lcFreeRotation);
 end;
 
-procedure TLocation.FreeTranslate(const AVector: TVector3);
+procedure TLocation3.FreeTranslate(const AVector: TVector3);
 var
   M: TMatrix4;
 begin
@@ -4810,10 +4985,10 @@ begin
   M[3, 2] := AVector.Z;
   FMatrix := FMatrix * M;
   FFreeChanged := True;
-  TriggerChanges([ctFreeTranslation]);
+  Changed(lcFreeTranslation);
 end;
 
-procedure TLocation.FreeScale(const AScale: TVector3);
+procedure TLocation3.FreeScale(const AScale: TVector3);
 var
   M: TMatrix4;
 begin
@@ -4824,10 +4999,10 @@ begin
   M[3, 3] := 1;
   FMatrix := FMatrix * M;
   FFreeChanged := True;
-  TriggerChanges([ctFreeScale]);
+  Changed(lcFreeScale);
 end;
 
-procedure TLocation.FreeMirror(ANormal: TLine3);
+procedure TLocation3.FreeMirror(ANormal: TLine3);
 var
   R, U, L, P: TVector3;
 begin
@@ -4854,21 +5029,21 @@ begin
   FMatrix[3, 2] := P.Z;
 
   FFreeChanged := True;
-  TriggerChanges([ctFreeMirror]);
+  Changed(lcFreeMirror);
 end;
 
-procedure TLocation.FromMatrix(AMatrix: TMatrix4);
+procedure TLocation3.FromMatrix(AMatrix: TMatrix4);
 begin
   FMatrix := AMatrix;
   FFreeChanged := True;
-  TriggerChanges([ctFreeRotation, ctFreeScale, ctFreeTranslation]);
+  Changed([lcFreeRotation, lcFreeScale, lcFreeTranslation]);
 end;
 
-procedure TLocation.FromRotMatrix(AMatrix: TMatrix3);
+procedure TLocation3.FromRotMatrix(AMatrix: TMatrix3);
 begin
   FMatrix.Minor[3] := AMatrix;
   FFreeChanged := True;
-  TriggerChanges([ctFreeRotation, ctFreeScale]);
+  Changed([lcFreeRotation, lcFreeScale]);
 end;
 
 { TBasicAxisSystem }
@@ -5034,7 +5209,7 @@ end;
 
 { TBlockRaycaster3 }
 
-constructor TBlock3Raycaster.Create(ALocation: TLocation; ASize: TIntVector3);
+constructor TBlock3Raycaster.Create(ALocation: TLocation3; ASize: TIntVector3);
 begin
   FLocation := ALocation;
   FSize := ASize;
@@ -5270,14 +5445,269 @@ begin
   Result.Create(S, D);
 end;
 
-function Plane2(S, D1, D2: TVector2): TPlane2;
+function Plane2(S, X, Y: TVector2): TAxisSystem2;
 begin
-  Result.Create(S, D1, D2);
+  Result.Create(S, X, Y);
 end;
 
-function Plane3(S, D1, D2: TVector3): TPlane3;
+function Plane3(S, X, Y: TVector3): TPlane3;
 begin
-  Result.Create(S, D1, D2);
+  Result.Create(S, X, Y);
+end;
+
+{ TAxisSystem }
+
+function TAxisSystem3.GetPoint(APos: TVector3): TVector3;
+begin
+  Result := S + APos.X * DX + APos.Y * DY + APos.Z * DZ;
+end;
+
+function TAxisSystem3.GetInvPoint(APos: TVector3): TVector3;
+var
+  M: TMatrix4;
+begin
+  M[0, 0] := DX.X;
+  M[0, 1] := DX.Y;
+  M[0, 2] := DX.Z;
+  M[0, 3] := 0;
+  M[1, 0] := DY.X;
+  M[1, 1] := DY.Y;
+  M[1, 2] := DY.Z;
+  M[1, 3] := 0;
+  M[2, 0] := DZ.X;
+  M[2, 1] := DZ.Y;
+  M[2, 2] := DZ.Z;
+  M[2, 3] := 0;
+  M[3, 0] := S.X;
+  M[3, 1] := S.Y;
+  M[3, 2] := S.Z;
+  M[3, 3] := 1;
+  M := M.Inverse;
+  Result := M * APos;
+end;
+
+constructor TAxisSystem3.Create(const S, X, Y, Z: TVector3);
+begin
+  Self.S := S;
+  Self.DX := X;
+  Self.DY := Y;
+  Self.DZ := Z;
+end;
+
+class operator TAxisSystem3.in(const A: TVector3; const B: TAxisSystem3): Boolean;
+begin
+  Result := B.InvPoint[A] in Bounds3(0, 1);
+end;
+
+class operator TAxisSystem3.Equal(const A, B: TAxisSystem3): Boolean;
+begin
+  Result := (A.S = B.S) and (A.DX = B.DX) and (A.DY = B.DY) and (A.DZ = B.DZ);
+end;
+
+class operator TAxisSystem3.NotEqual(const A, B: TAxisSystem3): Boolean;
+begin
+  Result := (A.S <> B.S) or (A.DX <> B.DX) or (A.DY = B.DY) or (A.DZ = B.DZ);
+end;
+
+{ TLocation2.TChangeEventInfo }
+
+constructor TLocation2.TChangeEventInfo.Create(ASender: TLocation2; AChanges: TChanges);
+begin
+  FSender := ASender;
+  FChanges := AChanges;
+end;
+
+function TLocation2.TChangeEventInfo.Sender: TLocation2;
+begin
+  Result := FSender;
+end;
+
+{ TLocation2 }
+
+procedure TLocation2.SetParent(const Value: TLocation2);
+begin
+  if Parent = Value then
+    Exit;
+  if Parent <> nil then
+    Parent.OnChanged.Del(ParentChanged);
+  FParent := Value;
+  if Parent <> nil then
+    Parent.OnChanged.Add(ParentChanged);
+  Changed(lcParent);
+end;
+
+procedure TLocation2.SetPos(const Value: TVector2);
+begin
+  if Pos = Value then
+    Exit;
+  FPos := Value;
+  Changed(lcPos);
+end;
+
+procedure TLocation2.SetPosX(const Value: Single);
+begin
+  if PosX = Value then
+    Exit;
+  FPos.X := Value;
+  Changed(lcPos);
+end;
+
+procedure TLocation2.SetPosY(const Value: Single);
+begin
+  if PosY = Value then
+    Exit;
+  FPos.Y := Value;
+  Changed(lcPos);
+end;
+
+procedure TLocation2.SetOffset(const Value: TVector2);
+begin
+  if Offset = Value then
+    Exit;
+  FOffset := Value;
+  Changed(lcOffset);
+end;
+
+procedure TLocation2.SetOffsetX(const Value: Single);
+begin
+  if OffsetX = Value then
+    Exit;
+  FOffset.X := Value;
+  Changed(lcOffset);
+end;
+
+procedure TLocation2.SetOffsetY(const Value: Single);
+begin
+  if OffsetY = Value then
+    Exit;
+  FOffset.Y := Value;
+  Changed(lcOffset);
+end;
+
+procedure TLocation2.SetRotation(Value: Single);
+begin
+  Value := Bounds1(0, 360).RangedModL(Value);
+  if Rotation = Value then
+    Exit;
+  FRotation := Value;
+  Changed(lcTurn);
+end;
+
+procedure TLocation2.SetScale(const Value: TVector2);
+begin
+  if Scale = Value then
+    Exit;
+  FScale := Value;
+  Changed(lcScale);
+end;
+
+procedure TLocation2.SetScaleX(const Value: Single);
+begin
+  if ScaleX = Value then
+    Exit;
+  FScale.X := Value;
+  Changed(lcScale);
+end;
+
+procedure TLocation2.SetScaleY(const Value: Single);
+begin
+  if ScaleY = Value then
+    Exit;
+  FScale.Y := Value;
+  Changed(lcScale);
+end;
+
+function TLocation2.GetAxisSystem: TAxisSystem2;
+var
+  P: TLocation2;
+begin
+  if not FAxisSystem.HasValue then
+  begin
+    Result.Create(
+      Pos,
+      TVector2.FromAngle(Rotation) * Scale.X,
+      TVector2.FromAngle(Rotation + 90) * Scale.Y
+      );
+    if Parent <> nil then
+      Result.S := Parent[Result.S];
+    P := Parent;
+    while P <> nil do
+    begin
+      Result.DX := Result.DX.Rotate(P.Rotation) * P.ScaleX;
+      Result.DY := Result.DY.Rotate(P.Rotation) * P.ScaleY;
+      P := P.Parent;
+    end;
+    Result.S := Result.S + Result.DX * Offset.X + Result.DY * Offset.Y;
+    FAxisSystem.Value := Result;
+  end
+  else
+    Result := FAxisSystem.Value;
+end;
+
+function TLocation2.GetInvPoint(APoint: TVector2): TVector2;
+begin
+  Result := AxisSystem.InvPoint[APoint];
+end;
+
+function TLocation2.GetPoint(APoint: TVector2): TVector2;
+begin
+  Result := AxisSystem[APoint];
+end;
+
+procedure TLocation2.ParentChanged(AInfo: TChangeEventInfo);
+begin
+  Changed(lcParent);
+end;
+
+procedure TLocation2.Reset;
+begin
+  BeginUpdate;
+  Pos := 0;
+  Offset := 0;
+  Rotation := 0;
+  Scale := 1;
+  EndUpdate;
+end;
+
+function TLocation2.GetOnChanged: TChangeEvent.TAccess;
+begin
+  Result := FOnChanged.Access;
+end;
+
+procedure TLocation2.Changed(AChange: TChange);
+begin
+  FAxisSystem.Clear;
+  if FUpdateCounter = 0 then
+    FOnChanged.Execute(TChangeEventInfo.Create(Self, [AChange]))
+  else
+    Include(FChanges, AChange);
+end;
+
+procedure TLocation2.BeginUpdate;
+begin
+  Inc(FUpdateCounter);
+end;
+
+constructor TLocation2.Create;
+begin
+  FAxisSystem := TOpt<TAxisSystem2>.Create;
+  FScale := 1;
+end;
+
+destructor TLocation2.Destroy;
+begin
+  FAxisSystem.Free;
+  inherited;
+end;
+
+procedure TLocation2.EndUpdate;
+begin
+  Dec(FUpdateCounter);
+  if (FUpdateCounter = 0) and (FChanges <> []) then
+  begin
+    FOnChanged.Execute(TChangeEventInfo.Create(Self, FChanges));
+    FChanges := [];
+  end;
 end;
 
 end.

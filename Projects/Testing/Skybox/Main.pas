@@ -37,7 +37,9 @@ uses
   Pengine.TextureAtlas,
   Pengine.InputHandler,
   Pengine.IntMaths,
-  Pengine.GLGame;
+  Pengine.GLGame,
+  Pengine.GLForm,
+  Pengine.SpriteSystem;
 
 type
 
@@ -80,7 +82,7 @@ type
     FTextureTile: TTextureAtlas.TTile;
     FVAO: TVAO;
     FTexture: string;
-    FLocation: TLocation;
+    FLocation: TLocation3;
     FOcclusionPoints: TArray<TVector3>;
     FChildren: TRefArray<TCube>;
     FRenderableChildren: TLinkedInterfaceArray<IRenderable, TCube>;
@@ -95,7 +97,7 @@ type
     function GetTextureTile: TTextureAtlas.TTile;
 
   protected
-    function GetLocation: TLocation; override;
+    function GetLocation: TLocation3; override;
 
   public
     constructor Create(AGLState: TGLState; AGLProgramResource: TGLProgramResourceClass);
@@ -154,7 +156,7 @@ begin
 
   Context.GLDebugRaiseLevels := [dmsLow, dmsMedium, dmsHigh];
 
-  // Context.Samples := Context.MaxSamples;
+  Context.Samples := Context.MaxSamples;
 
   RandSeed := 0;
 
@@ -299,7 +301,7 @@ begin
   FTextureAtlas := TTextureMap.Make(AGLState.ResParam);
   FTextureAtlas.OnChanged.Add(VAOChanged);
   FVAO := TVAO.Create(FGLProgram);
-  FLocation := TLocation.Create;
+  FLocation := TLocation3.Create;
   {
   FOcclusionPoints := TArray<TVector3>.Create;
   FOcclusionPoints.Capacity := TBounds3.CornerCount;
@@ -324,7 +326,7 @@ begin
   inherited;
 end;
 
-function TCube.GetLocation: TLocation;
+function TCube.GetLocation: TLocation3;
 begin
   Result := FLocation;
 end;

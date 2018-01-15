@@ -167,7 +167,8 @@ type
     property Viewport: TIntBounds2 read FViewport write SetViewport;
 
     // Use when you don't actually have an FBO Object at hand but need to unbind
-    class procedure BindScreen(ASize: TIntVector2; AFBOBinding: TGLObjectBinding<TFBO>);
+    class procedure BindScreen(AViewport: TIntBounds2; AFBOBinding: TGLObjectBinding<TFBO>);
+    class procedure ClearScreen(AViewport: TIntBounds2; AFBOBinding: TGLObjectBinding<TFBO>; AMask: TGLAttribMaskFlags);
 
   end;
 
@@ -232,11 +233,17 @@ begin
   Result := otFramebuffer;
 end;
 
-class procedure TFBO.BindScreen(ASize: TIntVector2; AFBOBinding: TGLObjectBinding<TFBO>);
+class procedure TFBO.BindScreen(AViewport: TIntBounds2; AFBOBinding: TGLObjectBinding<TFBO>);
 begin
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glViewport(0, 0, ASize.X, ASize.Y);
+  glViewport(AViewport.C1.X, AViewport.C1.Y, AViewport.C2.X, AViewport.C2.Y);
   AFBOBinding.BoundObject := nil;
+end;
+
+class procedure TFBO.ClearScreen(AViewport: TIntBounds2; AFBOBinding: TGLObjectBinding<TFBO>; AMask: TGLAttribMaskFlags);
+begin
+  BindScreen(AViewport, AFBOBinding);
+  glClear(ToGLBitfield(AMask));
 end;
 
 procedure TFBO.Complete;

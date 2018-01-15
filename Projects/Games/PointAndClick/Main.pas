@@ -15,16 +15,22 @@ uses
   Vcl.Forms,
   Vcl.Dialogs,
 
+  Pengine.Texture,
+  Pengine.Collections,
   Pengine.GLEnums,
   Pengine.GLContext,
-  Pengine.SpriteSystem,
   Pengine.GLProgram,
   Pengine.GLState,
   Pengine.Color,
   Pengine.InputHandler,
   Pengine.Vector,
   Pengine.EventHandling,
-  Pengine.IntMaths;
+  Pengine.IntMaths,
+  Pengine.TimeManager,
+  Pengine.GLForm,
+  Pengine.SpriteSystem,
+  Pengine.GUI,
+  Pengine.GUIControls;
 
 type
 
@@ -33,7 +39,7 @@ type
     class procedure GetData(out AName: string; out AResource: Boolean); override;
   end;
 
-  TRainbowBehavior = class(TSprite.TBehavior)
+  TRainbowBehavior = class(TSprite.TUpdateBehavior)
   private
     FCurrent: Single;
     FSpeed: Single;
@@ -47,28 +53,12 @@ type
 
   public
     constructor Create(ASprite: TSprite); overload; override;
-    constructor Create(ASprite: TSprite; ASpeed: Single); reintroduce; overload;
+    constructor Add(ASprite: TSprite; ASpeed: Single); reintroduce; overload;
 
     procedure Update; override;
 
     property Speed: Single read FSpeed write FSpeed;
 
-  end;
-
-  TAnimationBehavior = class(TSprite.TBehavior)
-  private
-    FFrame: Integer;
-    FTimeLeft: Single;
-  public
-    procedure Update; override;
-  end;
-
-  TFollowMouseBehavior = class(TSprite.TBehavior)
-  private
-    procedure MouseMove;
-  protected
-    procedure AddEvents; override;
-    procedure DelEvents; override;
   end;
 
   THoverBehavior = class(TSprite.TBehavior)
@@ -77,25 +67,29 @@ type
     FFade: TSprite.TFadeBehavior;
 
     procedure MouseMove;
-    procedure HoverDone(AInfo: TSprite.TBehavior.TSenderEventInfo);
-    
+
   protected
     procedure AddEvents; override;
     procedure DelEvents; override;
-    
+
   end;
 
   TfrmMain = class(TGLForm)
   private
     FSpriteGLProgram: TGLProgram;
     FSpriteSystem: TSpriteSystem;
+    FGUI: TGUI;
+    FFPSLabel: TLabel;
+    FTypeLabel: TLabel;
 
     procedure KeyDown(AInfo: TKeyEventInfo); reintroduce;
+    procedure TypeText(AInfo: TTypeEventInfo);
 
   public
     procedure Init; override;
     procedure Finalize; override;
 
+    procedure UpdateCaption(AInfo: TDeltaTimer.TEventInfo);
     procedure GameUpdate;
 
   end;
@@ -109,65 +103,112 @@ implementation
 
 { TfrmMain }
 
-procedure TfrmMain.Init;
-var
-  Sprite: TSprite;
+procedure TfrmMain.GameUpdate;
 begin
-  Context.VSync := True;
+
+end;
+
+procedure TfrmMain.Init;
+begin
+  Context.VSync := False;
 
   // Context.Samples := Context.MaxSamples;
 
   FSpriteGLProgram := TSpriteGLProgram.Make(GLState.ResParam);
 
+  FGUI := TGUI.Create(Game, FSpriteGLProgram);
+
+  FGUI.Textures.Texture.MagFilter := magNearest;
+  FGUI.Textures.AddFromFile('font', 'Data/font.png');
+  FGUI.Textures.AddFromFile('mcfont', 'Data/mcfont.png');
+  FGUI.Textures.AddFromFile('dokufont', 'Data/dokufont.png');
+  FGUI.Font := 'font';
+  FGUI.FontColor := ColorLawnGreen;
+
+  FTypeLabel := FGUI.Add<TLabel>;
+  FTypeLabel.FontColor := ColorRed;
+  FTypeLabel.OriginY := oyCenter;
+  FTypeLabel.OriginX := oxCenter;
+
+  FFPSLabel := FGUI.Add<TLabel>;
+  FFPSLabel.OriginY := oyTop;
+  FFPSLabel.OriginX := oxLeft;
+  FFPSLabel.Location.Scale := 0.2;
+  FFPSLabel.Location.OffsetX := 0.25;
+  FFPSLabel.Location.OffsetY := -0.25;
+  FFPSLabel.FontColor := clYellow;
+
+  {
   FSpriteSystem := TSpriteSystem.Create(Game, FSpriteGLProgram);
   FSpriteSystem.SpriteAtlas.Texture.MagFilter := magNearest;
-  FSpriteSystem.SpriteAtlas.AddFromFile('log', 'Data/log.png');
-  FSpriteSystem.SpriteAtlas.AddFromFile('bricks', 'Data/bricks.png');
-  FSpriteSystem.SpriteAtlas.AddFromFile('animation', 'Data/animation.png');
 
-  Sprite := FSpriteSystem.AddSprite('animation');
+  FSpriteSystem.SpriteAtlas.AddFromFile('char', 'Data/font.png');
 
-  TAnimationBehavior.Create(Sprite);
-  
-  {
-  for P in IVec2(32) do
-  begin
-    Sprite := FSpriteSystem.AddSprite('log');
-    Sprite.Scale := 1 / 16;
-    Sprite.Pos := TVector2(P) / 16 - 1 + 1/32;
-    THoverBehavior.Create(Sprite);
-    TRainbowBehavior.Create(Sprite);
-  end;
-  }
-  
+  Sprite := FSpriteSystem.Add<TCharSprite>('char');
+  Sprite.Char := 'A';
+  Sprite.Location.Scale := 0.1;
+  TSprite.TFollowMouseBehavior.Add(Sprite);
+
+  Sprite2 := FSpriteSystem.Add<TCharSprite>('char');
+  Sprite2.Char := 'B';
+  Sprite2.Location.OffsetX := Sprite.WidthSpaced / 2 + Sprite2.WidthSpaced / 2;
+  Sprite2.Location.Parent := Sprite.Location;
+ }
+
+  Game.Timer.OnFPSUpdate.Add(UpdateCaption);
   Game.OnUpdate.Add(GameUpdate);
-  Input.OnKeyDown.Add(KeyDown);
+  Input.OnKeyTyped.Add(KeyDown);
+  Input.OnType.Add(TypeText);
 end;
 
 procedure TfrmMain.KeyDown(AInfo: TKeyEventInfo);
 begin
-  
+  case AInfo.Key of
+    VK_F11:
+      Fullscreen := not Fullscreen;
+    Ord('1'):
+      FGUI.Font := 'font';
+    Ord('2'):
+      FGUI.Font := 'mcfont';
+    Ord('3'):
+      FGUI.Font := 'dokufont';
+    Ord('4'):
+      FFPSLabel.UseParentFontColor;
+    Ord('5'):
+      FTypeLabel.UseParentFontColor;
+    Ord('6'):
+      FGUI.FontColor := TColorRGB.Rainbow(Random * 6);
+  end;
+end;
+
+procedure TfrmMain.TypeText(AInfo: TTypeEventInfo);
+begin
+  FTypeLabel.Caption := FTypeLabel.Caption + AInfo.Text;
 end;
 
 procedure TfrmMain.Finalize;
 begin
+  FGUI.Free;
   FSpriteSystem.Free;
   if FSpriteGLProgram <> nil then
     TSpriteGLProgram.Release(GLState.ResParam);
 end;
 
-procedure TfrmMain.GameUpdate;
+procedure TfrmMain.UpdateCaption(AInfo: TDeltaTimer.TEventInfo);
 begin
-  if Context.MustUpdateFPS then
-    Caption := Format('Point and Click - FPS: %d', [Context.FPSInt]);
+  // Caption := Format('Point and Click - FPS: %d', [Context.FPSInt]);
+  FFPSLabel.Caption := Format('%d', [Context.FPSInt]);
 end;
 
 { TSpriteGLProgram }
 
 class procedure TSpriteGLProgram.GetData(out AName: string; out AResource: Boolean);
 begin
-  AName := 'Data/sprite';
-  AResource := False;
+  AResource := True;
+  if AResource then
+    AName := 'SPRITE'
+  else
+    AName := 'Data/sprite';
 end;
 
 { TRainbowBehaivor }
@@ -180,6 +221,7 @@ end;
 
 procedure TRainbowBehavior.AddEvents;
 begin
+  inherited;
   Game.Input.OnButtonDown.Add(ButtonDown);
   Game.Input.OnScroll.Add(Scroll);
 end;
@@ -193,7 +235,7 @@ begin
   end;
 end;
 
-constructor TRainbowBehavior.Create(ASprite: TSprite; ASpeed: Single);
+constructor TRainbowBehavior.Add(ASprite: TSprite; ASpeed: Single);
 begin
   inherited Create(ASprite);
   FSpeed := ASpeed;
@@ -201,6 +243,7 @@ end;
 
 procedure TRainbowBehavior.DelEvents;
 begin
+  inherited;
   Game.Input.OnScroll.Del(Scroll);
   Game.Input.OnButtonDown.Del(ButtonDown);
 end;
@@ -216,24 +259,9 @@ end;
 procedure TRainbowBehavior.Update;
 begin
   FCurrent := Bounds1(0, 6).RangedModL(FCurrent + Game.DeltaTime * Speed);
-  Sprite.Color := TColorRGB.HSV(FCurrent, 0.1, 1);
-end;
-
-{ TFollowMouseBehavior }
-
-procedure TFollowMouseBehavior.AddEvents;
-begin
-  Game.Input.OnMouseMove.Add(MouseMove);
-end;
-
-procedure TFollowMouseBehavior.DelEvents;
-begin
-  Game.Input.OnMouseMove.Del(MouseMove);
-end;
-
-procedure TFollowMouseBehavior.MouseMove;
-begin
-  Sprite.Pos := Game.Input.MousePos;
+  Sprite.Color := TColorRGB.HSV(FCurrent, 1, 1);
+  // Sprite.Rotation := Sprite.Rotation + Game.DeltaTime * 60;
+  Sprite.Location.Scale := Sin(Game.Time) * 0.125 + 0.25;
 end;
 
 { THoverBehavior }
@@ -248,53 +276,50 @@ begin
   Game.Input.OnMouseMove.Del(MouseMove);
 end;
 
-procedure THoverBehavior.HoverDone(AInfo: TSprite.TBehavior.TSenderEventInfo);
-begin
-  FFade := nil;
-end;
-
 procedure THoverBehavior.MouseMove;
+var
+  Behavior: TSprite.TBehavior;
 begin
-  if FHover <> (Game.Input.MousePos in Sprite.Bounds) then
+  // if FHover <> (Game.Input.MousePos in Sprite.Bounds) then
+  if FHover <> (Game.Input.MousePos.DistanceTo(Sprite.Location.Pos) < 0.3) then
   begin
     FHover := not FHover;
+    {
     if FFade <> nil then
     begin
       FFade.Remove;
       Sprite.Fade := 1 - Sprite.Fade;
       Sprite.Texture := Sprite.FadeTexture;
     end;
+ }
     if FHover then
     begin
+      Sprite.Location.Scale := Sprite.Location.Scale * 1.2;
+      for Behavior in Sprite.Behaviors do
+        if Behavior is TSprite.TAnimationBeavior then
+          TSprite.TAnimationBeavior(Behavior).Reversed := True;
+      {
       FFade := TSprite.TFadeBehavior.Create(Sprite, 'bricks', 0);
       Sprite.Scale := Sprite.Scale * Sqrt(20);
       Sprite.ZOrder := -0.1;
       Sprite.Rotation := Random * 40 - 20;
+ }
     end
     else
     begin
+      Sprite.Location.Scale := Sprite.Location.Scale / 1.2;
+      for Behavior in Sprite.Behaviors do
+        if Behavior is TSprite.TAnimationBeavior then
+          TSprite.TAnimationBeavior(Behavior).Reversed := False;
+      {
       FFade := TSprite.TFadeBehavior.Create(Sprite, 'log', 0.5);
       Sprite.Scale := Sprite.Scale / Sqrt(20);
       Sprite.ZOrder := 0;
       Sprite.Rotation := 0;
+ }
     end;
-    FFade.OnDone.Add(HoverDone)
-  end;  
-end;
-
-{ TAnimationBehavior }
-
-procedure TAnimationBehavior.Update;
-begin
-  FTimeLeft := FTimeLeft - Game.DeltaTime;
-  while FTimeLeft < 0 do
-  begin
-    FTimeLeft := FTimeLeft + 0.1;
-    Sprite.FadeTextureTile := Sprite.TextureTile.SubTiles[FFrame];
-    FFrame := (FFrame + 1) mod Sprite.TextureTile.SubTiles.Count;
-    Sprite.TextureTile := Sprite.TextureTile.SubTiles[FFrame];
+    // FFade.OnDone.Add(HoverDone)
   end;
-  Sprite.Fade := FTimeLeft / 0.1;
 end;
 
 end.

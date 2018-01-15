@@ -147,13 +147,6 @@ type
     class function GetHash(const AValue: TLine3): Cardinal; override;
   end;
 
-  /// <summary>Uses <see cref="Pengine.ValueHasher|TVector2Hasher"/> and takes the <c>xor</c> of S, D1 and D2.</summary>
-  /// <remarks>No further bit rotation is performed, as S, D1 and D2 are usually different from each other anyway.</remarks>
-  TPlane2Hasher = class(THasher<TPlane2, TPlane2Equaller>)
-  public
-    class function GetHash(const AValue: TPlane2): Cardinal; override;
-  end;
-
   /// <summary>Uses <see cref="Pengine.ValueHasher|TVector3Hasher"/> and takes the <c>xor</c> of S, D1 and D2.</summary>
   /// <remarks>No further bit rotation is performed, as S, D1 and D2 are usually different from each other anyway.</remarks>
   TPlane3Hasher = class(THasher<TPlane3, TPlane3Equaller>)
@@ -375,7 +368,6 @@ function HashOf(const Value: string): Cardinal; overload; inline;
 function HashOf(const Value: AnsiString): Cardinal; overload; inline;
 function HashOf(const Value: TLine2): Cardinal; overload; inline;
 function HashOf(const Value: TLine3): Cardinal; overload; inline;
-function HashOf(const Value: TPlane2): Cardinal; overload; inline;
 function HashOf(const Value: TPlane3): Cardinal; overload; inline;
 function HashOf(const Value: TVectorDir): Cardinal; overload; inline;
 
@@ -543,18 +535,11 @@ begin
   Result := HashOf(AValue.S) xor HashOf(AValue.D);
 end;
 
-{ TPlane2Hasher }
-
-class function TPlane2Hasher.GetHash(const AValue: TPlane2): Cardinal;
-begin
-  Result := HashOf(AValue.S) xor HashOf(AValue.D1) xor HashOf(AValue.D2);
-end;
-
 { TPlane3Hasher }
 
 class function TPlane3Hasher.GetHash(const AValue: TPlane3): Cardinal;
 begin
-  Result := HashOf(AValue.S) xor HashOf(AValue.D1) xor HashOf(AValue.D2);
+  Result := HashOf(AValue.S) xor HashOf(AValue.DX) xor HashOf(AValue.DY);
 end;
 
 { TVectorDirHasher }
@@ -848,11 +833,6 @@ end;
 function HashOf(const Value: TLine3): Cardinal;
 begin
   Result := TLine3Hasher.GetHash(Value);
-end;
-
-function HashOf(const Value: TPlane2): Cardinal;
-begin
-  Result := TPlane2Hasher.GetHash(Value);
 end;
 
 function HashOf(const Value: TPlane3): Cardinal;
