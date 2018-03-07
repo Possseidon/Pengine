@@ -934,10 +934,10 @@ begin
   if FReversed then
   begin
     repeat
-      Dec(FCurrent.X);
+      FCurrent.X := FCurrent.X - 1;
       if FCurrent.X = -1 then
       begin  
-        Dec(FCurrent.Y);
+        FCurrent.Y := FCurrent.Y - 1;
         if FCurrent.Y = -1 then
           Exit(False);
       end;
@@ -946,10 +946,10 @@ begin
   else
   begin
     repeat
-      Inc(FCurrent.X);      
+      FCurrent.X := FCurrent.X + 1;
       if FCurrent.X = FBitfield.Size.X then
       begin
-        Inc(FCurrent.Y);
+        FCurrent.Y := FCurrent.Y + 1;
         if FCurrent.Y = FBitfield.Size.Y then
           Exit(False);
       end;
@@ -1003,13 +1003,13 @@ begin
   while FSize.Y > Value.Y do
   begin  
     FData.DelLast;
-    Dec(FSize.Y);
+    FSize.Y := FSize.Y - 1;
   end;
   
   while FSize.Y < Value.Y do
   begin
     FData.Add(TBitfield.Create(FSize.X)); 
-    Inc(FSize.Y);    
+    FSize.Y := FSize.Y + 1;
   end;
 
 end;

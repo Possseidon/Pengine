@@ -1,5 +1,7 @@
 unit Pengine.IntMaths;
 
+{$POINTERMATH ON}
+
 interface
 
 uses
@@ -8,6 +10,79 @@ uses
   System.Types;
 
 type
+
+  /// <summary>A vertex-index for a triangle in range: <c>[0, 3)</c></summary>
+  TTriangleIndex = 0 .. 2;
+  /// <summary>A vertex-index for a render-quad in range: <c>[0, 6)</c></summary>
+  TQuadIndex = 0 .. 5;
+
+  /// <summary>Describes one of the three axes: <c>caX, caY, caZ</c> and also contains <c>caNone</c> to specify no axis.</summary>
+  TCoordAxis = (caNone, caX, caY, caZ);
+
+  /// <summary>A 1-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which does not contain caNone.</summary>
+  TCoordAxis1 = caX .. caX;
+  /// <summary>A 2-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which does not contain caNone.</summary>
+  TCoordAxis2 = caX .. caY;
+  /// <summary>A 3-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which does not contain caNone.</summary>
+  TCoordAxis3 = caX .. caZ;
+
+  /// <summary>A 1-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which also contains caNone.</summary>
+  TCoordAxis1Nonable = caNone .. caX;
+  /// <summary>A 2-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which also contains caNone.</summary>
+  TCoordAxis2Nonable = caNone .. caY;
+  /// <summary>A 3-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which also contains caNone.</summary>
+  TCoordAxis3Nonable = caNone .. caZ;
+
+  /// <summary>Set of 1-Dimensional axes. <p>See <see cref="Pengine.Vector|TCoordAxis"/> for more info.</p></summary>
+  TCoordAxes1 = set of TCoordAxis1;
+  /// <summary>Set of 2-Dimensional axes. <p>See <see cref="Pengine.Vector|TCoordAxis"/> for more info.</p></summary>
+  TCoordAxes2 = set of TCoordAxis2;
+  /// <summary>Set of 3-Dimensional axes. <p>See <see cref="Pengine.Vector|TCoordAxis"/> for more info.</p></summary>
+  TCoordAxes3 = set of TCoordAxis3;
+
+  /// <summary>Describes one of the six simple directions in the following order:
+  /// <code>
+  /// 0  -> bdNone<p/>
+  /// -X -> bdLeft<p/>
+  /// +X -> bdRight<p/>
+  /// -Y -> bdDown<p/>
+  /// +Y -> bdUp<p/>
+  /// -Z -> bdBack<p/>
+  /// +Z -> bdFront
+  /// </code>
+  /// <p>The following subranges exist:</p>
+  /// <p>
+  /// <see cref="Pengine.Vector|TBasicDir1"/>,
+  /// <see cref="Pengine.Vector|TBasicDir2"/>,
+  /// <see cref="Pengine.Vector|TBasicDir3"/>,
+  /// <see cref="Pengine.Vector|TBasicDir1Nonable"/>,
+  /// <see cref="Pengine.Vector|TBasicDir2Nonable"/>,
+  /// <see cref="Pengine.Vector|TBasicDir3Nonable"/>
+  /// </p>
+  /// </summary>
+  /// <remarks>The included <c>bdNone</c> direction is defined as the origin vector.</remarks>
+  TBasicDir = (bdNone, bdLeft, bdRight, bdDown, bdUp, bdBack, bdFront);
+
+  /// <summary>1-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, no <c>bdNone</c>.</summary>
+  TBasicDir1 = bdLeft .. bdRight;
+  /// <summary>2-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, no <c>bdNone</c>.</summary>
+  TBasicDir2 = bdLeft .. bdUp;
+  /// <summary>3-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, no <c>bdNone</c>.</summary>
+  TBasicDir3 = bdLeft .. bdFront;
+
+  /// <summary>1-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, with <c>bdNone</c>.</summary>
+  TBasicDir1Nonable = bdNone .. bdRight;
+  /// <summary>2-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, with <c>bdNone</c>.</summary>
+  TBasicDir2Nonable = bdNone .. bdUp;
+  /// <summary>3-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, with <c>bdNone</c>.</summary>
+  TBasicDir3Nonable = bdNone .. bdFront;
+
+  /// <summary>Set of 1-Dimensional directions. <p>See <see cref="Pengine.Vector|TBasicDir"/> for more info.</p></summary>
+  TBasicDirs1 = set of TBasicDir1;
+  /// <summary>Set of 2-Dimensional directions. <p>See <see cref="Pengine.Vector|TBasicDir"/> for more info.</p></summary>
+  TBasicDirs2 = set of TBasicDir2;
+  /// <summary>Set of 3-Dimensional directions. <p>See <see cref="Pengine.Vector|TBasicDir"/> for more info.</p></summary>
+  TBasicDirs3 = set of TBasicDir3;
 
   PIntBounds1 = ^TIntBounds1;
   PIntBounds2 = ^TIntBounds2;
@@ -23,6 +98,9 @@ type
   /// <summary>A two component vector of type <see cref="System|Integer"/>.</summary>
   TIntVector2 = record
   private
+    function GetComponent(AAxis: TCoordAxis2): Integer; inline;
+    procedure SetComponent(AAxis: TCoordAxis2; const Value: Integer); inline;
+
     function GetXX: TIntVector2;
     function GetXY: TIntVector2;
     function GetYX: TIntVector2;
@@ -36,6 +114,9 @@ type
     X: Integer;
     /// <summary>The Y-Component of the vector.</summary>
     Y: Integer;
+
+    /// <remarks>Allows simple array-like access of each component, thanks to it being a default property.</remarks>
+    property Component[AAxis: TCoordAxis2]: Integer read GetComponent write SetComponent; default;
 
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector2"/> with the specified components.</summary>
     constructor Create(X, Y: Integer); overload;
@@ -91,6 +172,9 @@ type
   /// <summary>A three component vector of type <see cref="System|Integer"/>.</summary>
   TIntVector3 = record
   private
+    function GetComponent(AAxis: TCoordAxis3): Integer; inline;
+    procedure SetComponent(AAxis: TCoordAxis3; const Value: Integer); inline;
+
     function GetXX: TIntVector2;
     function GetXY: TIntVector2;
     function GetXZ: TIntVector2;
@@ -155,6 +239,9 @@ type
     constructor Create(X, Y, Z: Integer); overload;
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector3"/> with all components being the same, given value.</summary>
     constructor Create(V: Integer); overload;
+
+    /// <remarks>Allows simple array-like access of each component, thanks to it being a default property.</remarks>
+    property Component[AAxis: TCoordAxis3]: Integer read GetComponent write SetComponent; default;
 
     class operator Implicit(V: Integer): TIntVector3; inline;
 
@@ -658,6 +745,168 @@ type
     function Bounds(ASize: TIntVector3): TIntBounds3;
   end;
 
+const
+
+  Vec1Dir: array [TBasicDir1Nonable] of Integer = (
+    0,
+    -1,
+    +1
+    );
+
+  Vec2Dir: array [TBasicDir2Nonable] of TIntVector2 = (
+    (X:  0; Y:  0),
+    (X: -1; Y:  0),
+    (X: +1; Y:  0),
+    (X:  0; Y: -1),
+    (X:  0; Y: +1)
+    );
+
+  Vec3Dir: array [TBasicDir] of TIntVector3 = (
+    (X: 0; Y: 0; Z: 0),
+    (X: - 1; Y: 0; Z: 0),
+    (X: + 1; Y: 0; Z: 0),
+    (X: 0; Y: - 1; Z: 0),
+    (X: 0; Y: + 1; Z: 0),
+    (X: 0; Y: 0; Z: - 1),
+    (X: 0; Y: 0; Z: + 1)
+    );
+
+  FlippedBasicDirs: array [TBasicDir] of TBasicDir = (
+    bdNone,
+    bdRight,
+    bdLeft,
+    bdUp,
+    bdDown,
+    bdFront,
+    bdBack
+    );
+
+  AbsBasicDirs: array [TBasicDir] of TBasicDir = (
+    bdNone,
+    bdRight,
+    bdRight,
+    bdUp,
+    bdUp,
+    bdFront,
+    bdBack
+    );
+
+  BasicDirAxis: array [TBasicDir] of TCoordAxis = (
+    caNone,
+    caX,
+    caX,
+    caY,
+    caY,
+    caZ,
+    caZ
+    );
+
+  // -                      direction    around    ccw times
+  BasicDirRotations: array [TBasicDir3, TBasicDir3, 1 .. 3] of TBasicDir = (
+    ( // left
+    (bdLeft, bdLeft, bdLeft), // left
+    (bdLeft, bdLeft, bdLeft), // right
+    (bdBack, bdRight, bdFront), // down
+    (bdFront, bdRight, bdBack), // up
+    (bdUp, bdRight, bdDown), // back
+    (bdDown, bdRight, bdUp) // front
+    ), ( // right
+    (bdRight, bdRight, bdRight), // left
+    (bdRight, bdRight, bdRight), // right
+    (bdFront, bdLeft, bdBack), // down
+    (bdBack, bdLeft, bdFront), // up
+    (bdDown, bdLeft, bdUp), // back
+    (bdUp, bdLeft, bdDown) // front
+    ), ( // down
+    (bdBack, bdUp, bdFront), // left
+    (bdFront, bdUp, bdBack), // right
+    (bdDown, bdDown, bdDown), // down
+    (bdDown, bdDown, bdDown), // up
+    (bdLeft, bdUp, bdRight), // back
+    (bdRight, bdUp, bdLeft) // front
+    ), ( // up
+    (bdFront, bdDown, bdBack), // left
+    (bdBack, bdDown, bdFront), // right
+    (bdUp, bdUp, bdUp), // down
+    (bdUp, bdUp, bdUp), // up
+    (bdRight, bdDown, bdLeft), // back
+    (bdLeft, bdDown, bdRight) // front
+    ), ( // back
+    (bdDown, bdFront, bdUp), // left
+    (bdUp, bdFront, bdDown), // right
+    (bdLeft, bdFront, bdRight), // down
+    (bdRight, bdFront, bdLeft), // up
+    (bdBack, bdBack, bdBack), // back
+    (bdBack, bdBack, bdBack) // front
+    ), ( // front
+    (bdUp, bdBack, bdDown), // left
+    (bdDown, bdBack, bdUp), // right
+    (bdRight, bdBack, bdLeft), // down
+    (bdLeft, bdBack, bdRight), // up
+    (bdFront, bdFront, bdFront), // back
+    (bdFront, bdFront, bdFront) // front
+    ));
+
+  AxisBasicDir: array [TCoordAxis] of TBasicDir = (
+    bdNone,
+    bdRight,
+    bdUp,
+    bdFront
+    );
+
+  QuadSideCount = High(TQuadIndex) + 1;
+
+  QuadTexCoords: array [TQuadIndex] of TIntVector2 = (
+    (X: 0; Y: 0),
+    (X: 1; Y: 0),
+    (X: 1; Y: 1),
+    (X: 1; Y: 1),
+    (X: 0; Y: 1),
+    (X: 0; Y: 0)
+    );
+
+  QuadMiddleCoords: array [TQuadIndex] of TIntVector2 = (
+    (X: -1; Y: -1),
+    (X: +1; Y: -1),
+    (X: +1; Y: +1),
+    (X: +1; Y: +1),
+    (X: -1; Y: +1),
+    (X: -1; Y: -1)
+    );
+
+  TriangleTexCoords: array [TTriangleIndex] of TIntVector2 = (
+    (X: 0; Y: 0),
+    (X: 1; Y: 0),
+    (X: 0; Y: 1)
+    );
+
+  BasicDirectionNames: array [TBasicDir] of AnsiString = (
+    'none',
+    'left',
+    'right',
+    'down',
+    'up',
+    'backwards',
+    'forward'
+    );
+
+  BasicPrepositionNames: array [TBasicDir] of AnsiString = (
+    'none',
+    'left',
+    'right',
+    'bottom',
+    'top',
+    'back',
+    'front'
+    );
+
+  CoordAxisNames: array [TCoordAxis] of AnsiString = (
+    'None',
+    'X',
+    'Y',
+    'Z'
+    );
+
   { Shorthand Constructors }
 
 /// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given values for X and Y.</returns>
@@ -693,6 +942,16 @@ function IBounds3(A: TIntVector3): TIntBounds3; overload; inline;
 implementation
 
 { TIntVector2 }
+
+function TIntVector2.GetComponent(AAxis: TCoordAxis2): Integer;
+begin
+  Result := (PInteger(@Self) + Ord(AAxis) - Ord(caX))^;
+end;
+
+procedure TIntVector2.SetComponent(AAxis: TCoordAxis2; const Value: Integer);
+begin
+  (PInteger(@Self) + Ord(AAxis) - Ord(caX))^ := Value;
+end;
 
 constructor TIntVector2.Create(X, Y: Integer);
 begin
@@ -869,12 +1128,22 @@ end;
 
 { TIntVector3 }
 
-{$REGION 'All version of rearrangement TIntVector2'}
+function TIntVector3.GetComponent(AAxis: TCoordAxis3): Integer;
+begin
+  Result := (PInteger(@Self) + Ord(AAxis) - Ord(caX))^;
+end;
+
+procedure TIntVector3.SetComponent(AAxis: TCoordAxis3; const Value: Integer);
+begin
+  (PInteger(@Self) + Ord(AAxis) - Ord(caX))^ := Value;
+end;
 
 function TIntVector3.GetEnumerator: TIntBounds3Iterator;
 begin
   Result := TIntBounds3Iterator.Create(IBounds3(Self));
 end;
+
+{$REGION 'All version of rearrangement TIntVector2'}
 
 function TIntVector3.GetXX: TIntVector2;
 begin

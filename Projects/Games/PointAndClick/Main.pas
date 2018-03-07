@@ -30,7 +30,8 @@ uses
   Pengine.GLForm,
   Pengine.SpriteSystem,
   Pengine.GUI,
-  Pengine.GUIControls;
+  Pengine.GUIControls,
+  Pengine.UBO;
 
 type
 
@@ -64,7 +65,6 @@ type
   THoverBehavior = class(TSprite.TBehavior)
   private
     FHover: Boolean;
-    FFade: TSprite.TFadeBehavior;
 
     procedure MouseMove;
 
@@ -81,16 +81,18 @@ type
     FGUI: TGUI;
     FFPSLabel: TLabel;
     FTypeLabel: TLabel;
+    FButton: TButton;
 
     procedure KeyDown(AInfo: TKeyEventInfo); reintroduce;
     procedure TypeText(AInfo: TTypeEventInfo);
+    procedure UpdateCaption;
+    procedure GameUpdate;
+
+    procedure ButtonPressed(AInfo: TButton.TEventInfo);
 
   public
     procedure Init; override;
     procedure Finalize; override;
-
-    procedure UpdateCaption(AInfo: TDeltaTimer.TEventInfo);
-    procedure GameUpdate;
 
   end;
 
@@ -105,10 +107,19 @@ implementation
 
 procedure TfrmMain.GameUpdate;
 begin
-
+  if Input.KeyDown(VK_LEFT) then
+    FButton.Location.PosX := FButton.Location.PosX - DeltaTime;
+  if Input.KeyDown(VK_RIGHT) then
+    FButton.Location.PosX := FButton.Location.PosX + DeltaTime;
+  if Input.KeyDown(VK_DOWN) then
+    FButton.Location.PosY := FButton.Location.PosY - DeltaTime;
+  if Input.KeyDown(VK_UP) then
+    FButton.Location.PosY := FButton.Location.PosY + DeltaTime;
 end;
 
 procedure TfrmMain.Init;
+var
+  I: Integer;
 begin
   Context.VSync := False;
 
@@ -118,25 +129,36 @@ begin
 
   FGUI := TGUI.Create(Game, FSpriteGLProgram);
 
-  FGUI.Textures.Texture.MagFilter := magNearest;
-  FGUI.Textures.AddFromFile('font', 'Data/font.png');
-  FGUI.Textures.AddFromFile('mcfont', 'Data/mcfont.png');
-  FGUI.Textures.AddFromFile('dokufont', 'Data/dokufont.png');
-  FGUI.Font := 'font';
-  FGUI.FontColor := ColorLawnGreen;
+  FGUI.TextureAtlas.Texture.MagFilter := magNearest;
+  FGUI.TextureAtlas.AddFromResource('font', 'FONT');
+  FGUI.TextureAtlas.AddFromResource('mcfont', 'MCFONT');
+  FGUI.TextureAtlas.AddFromResource('dokufont', 'DOKUFONT');
+  FGUI.TextureAtlas.AddFromResource('button', 'STONE_BUTTON');
 
   FTypeLabel := FGUI.Add<TLabel>;
   FTypeLabel.FontColor := ColorRed;
-  FTypeLabel.OriginY := oyCenter;
-  FTypeLabel.OriginX := oxCenter;
+  FTypeLabel.Location.Scale := 0.1;
+  FTypeLabel.Location.OffsetY := 0.5;
+  FTypeLabel.OriginY := oyBottom;
+  FTypeLabel.Caption := 'Press 1, 2 or 3 to change font.';
 
   FFPSLabel := FGUI.Add<TLabel>;
-  FFPSLabel.OriginY := oyTop;
-  FFPSLabel.OriginX := oxLeft;
-  FFPSLabel.Location.Scale := 0.2;
-  FFPSLabel.Location.OffsetX := 0.25;
-  FFPSLabel.Location.OffsetY := -0.25;
+  FFPSLabel.Location.Scale := 0.1;
+  FFPSLabel.Origin := TOrigin.Create(oxLeft, oyTop);
+  // FFPSLabel.Location.Scale := 1;
   FFPSLabel.FontColor := clYellow;
+
+  for I := 1 to 8 do
+  begin
+    FButton := FGUI.Add<TButton>;
+    FButton.Location.Scale := 0.15;
+    FButton.Location.PosY := 1 - (I + 0.5) / 5;
+    FButton.OriginX := oxCenter;
+    FButton.OriginY := oyCenter;
+    FButton.Caption := 'Press me you sweet bastard! Yeah! Gimme!';
+    FButton.OnPressed.Add(ButtonPressed);
+    FButton.Width := 10;
+  end;
 
   {
   FSpriteSystem := TSpriteSystem.Create(Game, FSpriteGLProgram);
@@ -153,12 +175,12 @@ begin
   Sprite2.Char := 'B';
   Sprite2.Location.OffsetX := Sprite.WidthSpaced / 2 + Sprite2.WidthSpaced / 2;
   Sprite2.Location.Parent := Sprite.Location;
- }
+  }
 
   Game.Timer.OnFPSUpdate.Add(UpdateCaption);
   Game.OnUpdate.Add(GameUpdate);
   Input.OnKeyTyped.Add(KeyDown);
-  Input.OnType.Add(TypeText);
+  // Input.OnType.Add(TypeText);
 end;
 
 procedure TfrmMain.KeyDown(AInfo: TKeyEventInfo);
@@ -172,18 +194,22 @@ begin
       FGUI.Font := 'mcfont';
     Ord('3'):
       FGUI.Font := 'dokufont';
-    Ord('4'):
-      FFPSLabel.UseParentFontColor;
-    Ord('5'):
-      FTypeLabel.UseParentFontColor;
-    Ord('6'):
-      FGUI.FontColor := TColorRGB.Rainbow(Random * 6);
   end;
 end;
 
 procedure TfrmMain.TypeText(AInfo: TTypeEventInfo);
 begin
   FTypeLabel.Caption := FTypeLabel.Caption + AInfo.Text;
+end;
+
+procedure TfrmMain.ButtonPressed(AInfo: TButton.TEventInfo);
+begin
+  if AInfo.Sender.Width < 20 then
+  begin
+    AInfo.Sender.Width := AInfo.Sender.Width + 1;
+    if AInfo.Sender.Width = 20 then
+      AInfo.Sender.Caption := 'thx';
+  end;
 end;
 
 procedure TfrmMain.Finalize;
@@ -194,17 +220,17 @@ begin
     TSpriteGLProgram.Release(GLState.ResParam);
 end;
 
-procedure TfrmMain.UpdateCaption(AInfo: TDeltaTimer.TEventInfo);
+procedure TfrmMain.UpdateCaption;
 begin
-  // Caption := Format('Point and Click - FPS: %d', [Context.FPSInt]);
-  FFPSLabel.Caption := Format('%d', [Context.FPSInt]);
+  Caption := Format('Point and Click - FPS: %d', [Context.FPSInt]);
+  FFPSLabel.Caption := Format('Fraps per Second: %d', [Context.FPSInt]);
 end;
 
 { TSpriteGLProgram }
 
 class procedure TSpriteGLProgram.GetData(out AName: string; out AResource: Boolean);
 begin
-  AResource := True;
+  AResource := False;
   if AResource then
     AName := 'SPRITE'
   else

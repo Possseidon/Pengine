@@ -535,6 +535,8 @@ type
 
     function Reader: TReader; reintroduce; inline;
 
+    function Equals(Obj: TObject): Boolean; override;
+
   end;
 
   // TODO: XmlDoc
@@ -595,6 +597,8 @@ type
     class function ItemToString(AItem: T): string; override;
 
     property OwnsObjects: Boolean read GetOwnsObjects;
+
+    function Equals(Obj: TObject): Boolean; override;
 
   end;
 
@@ -1392,6 +1396,13 @@ begin
     Capacity := Capacity - FGrowAmount;
 end;
 
+function TArray<T>.Equals(Obj: TObject): Boolean;
+begin
+  if Obj.ClassType <> ClassType then
+    Exit(False);
+  Result := (Count = TArray<T>(Obj).Count) and CompareMem(@FItems[0], @TArray<T>(Obj).FItems[0], SizeOf(T) * Count);
+end;
+
 procedure TArray<T>.Add(AItems: IEnumerable<T>);
 var
   Item: T;
@@ -1855,6 +1866,20 @@ begin
 end;
 
 { TRefArray<T> }
+
+function TBaseRefArray<T>.Equals(Obj: TObject): Boolean;
+var
+  I: Integer;
+begin
+  if Obj.ClassType <> ClassType then
+    Exit(False);
+  if TBaseRefArray<T>(Obj).Count <> Count then
+    Exit(False);
+  for I := 0 to MaxIndex do
+    if not Self[I].Equals(TBaseRefArray<T>(Obj)[I]) then
+      Exit(False);
+  Result := True;
+end;
 
 function TBaseRefArray<T>.Find(AItem: T): Integer;
 begin

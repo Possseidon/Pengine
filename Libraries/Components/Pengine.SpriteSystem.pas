@@ -26,7 +26,8 @@ uses
   Pengine.GLEnums,
   Pengine.FBO,
   Pengine.Utility,
-  Pengine.InputHandler;
+  Pengine.InputHandler,
+  Pengine.UBO;
 
 type
 
@@ -53,8 +54,9 @@ type
       ZOrder: Single;
       Color: TColorRGBA;
       Fade: Single;
-      Borders: array [0 .. 1] of TBounds2;
+      TexBorders: array [0 .. 1] of TBounds2;
       TexCoords: array [0 .. 1] of TVector2;
+      Border: Single;
     end;
 
   protected
@@ -66,6 +68,46 @@ type
 
   TSprite = class
   public type
+    
+    TBorder = class
+    public type
+
+      TEventInfo = TSenderEventInfo<TBorder>;
+
+      TEvent = TEvent<TEventInfo>;
+
+    public const
+
+      DefaultIndex = -1;
+    
+    private
+      FIndex: Integer;
+      FParent: TBorder;
+      FBorder: TAxisSystem2;
+      FSmooth: TVector2;
+      FOnChanged: TEvent;
+      FOnRemove: TEvent;
+
+      procedure SetBorder(const Value: TAxisSystem2);
+      procedure SetSmooth(const Value: TVector2);
+
+      function GetOnRemove: TEvent.TAccess;
+      function GetOnChanged: TEvent.TAccess;
+
+    public
+      constructor Create(ABorder: TAxisSystem2; ASmooth: TVector2; AIndex: Integer; AParent: TBorder = nil);      
+      destructor Destroy; override;
+
+      property Index: Integer read FIndex;    
+      property Parent: TBorder read FParent;  
+
+      property Border: TAxisSystem2 read FBorder write SetBorder;
+      property Smooth: TVector2 read FSmooth write SetSmooth;
+      
+      property OnChanged: TEvent.TAccess read GetOnChanged;
+      property OnRemove: TEvent.TAccess read GetOnRemove;
+      
+    end;
 
     TBehavior = class
     public type
@@ -121,7 +163,8 @@ type
       scZOrder,
       scColor,
       scFade,
-      scTexture
+      scTexture,
+      scBorder
       );
 
     TChanges = set of TChange;
@@ -245,6 +288,7 @@ type
     FFadeTexture: string;
     FFadeTextureTile: TTextureAtlas.TTile;
     FFade: Single;
+    FBorder: TBorder;
 
     FBounds: TOpt<TAxisSystem2>;
 
@@ -282,7 +326,9 @@ type
     procedure Changed(AChanges: TChanges); overload;
 
     procedure LocationChanged(AInfo: TLocation2.TChangeEventInfo);
+
     function GetOnRemove: TEvent.TAccess;
+    procedure SetBorder(const Value: TBorder);
 
   public
     constructor Create(ASpriteSystem: TSpriteSystem; ATextureTile: TTextureAtlas.TTile); virtual;
@@ -316,6 +362,10 @@ type
 
     property Bounds: TAxisSystem2 read GetBounds;
 
+    procedure ResetBorder;
+    property Border: TBorder read FBorder write SetBorder;
+    function HasBorder: Boolean;
+
     property Behaviors: TBehaviors.TReader read GetBehaviors;
 
     procedure UpdateVAO(AWriter: TVBO<TSpriteGLProgamBase.TData>.TWriter);
@@ -336,6 +386,43 @@ type
     TSprites = TRefArray<TSprite>;
     TSpriteUpdater = TEventMap<TSprite, TRefHasher<TSprite>>;
     TVAO = TVAOMutable<TSpriteGLProgamBase.TData>;
+     
+    TBorder = TSprite.TBorder;
+     
+    TBorderList = class
+    public type
+
+      TBorders = TRefArray<TBorder>;
+
+      TBorderData = record
+        Border: TAxisSystem2;
+        Smooth: TVector2;
+        Parent: Integer;
+        Placeholder: array [0 .. 2] of Integer;
+      end;             
+      
+      TBorderDataArray = record
+        Borders: array [0 .. 255] of TBorderData;
+      end;
+
+      TUBO = TUBO<TBorderDataArray>;
+            
+    private
+      FBorders: TBorders;
+      FUBO: TUBO;
+
+      procedure SendData(ABorder: TBorder);
+      
+      procedure BorderChanged(AInfo: TBorder.TEventInfo);
+      procedure BorderRemoved(AInfo: TBorder.TEventInfo);
+
+    public
+      constructor Create(AGLProgram: TGLProgram);
+      destructor Destroy; override;
+
+      function Add(ABorder: TAxisSystem2; ASmooth: TVector2; AParent: TBorder = nil): TBorder;
+
+    end;
 
   private
     FGame: TGLGame;
@@ -370,7 +457,7 @@ type
 
     function Add<T: TSprite>(ATexture: string): T; overload;
     function Add<T: TSprite>(ATexture: TTextureAtlas.TTile): T; overload;
-
+    
     property Sprites: TSprites.TReader read GetSprites;
     property SpriteAtlas: TTextureAtlas read FSpriteAtlas;
 
@@ -403,10 +490,6 @@ type
 
   end;
 
-  TCursorSprite = class(TSprite)
-
-  end;
-
 implementation
 
 { TSpriteGLProgamBase }
@@ -417,12 +500,13 @@ begin
     'vpos',
     'vcolor',
     'vfade',
-    'vborderlow0',
-    'vborderhigh0',
-    'vborderlow1',
-    'vborderhigh1',
+    'vtexlow0',
+    'vtexhigh0',
+    'vtexlow1',
+    'vtexhigh1',
     'vtexcoord0',
-    'vtexcoord1'
+    'vtexcoord1',
+    'vborder'
     ];
 end;
 
@@ -434,6 +518,14 @@ begin
     Exit;
   FZOrder := Value;
   Changed(scZOrder);
+end;
+
+procedure TSprite.SetBorder(const Value: TBorder);
+begin
+  if Border = Value then
+    Exit;
+  FBorder := Value;
+  Changed(scBorder);
 end;
 
 procedure TSprite.SetColor(const Value: TColorRGBA);
@@ -583,6 +675,11 @@ begin
   Result := TextureTile.SubTileIndex;
 end;
 
+function TSprite.HasBorder: Boolean;
+begin
+  Result := FBorder <> nil;
+end;
+
 procedure TSprite.LocationChanged(AInfo: TLocation2.TChangeEventInfo);
 begin
   Changed(scPos);
@@ -628,6 +725,7 @@ begin
   FBounds := TOpt<TAxisSystem2>.Create;
   FLocation := TLocation2.Create;
   FColor := ColorWhite;
+  ResetBorder;
   TextureTile := ATextureTile;
   Location.OnChanged.Add(LocationChanged);
 end;
@@ -671,6 +769,11 @@ begin
   FOnRemove.Execute(TEventInfo.Create(Self));
 end;
 
+procedure TSprite.ResetBorder;
+begin
+  Border := nil;
+end;
+
 procedure TSprite.UpdateVAO(AWriter: TVBO<TSpriteGLProgamBase.TData>.TWriter);
 var
   I: TQuadIndex;
@@ -705,13 +808,13 @@ begin
     begin
       if TextureTile <> nil then
       begin
-        BufferData[BufferPos + 2].Borders[0] := TextureTile.BoundsHalfPixelInset;
-        BufferData[BufferPos + 5].Borders[0] := BufferData[BufferPos + 2].Borders[0];
+        BufferData[BufferPos + 2].TexBorders[0] := TextureTile.BoundsHalfPixelInset;
+        BufferData[BufferPos + 5].TexBorders[0] := BufferData[BufferPos + 2].TexBorders[0];
       end;
       if FadeTextureTile <> nil then
       begin
-        BufferData[BufferPos + 2].Borders[1] := FadeTextureTile.BoundsHalfPixelInset;
-        BufferData[BufferPos + 5].Borders[1] := BufferData[BufferPos + 2].Borders[1];
+        BufferData[BufferPos + 2].TexBorders[1] := FadeTextureTile.BoundsHalfPixelInset;
+        BufferData[BufferPos + 5].TexBorders[1] := BufferData[BufferPos + 2].TexBorders[1];
       end;
       for I := Low(TQuadIndex) to High(TQuadIndex) do
       begin
@@ -722,6 +825,20 @@ begin
           if FadeTextureTile <> nil then
             TexCoords[1] := FadeTextureTile.Bounds[QuadTexCoords[I]];
         end;
+      end;
+    end;
+
+    if scBorder in FChanges then
+    begin
+      if HasBorder then
+      begin
+        BufferData[BufferPos + 2].Border := Border.Index;
+        BufferData[BufferPos + 5].Border := Border.Index;
+      end
+      else
+      begin
+        BufferData[BufferPos + 2].Border := TBorder.DefaultIndex;
+        BufferData[BufferPos + 5].Border := TBorder.DefaultIndex;      
       end;
     end;
 
@@ -742,6 +859,7 @@ begin
   Result.OnChanged.Add(SpriteChanged);
   Result.OnRemove.Add(SpriteRemoved);
   Result.FIndex := FSprites.Count;
+  Result.FChanges := [Low(TSprite.TChange) .. High(TSprite.TChange)];
   FSprites.Add(Result);
   FSpritesSorted := False;
   FVAOChanged := True;
@@ -768,7 +886,7 @@ destructor TSpriteSystem.Destroy;
 var
   Sprite: TSprite;
 begin
-  StartTimer;
+  // Update;
   // in reverse, so that (behavior) event handlers are found faster
   for Sprite in FSprites.InReverse do
     Sprite.Free;
@@ -835,7 +953,6 @@ end;
 
 procedure TSpriteSystem.Render;
 var
-  Sprite: TSprite;
   VBOCountChanged: Boolean;
   VBOCount: Integer;
 begin
@@ -897,6 +1014,11 @@ begin
     begin
       FSprites[I].FIndex := I;
       FSprites[I].FChanges := [Low(TSprite.TChange) .. High(TSprite.TChange)];
+      if not FSprites[I].FInChangedSprites then
+      begin
+        FChangedSprites.Add(FSprites[I]);
+        FSprites[I].FInChangedSprites := True;
+      end;
     end;
   end;
   FSpritesSorted := True;
@@ -1263,6 +1385,111 @@ end;
 constructor ESpriteRemovedAlready.Create;
 begin
   inherited Create('The sprite got removed already.');
+end;
+
+{ TSprite.TBorder }
+
+constructor TSprite.TBorder.Create(ABorder: TAxisSystem2; ASmooth: TVector2; AIndex: Integer; AParent: TBorder);
+begin
+  FBorder := ABorder;
+  FSmooth := ASmooth;
+  FIndex := AIndex;
+  FParent := AParent;  
+end;
+
+destructor TSprite.TBorder.Destroy;
+begin
+  FOnRemove.Execute(TEventInfo.Create(Self));
+  inherited;
+end;
+
+function TSprite.TBorder.GetOnChanged: TSprite.TBorder.TEvent.TAccess;
+begin
+  Result := FOnChanged.Access;
+end;
+
+function TSprite.TBorder.GetOnRemove: TSprite.TBorder.TEvent.TAccess;
+begin
+  Result := FOnRemove.Access;
+end;
+
+procedure TSprite.TBorder.SetBorder(const Value: TAxisSystem2);
+begin
+  if Border = Value then
+    Exit;
+  FBorder := Value;
+  FOnChanged.Execute(TEventInfo.Create(Self));
+end;
+
+procedure TSprite.TBorder.SetSmooth(const Value: TVector2);
+begin
+  if Smooth = Value then
+    Exit;
+  FSmooth := Value;
+  FOnChanged.Execute(TEventInfo.Create(Self));
+end;
+
+{ TSpriteSystem.TBorderList }
+
+function TSpriteSystem.TBorderList.Add(ABorder: TAxisSystem2; ASmooth: TVector2; AParent: TBorder): TBorder;
+begin
+  Result := TBorder.Create(ABorder, ASmooth, FBorders.Count, AParent);
+  Result.OnChanged.Add(BorderChanged);
+  Result.OnRemove.Add(BorderRemoved);
+end;
+
+procedure TSpriteSystem.TBorderList.BorderChanged(AInfo: TBorder.TEventInfo);
+begin
+  SendData(AInfo.Sender); 
+end;
+
+procedure TSpriteSystem.TBorderList.BorderRemoved(AInfo: TBorder.TEventInfo);
+var
+  I: Integer;
+begin
+  FBorders.DelAt(AInfo.Sender.Index);
+  for I := AInfo.Sender.Index to FBorders.MaxIndex do
+  begin
+    Dec(FBorders[I].FIndex);
+    SendData(FBorders[I]);
+  end;
+  for I := 0 to AInfo.Sender.Index - 1 do
+    if FBorders[I].Parent.Index >= AInfo.Sender.Index then
+      SendData(FBorders[I]);
+end;
+
+constructor TSpriteSystem.TBorderList.Create(AGLProgram: TGLProgram);
+begin
+  FBorders := TBorders.Create;
+  FUBO := TUBO.Create(AGLProgram.GLState, buDynamicDraw);
+  FUBO.BindToGLProgram(AGLProgram, 'borderdata');
+end;
+
+destructor TSpriteSystem.TBorderList.Destroy;
+var
+  Border: TBorder;
+begin
+  FUBO.Free;
+  for Border in FBorders do
+  begin
+    Border.OnRemove.Del(BorderRemoved);
+    Border.Free;  
+  end;
+  FBorders.Free;
+  inherited;
+end;
+
+procedure TSpriteSystem.TBorderList.SendData(ABorder: TBorder);
+var
+  Data: TBorderData;
+begin
+  Data.Border := ABorder.Border;
+  Data.Smooth := ABorder.Smooth;
+  if ABorder.Parent <> nil then
+    Data.Parent := ABorder.Parent.Index
+  else
+    Data.Parent := TBorder.DefaultIndex;
+  FUBO.SubData(ABorder.Index * SizeOf(TBorderData), SizeOf(TBorderData), Data);  
 end;
 
 end.

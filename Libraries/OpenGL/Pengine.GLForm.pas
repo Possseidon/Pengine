@@ -31,9 +31,10 @@ type
     FInput: TInputHandler;
     FContext: TGLContext;
     FFullscreen: Boolean;
-    FOldWindowState: TWindowState;
+    FOldWindowStyle: NativeInt;
     FRunning: Boolean;
     FDC: HDC;
+    FOldBoundsRect: TRect;
 
     procedure ActivateHandler(Sender: TObject);
     procedure DeactivateHandler(Sender: TObject);
@@ -48,8 +49,11 @@ type
 
     procedure RenderCallback;
 
+    procedure ApplicationException(Sender: TObject; E: Exception);
+
   protected
     procedure Resize; override;
+    procedure DoClose(var Action: TCloseAction); override;
 
   public
     constructor Create(TheOwner: TComponent); override;
@@ -79,18 +83,14 @@ type
 
 implementation
 
-const
-  TaskbarWindowClass = 'Shell_TrayWnd';
-
 { TGLForm }
 
 procedure TGLForm.ActivateHandler(Sender: TObject);
 begin
   if Fullscreen then
   begin
-    ShowWindow(FindWindow(TaskbarWindowClass, nil), SW_HIDE);
     BringToFront;
-    // ShowWindow(Handle, SW_SHOW);
+    Resume;
   end;
 end;
 
@@ -99,9 +99,8 @@ begin
   Input.ReleaseAll;
   if Fullscreen then
   begin
-    ShowWindow(FindWindow(TaskbarWindowClass, nil), SW_SHOWNOACTIVATE);
+    Pause;
     WindowState := wsMinimized;
-    // ShowWindow(Handle, SW_HIDE);
   end;
 end;
 
@@ -110,46 +109,28 @@ begin
   Result := Cursor <> -1;
 end;
 
-function TGLForm.GetDeltaTime: Single;
-begin
-  Result := Context.DeltaTime;
-end;
-
-function TGLForm.GetGLState: TGLState;
-begin
-  Result := Context.GLState;
-end;
-
 procedure TGLForm.SetFullscreen(Value: Boolean);
-var
-  Flags: LONG;
+const
+  FullscreenFlags: NativeInt = WS_POPUP or WS_CLIPSIBLINGS or WS_CLIPCHILDREN;
+
 begin
+  if Fullscreen = Value then
+    Exit;
   FFullscreen := Value;
 
   if FFullscreen then
   begin
     // activate fullscreen
-    Flags := GetWindowLong(Handle, GWL_STYLE);
-    Flags := Flags
-      and not WS_CAPTION
-      and not WS_THICKFRAME;
-    SetWindowLong(Handle, GWL_STYLE, Flags);
-    FOldWindowState := WindowState;
-    WindowState := wsNormal;
-    WindowState := wsMaximized;
-    ShowWindow(FindWindow(TaskbarWindowClass, nil), SW_HIDE);
+    FOldWindowStyle := GetWindowLong(Handle, GWL_STYLE);
+    SetWindowLong(Handle, GWL_STYLE, FullscreenFlags);
+    FOldBoundsRect := BoundsRect;
+    BoundsRect := Monitor.BoundsRect;
   end
   else
   begin
     // deactivate fullscreen
-    Flags := GetWindowLong(Handle, GWL_STYLE);
-    Flags := Flags
-      or WS_CAPTION
-      or WS_THICKFRAME;
-    SetWindowLong(Handle, GWL_STYLE, Flags);
-    WindowState := wsNormal;
-    WindowState := FOldWindowState;
-    ShowWindow(FindWindow(TaskbarWindowClass, nil), SW_SHOWNOACTIVATE);
+    SetWindowLong(Handle, GWL_STYLE, FOldWindowStyle);
+    BoundsRect := FOldBoundsRect;
   end;
 end;
 
@@ -168,8 +149,11 @@ begin
     on E: Exception do
     begin
       Pause;
-      if TGLContext.ErrorBox('Game Update Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
-        Halt
+      if TGLContext.ErrorBox('Game Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
+      begin
+        Close;
+        Exit;
+      end
       else
         Resume;
     end;
@@ -182,7 +166,10 @@ begin
     begin
       Pause;
       if TGLContext.ErrorBox('Render Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
-        Halt
+      begin
+        Close;
+        Exit;
+      end
       else
         Resume;
     end;
@@ -190,13 +177,32 @@ begin
 
   FInput.NotifyChanges;
 
-  FContext.WaitForFPSLimit;   
+  FContext.WaitForFPSLimit;
   Done := False;
+end;
+
+function TGLForm.GetGLState: TGLState;
+begin
+  Result := Context.GLState;
+end;
+
+function TGLForm.GetDeltaTime: Single;
+begin
+  Result := Context.DeltaTime;
 end;
 
 procedure TGLForm.RenderCallback;
 begin
   Game.Render;
+end;
+
+procedure TGLForm.ApplicationException(Sender: TObject; E: Exception);
+begin
+  Pause;
+  if TGLContext.ErrorBox('Game Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
+    Close
+  else
+    Resume;
 end;
 
 procedure TGLForm.Resize;
@@ -218,7 +224,6 @@ begin
   inherited;
 
   try
-
     FDC := GetDC(Handle);
     FContext := TGLContext.Create(FDC, IVec2(ClientWidth, ClientHeight), RenderCallback);
     FInput := TInputHandler.Create(Self);
@@ -237,9 +242,12 @@ begin
 
     Color := clBlack;
 
+    Application.OnException := ApplicationException;
+
     TResourceManager.Init;
     Init;
     Start;
+
   except
     on E: EAbort do
     begin
@@ -281,6 +289,13 @@ begin
   inherited;
 end;
 
+procedure TGLForm.DoClose(var Action: TCloseAction);
+begin
+  inherited;
+  // prevent OpenGL from erroring
+  Fullscreen := False;
+end;
+
 procedure TGLForm.Start;
 begin
   Visible := True;
@@ -319,10 +334,23 @@ begin
           AMessage.Result := 1
         else
         begin
-        // 0 - 31 = control charachters
-        // 127 = Ctrl-Backspace
+          // 0 - 31 = control charachters
+          // 127 = Ctrl-Backspace
           if (W >= 32) and (W < 256) and (W <> 127) then
-            FInput.PressChar(Char(W));
+          begin
+            try
+              FInput.PressChar(Char(W));
+            except
+              on E: Exception do
+              begin
+                Pause;
+                if TGLContext.ErrorBox('Game Error!', E.Message, [mbIgnore, mbClose], mbClose) = mrClose then
+                  Close
+                else
+                  Resume;
+              end;
+            end;
+          end;
         end;
       end;
   end;
@@ -332,10 +360,12 @@ end;
 
 procedure TGLForm.Init;
 begin
+  // nothing by default
 end;
 
 procedure TGLForm.Finalize;
 begin
+  // nothing by default
 end;
 
 end.

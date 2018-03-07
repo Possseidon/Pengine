@@ -587,7 +587,12 @@ end;
 class function TTextureData.CreateFromFile(AFileName: string): TTextureData;
 begin
   Result := TTextureData.Create;
-  Result.LoadFromFile(AFileName);
+  try
+    Result.LoadFromFile(AFileName);
+  except
+    Result.Free;
+    raise;
+  end;
 end;
 
 class function TTextureData.CreateFromResource(AResource: string): TTextureData;

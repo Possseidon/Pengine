@@ -281,7 +281,8 @@ type
 
     function IsSupersetOf(ASet: TSet<T, H>): Boolean;
     function IsSubsetOf(ASet: TSet<T, H>): Boolean;
-    function Equals(ASet: TSet<T, H>): Boolean; reintroduce;
+    function Equals(Obj: TObject): Boolean; overload; override;
+    function Equals(ASet: TSet<T, H>): Boolean; reintroduce; overload;
 
     function Reader: TReader; reintroduce; inline;
 
@@ -404,6 +405,9 @@ type
 
     function Reader: TReader; reintroduce; inline;
 
+    function Equals(Obj: TObject): Boolean; overload; override;
+    function Equals(AOther: TMap<K, V, H>): Boolean; reintroduce; overload;
+
   end;
 
   // TODO: XmlDoc
@@ -494,6 +498,9 @@ type
     function Copy(AHashMode: THashMode = hmAuto): TRefRefMap<K, V, H>; reintroduce; inline;
 
     property OwnsValues: Boolean read FOwnsValues write FOwnsValues;
+            
+    function Equals(Obj: TObject): Boolean; overload; override;
+    function Equals(AOther: TRefRefMap<K, V, H>): Boolean; reintroduce; overload;
 
   end;
 
@@ -550,6 +557,9 @@ type
     function Copy(AHashMode: THashMode = hmAuto): TToRefMap<K, V, H>; reintroduce; inline;
 
     property OwnsValues: Boolean read FOwnsValues write FOwnsValues;
+           
+    function Equals(Obj: TObject): Boolean; overload; override;
+    function Equals(AOther: TToRefMap<K, V, H>): Boolean; reintroduce; overload;
 
   end;
 
@@ -914,6 +924,13 @@ begin
     TryDel(Element);
 end;
 
+function TSet<T, H>.Equals(Obj: TObject): Boolean;
+begin
+  if Obj.ClassType <> ClassType then
+    Exit(False);
+  Result := Equals(TSet<T, H>(Obj));
+end;
+
 function TSet<T, H>.Equals(ASet: TSet<T, H>): Boolean;
 var
   Element: T;
@@ -1149,6 +1166,31 @@ procedure TMap<K, V, H>.Del(AKey: K);
 begin
   if not TryDel(AKey) then
     raise EMapKeyNotFound.Create;
+end;
+
+function TMap<K, V, H>.Equals(Obj: TObject): Boolean;
+begin
+  if Obj.ClassType <> ClassType then
+    Exit(False);
+  Result := Equals(TMap<K, V, H>(Obj));
+end;
+
+function TMap<K, V, H>.Equals(AOther: TMap<K, V, H>): Boolean;
+var
+  Pair: TPair<K, V>;
+  Value: V;
+begin
+  if Count <> AOther.Count then
+    Exit(False);
+
+  for Pair in Self do
+  begin
+    if not AOther.Get(Pair.Key, Value) then
+      Exit(False);
+    if CompareMem(@Value, @Pair.Value, SizeOf(V)) then
+      Exit(False);
+  end;
+  Result := True;
 end;
 
 function TMap<K, V, H>.Get(AKey: K; out AValue: V): Boolean;
@@ -1481,6 +1523,31 @@ begin
   Result := TRefRefPairArrayOwnLinked<K, V>.Create(@FOwnsKeys, @FOwnsValues, 4, 2);
 end;
 
+function TRefRefMap<K, V, H>.Equals(Obj: TObject): Boolean;
+begin
+  if Obj.ClassType <> ClassType then
+    Exit(False);
+  Result := Equals(TRefRefMap<K, V, H>(Obj));
+end;
+
+function TRefRefMap<K, V, H>.Equals(AOther: TRefRefMap<K, V, H>): Boolean;
+var
+  Pair: TPair<K, V>;
+  Value: V;
+begin
+  if Count <> AOther.Count then
+    Exit(False);
+
+  for Pair in Self do
+  begin
+    if not AOther.Get(Pair.Key, Value) then
+      Exit(False);
+    if Pair.Value.Equals(Value) then
+      Exit(False);
+  end;
+  Result := True;   
+end;
+
 procedure TRefRefMap<K, V, H>.UnownObjects;
 begin
   inherited;
@@ -1521,6 +1588,31 @@ end;
 function TToRefMap<K, V, H>.CreateBucket: THashBase.TBucket;
 begin
   Result := TToRefPairArrayOwnLinked<K, V>.Create(@FOwnsValues, 4, 2);
+end;
+
+function TToRefMap<K, V, H>.Equals(Obj: TObject): Boolean;
+begin
+  if Obj.ClassType <> ClassType then
+    Exit(False);
+  Result := Equals(TToRefMap<K, V, H>(Obj));  
+end;
+
+function TToRefMap<K, V, H>.Equals(AOther: TToRefMap<K, V, H>): Boolean;
+var
+  Pair: TPair<K, V>;
+  Value: V;
+begin
+  if Count <> AOther.Count then
+    Exit(False);
+
+  for Pair in Self do
+  begin
+    if not AOther.Get(Pair.Key, Value) then
+      Exit(False);
+    if Pair.Value.Equals(Value) then
+      Exit(False);
+  end;
+  Result := True;       
 end;
 
 procedure TToRefMap<K, V, H>.UnownObjects;

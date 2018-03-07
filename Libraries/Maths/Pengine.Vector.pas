@@ -1,5 +1,6 @@
 unit Pengine.Vector;
 
+{$POINTERMATH ON}
 {$EXCESSPRECISION OFF}
 
 interface
@@ -49,82 +50,12 @@ type
     constructor Create;
   end;
 
-  /// <summary>Describes one of the three axes: <c>caX, caY, caZ</c> and also contains <c>caNone</c> to specify no axis.</summary>
-  TCoordAxis = (caNone, caX, caY, caZ);
-
-  /// <summary>A 1-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which does not contain caNone.</summary>
-  TCoordAxis1 = caX .. caX;
-  /// <summary>A 2-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which does not contain caNone.</summary>
-  TCoordAxis2 = caX .. caY;
-  /// <summary>A 3-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which does not contain caNone.</summary>
-  TCoordAxis3 = caX .. caZ;
-
-  /// <summary>A 1-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which also contains caNone.</summary>
-  TCoordAxis1Nonable = caNone .. caX;
-  /// <summary>A 2-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which also contains caNone.</summary>
-  TCoordAxis2Nonable = caNone .. caY;
-  /// <summary>A 3-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which also contains caNone.</summary>
-  TCoordAxis3Nonable = caNone .. caZ;
-
-  /// <summary>Set of 1-Dimensional axes. <p>See <see cref="Pengine.Vector|TCoordAxis"/> for more info.</p></summary>
-  TCoordAxes1 = set of TCoordAxis1;
-  /// <summary>Set of 2-Dimensional axes. <p>See <see cref="Pengine.Vector|TCoordAxis"/> for more info.</p></summary>
-  TCoordAxes2 = set of TCoordAxis2;
-  /// <summary>Set of 3-Dimensional axes. <p>See <see cref="Pengine.Vector|TCoordAxis"/> for more info.</p></summary>
-  TCoordAxes3 = set of TCoordAxis3;
-
-  /// <summary>Describes one of the six simple directions in the following order:
-  /// <code>
-  /// 0 -> bdNone<p/>
-  /// -X -> bdLeft<p/>
-  /// +X -> bdRight<p/>
-  /// -Y -> bdDown<p/>
-  /// +Y -> bdUp<p/>
-  /// -Z -> bdBack
-  /// +Z -> bdFront<p/>
-  /// </code>
-  /// <p>The following subranges exist:</p>
-  /// <p>
-  /// <see cref="Pengine.Vector|TBasicDir1"/>,
-  /// <see cref="Pengine.Vector|TBasicDir2"/>,
-  /// <see cref="Pengine.Vector|TBasicDir3"/>,
-  /// <see cref="Pengine.Vector|TBasicDir1Nonable"/>,
-  /// <see cref="Pengine.Vector|TBasicDir2Nonable"/>,
-  /// <see cref="Pengine.Vector|TBasicDir3Nonable"/>
-  /// </p>
-  /// </summary>
-  /// <remarks>The included <c>bdNone</c> direction is defined as the origin vector.</remarks>
-  TBasicDir = (bdNone, bdLeft, bdRight, bdDown, bdUp, bdBack, bdFront);
-
-  /// <summary>1-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, no <c>bdNone</c>.</summary>
-  TBasicDir1 = bdLeft .. bdRight;
-  /// <summary>2-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, no <c>bdNone</c>.</summary>
-  TBasicDir2 = bdLeft .. bdUp;
-  /// <summary>3-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, no <c>bdNone</c>.</summary>
-  TBasicDir3 = bdLeft .. bdFront;
-
-  /// <summary>1-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, with <c>bdNone</c>.</summary>
-  TBasicDir1Nonable = bdNone .. bdRight;
-  /// <summary>2-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, with <c>bdNone</c>.</summary>
-  TBasicDir2Nonable = bdNone .. bdUp;
-  /// <summary>3-Dimensional, subrange for <see cref="Pengine.Vector|TBasicDir"/>, with <c>bdNone</c>.</summary>
-  TBasicDir3Nonable = bdNone .. bdFront;
-
-  /// <summary>Set of 1-Dimensional directions. <p>See <see cref="Pengine.Vector|TBasicDir"/> for more info.</p></summary>
-  TBasicDirs1 = set of TBasicDir1;
-  /// <summary>Set of 2-Dimensional directions. <p>See <see cref="Pengine.Vector|TBasicDir"/> for more info.</p></summary>
-  TBasicDirs2 = set of TBasicDir2;
-  /// <summary>Set of 3-Dimensional directions. <p>See <see cref="Pengine.Vector|TBasicDir"/> for more info.</p></summary>
-  TBasicDirs3 = set of TBasicDir3;
-
-  /// <summary>A vertex-index for a triangle in range: <c>[0, 3)</c></summary>
-  TTriangleIndex = 0 .. 2;
-  /// <summary>A vertex-index for a render-quad in range: <c>[0, 6)</c></summary>
-  TQuadIndex = 0 .. 5;
-
   /// <summary>A two component vector of type <see cref="System|Single"/>.</summary>
   TVector2 = record
   private
+    function GetComponent(AAxis: TCoordAxis2): Single;
+    procedure SetComponent(AAxis: TCoordAxis2; const Value: Single);
+
     function GetXX: TVector2;
     function GetXY: TVector2;
     function GetYX: TVector2;
@@ -147,6 +78,9 @@ type
     property U: Single read X write X;
     /// <summary>Texture coordinate alias for Y.</summary>
     property V: Single read Y write Y;
+
+    /// <remarks>Allows simple array-like access of each component, thanks to it being a default property.</remarks>
+    property Component[AAxis: TCoordAxis2]: Single read GetComponent write SetComponent; default;
 
     /// <summary>Creates a <see cref="Pengine.Vector|TVector2"/> with the specified components.</summary>
     constructor Create(X, Y: Single); overload;
@@ -265,6 +199,9 @@ type
   /// <summary>A three component vector of type <see cref="System|Single"/>.</summary>
   TVector3 = record
   private
+    function GetComponent(AAxis: TCoordAxis3): Single;
+    procedure SetComponent(AAxis: TCoordAxis3; const Value: Single);
+
     function GetXX: TVector2;
     function GetXY: TVector2;
     function GetXZ: TVector2;
@@ -331,6 +268,9 @@ type
     property T: Single read Y write Y;
     /// <summary>Texture coordinate alias for Z.</summary>
     property U: Single read Z write Z;
+
+    /// <remarks>Allows simple array-like access of each component, thanks to it being a default property.</remarks>
+    property Component[AAxis: TCoordAxis3]: Single read GetComponent write SetComponent; default;
 
     /// <summary>Creates a <see cref="Pengine.Vector|TVector3"/> with the specified components.</summary>
     constructor Create(X, Y, Z: Single); overload;
@@ -1316,7 +1256,7 @@ type
   TAxisSystem2 = record
   private
     function GetPoint(APos: TVector2): TVector2;
-    function GetInvPoints(APos: TVector2): TVector2;
+    function GetInvPoint(APos: TVector2): TVector2;
 
   public
     /// <summary>The support vector S of the line.</summary>
@@ -1336,7 +1276,7 @@ type
     /// <remarks>Default property.</remarks>
     property Point[APos: TVector2]: TVector2 read GetPoint; default;
     /// <summary>Gets where a point lies on the plane, where <c>[S, S + X + Y]</c> turns into <c>[0, 1]</c></summary>
-    property InvPoint[APos: TVector2]: TVector2 read GetInvPoints;
+    property InvPoint[APos: TVector2]: TVector2 read GetInvPoint;
 
     class operator in(const A: TVector2; const B: TAxisSystem2): Boolean;
 
@@ -1449,6 +1389,9 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+
+    procedure Assign(ALocation: TLocation2);
+    function Copy: TLocation2;
 
     procedure Reset;
 
@@ -1799,159 +1742,6 @@ const
   InfBounds2: TBounds2 = (C1: (X: -Infinity; Y: -Infinity); C2: (X: Infinity; Y: Infinity));
   InfBounds3: TBounds3 = (C1: (X: -Infinity; Y: -Infinity; Z: -Infinity); C2: (X: Infinity; Y: Infinity; Z: Infinity));
 
-  Vec1Dir: array [TBasicDir1Nonable] of Integer = (
-    0,
-    -1,
-    +1
-    );
-
-  Vec2Dir: array [TBasicDir2Nonable] of TIntVector2 = (
-    (X: 0; Y: 0),
-    (X: - 1; Y: 0),
-    (X: + 1; Y: 0),
-    (X: 0; Y: - 1),
-    (X: 0; Y: + 1)
-    );
-
-  Vec3Dir: array [TBasicDir] of TIntVector3 = (
-    (X: 0; Y: 0; Z: 0),
-    (X: - 1; Y: 0; Z: 0),
-    (X: + 1; Y: 0; Z: 0),
-    (X: 0; Y: - 1; Z: 0),
-    (X: 0; Y: + 1; Z: 0),
-    (X: 0; Y: 0; Z: - 1),
-    (X: 0; Y: 0; Z: + 1)
-    );
-
-  FlippedBasicDirs: array [TBasicDir] of TBasicDir = (
-    bdNone,
-    bdRight,
-    bdLeft,
-    bdUp,
-    bdDown,
-    bdFront,
-    bdBack
-    );
-
-  AbsBasicDirs: array [TBasicDir] of TBasicDir = (
-    bdNone,
-    bdRight,
-    bdRight,
-    bdUp,
-    bdUp,
-    bdFront,
-    bdBack
-    );
-
-  BasicDirAxis: array [TBasicDir] of TCoordAxis = (
-    caNone,
-    caX,
-    caX,
-    caY,
-    caY,
-    caZ,
-    caZ
-    );
-
-  // -                      direction    around    ccw times
-  BasicDirRotations: array [TBasicDir3, TBasicDir3, 1 .. 3] of TBasicDir = (
-    ( // left
-    (bdLeft, bdLeft, bdLeft), // left
-    (bdLeft, bdLeft, bdLeft), // right
-    (bdBack, bdRight, bdFront), // down
-    (bdFront, bdRight, bdBack), // up
-    (bdUp, bdRight, bdDown), // back
-    (bdDown, bdRight, bdUp) // front
-    ), ( // right
-    (bdRight, bdRight, bdRight), // left
-    (bdRight, bdRight, bdRight), // right
-    (bdFront, bdLeft, bdBack), // down
-    (bdBack, bdLeft, bdFront), // up
-    (bdDown, bdLeft, bdUp), // back
-    (bdUp, bdLeft, bdDown) // front
-    ), ( // down
-    (bdBack, bdUp, bdFront), // left
-    (bdFront, bdUp, bdBack), // right
-    (bdDown, bdDown, bdDown), // down
-    (bdDown, bdDown, bdDown), // up
-    (bdLeft, bdUp, bdRight), // back
-    (bdRight, bdUp, bdLeft) // front
-    ), ( // up
-    (bdFront, bdDown, bdBack), // left
-    (bdBack, bdDown, bdFront), // right
-    (bdUp, bdUp, bdUp), // down
-    (bdUp, bdUp, bdUp), // up
-    (bdRight, bdDown, bdLeft), // back
-    (bdLeft, bdDown, bdRight) // front
-    ), ( // back
-    (bdDown, bdFront, bdUp), // left
-    (bdUp, bdFront, bdDown), // right
-    (bdLeft, bdFront, bdRight), // down
-    (bdRight, bdFront, bdLeft), // up
-    (bdBack, bdBack, bdBack), // back
-    (bdBack, bdBack, bdBack) // front
-    ), ( // front
-    (bdUp, bdBack, bdDown), // left
-    (bdDown, bdBack, bdUp), // right
-    (bdRight, bdBack, bdLeft), // down
-    (bdLeft, bdBack, bdRight), // up
-    (bdFront, bdFront, bdFront), // back
-    (bdFront, bdFront, bdFront) // front
-    ));
-
-  AxisBasicDir: array [TCoordAxis] of TBasicDir = (
-    bdNone,
-    bdRight,
-    bdUp,
-    bdFront
-    );
-
-  QuadSideCount = High(TQuadIndex) + 1;
-
-  QuadTexCoords: array [TQuadIndex] of TIntVector2 = (
-    (X: 0; Y: 0),
-    (X: 1; Y: 0),
-    (X: 1; Y: 1),
-    (X: 1; Y: 1),
-    (X: 0; Y: 1),
-    (X: 0; Y: 0)
-    );
-
-  QuadMiddleCoords: array [TQuadIndex] of TIntVector2 = (
-    (X: - 1; Y: - 1),
-    (X: + 1; Y: - 1),
-    (X: + 1; Y: + 1),
-    (X: + 1; Y: + 1),
-    (X: - 1; Y: + 1),
-    (X: - 1; Y: - 1)
-    );
-
-  TriangleTexCoords: array [TTriangleIndex] of TIntVector2 = (
-    (X: 0; Y: 0),
-    (X: 1; Y: 0),
-    (X: 0; Y: 1)
-    );
-
-  BasicDirectionNames: array [TBasicDir] of AnsiString = (
-    'none',
-    'left',
-    'right',
-    'down',
-    'up',
-    'backwards',
-    'forward'
-    );
-
-  BasicPrepositionNames: array [TBasicDir] of AnsiString = (
-    'none',
-    'left',
-    'right',
-    'bottom',
-    'top',
-    'back',
-    'front'
-    );
-
   CubePlanes: array [TBasicDir3] of TPlane3 = (
     (S: (X: 0; Y: 0; Z: 0); DX: (X: 0; Y: 0; Z: 1); DY: (X: 0; Y: 1; Z: 0)),
     (S: (X: 1; Y: 0; Z: 1); DX: (X: 0; Y: 0; Z: - 1); DY: (X: 0; Y: 1; Z: 0)),
@@ -2007,7 +1797,7 @@ implementation
 const
   RotationLimit: TBounds1 = (C1: - 180; C2: + 180);
 
-  { EAxisError }
+{ EAxisError }
 
 constructor EAxisSystemError.Create;
 begin
@@ -2015,6 +1805,16 @@ begin
 end;
 
 { TVector2 }
+
+function TVector2.GetComponent(AAxis: TCoordAxis2): Single;
+begin
+  Result := (PSingle(@Self) + Ord(AAxis) - Ord(caX))^;
+end;
+
+procedure TVector2.SetComponent(AAxis: TCoordAxis2; const Value: Single);
+begin
+  (PSingle(@Self) + Ord(AAxis) - Ord(caX))^ := Value;
+end;
 
 function TVector2.GetXX: TVector2;
 begin
@@ -2309,6 +2109,16 @@ begin
 end;
 
 { TVector3 }
+
+function TVector3.GetComponent(AAxis: TCoordAxis3): Single;
+begin
+  Result := (PSingle(@Self) + Ord(AAxis) - Ord(caX))^;
+end;
+
+procedure TVector3.SetComponent(AAxis: TCoordAxis3; const Value: Single);
+begin
+  (PSingle(@Self) + Ord(AAxis) - Ord(caX))^ := Value;
+end;
 
 {$REGION 'All versions of rearrangement TIntVector2'}
 
@@ -4140,10 +3950,10 @@ begin
   Result := B.InvPoint[A] in Bounds2(0, 1);
 end;
 
-function TAxisSystem2.GetInvPoints(APos: TVector2): TVector2;
+function TAxisSystem2.GetInvPoint(APos: TVector2): TVector2;
 begin
   Result.X := (DY.Y * (APos.X - S.X) - DY.X * (APos.Y - S.Y)) / (DX.X * DY.Y - DX.Y * DY.X);
-  if (Abs(DY.X) > 1E-3) or (DY.Y = 0) then
+  if Abs(DY.X) > Abs(DY.Y) then
     Result.Y := (APos.X - S.X - Result.X * DX.X) / DY.X
   else
     Result.Y := (APos.Y - S.Y - Result.X * DX.Y) / DY.Y;
@@ -5683,6 +5493,22 @@ begin
     Include(FChanges, AChange);
 end;
 
+procedure TLocation2.Assign(ALocation: TLocation2);
+begin
+  BeginUpdate;
+  Pos := ALocation.Pos;
+  Offset := ALocation.Offset;
+  Scale := ALocation.Scale;
+  Rotation := ALocation.Rotation;
+  EndUpdate;
+end;
+
+function TLocation2.Copy: TLocation2;
+begin
+  Result := TLocation2.Create;
+  Result.Assign(Self);
+end;
+
 procedure TLocation2.BeginUpdate;
 begin
   Inc(FUpdateCounter);
@@ -5696,6 +5522,8 @@ end;
 
 destructor TLocation2.Destroy;
 begin
+  if Parent <> nil then
+    Parent.OnChanged.Del(ParentChanged);
   FAxisSystem.Free;
   inherited;
 end;

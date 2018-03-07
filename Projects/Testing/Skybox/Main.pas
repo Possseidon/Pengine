@@ -133,6 +133,7 @@ type
     procedure Finalize; override;
 
     procedure GameUpdate;
+    procedure UpdateFPS;
 
   end;
 
@@ -151,6 +152,7 @@ var
   Pos: TIntVector3;
 begin
   Game.OnUpdate.Add(GameUpdate);
+  Game.Timer.OnFPSUpdate.Add(UpdateFPS);
 
   Context.VSync := False;
 
@@ -203,6 +205,11 @@ begin
   FTextureAtlas := TTextureMap.Make(GLState.ResParam);
 end;
 
+procedure TfrmMain.UpdateFPS;
+begin
+  Caption := Format('FPS: %d', [Context.FPSInt]);
+end;
+
 procedure TfrmMain.Finalize;
 begin
   TTextureMap.Release(GLState.ResParam);
@@ -221,9 +228,6 @@ procedure TfrmMain.GameUpdate;
 var
   Cube: TCube;
 begin
-  if Context.MustUpdateFPS then
-    Caption := Format('FPS: %d', [Context.FPSInt]);
-
   if Input.KeyDown('A') then
     FCubes[Random(FCubes.Count)].Texture := 'stone_bricks';
   if Input.KeyDown('S') then
@@ -277,8 +281,8 @@ begin
     for P in CubePlanes do
     begin
       Data.Normal := P.Normal;
-      Data.Tangent := P.D1;
-      Data.Bitangent := P.D2;
+      Data.Tangent := P.DX;
+      Data.Bitangent := P.DY;
       for T in QuadTexCoords do
       begin
         Data.Pos := P[T] - 0.5 + Offset;

@@ -6,26 +6,41 @@ uses
   dglOpenGL,
 
   System.SysUtils,
+  System.Math,
 
   Pengine.GLEnums,
   Pengine.GLProgram,
-  Pengine.GLState;
+  Pengine.GLState,
+  Pengine.Bitfield;
 
 type
 
-  { TUBO }
+  EBufferObjectTooMany = class(Exception)
+  public
+    constructor Create;
+  end;
 
-  TUBO = class(TGLObject)
+  TBufferObject = class(TGLObject)
+  public type
+
+    TBindingPoint = type Integer;
+
+    TBinding = class(TGLObjectBinding<TBufferObject>)
+    private
+      FUsedBindingPoints: TBitfield;
+      FFirstUnusedBindingPoint: TBindingPoint;
+
+    public
+      constructor Create; override;
+      destructor Destroy; override;
+
+      function Add: TBindingPoint;
+      procedure Del(ABindingPoint: TBindingPoint);
+
+    end;
+
   private
-    FBindingPoint: Integer;
-
-    class var
-      Initialized: Boolean;
-      MaxBindings: Integer;
-      BindingCount: Integer;
-
-    class procedure Init;
-
+    FBindingPoint: TBindingPoint;
 
   protected
     procedure GenObject(out AGLName: Cardinal); override;
@@ -34,6 +49,12 @@ type
     procedure BindGLObject; override;
     procedure UnbindGLObject; override;
 
+    class function TargetType: GLenum; virtual; abstract;
+
+    function Binding: TBinding;
+
+    procedure DoBlockBinding(AGLProgram: TGLProgram; ABlockIndex: Integer); virtual; abstract;
+
   public
     constructor Create(AGLState: TGLState);
     destructor Destroy; override;
@@ -41,8 +62,22 @@ type
     class function GetObjectType: TGLObjectType; override;
     class function GetBindingClass: TGLObjectBindingClass; override;
 
-    procedure Generate(AData: Pointer; ASize: Integer; ABufferUsage: TGLBufferUsage); overload;
-    procedure Generate(ASize: Integer; ABufferUsage: TGLBufferUsage); overload;
+    procedure BindToGLProgram(AGLProgram: TGLProgram; AName: PAnsiChar);
+
+  end;
+
+  TUBO<TData: record> = class(TBufferObject)
+  public type
+
+    PData = ^TData;
+
+  protected
+    class function TargetType: Cardinal; override;
+
+    procedure DoBlockBinding(AGLProgram: TGLProgram; ABlockIndex: Integer); override;
+
+  public
+    constructor Create(AGLState: TGLState; ABufferUsage: TGLBufferUsage);
 
     procedure SubData(AOffset, ASize: Integer; const AData);
 
@@ -50,74 +85,139 @@ type
 
   end;
 
+  TSSBO = class(TBufferObject)
+    // TODO
+  end;
+
 implementation
 
-{ TUBO }
+{ EBufferObjectTooMany }
 
-class procedure TUBO.Init;
+constructor EBufferObjectTooMany.Create;
 begin
-  glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, @MaxBindings);
-  Initialized := True;
+  inherited Create('Too many buffer objects.');
 end;
 
-procedure TUBO.GenObject(out AGLName: Cardinal);
+{ TBufferObject.TBinding }
+
+constructor TBufferObject.TBinding.Create;
+var
+  BindingPoints: Integer;
+begin
+  glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, @BindingPoints);
+  FUsedBindingPoints := TBitfield.Create(BindingPoints);
+end;
+
+destructor TBufferObject.TBinding.Destroy;
+begin
+  FUsedBindingPoints.Free;
+  inherited;
+end;
+
+function TBufferObject.TBinding.Add: TBindingPoint;
+begin
+  if FFirstUnusedBindingPoint = FUsedBindingPoints.Size then
+    raise EBufferObjectTooMany.Create;
+  FUsedBindingPoints[FFirstUnusedBindingPoint] := True;
+  Result := FFirstUnusedBindingPoint;
+  repeat
+    Inc(FFirstUnusedBindingPoint)
+  until not FUsedBindingPoints[FFirstUnusedBindingPoint];
+end;
+
+procedure TBufferObject.TBinding.Del(ABindingPoint: TBindingPoint);
+begin
+  FUsedBindingPoints[ABindingPoint] := False;
+  FFirstUnusedBindingPoint := Min(FFirstUnusedBindingPoint, ABindingPoint);
+end;
+
+{ TBufferObject }
+
+procedure TBufferObject.GenObject(out AGLName: Cardinal);
 begin
   glGenBuffers(1, @AGLName);
 end;
 
-procedure TUBO.DeleteObject(const AGLName: Cardinal);
+procedure TBufferObject.DeleteObject(const AGLName: Cardinal);
 begin
   glDeleteBuffers(1, @AGLName);
 end;
 
-constructor TUBO.Create(AGLState: TGLState);
+procedure TBufferObject.BindGLObject;
 begin
-  if not Initialized then
-    Init;
-
-  if BindingCount >= MaxBindings then
-    raise Exception.Create('Too many UBOs!');
-
-  inherited;
-
-  FBindingPoint := BindingCount;
-  Inc(BindingCount);
+  glBindBuffer(TargetType, GLName);
 end;
 
-destructor TUBO.Destroy;
+procedure TBufferObject.UnbindGLObject;
 begin
-  inherited;
+  glBindBuffer(TargetType, 0);
 end;
 
-procedure TUBO.Generate(AData: Pointer; ASize: Integer; ABufferUsage: TGLBufferUsage);
+function TBufferObject.Binding: TBinding;
+begin
+  Result := TBinding(inherited Binding);
+end;
+
+procedure TBufferObject.BindToGLProgram(AGLProgram: TGLProgram; AName: PAnsiChar);
+var
+  BlockIndex: GLuint;
 begin
   Bind;
-  glBufferData(GL_UNIFORM_BUFFER, ASize, AData, Ord(ABufferUsage));
+  BlockIndex := glGetUniformBlockIndex(AGLProgram.GLName, AName);
+  if BlockIndex = GL_INVALID_INDEX then
+    raise Exception.Create('The UBO ' + AName + ' does not exist in the shader.');
+  glBindBufferBase(GL_UNIFORM_BUFFER, FBindingPoint, GLName);
+  DoBlockBinding(AGLProgram, BlockIndex);
 end;
 
-procedure TUBO.Generate(ASize: Integer; ABufferUsage: TGLBufferUsage);
+constructor TBufferObject.Create(AGLState: TGLState);
 begin
-  Bind;
-  glBufferData(GL_UNIFORM_BUFFER, ASize, nil, Ord(ABufferUsage));
+  inherited;
+  FBindingPoint := Binding.Add;
 end;
 
-procedure TUBO.SubData(AOffset, ASize: Integer; const AData);
+destructor TBufferObject.Destroy;
+begin
+  Binding.Del(FBindingPoint);
+  inherited;
+end;
+
+class function TBufferObject.GetObjectType: TGLObjectType;
+begin
+  Result := otBuffer;
+end;
+
+class function TBufferObject.GetBindingClass: TGLObjectBindingClass;
+begin
+  Result := TBinding;
+end;
+
+{ TUBO<TData> }
+
+constructor TUBO<TData>.Create(AGLState: TGLState; ABufferUsage: TGLBufferUsage);
+begin
+  inherited Create(AGLState);
+  Bind;
+  glBufferData(GL_UNIFORM_BUFFER, SizeOf(TData), nil, Ord(ABufferUsage));
+end;
+
+procedure TUBO<TData>.DoBlockBinding(AGLProgram: TGLProgram; ABlockIndex: Integer);
+begin
+  glUniformBlockBinding(AGLProgram.GLName, ABlockIndex, FBindingPoint);
+end;
+
+procedure TUBO<TData>.SubData(AOffset, ASize: Integer; const AData);
 begin
   Bind;
   glBufferSubData(GL_UNIFORM_BUFFER, AOffset, ASize, @AData);
 end;
 
-procedure TUBO.UnbindGLObject;
+class function TUBO<TData>.TargetType: Cardinal;
 begin
-  glBindBuffer(GL_UNIFORM_BUFFER, 0);
+  Result := GL_UNIFORM_BUFFER;
 end;
 
-procedure TUBO.BindGLObject;
-begin
-  glBindBuffer(GL_UNIFORM_BUFFER, GLName);
-end;
-
-procedure TUBO.BindToGLProgram(AGLProgram: TGLProgram; AName: PAnsiChar);
+procedure TUBO<TData>.BindToGLProgram(AGLProgram: TGLProgram; AName: PAnsiChar);
 var
   BlockIndex: GLuint;
 begin
@@ -127,16 +227,6 @@ begin
     raise Exception.Create('The UBO ' + AName + ' does not exist in the shader.');
   glBindBufferBase(GL_UNIFORM_BUFFER, FBindingPoint, GLName);
   glUniformBlockBinding(AGLProgram.GLName, BlockIndex, FBindingPoint);
-end;
-
-class function TUBO.GetBindingClass: TGLObjectBindingClass;
-begin
-  Result := TGLObjectBinding<TUBO>;
-end;
-
-class function TUBO.GetObjectType: TGLObjectType;
-begin
-  Result := otBuffer;
 end;
 
 end.

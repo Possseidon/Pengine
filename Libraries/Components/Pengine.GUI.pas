@@ -15,19 +15,10 @@ uses
   Pengine.Hasher,
   Pengine.Vector,
   Pengine.Color,
-  Pengine.Utility;
+  Pengine.Utility,
+  Pengine.InputHandler;
 
 type
- 
-  EGUIFontMissing = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  EGUIFontColorMissing = class(Exception)
-  public
-    constructor Create;
-  end;
 
   TGUI = class;
   TContainerControl = class;
@@ -103,12 +94,14 @@ type
 
   private
     FGUI: TGUI;
-    FParent: TContainerControl;
+    FParent: TControl;
+    FZOrder: Integer;
     FSprites: TSprites;
     FCharSprites: TCharSprites;
     FFontTile: TTextureAtlas.TTile;
     FFontColor: TOpt<TColorRGBA>;
     FLocation: TLocation2;
+    FOriginLocation: TLocation2;
     FOrigin: TOrigin;
     FOnFontChanged: TFontChangeEvent;
     FOnFontColorChanged: TFontColorChangeEvent;
@@ -116,7 +109,9 @@ type
     FOnAspectChanged: TEvent;
     FOnBoundsChanged: TEvent;
 
-    function GetSpriteSystem: TSpriteSystem;
+    function GetGame: TGLGame;
+    function GetInputHandler: TInputHandler;
+    function GetTextureAtlas: TTextureAtlas;
 
     function GetFontTile: TTextureAtlas.TTile;
     procedure SetFontTile(const Value: TTextureAtlas.TTile);
@@ -128,7 +123,7 @@ type
     procedure SetOrigin(const Value: TOrigin);
     procedure SetOriginX(const Value: TOriginX);
     procedure SetOriginY(const Value: TOriginY);
-    function GetBoundsCentered: TAxisSystem2;
+    function GetBoundsCentered: TAxisSystem2; virtual;
     function GetBounds: TAxisSystem2;
 
     procedure SpriteRemoved(AInfo: TSprite.TEventInfo);
@@ -137,10 +132,13 @@ type
     procedure ParentFontChanged(AInfo: TFontChangeEventInfo);
     procedure ParentFontColorChanged(AInfo: TFontColorChangeEventInfo);
     procedure ParentBoundsChanged(AInfo: TEventInfo);
+    procedure ParentAspectChanged(AInfo: TEventInfo);
 
     procedure SelfOriginChanged(AInfo: TOriginChangeEventInfo);
     procedure SelfAspectChanged(AInfo: TEventInfo);
     procedure SelfLocationChanged(AInfo: TLocation2.TChangeEventInfo);
+
+    procedure UpdateOriginLocation;
 
     function GetOnFontChanged: TFontChangeEvent.TAccess;
     function GetOnFontColorChanged: TFontColorChangeEvent.TAccess;
@@ -150,25 +148,24 @@ type
     function GetOnBoundsChanged: TEvent.TAccess;
 
   protected
-    property SpriteSystem: TSpriteSystem read GetSpriteSystem;
-
     function Add<T: TSprite>(ATexture: string): T; overload;
     function Add<T: TSprite>(ATexture: TTextureAtlas.TTile): T; overload;
     function AddChar: TCharSprite;
 
-    procedure AspectChanged;
+    procedure NotifyAspectChanged;
     function GetAspect: Single; virtual; abstract;
 
     class procedure AddRequiredTextures(ARequiredTextures: TArray<string>); virtual;
     
   public
-    constructor Create(AParent: TContainerControl); virtual;
+    constructor Create(AParent: TControl); virtual;
     destructor Destroy; override;
 
-    class function RequiredTextures: TArray<string>;
-
     property GUI: TGUI read FGUI;
-    property Parent: TContainerControl read FParent;
+    property Game: TGLGame read GetGame;
+    property Input: TInputHandler read GetInputHandler;
+    property Parent: TControl read FParent;
+    property TextureAtlas: TTextureAtlas read GetTextureAtlas;
 
     property FontTile: TTextureAtlas.TTile read GetFontTile write SetFontTile;
     property Font: string read GetFont write SetFont;
@@ -178,6 +175,8 @@ type
     procedure UseParentFontColor;
 
     property Location: TLocation2 read FLocation;
+
+    function MouseHovered: Boolean;
 
     property Origin: TOrigin read FOrigin write SetOrigin;
     property OriginX: TOriginX read FOrigin.X write SetOriginX;
@@ -206,7 +205,7 @@ type
     function GetControls: TControls.TReader;
 
   public
-    constructor Create(AParent: TContainerControl); override; 
+    constructor Create(AParent: TControl); override;
     destructor Destroy; override;
 
     function Add<T: TControl>: T; overload;
@@ -219,23 +218,26 @@ type
   TGUI = class(TContainerControl)
   private
     FSpriteSystem: TSpriteSystem;
-    FControlClasses: TClassSet;
+    FBorders: TSpriteSystem.TBorderList;
+    FBordersRef: Boolean;
 
     function GetTextureAtlas: TTextureAtlas;
     function GetGame: TGLGame;
+
+    function GetBoundsCentered: TAxisSystem2; override;
 
   protected
     function GetAspect: Single; override;
 
   public
-    constructor Create(AGLGame: TGLGame; AGLProgram: TGLProgram); reintroduce;
+    constructor Create(AGLGame: TGLGame; AGLProgram: TGLProgram; ABorders: TSpriteSystem.TBorderList = nil); reintroduce;
     destructor Destroy; override;
+
+    property Borders: TSpriteSystem.TBorderList read FBorders;
 
     property Game: TGLGame read GetGame;
 
-    property Textures: TTextureAtlas read GetTextureAtlas;
-
-    procedure LoadControlClass(AControlClass: TControlClass);
+    property TextureAtlas: TTextureAtlas read GetTextureAtlas;
     
   end;
 
@@ -248,27 +250,31 @@ begin
   // nothing
 end;
 
-procedure TControl.AspectChanged;
+procedure TControl.NotifyAspectChanged;
 begin
   FOnAspectChanged.Execute(TEventInfo.Create(Self));
 end;
 
 function TControl.Add<T>(ATexture: string): T;
 begin
-  Result := Add<T>(SpriteSystem.SpriteAtlas[ATexture]);
+  Result := Add<T>(GUI.FSpriteSystem.SpriteAtlas[ATexture]);
 end;
 
 function TControl.Add<T>(ATexture: TTextureAtlas.TTile): T;
 begin
-  Result := SpriteSystem.Add<T>(ATexture);
+  Result := GUI.FSpriteSystem.Add<T>(ATexture);
   FSprites.Add(Result);
+  Result.ZOrder := FZOrder;
+  Result.Location.Parent := Location;
   Result.OnRemove.Add(SpriteRemoved);
 end;
 
 function TControl.AddChar: TCharSprite;
 begin
-  Result := FCharSprites.Add(SpriteSystem.Add<TCharSprite>(Font));
+  Result := FCharSprites.Add(GUI.FSpriteSystem.Add<TCharSprite>(FontTile));
+  Result.ZOrder := FZOrder + 0.5;
   Result.Color := FontColor;
+  Result.Location.Parent := Location;
   Result.OnRemove.Add(CharRemoved);
 end;
 
@@ -277,17 +283,21 @@ begin
   FCharSprites.Del(TCharSprite(AInfo.Sender));
 end;
 
-constructor TControl.Create(AParent: TContainerControl);
+constructor TControl.Create(AParent: TControl);
 begin
   FLocation := TLocation2.Create;
+  FOriginLocation := TLocation2.Create;
+  Location.Parent := FOriginLocation;
   if AParent <> nil then
   begin
     FGUI := AParent.GUI;
     FParent := AParent;
+    FZOrder := Parent.FZOrder + 1;
     FParent.OnFontChanged.Add(ParentFontChanged);
     FParent.OnFontColorChanged.Add(ParentFontColorChanged);
     FParent.OnBoundsChanged.Add(ParentBoundsChanged);
-    FLocation.Parent := Parent.Location;
+    FParent.OnAspectChanged.Add(ParentAspectChanged);
+    FOriginLocation.Parent := Parent.Location;
   end;
   FSprites := TSprites.Create;
   FCharSprites := TCharSprites.Create;
@@ -304,8 +314,9 @@ begin
   FCharSprites.Free;
   FSprites.Free;
   FLocation.Free;
-  if FParent <> nil then
-    FParent.FControls.Del(Self);
+  FOriginLocation.Free;
+  if FParent is TContainerControl then
+    TContainerControl(FParent).FControls.Del(Self);
   inherited;
 end;
 
@@ -322,23 +333,6 @@ begin
   Result := Location.AxisSystem;
   Result.DX := Result.DX * Aspect / 2;
   Result.DY := Result.DY / 2;
-
-  if Parent <> nil then
-  begin
-    case OriginX of
-      oxLeft:
-        Result.S := Result.S + Parent.BoundsCentered.DX * (Aspect / Parent.Aspect - 2 / Location.ScaleX);
-      oxRight:
-        Result.S := Result.S + Parent.BoundsCentered.DX * (2 / Location.ScaleX - Aspect / Parent.Aspect);
-    end;
-
-    case OriginY of
-      oyBottom:
-        Result.S := Result.S + Parent.BoundsCentered.DY * (1 - 2 / Location.ScaleY);
-      oyTop:
-        Result.S := Result.S + Parent.BoundsCentered.DY * (2 / Location.ScaleY - 1);
-    end;
-  end;
 end;
 
 function TControl.GetFont: string;
@@ -352,7 +346,8 @@ begin
     Exit(FFontColor.Value);
   if Parent <> nil then
     Exit(Parent.FontColor);
-  raise EGUIFontColorMissing.Create;
+  FFontColor.Value := ColorWhite;
+  Result := FontColor;
 end;
 
 function TControl.GetFontTile: TTextureAtlas.TTile;
@@ -361,7 +356,18 @@ begin
     Exit(FFontTile);
   if Parent <> nil then
     Exit(Parent.FontTile);
-  raise EGUIFontMissing.Create;
+  Font := 'font';
+  Result := FontTile;
+end;
+
+function TControl.GetGame: TGLGame;
+begin
+  Result := GUI.Game;
+end;
+
+function TControl.GetInputHandler: TInputHandler;
+begin
+  Result := Game.Input;
 end;
 
 function TControl.GetOnAspectChanged: TEvent.TAccess;
@@ -394,9 +400,19 @@ begin
   Result := FOnOriginChanged.Access;
 end;
 
-function TControl.GetSpriteSystem: TSpriteSystem;
+function TControl.GetTextureAtlas: TTextureAtlas;
 begin
-  Result := FGUI.FSpriteSystem;
+  Result := GUI.TextureAtlas;
+end;
+
+function TControl.MouseHovered: Boolean;
+begin
+  Result := Input.MouseOnScreen and (Input.MousePos in Bounds);
+end;
+
+procedure TControl.ParentAspectChanged(AInfo: TEventInfo);
+begin
+  UpdateOriginLocation;
 end;
 
 procedure TControl.ParentBoundsChanged(AInfo: TEventInfo);
@@ -422,19 +438,16 @@ begin
   FOnFontColorChanged.Execute(AInfo, False);  
 end;
 
-class function TControl.RequiredTextures: TArray<string>;
-begin
-  Result := TArray<string>.Create;
-  AddRequiredTextures(Result);
-end;
-
 procedure TControl.SelfAspectChanged(AInfo: TEventInfo);
 begin
+  UpdateOriginLocation;
   FOnBoundsChanged.Execute(AInfo, False);
 end;
 
 procedure TControl.SelfLocationChanged(AInfo: TLocation2.TChangeEventInfo);
 begin
+  if AInfo.Changes - [lcParent, lcScale] <> AInfo.Changes then
+    NotifyAspectChanged;
   FOnBoundsChanged.Execute(TEventInfo.Create(Self));
 end;
 
@@ -445,7 +458,7 @@ end;
 
 procedure TControl.SetFont(const Value: string);
 begin
-  FontTile := GUI.Textures[Value];
+  FontTile := TextureAtlas[Value];
 end;
 
 procedure TControl.SetFontColor(const Value: TColorRGBA);
@@ -494,6 +507,7 @@ begin
     Exit;
   OldOrigin := Origin;
   FOrigin := Value;
+  UpdateOriginLocation;
   FOnOriginChanged.Execute(TOriginChangeEventInfo.Create(Self, OldOrigin));
 end;
 
@@ -505,6 +519,7 @@ begin
     Exit;
   OldOrigin := Origin;
   FOrigin.X := Value;
+  UpdateOriginLocation;
   FOnOriginChanged.Execute(TOriginChangeEventInfo.Create(Self, OldOrigin));
 end;
 
@@ -516,12 +531,37 @@ begin
     Exit;
   OldOrigin := Origin;
   FOrigin.Y := Value;
+  UpdateOriginLocation;
   FOnOriginChanged.Execute(TOriginChangeEventInfo.Create(Self, OldOrigin));
 end;
 
 procedure TControl.SpriteRemoved(AInfo: TSprite.TEventInfo);
 begin
   FSprites.Del(AInfo.Sender);
+end;
+
+procedure TControl.UpdateOriginLocation;
+begin
+  if Parent = nil then
+    Exit;
+
+  case OriginX of
+    oxLeft:
+      FOriginLocation.PosX := Aspect * Location.ScaleX / 2 - Parent.Aspect;
+    oxCenter:
+      FOriginLocation.PosX := 0;
+    oxRight:
+      FOriginLocation.PosX := Parent.Aspect - Aspect * Location.ScaleX / 2;
+  end;
+
+  case OriginY of
+    oyBottom:
+      FOriginLocation.PosY := Location.ScaleY / 2 - 1;
+    oyCenter:
+      FOriginLocation.PosY := 0;
+    oyTop:
+      FOriginLocation.PosY := 1 - Location.ScaleY / 2;
+  end;
 end;
 
 procedure TControl.UseParentFont;
@@ -532,7 +572,6 @@ end;
 procedure TControl.UseParentFontColor;
 var
   OldFontColor: TColorRGBA;
-  EventInfo: TFontColorChangeEventInfo;
   CharSprite: TCharSprite;
 begin
   if not FFontColor.HasValue then
@@ -574,7 +613,7 @@ begin
   Result := T(FControls.Add(T.Create(Self)));
 end;
 
-constructor TContainerControl.Create(AParent: TContainerControl);
+constructor TContainerControl.Create(AParent: TControl);
 begin
   inherited;
   FControls := TControls.Create;
@@ -587,39 +626,45 @@ begin
   Result := Game.Aspect;
 end;
 
+function TGUI.GetBoundsCentered: TAxisSystem2;
+begin
+  Result := inherited;
+  Result.DX := Result.DX * 2;
+  Result.DY := Result.DY * 2;
+end;
+
 function TGUI.GetGame: TGLGame;
 begin
-  Result := SpriteSystem.Game;
+  Result := FSpriteSystem.Game;
 end;
 
 function TGUI.GetTextureAtlas: TTextureAtlas;
 begin
-  Result := SpriteSystem.SpriteAtlas;
+  Result := FSpriteSystem.SpriteAtlas;
 end;
 
-constructor TGUI.Create;
+constructor TGUI.Create(AGLGame: TGLGame; AGLProgram: TGLProgram; ABorders: TSpriteSystem.TBorderList);
 begin
   inherited Create(nil);
-  FControlClasses := TClassSet.Create;
   FSpriteSystem := TSpriteSystem.Create(AGLGame, AGLProgram);
+  if ABorders <> nil then
+  begin
+    FBordersRef := True;
+    FBorders := ABorders;
+  end
+  else
+    FBorders := TSpriteSystem.TBorderList.Create(AGLProgram);
   FGUI := Self;
   FontColor := ColorWhite;
-  Game.OnResize.Add(AspectChanged);
+  Game.OnResize.Add(NotifyAspectChanged);
 end;
 
 destructor TGUI.Destroy;
 begin
+  if not FBordersRef then
+    FBorders.Free;
   FSpriteSystem.Free;
-  FControlClasses.Free;
   inherited;
-end;
-
-procedure TGUI.LoadControlClass(AControlClass: TControlClass);
-begin
-  if not FControlClasses[AControlClass] then
-  begin
-    ;
-  end;
 end;
 
 { TControl.TFontChangeEventInfo }
@@ -664,20 +709,6 @@ end;
 function TControl.TFontColorChangeEventInfo.GetOldColor: TOpt<TColorRGBA>.TReader;
 begin
   Result := FOldColor.Reader;
-end;
-
-{ EGUIFontMissing }
-
-constructor EGUIFontMissing.Create;
-begin
-  inherited Create('GUI does not have a font.');
-end;
-
-{ EGUIFontColorMissing }
-
-constructor EGUIFontColorMissing.Create;
-begin
-  inherited Create('GUI does not have a font color.');
 end;
 
 { TControl.TOriginChangeEventInfo }

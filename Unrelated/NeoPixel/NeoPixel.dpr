@@ -1,12 +1,8 @@
-program PointAndClick;
-
-{$R *.dres}
+program NeoPixel;
 
 uses
   Vcl.Forms,
-  Main in 'Main.pas' {frmMain},
-  Vcl.Themes,
-  Vcl.Styles;
+  Main in 'Main.pas' {frmMain};
 
 {$R *.res}
 

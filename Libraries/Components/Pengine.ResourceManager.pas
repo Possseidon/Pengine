@@ -233,7 +233,6 @@ var
 begin
   for Data in FData do
     TResourceManager.FUnfreedParamResources.Add(Data.Value);
-
   FData.Free;
 end;
 
@@ -242,35 +241,41 @@ var
   ActualKey: TResourceParameter;
   ResourceEntry: TResourceParameterEntry<T>;
 begin
-  AParams.FResourceClass := Self;
-  if FData.Get(AParams, ResourceEntry) then
-  begin
-    ResourceEntry.AddRef;
-    Result := ResourceEntry.Data;
-  end
-  else
-  begin
-    Result := CreateData(AParams);
-    FData[AParams.Copy] := TResourceParameterEntry<T>.Create(Result);
+  try
+    AParams.FResourceClass := Self;
+    if FData.Get(AParams, ResourceEntry) then
+    begin
+      ResourceEntry.AddRef;
+      Result := ResourceEntry.Data;
+    end
+    else
+    begin
+      Result := CreateData(AParams);
+      FData[AParams.Copy] := TResourceParameterEntry<T>.Create(Result);
+    end;
+  finally
+    if AFreeParam then
+      AParams.Free;
   end;
-  if AFreeParam then
-    AParams.Free;
 end;
 
 class procedure TParamResource<T, P>.Release(AParams: P; AFreeParam: Boolean = True);
 var
   Data: TResourceParameterEntry<T>;
 begin
-  AParams.FResourceClass := Self;
-  Data := FData[AParams];
-  Data.DelRef;
-  if Data.RefCount = 0 then
-  begin
-    ReleaseReferences(AParams);
-    FData.Del(AParams);
+  try
+    AParams.FResourceClass := Self;
+    Data := FData[AParams];
+    Data.DelRef;
+    if Data.RefCount = 0 then
+    begin
+      ReleaseReferences(AParams);
+      FData.Del(AParams);
+    end;
+  finally
+    if AFreeParam then
+      AParams.Free;
   end;
-  if AFreeParam then
-    AParams.Free;
 end;
 
 class procedure TParamResource<T, P>.ReleaseReferences(AParam: P);

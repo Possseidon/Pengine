@@ -1,12 +1,9 @@
-program PointAndClick;
-
-{$R *.dres}
+program VoidDefender;
 
 uses
   Vcl.Forms,
   Main in 'Main.pas' {frmMain},
-  Vcl.Themes,
-  Vcl.Styles;
+  VD.Entity in 'VD.Entity.pas';
 
 {$R *.res}
 
