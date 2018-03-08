@@ -1,0 +1,33 @@
+object frmSynEdit: TfrmSynEdit
+  Left = 0
+  Top = 0
+  Width = 573
+  Height = 385
+  TabOrder = 0
+  object synEdit: TSynEdit
+    AlignWithMargins = True
+    Left = 3
+    Top = 3
+    Width = 567
+    Height = 379
+    Align = alClient
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -16
+    Font.Name = 'Consolas'
+    Font.Pitch = fpFixed
+    Font.Style = []
+    ParentShowHint = False
+    ShowHint = False
+    TabOrder = 0
+    Gutter.Font.Charset = ANSI_CHARSET
+    Gutter.Font.Color = clWindowText
+    Gutter.Font.Height = -16
+    Gutter.Font.Name = 'Consolas'
+    Gutter.Font.Style = []
+    Gutter.ShowLineNumbers = True
+    WordWrap = True
+    FontSmoothing = fsmNone
+    ExplicitHeight = 340
+  end
+end
