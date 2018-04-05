@@ -45,6 +45,7 @@ type
     end;
 
     TEvent = TEvent<TEventInfo>;
+
   private
     FMax: THealth;
     FCurrent: THealth;
@@ -72,21 +73,25 @@ type
 
   end;
 
+  TEntitySystem = class;
+
   TEntity = class
   public type
 
     TTemplate = class
     public type
 
+      TPartIndex = Integer;
+
       TPart = class
       public type
 
-        TSubParts = TRefArray<TPart>;
+        TConnections = TArray<TPartIndex>;
 
       private
         FEntity: TTemplate;
         FParent: TPart;
-        FSubParts: TSubParts;
+        FConnections: TConnections;
         FLocation: TLocation2;
         FHealth: THealth;
         FTexture: TTextureAtlas.TTile;
@@ -94,14 +99,13 @@ type
         procedure SetHealth(const Value: THealth);
 
       public
-        constructor Create(AParent: TPart);
+        constructor Create(AEntity: TEntity); overload;
+        constructor Create(AParent: TPart); overload;
         destructor Destroy; override;
 
         property Entity: TTemplate read FEntity;
         property Parent: TPart read FParent;
-        property SubParts: TSubParts read FSubParts;
-
-        function AddPart: TPart;
+        property Connections: TConnections read FConnections;
 
         property Location: TLocation2 read FLocation;
         property Health: THealth read FHealth write SetHealth;
@@ -109,32 +113,40 @@ type
 
       end;
 
+      TParts = TRefArray<TPart>;
+
     private
-      FRootPart: TPart;
+      FParts: TParts;
+      FMainPart: TPartIndex;
 
     public
       constructor Create;
       destructor Destroy; override;
 
-      property RootPart: TPart read FRootPart;
+      property Parts: TParts read FParts;
+      property MainPart: TPartIndex read FMainPart write FMainPart;
+
+      function AddPart: TPart;
 
     end;
 
     TPart = class
     public type
 
-      TSubParts = TRefArray<TPart>;
+      TConnections = TRefArray<TPart>;
+
+      TSprites = TRefArray<TSprite>;
 
     private
       FEntity: TEntity;
       FParent: TPart;
-      FSubParts: TSubParts;
+      FConnections: TConnections;
       FLocation: TLocation2;
       FHealth: THealthBar;
-      FSprite: TSprite;
+      FSprites: TSprites;
 
-      function GetSubParts: TSubParts.TReader;
       function GetSpriteSystem: TSpriteSystem;
+      function GetConnections: TConnections.TReader;
 
     public
       constructor Create(ATemplate: TTemplate.TPart; AEntity: TEntity); overload;
@@ -143,7 +155,7 @@ type
 
       property Entity: TEntity read FEntity;
       property Parent: TPart read FParent;
-      property SubParts: TSubParts.TReader read GetSubParts;
+      property Connections: TConnections.TReader read GetConnections;
 
       property SpriteSystem: TSpriteSystem read GetSpriteSystem;
 
@@ -152,20 +164,43 @@ type
 
     end;
 
-  private
-    FSpriteSystem: TSpriteSystem;
-    FRootPart: TPart;
+    TParts = TRefArray<TPart>;
 
+  private
+    FEntitySystem: TEntitySystem;
+    FParts: TParts;
+    FMainPart: TPart;
+    FLocation: TLocation2;
+
+    function GetParts: TParts.TReader;
     function GetLocation: TLocation2;
 
   public
-    constructor Create(ASpriteSystem: TSpriteSystem; ATemplate: TTemplate);
+    constructor Create(AEntitySystem: TEntitySystem; ATemplate: TTemplate);
     destructor Destroy; override;
 
-    property SpriteSystem: TSpriteSystem read FSpriteSystem;
+    property EntitySystem: TEntitySystem read FEntitySystem;
 
-    property RootPart: TPart read FRootPart;
-    property Location: TLocation2 read GetLocation;
+    property Parts: TParts.TReader read GetParts;
+    property MainPart: TPart read FMainPart;
+    property Location: TLocation2 read FLocation;
+
+  end;
+
+  TEntitySystem = class
+  public type
+
+    TEntities = TRefArray<TEntity>;
+
+  private
+    FSpriteSystem: TSpriteSystem;
+    FEntities: TEntities;
+
+  public
+    constructor Create;
+    destructor Destroy;
+
+    function Add(ATemplate: TEntity.TTemplate): TEntity;
 
   end;
 
@@ -219,22 +254,26 @@ end;
 
 { TEntity }
 
-constructor TEntity.Create(ASpriteSystem: TSpriteSystem; ATemplate: TTemplate);
+constructor TEntity.Create(AEntitySystem: TEntitySystem; ATemplate: TTemplate);
+var
+  PartTemplate: TTemplate.TPart;
 begin
-  FSpriteSystem := ASpriteSystem;
-  FRootPart := TPart.Create(ATemplate.RootPart, Self);
-  FRootPart.FEntity := Self;
+  FEntitySystem := AEntitySystem;
+  FParts := TParts.Create;
+  for PartTemplate in ATemplate.Parts do
+    FParts.Add(TPart.Create(PartTemplate, Self));
+  FMainPart := FParts[ATemplate.MainPart];
 end;
 
 destructor TEntity.Destroy;
 begin
-  FRootPart.Free;
+  FParts.Free;
   inherited;
 end;
 
-function TEntity.GetLocation: TLocation2;
+function TEntity.GetParts: TParts.TReader;
 begin
-  Result := RootPart.Location;
+  Result := FParts.Reader;
 end;
 
 { TEntity.TPart }
@@ -245,10 +284,9 @@ var
 begin
   FEntity := AEntity;
   FLocation := ATemplate.Location.Copy;
-  FSubParts := TSubParts.Create;
+  FConnections := TConnections.Create;
   FHealth := THealthBar.Create(ATemplate.Health);
-  FSprite := SpriteSystem.Add<TSprite>(ATemplate.Texture);
-  FSprite.Location.Parent := Location;
+  FSprites := TSprites.Create;
   for Part in ATemplate.SubParts do
     FSubParts.Add(TPart.Create(Part, Self));
 end;
@@ -272,6 +310,11 @@ begin
   FLocation.Free;
   FHealth.Free;
   inherited;
+end;
+
+function TEntity.TPart.GetConnections: TConnections.TReader;
+begin
+  Result := FConnections.Reader;
 end;
 
 function TEntity.TPart.GetSpriteSystem: TSpriteSystem;
@@ -358,18 +401,32 @@ end;
 
 constructor TEntity.TTemplate.Create;
 begin
-  FRootPart := TPart.Create(nil);
-end;
-
-function TEntity.TTemplate.CreateEntity: TEntity;
-begin
-  Result := TEntity.Create();
+  FParts := TParts.Create;
 end;
 
 destructor TEntity.TTemplate.Destroy;
 begin
-  FRootPart.Free;
+  FParts.Free;
   inherited;
+end;
+
+{ TEntitySystem }
+
+function TEntitySystem.Add(ATemplate: TEntity.TTemplate): TEntity;
+begin
+  Result := FEntities.Add(TEntity.Create(Self, ATemplate));
+end;
+
+constructor TEntitySystem.Create;
+begin
+  FSpriteSystem := TSpriteSystem.Create;
+  FEntities := TEntities.Create;
+end;
+
+destructor TEntitySystem.Destroy;
+begin
+  FEntities.Free;
+  FSpriteSystem.Free;
 end;
 
 end.

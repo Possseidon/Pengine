@@ -111,7 +111,7 @@ end;
 
 procedure TGLForm.SetFullscreen(Value: Boolean);
 const
-  FullscreenFlags: NativeInt = WS_POPUP or WS_CLIPSIBLINGS or WS_CLIPCHILDREN;
+  FullscreenFlags: NativeUInt = WS_POPUP or WS_CLIPSIBLINGS or WS_CLIPCHILDREN;
 
 begin
   if Fullscreen = Value then

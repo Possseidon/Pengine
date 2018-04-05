@@ -3786,15 +3786,17 @@ end;
 function TLine2.Intsec(const A: TLine2; out AFactors: TIntsecFactors): Boolean;
 var
   R: array [0 .. 1] of Single;
+  M: TMatrix;
 begin
-  M3x2[0, 0] := D.X;
-  M3x2[1, 0] := -A.D.X;
-  M3x2[2, 0] := A.S.X - S.X;
-  M3x2[0, 1] := D.Y;
-  M3x2[1, 1] := -A.D.Y;
-  M3x2[2, 1] := A.S.Y - S.Y;
+  M.Size := IVec2(3, 2);
+  M[0, 0] := D.X;
+  M[1, 0] := -A.D.X;
+  M[2, 0] := A.S.X - S.X;
+  M[0, 1] := D.Y;
+  M[1, 1] := -A.D.Y;
+  M[2, 1] := A.S.Y - S.Y;
 
-  Result := M3x2.Solve(R);
+  Result := M.Solve(R);
   if Result then
   begin
     AFactors.Factor := R[0];
@@ -4042,21 +4044,23 @@ end;
 function TPlane3.Intsec(const A: TLine3; out AFactors: TLineIntsecFactors): Boolean;
 var
   R: array [0 .. 2] of Single;
+  M: TMatrix;
 begin
-  M4x3[0, 0] := DX.X;
-  M4x3[1, 0] := DY.X;
-  M4x3[2, 0] := -A.D.X;
-  M4x3[3, 0] := A.S.X - S.X;
-  M4x3[0, 1] := DX.Y;
-  M4x3[1, 1] := DY.Y;
-  M4x3[2, 1] := -A.D.Y;
-  M4x3[3, 1] := A.S.Y - S.Y;
-  M4x3[0, 2] := DX.Z;
-  M4x3[1, 2] := DY.Z;
-  M4x3[2, 2] := -A.D.Z;
-  M4x3[3, 2] := A.S.Z - S.Z;
+  M.Size := IVec2(4, 3);
+  M[0, 0] := DX.X;
+  M[1, 0] := DY.X;
+  M[2, 0] := -A.D.X;
+  M[3, 0] := A.S.X - S.X;
+  M[0, 1] := DX.Y;
+  M[1, 1] := DY.Y;
+  M[2, 1] := -A.D.Y;
+  M[3, 1] := A.S.Y - S.Y;
+  M[0, 2] := DX.Z;
+  M[1, 2] := DY.Z;
+  M[2, 2] := -A.D.Z;
+  M[3, 2] := A.S.Z - S.Z;
 
-  Result := M4x3.Solve(R);
+  Result := M.Solve(R);
   if Result then
   begin
     AFactors.PlaneFactors.X := R[0];

@@ -319,12 +319,6 @@ type
   PMatrix3 = ^TMatrix3;
   PMatrix4 = ^TMatrix4;
 
-var
-
-  // Only use with atomic mathmatical operations to avoid conflicts
-  M3x2: TMatrix;
-  M4x3: TMatrix;
-
 const
 
   Matrix4Identity: TMatrix4 = (Data: (
@@ -1868,12 +1862,5 @@ function TMatrix4.ToString: string;
 begin                              
   Result := TMatrix(Self).ToString;
 end;
-
-initialization
-
-M3x2.Size := IVec2(3, 2);
-M3x2.Clear;
-M4x3.Size := IVec2(4, 3);
-M4x3.Clear;
 
 end.

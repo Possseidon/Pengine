@@ -167,6 +167,9 @@ type
     /// <returns>A vector with the greater components of both vectors.</returns>
     function Max(const A: TIntVector2): TIntVector2;
 
+    /// <returns>A vector, which is Rotate by 90° counter-clockwise.</returns>
+    function Cross: TIntVector2;
+
   end;
 
   /// <summary>A three component vector of type <see cref="System|Integer"/>.</summary>
@@ -1084,6 +1087,12 @@ function TIntVector2.Max(const A: TIntVector2): TIntVector2;
 begin
   Result.X := System.Math.Max(X, A.X);
   Result.Y := System.Math.Max(Y, A.Y);
+end;
+
+function TIntVector2.Cross: TIntVector2;
+begin
+  Result.X := -Y;
+  Result.Y := X;
 end;
 
 {$REGION 'All version of rearrangement TIntVector2'}

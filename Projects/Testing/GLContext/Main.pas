@@ -15,7 +15,7 @@ uses
   Vcl.Forms,
   Vcl.Dialogs,
 
-  Pengine.GLContext,
+  Pengine.GLForm,
   Pengine.GLState,
   Pengine.Equaller,
   Pengine.Color,

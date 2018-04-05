@@ -95,9 +95,10 @@ begin
   FTextureAtlas.Texture.MagFilter := magNearest;
 
   FTemplate := TEntity.TTemplate.Create;
-  FTemplate.RootPart.Texture := FTextureAtlas['spaceship_body_1'];
+  FTemplate.MainPart := FTemplate.AddPart;
+  FTemplate.MainPart.Texture := FTextureAtlas['spaceship_body_1'];
 
-  with FTemplate.RootPart.AddPart do
+  with FTemplate.AddPart do
   begin
     Texture := FTextureAtlas['spaceship_body_2'];
     Location.Scale := 0.4;
@@ -105,7 +106,7 @@ begin
     Location.Rotation := -10;
   end;
 
-  with FTemplate.RootPart.AddPart do
+  with FTemplate.AddPart do
   begin
     Texture := FTextureAtlas['spaceship_body_2'];
     Location.Scale := 0.4;
@@ -114,7 +115,7 @@ begin
     Location.Rotation := 10;
   end;
 
-  with FTemplate.RootPart.AddPart do
+  with FTemplate.AddPart do
   begin
     Texture := FTextureAtlas['spaceship_body_3'];
     Location.Scale := 1.5;
@@ -122,7 +123,7 @@ begin
     Location.Rotation := -10;
   end;
 
-  with FTemplate.RootPart.AddPart do
+  with FTemplate.AddPart do
   begin
     Texture := FTextureAtlas['spaceship_body_3'];
     Location.Scale := 1.5;

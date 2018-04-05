@@ -225,15 +225,12 @@ var
   I: Integer;
 begin
   I := Find(AHandler);
-  if I <> -1 then
-  begin
-    if Length(TEvent(FEvent^).Handlers) - I > 1 then
-      Move(TEvent(FEvent^).Handlers[I + 1], TEvent(FEvent^).Handlers[I], SizeOf(THandler) *
-        (Length(TEvent(FEvent^).Handlers) - I - 1));
-    SetLength(TEvent(FEvent^).Handlers, Length(TEvent(FEvent^).Handlers) - 1);
-  end
-  else
+  if I = -1 then
     raise EEventHandlerNotFound.Create;
+  if Length(TEvent(FEvent^).Handlers) - I > 1 then
+    Move(TEvent(FEvent^).Handlers[I + 1], TEvent(FEvent^).Handlers[I], SizeOf(THandler) *
+      (Length(TEvent(FEvent^).Handlers) - I - 1));
+  SetLength(TEvent(FEvent^).Handlers, Length(TEvent(FEvent^).Handlers) - 1);
 end;
 
 { TEvent }
@@ -290,7 +287,7 @@ var
   Method, FindMethod: TMethod;
 begin
   FindMethod := TMethod(AHandler);
-  for Result := 0 to Length(TEvent<T>(FEvent^).Handlers) - 1 do
+  for Result := Length(TEvent<T>(FEvent^).Handlers) - 1 downto 0 do
   begin
     Method := TMethod(TEvent<T>(FEvent^).Handlers[Result].Handler);
     if (Method.Code = FindMethod.Code) and
@@ -371,15 +368,12 @@ var
   I: Integer;
 begin
   I := Find(THandler(AHandler));
-  if I <> -1 then
-  begin
-    if Length(TEvent<T>(FEvent^).Handlers) - I > 1 then
-      Move(TEvent<T>(FEvent^).Handlers[I + 1], TEvent<T>(FEvent^).Handlers[I], SizeOf(THandler) *
-        (Length(TEvent<T>(FEvent^).Handlers) - I - 1));
-    SetLength(TEvent<T>(FEvent^).Handlers, Length(TEvent<T>(FEvent^).Handlers) - 1);
-  end
-  else
+  if I = -1 then
     raise EEventHandlerNotFound.Create;
+  if Length(TEvent<T>(FEvent^).Handlers) - I > 1 then
+    Move(TEvent<T>(FEvent^).Handlers[I + 1], TEvent<T>(FEvent^).Handlers[I], SizeOf(THandler) *
+      (Length(TEvent<T>(FEvent^).Handlers) - I - 1));
+  SetLength(TEvent<T>(FEvent^).Handlers, Length(TEvent<T>(FEvent^).Handlers) - 1);
 end;
 
 { TEvent<T> }
