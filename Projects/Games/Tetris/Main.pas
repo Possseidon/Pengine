@@ -40,7 +40,7 @@ type
     procedure Init; override;
     procedure Finalize; override;
 
-    procedure KeyDown;
+    procedure KeyDown; reintroduce;
 
   end;
 
@@ -54,9 +54,6 @@ implementation
 { TfrmMain }
 
 procedure TfrmMain.Init;
-var
-  Pos: TIntVector2;
-  I: Integer;
 begin
   FSpriteGLProgram := TSpriteGLProgram.Make(GLState.ResParam);
 
@@ -72,8 +69,8 @@ begin
   FScore.Location.Scale := 0.2;
 
   FTetrisBoard := FGUI.Add<TTetrisBoard>;
-  //FTetrisBoard.OriginY := oyBottom;
-  // FTetrisBoard.Location.Scale := 1.5;
+  FTetrisBoard.OriginY := oyBottom;
+  FTetrisBoard.Location.Scale := 1.8;
   FTetrisBoard.AddDefaultTemplates;
 
   Game.Input.OnKeyDown.Add(KeyDown);
@@ -82,7 +79,7 @@ end;
 
 procedure TfrmMain.KeyDown;
 begin
-  FTetrisBoard.Location.Scale := 1.5;
+
 end;
 
 procedure TfrmMain.Finalize;

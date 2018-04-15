@@ -3,12 +3,16 @@ unit TetrisBoard;
 interface
 
 uses
+  Winapi.Windows,
+
   Pengine.SpriteSystem,
   Pengine.IntMaths,
   Pengine.Color,
   Pengine.GUI,
   Pengine.Vector,
-  Pengine.Collections, Pengine.TimeManager;
+  Pengine.Collections,
+  Pengine.TimeManager,
+  Pengine.InputHandler;
 
 type
 
@@ -23,12 +27,9 @@ type
     function GetColor: TColorRGB;
     procedure SetPos(const Value: TIntVector2);
 
-    procedure UpdatePos;
-    
   public
     constructor Create(ATetrisBoard: TTetrisBoard; APos: TIntVector2);
-    destructor Destroy; override;
-    
+
     property TetrisBoard: TTetrisBoard read FTetrisBoard;
 
     function Exists: Boolean;
@@ -91,6 +92,11 @@ type
     FBlocks: TBlocks;
 
     function GetTile(AIndex: Integer): TIntVector2;
+
+    procedure Move(AAmount: TIntVector2);
+    procedure Rotate(AAmount: Integer);
+    
+    procedure UpdateBlocks;
     
   public
     constructor Create(ATetrisBoard: TTetrisBoard; ATemplate: TTetrisPieceTemplate);
@@ -109,7 +115,10 @@ type
 
     function CanMove(AAmount: TIntVector2): Boolean;
     function TryMove(AAmount: TIntVector2): Boolean;
-    procedure Move(AAmount: TIntVector2);
+    function CanRotate(AAmount: Integer): Boolean;
+    function TryRotate(AAmount: Integer): Boolean;
+
+    function ValidatePosition: Boolean;
 
   end;
 
@@ -138,8 +147,10 @@ type
     procedure SetHeight(const Value: Integer);
     function GetBlock(APos: TIntVector2): TTetrisBlock;
 
-    procedure GameUpdate;
     procedure SetStepInterval(const Value: TSeconds);
+
+    procedure GameUpdate;
+    procedure KeyDown(AInfo: TKeyEventInfo);
 
   protected
     function GetAspect: Single; override;
@@ -166,27 +177,34 @@ type
 const
 
   DefaultTetrisPieces: array [0 .. 6] of TTetrisBasicPieceRec = (
-    // Block (red)
-    (Color: (R: 1; G: 0; B: 0);
-    Shape: ((X: 0; Y: 0), (X: 1; Y: 0), (X: 0; Y: 1), (X: 1; Y: 1))),
+    // O (yellow)
+    (Color: (R: 1; G: 1; B: 0);
+    Shape: ((X: -1; Y: -1), (X: 0; Y: -1), (X: -1; Y: 0), (X: 0; Y: 0));
+    OddSymmetry: []),
     // L (orange)
     (Color: (R: 1; G: 0.5; B: 0);
-    Shape: ((X: 0; Y: 0), (X: 1; Y: 0), (X: 0; Y: 1), (X: 1; Y: 1))),
+    Shape: ((X: -1; Y: -1), (X: 0; Y: -1), (X: 1; Y: -1), (X: 1; Y: 0));
+    OddSymmetry: [caX]),
     // J (blue)
     (Color: (R: 0; G: 0; B: 1);
-    Shape: ((X: 0; Y: 0), (X: 1; Y: 0), (X: 0; Y: 1), (X: 1; Y: 1))),
-    // T (cyan)
-    (Color: (R: 0; G: 1; B: 1);
-    Shape: ((X: 0; Y: 0), (X: 1; Y: 0), (X: 0; Y: 1), (X: 1; Y: 1))),
-    // s (purple)
+    Shape: ((X: -1; Y: -1), (X: 0; Y: -1), (X: 1; Y: -1), (X: -1; Y: 0));
+    OddSymmetry: [caX]),
+    // T (purple)
     (Color: (R: 1; G: 0; B: 1);
-    Shape: ((X: 0; Y: 0), (X: 1; Y: 0), (X: 0; Y: 1), (X: 1; Y: 1))),
-    // z (green)
+    Shape: ((X: -1; Y: -1), (X: 0; Y: -1), (X: 1; Y: -1), (X: 0; Y: 0));
+    OddSymmetry: [caX, caY]),
+    // S (green)
     (Color: (R: 0; G: 1; B: 0);
-    Shape: ((X: 0; Y: 0), (X: 1; Y: 0), (X: 0; Y: 1), (X: 1; Y: 1))),
-    // I (yellow)
-    (Color: (R: 1; G: 1; B: 0);
-    Shape: ((X: 0; Y: 0), (X: 1; Y: 0), (X: 0; Y: 1), (X: 1; Y: 1)))
+    Shape: ((X: -1; Y: -1), (X: 0; Y: -1), (X: 0; Y: 0), (X: 1; Y: 0));
+    OddSymmetry: [caX]),
+    // Z (red)
+    (Color: (R: 1; G: 0; B: 0);
+    Shape: ((X: -1; Y: 0), (X: 0; Y: 0), (X: 0; Y: -1), (X: 1; Y: -1));
+    OddSymmetry: [caX]),
+    // I (cyan)
+    (Color: (R: 0; G: 1; B: 1);
+    Shape: ((X: -2; Y: 0), (X: -1; Y: 0), (X: 0; Y: 0), (X: 1; Y: 0));
+    OddSymmetry: [caY])
   );
 
 implementation
@@ -207,7 +225,8 @@ begin
   Size := DefaultSize;
   FPieceTemplates := TPieceTemplates.Create;
   Game.OnUpdate.Add(GameUpdate);
-  FStepInterval := 0.05;
+  Input.OnKeyTyped.Add(KeyDown);
+  FStepInterval := 0.5;
 end;
 
 destructor TTetrisBoard.Destroy;
@@ -244,6 +263,23 @@ var
 begin
   for Pos in Size do
     FMap[Pos.X, Pos.Y] := TTetrisBlock.Create(Self, Pos);
+end;
+
+procedure TTetrisBoard.KeyDown(AInfo: TKeyEventInfo);
+begin
+  if FDropPiece <> nil then
+  begin 
+    case AInfo.Key of
+      VK_LEFT:
+        FDropPiece.TryMove(IVec2(-1, 0));
+      VK_RIGHT:
+        FDropPiece.TryMove(IVec2(1, 0));
+      VK_DOWN:
+        FDropPiece.TryMove(IVec2(0, -1));
+      VK_UP:
+        FDropPiece.TryRotate(1);
+    end;
+  end;
 end;
 
 procedure TTetrisBoard.ResetMap;
@@ -317,13 +353,6 @@ begin
   FSprite.Location.Parent := TetrisBoard.Location;
   FSprite.Location.Scale := 1 / TetrisBoard.Height;
   Pos := APos;
-  TetrisBoard.OnBoundsChanged.Add(UpdatePos);
-end;
-
-destructor TTetrisBlock.Destroy;
-begin                                        
-  TetrisBoard.OnBoundsChanged.Del(UpdatePos); 
-  inherited;
 end;
 
 function TTetrisBlock.Exists: Boolean;
@@ -344,12 +373,7 @@ end;
 procedure TTetrisBlock.SetPos(const Value: TIntVector2);
 begin
   FPos := Value;
-  UpdatePos;
-end;
-
-procedure TTetrisBlock.UpdatePos;
-begin           
-  FSprite.Location.Pos := TetrisBoard.Bounds[(TVector2(Pos) + 0.5) / TetrisBoard.Size];  
+  FSprite.Location.Pos := (TVector2(Pos) + 0.5) / TetrisBoard.Height - Vec2(TetrisBoard.Aspect, 1) / 2;
 end;
 
 { TDropPiece }
@@ -357,9 +381,14 @@ end;
 procedure TDropPiece.AddToBoard;
 var
   I: Integer;
+  Pos: TIntVector2;
 begin
   for I := 0 to Template.ShapeCount - 1 do
-    TetrisBoard[Tiles[I]].Fill(Template.Color);
+  begin
+    Pos := Tiles[I];
+    if Pos in TetrisBoard.Size then
+      TetrisBoard[Pos].Fill(Template.Color);
+  end;
 end;
 
 function TDropPiece.Advance: Boolean;
@@ -369,18 +398,22 @@ end;
 
 function TDropPiece.CanMove(AAmount: TIntVector2): Boolean;
 var
-  I: Integer;
-  P: TIntVector2;
+  OldPos: TIntVector2;
 begin
-  for I := 0 to Template.ShapeCount - 1 do
-  begin
-    P := Tiles[I] + AAmount;
-    if not (P in TetrisBoard.Size) then
-      Exit(False);
-    if TetrisBoard[P].Exists then
-      Exit(False);
-  end;
-  Result := True;
+  OldPos := Pos;
+  Move(AAmount);
+  Result := ValidatePosition;
+  FPos := OldPos;
+end;
+
+function TDropPiece.CanRotate(AAmount: Integer): Boolean;
+var
+  OldUpside: TBasicDir2;
+begin
+  OldUpside := Upside;
+  Rotate(AAmount);
+  Result := ValidatePosition;
+  FUpside := OldUpside;
 end;
 
 constructor TDropPiece.Create(ATetrisBoard: TTetrisBoard; ATemplate: TTetrisPieceTemplate);
@@ -392,7 +425,7 @@ begin
   FTetrisBoard := ATetrisBoard;
   FTemplate := ATemplate;
   FPos.X := TetrisBoard.Width div 2;
-  FPos.Y := TetrisBoard.Height div 2;
+  FPos.Y := TetrisBoard.Height;
   FBlocks := TBlocks.Create;
   for I := 0 to FTemplate.ShapeCount - 1 do
   begin
@@ -423,10 +456,19 @@ begin
 end;
 
 procedure TDropPiece.Move(AAmount: TIntVector2);
+begin
+  FPos := Pos + AAmount;
+end;
+
+procedure TDropPiece.Rotate(AAmount: Integer);
+begin
+  FUpside := RotateDir(Upside, AAmount);
+end;
+
+procedure TDropPiece.UpdateBlocks;
 var
   I: Integer;
 begin
-  FPos := FPos + AAmount;
   for I := 0 to Template.ShapeCount - 1 do
     FBlocks[I].Pos := Tiles[I];
 end;
@@ -435,7 +477,36 @@ function TDropPiece.TryMove(AAmount: TIntVector2): Boolean;
 begin
   Result := CanMove(AAmount);
   if Result then
+  begin
     Move(AAmount);
+    UpdateBlocks;
+  end;
+end;
+
+function TDropPiece.TryRotate(AAmount: Integer): Boolean;
+begin
+  Result := CanRotate(AAmount);
+  if Result then
+  begin
+    Rotate(AAmount);
+    UpdateBlocks;
+  end;
+end;
+
+function TDropPiece.ValidatePosition: Boolean;
+var
+  I: Integer;
+  P: TIntVector2;
+begin
+  for I := 0 to Template.ShapeCount - 1 do
+  begin
+    P := Tiles[I];
+    if not (P in TetrisBoard.Size) then
+      Exit(False);
+    if TetrisBoard[P].Exists then
+      Exit(False);
+  end;
+  Result := True;
 end;
 
 { TTetrisBasicPiece }

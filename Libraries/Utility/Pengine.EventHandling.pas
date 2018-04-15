@@ -3,6 +3,8 @@ unit Pengine.EventHandling;
 interface
 
 uses
+  System.IOUtils, // TODO: Remove this
+
   System.SysUtils;
 
 type
@@ -308,6 +310,7 @@ end;
 
 procedure TEvent<T>.TAccess.Add(AHandler: THandler);
 begin
+  // TFile.AppendAllText('log.txt', Format('%.16x add %.16x.%.16x' + sLineBreak, [UInt64(@Self), UInt64(TMethod(AHandler).Data), UInt64(TMethod(AHandler).Code)]));
   SetLength(TEvent<T>(FEvent^).Handlers, Length(TEvent<T>(FEvent^).Handlers) + 1);
   TEvent<T>(FEvent^).Handlers[Length(TEvent<T>(FEvent^).Handlers) - 1].Info := True;
   TEvent<T>(FEvent^).Handlers[Length(TEvent<T>(FEvent^).Handlers) - 1].HandlerInfo := AHandler;
@@ -324,6 +327,7 @@ end;
 
 procedure TEvent<T>.TAccess.Add(AHandler: TEvent.THandler);
 begin
+  // TFile.AppendAllText('log.txt', Format('%.16x add %.16x.%.16x' + sLineBreak, [UInt64(@Self), UInt64(TMethod(AHandler).Data), UInt64(TMethod(AHandler).Code)]));
   SetLength(TEvent<T>(FEvent^).Handlers, Length(TEvent<T>(FEvent^).Handlers) + 1);
   TEvent<T>(FEvent^).Handlers[Length(TEvent<T>(FEvent^).Handlers) - 1].Info := False;
   TEvent<T>(FEvent^).Handlers[Length(TEvent<T>(FEvent^).Handlers) - 1].HandlerInfo := THandler(AHandler);
@@ -342,6 +346,7 @@ procedure TEvent<T>.TAccess.Del(AHandler: THandler);
 var
   I: Integer;
 begin
+  // TFile.AppendAllText('log.txt', Format('%.16x del %.16x.%.16x' + sLineBreak, [UInt64(@Self), UInt64(TMethod(AHandler).Data), UInt64(TMethod(AHandler).Code)]));
   I := Find(AHandler);
   if I <> -1 then
   begin
@@ -367,6 +372,7 @@ procedure TEvent<T>.TAccess.Del(AHandler: TEvent.THandler);
 var
   I: Integer;
 begin
+  // TFile.AppendAllText('log.txt', Format('%.16x del %.16x.%.16x' + sLineBreak, [UInt64(@Self), UInt64(TMethod(AHandler).Data), UInt64(TMethod(AHandler).Code)]));
   I := Find(THandler(AHandler));
   if I = -1 then
     raise EEventHandlerNotFound.Create;

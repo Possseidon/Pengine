@@ -1753,7 +1753,8 @@ const
 
 function FlipDir(ADir: TBasicDir): TBasicDir; inline;
 function AbsDir(ADir: TBasicDir): TBasicDir; inline;
-function RotateDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer = 1): TBasicDir;
+function RotateDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer = 1): TBasicDir; overload;
+function RotateDir(ADir: TBasicDir2; ASteps: Integer): TBasicDir2; overload;
 
 // Shorthand Constructors
 
@@ -5195,6 +5196,14 @@ begin
   if ASteps = 0 then
     Exit(ADir);
   Result := BasicDirRotations[ADir, AAxis, ASteps];
+end;
+
+function RotateDir(ADir: TBasicDir2; ASteps: Integer): TBasicDir2; overload;
+begin
+  ASteps := IBounds1(4).RangedMod(ASteps);
+  if ASteps = 0 then
+    Exit(ADir);
+  Result := TBasicDir2(BasicDirRotations[ADir, bdFront, ASteps]);
 end;
 
 { Shorthand Constructors }
