@@ -1,0 +1,5 @@
+- Change all Event properties into functions
+- Change property setter in accordance to new ifprope template (OldValue instead of Old<Name>)
+- Change all TReader properties into functions
+- Namespace rename from "Minecraft" to "Pengine.MC"
+- NBT Arrays are prefixed with the type (I, L or B) [I; 1, 2, 3] [L; 1L, 2L, 3L] [B; 1B, 2B, 3B]

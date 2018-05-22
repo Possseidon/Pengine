@@ -265,7 +265,7 @@ type
     function AddFromResource(AName: string; AResource: string): TTile;
     function Add(AName: string; ATexture: TTextureData; AInfo: TInfo = nil): TTile; overload;
     function Add(AName: string; ATextures: IIterable<TTextureData>): TTile; overload;
-    procedure Del(AName: string);
+    procedure Remove(AName: string);
 
     function AddSubType(ASuffix: string; ASampler: TGLProgram.TUniformSampler; ADefaultColor: TColorRGBA): TSubType;
     property SubTypes: TSubTypes.TReader read GetSubTypes;
@@ -549,9 +549,9 @@ begin
   FFreeSpace := TFreeSpace.Create;
 end;
 
-procedure TTextureAtlas.Del(AName: string);
+procedure TTextureAtlas.Remove(AName: string);
 begin
-  if not FTiles.TryDel(AName) then
+  if not FTiles.TryRemove(AName) then
     raise ETextureAtlasTileNotFound.Create;
 end;
 
@@ -789,7 +789,7 @@ begin
     begin
       FRows[I] := IBounds1(FRows[I].C1, Value).Clamp(FRows[I]);
       if FRows[I].Length <= 0 then
-        FRows.DelLast
+        FRows.RemoveLast
       else
         Break;
     end;
@@ -850,7 +850,7 @@ begin
       if Right then
       begin
         // remove
-        FRows.DelAt(I);
+        FRows.RemoveAt(I);
       end
       else
       begin
@@ -908,7 +908,7 @@ begin
       begin
         // merge cleared sections
         FRows[I - 1] := IBounds1(FRows[I - 1].C1, FRows[I].C2);
-        FRows.DelAt(I);
+        FRows.RemoveAt(I);
       end
       else
       begin
@@ -960,7 +960,7 @@ begin
 
   while FSize.Y > Value.Y do
   begin
-    FRows.DelLast;
+    FRows.RemoveLast;
     Dec(FSize.Y);
   end;
 

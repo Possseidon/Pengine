@@ -80,7 +80,7 @@ type
     destructor Destroy; override;
 
     procedure Add(AFont: TBMPFontItem);
-    procedure Del(AFont: TBMPFontItem);
+    procedure Remove(AFont: TBMPFontItem);
     function FontExists(AFont: TBMPFontItem): Boolean;
 
     procedure Uniform(AShader: TShader; AName: PAnsiChar);
@@ -298,10 +298,10 @@ begin
   end;
 end;
 
-procedure TBMPFontList.Del(AFont: TBMPFontItem);
+procedure TBMPFontList.Remove(AFont: TBMPFontItem);
 begin
-  FFonts.Del(AFont);
-  FPage.DelTexture(AFont.FData.Texture.Name);
+  FFonts.Remove(AFont);
+  FPage.RemoveTexture(AFont.FData.Texture.Name);
   FPage.BuildPage(1, False);
 end;
 
@@ -1045,7 +1045,7 @@ end;
 
 procedure TFontSystem.RemoveTextDisplay(ATextDisplay: TBasicTextDisplay);
 begin
-  FTextDisplays.DelObject(ATextDisplay);
+  FTextDisplays.RemoveObject(ATextDisplay);
   FChanged := True;
 end;
 
@@ -1054,7 +1054,7 @@ begin
   if FTextDisplays.Count > 0 then
   begin
     FChanged := True;
-    FTextDisplays.DelAll;
+    FTextDisplays.Clear;
   end;
 end;
 

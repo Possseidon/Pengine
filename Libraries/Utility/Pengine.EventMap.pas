@@ -84,7 +84,7 @@ begin
     end;
     for Element in RemoveHandler do
     begin
-      FMap.Del(Element);  
+      FMap.Remove(Element);  
     end;
   finally
     RemoveHandler.Free;
@@ -137,7 +137,7 @@ begin
     end;
     for Element in RemoveHandler do
     begin
-      FMap.Del(Element);  
+      FMap.Remove(Element);  
     end;
   finally
     RemoveHandler.Free;

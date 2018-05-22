@@ -132,7 +132,7 @@ type
       destructor Destroy; override;
 
       function Add: TUnit;
-      procedure Del(ATextureUnit: TUnit);
+      procedure Remove(ATextureUnit: TUnit);
 
       property ActiveUnit: TUnit read FActiveUnit write SetActiveUnit;
 
@@ -753,7 +753,7 @@ begin
   until not FUsedUnits[FLastUnusedUnit];
 end;
 
-procedure TTexture.TBinding.Del(ATextureUnit: TUnit);
+procedure TTexture.TBinding.Remove(ATextureUnit: TUnit);
 begin
   FUsedUnits[ATextureUnit] := False;
   FLastUnusedUnit := Min(ATextureUnit, FLastUnusedUnit);
@@ -1048,7 +1048,7 @@ procedure TTexture.Deactivate;
 begin
   if not Active then
     Exit;
-  Binding.Del(FUnitID);
+  Binding.Remove(FUnitID);
   FUnitID := -1;
 end;
 

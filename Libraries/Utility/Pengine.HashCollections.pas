@@ -64,6 +64,11 @@ type
     constructor Create;
   end;
 
+  EKeyNotHashable = class(Exception)
+  public
+    constructor Create;
+  end;
+
   // TODO: XmlDoc
   THashMode = (
     hmManual,
@@ -238,7 +243,7 @@ type
 
       function Union(ASet: TSet<T, H>): TSet<T, H>;
       function Intersection(ASet: TSet<T, H>): TSet<T, H>;
-      function Remove(ASet: TSet<T, H>): TSet<T, H>;
+      function Without(ASet: TSet<T, H>): TSet<T, H>;
 
       function IsSupersetOf(ASet: TSet<T, H>): Boolean;
       function IsSubsetOf(ASet: TSet<T, H>): Boolean;
@@ -267,9 +272,9 @@ type
     procedure Add(AElement: T); overload;
     procedure Add(ASet: TSet<T, H>); overload;
 
-    function TryDel(AElement: T): Boolean;
-    procedure Del(AElement: T); overload;
-    procedure Del(ASet: TSet<T, H>); overload;
+    function TryRemove(AElement: T): Boolean;
+    procedure Remove(AElement: T); overload;
+    procedure Remove(ASet: TSet<T, H>); overload;
 
     function GetEnumerator: IIterator<T>;
 
@@ -277,7 +282,7 @@ type
 
     function Union(ASet: TSet<T, H>): TSet<T, H>;
     function Intersection(ASet: TSet<T, H>): TSet<T, H>;
-    function Remove(ASet: TSet<T, H>): TSet<T, H>;
+    function Without(ASet: TSet<T, H>): TSet<T, H>;
 
     function IsSupersetOf(ASet: TSet<T, H>): Boolean;
     function IsSubsetOf(ASet: TSet<T, H>): Boolean;
@@ -370,7 +375,6 @@ type
     function GetActualKeyE(AKey: K): K;
     procedure SetActualKeyE(AKey: K; const Value: K);
     function GetPair(AKey: K): TPair;
-    function KeySet(AHashMode: THashMode): TSet<K, H>;
 
   protected
     function GetBuckets: Integer; override;
@@ -388,8 +392,8 @@ type
     function Get(AKey: K; out APair: TPair): Boolean; overload;
     property Pair[AKey: K]: TPair read GetPair;
 
-    function TryDel(AKey: K): Boolean;
-    procedure Del(AKey: K);
+    function TryRemove(AKey: K): Boolean;
+    procedure Remove(AKey: K);
 
     function GetActualKey(AKey: K; out AActualKey: K): Boolean;
     function SetActualKey(AKey, AActualKey: K): Boolean;
@@ -400,6 +404,8 @@ type
     function GetEnumerator: IIterator<TPair>;
     function Keys: TKeysWrapper; inline;
     function Values: TValuesWrapper; inline;
+
+    function KeySet(AHashMode: THashMode = hmAuto): TSet<K, H>;
 
     function Copy(AHashMode: THashMode = hmAuto): TMap<K, V, H>; reintroduce; inline;
 
@@ -856,7 +862,9 @@ end;
 
 function THashBase<K, H>.GetCappedHash(AKey: K): Integer;
 begin
-  Result := Integer(GetHash(AKey) mod Cardinal(Buckets));
+  if CanIndex(AKey) then
+    Exit(Integer(GetHash(AKey) mod Cardinal(Buckets)));
+  raise EKeyNotHashable.Create;
 end;
 
 function THashBase<K, H>.Copy(AHashMode: THashMode): THashBase<K, H>;
@@ -910,18 +918,18 @@ begin
   Result := TBucket.Create(4, 2);
 end;
 
-procedure TSet<T, H>.Del(AElement: T);
+procedure TSet<T, H>.Remove(AElement: T);
 begin
-  if not TryDel(AElement) then
+  if not TryRemove(AElement) then
     raise ESetKeyNotFound.Create;
 end;
 
-procedure TSet<T, H>.Del(ASet: TSet<T, H>);
+procedure TSet<T, H>.Remove(ASet: TSet<T, H>);
 var
   Element: T;
 begin
   for Element in ASet do
-    TryDel(Element);
+    TryRemove(Element);
 end;
 
 function TSet<T, H>.Equals(Obj: TObject): Boolean;
@@ -1008,7 +1016,7 @@ begin
   Result := TReader(Self);
 end;
 
-function TSet<T, H>.Remove(ASet: TSet<T, H>): TSet<T, H>;
+function TSet<T, H>.Without(ASet: TSet<T, H>): TSet<T, H>;
 var
   Element: T;
 begin
@@ -1048,7 +1056,7 @@ begin
   if Value then
     TryAdd(AElement)
   else
-    TryDel(AElement);
+    TryRemove(AElement);
 end;
 
 function TSet<T, H>.TryAdd(AElement: T): Boolean;
@@ -1084,7 +1092,7 @@ begin
   Result := True;
 end;
 
-function TSet<T, H>.TryDel(AElement: T): Boolean;
+function TSet<T, H>.TryRemove(AElement: T): Boolean;
 var
   H, I: Integer;
 begin
@@ -1101,7 +1109,7 @@ begin
     end);
   if I = -1 then
     Exit(False);
-  FBuckets[H].DelAt(I);
+  FBuckets[H].RemoveAt(I);
   Dec(FCount);
   if FBuckets[H].Count = 0 then
     FreeAndNil(FBuckets[H]);
@@ -1162,9 +1170,9 @@ begin
   Result := TBucket.Create(4, 2);
 end;
 
-procedure TMap<K, V, H>.Del(AKey: K);
+procedure TMap<K, V, H>.Remove(AKey: K);
 begin
-  if not TryDel(AKey) then
+  if not TryRemove(AKey) then
     raise EMapKeyNotFound.Create;
 end;
 
@@ -1198,7 +1206,7 @@ var
   H: Integer;
   Pair: TPair;
 begin
-  if Empty then
+  if Empty or not CanIndex(AKey) then
     Exit(False);
 
   H := GetCappedHash(AKey);
@@ -1360,7 +1368,7 @@ begin
     Buckets := Count;
 end;
 
-function TMap<K, V, H>.TryDel(AKey: K): Boolean;
+function TMap<K, V, H>.TryRemove(AKey: K): Boolean;
 var
   H, I: Integer;
 begin
@@ -1377,7 +1385,7 @@ begin
     end);
   if I = -1 then
     Exit(False);
-  FBuckets[H].DelAt(I);
+  FBuckets[H].RemoveAt(I);
   Dec(FCount);
   if FBuckets[H].Count = 0 then
     FreeAndNil(FBuckets[H]);
@@ -1433,14 +1441,8 @@ begin
 end;
 
 function TMap<K, V, H>.KeySet(AHashMode: THashMode): TSet<K, H>;
-var
-  Pair: TPair;
 begin
-  Result := TSet<K, H>(CreateSame(hmManual));
-  Result.Rehash(Buckets);
-  for Pair in Self do
-    Result.TryAdd(Pair.Key);
-  Result.HashMode := AHashMode;
+  Result := Keys.ToSet(AHashMode);
 end;
 
 function TMap<K, V, H>.Reader: TReader;
@@ -1733,9 +1735,9 @@ begin
   Result := TSet<T, H>(Self).Intersection(ASet);
 end;
 
-function TSet<T, H>.TReader.Remove(ASet: TSet<T, H>): TSet<T, H>;
+function TSet<T, H>.TReader.Without(ASet: TSet<T, H>): TSet<T, H>;
 begin
-  Result := TSet<T, H>(Self).Remove(ASet);
+  Result := TSet<T, H>(Self).Without(ASet);
 end;
 
 function TSet<T, H>.TReader.IsSupersetOf(ASet: TSet<T, H>): Boolean;
@@ -1949,6 +1951,13 @@ function TRefObjectMap<K, V, H>.CreateCopy(AHashMode: THashMode): THashBase;
 begin
   Result := TRefRefMap<K, V, H>.Create(AHashMode);
   Result.Assign(Self);
+end;
+
+{ EKeyNotHashable }
+
+constructor EKeyNotHashable.Create;
+begin
+  inherited Create('The given key is not hashable.');
 end;
 
 end.

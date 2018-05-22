@@ -35,7 +35,7 @@ type
       destructor Destroy; override;
 
       function Add: TBindingPoint;
-      procedure Del(ABindingPoint: TBindingPoint);
+      procedure Remove(ABindingPoint: TBindingPoint);
 
     end;
 
@@ -125,7 +125,7 @@ begin
   until not FUsedBindingPoints[FFirstUnusedBindingPoint];
 end;
 
-procedure TBufferObject.TBinding.Del(ABindingPoint: TBindingPoint);
+procedure TBufferObject.TBinding.Remove(ABindingPoint: TBindingPoint);
 begin
   FUsedBindingPoints[ABindingPoint] := False;
   FFirstUnusedBindingPoint := Min(FFirstUnusedBindingPoint, ABindingPoint);
@@ -178,7 +178,7 @@ end;
 
 destructor TBufferObject.Destroy;
 begin
-  Binding.Del(FBindingPoint);
+  Binding.Remove(FBindingPoint);
   inherited;
 end;
 

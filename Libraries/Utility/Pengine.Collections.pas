@@ -108,8 +108,8 @@ type
     FGrowAmount: Integer;
     FShrinkRetain: Integer;
 
-    procedure SetGrowAmount(const Value: Integer);
-    procedure SetShrinkRetain(const Value: Integer);
+    procedure SetGrowAmount(const Value: Integer); virtual;
+    procedure SetShrinkRetain(const Value: Integer); virtual;
 
   protected
     FCount: Integer;
@@ -129,6 +129,9 @@ type
     procedure CopyTo(AArray: TArray); virtual; abstract;
 
     function CreateCopy: TArray; virtual;
+
+    procedure BeforeSort; virtual;
+    procedure AfterSort; virtual;
 
   public
     // TODO: XmlDoc
@@ -153,11 +156,11 @@ type
     function Empty: Boolean; inline;
 
     // TODO: XmlDoc
-    procedure DelAt(AIndex: Integer); virtual; abstract;
+    procedure RemoveAt(AIndex: Integer); virtual; abstract;
     // TODO: XmlDoc
-    procedure DelLast; inline;
+    procedure RemoveLast; inline;
     // TODO: XmlDoc
-    procedure Clear(AZeroCapacity: Boolean = True);
+    procedure Clear(AZeroCapacity: Boolean = True); virtual;
 
     // TODO: XmlDoc
     property Capacity: Integer read GetCapacity write SetCapacity;
@@ -168,7 +171,7 @@ type
     function RangeCheck(AIndex: Integer): Boolean; inline;
 
     // TODO: XmlDoc
-    procedure Swap(A, B: Integer);
+    procedure Swap(A, B: Integer); virtual;
     // TODO: XmlDoc
     procedure SwapUnchecked(A, B: Integer); virtual; abstract;
 
@@ -242,6 +245,7 @@ type
     public
       // TODO: XmlDoc
       constructor Create(AArray: TArray<T>);
+      destructor Destroy; override;
 
     end;
 
@@ -404,7 +408,7 @@ type
 
   public
     // TODO: XmlDoc
-    function Add(AItem: T): T; overload;
+    function Add(AItem: T): T; overload; virtual;
     // TODO: XmlDoc
     procedure Add(AItems: IIterable<T>); overload;
     // TODO: XmlDoc
@@ -415,10 +419,12 @@ type
     procedure Add(AItems: IEnumerable<T>); overload;
 
     // TODO: XmlDoc: Remarks: Insert can also add item at the end
-    function Insert(AItem: T; AIndex: Integer): T;
+    function Insert(AItem: T; AIndex: Integer): T; virtual;
+
+    procedure SetIndex(ASource, ADestination: Integer); virtual;
 
     // TODO: XmlDoc
-    procedure DelAt(AIndex: Integer); override;
+    procedure RemoveAt(AIndex: Integer); override;
 
     // TODO: XmlDoc
     procedure SwapUnchecked(A, B: Integer); override;
@@ -573,11 +579,21 @@ type
   end;
 
   TFindableArray<T> = class abstract(TArray<T>)
+  public type
+
+    TReader = class(TArray<T>.TReader)
+    public
+      function Find(AItem: T): Integer; reintroduce; inline;
+
+    end;
+
   public
     // TODO: XmlDoc
     function Find(AItem: T): Integer; virtual; abstract;
     // TODO: XmlDoc
-    procedure Del(AItem: T);
+    procedure Remove(AItem: T);
+
+    function Reader: TReader; reintroduce; inline;
 
   end;
 
@@ -613,8 +629,7 @@ type
 
   public
     constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
-    constructor Create(AOwnsObjects: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8);
-      reintroduce; overload;
+    constructor Create(AOwnsObjects: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce; overload;
 
     // TODO: XmlDoc
     function FindAsArray(AFunc: TFindFuncStatic<T>): TRefArray<T>; overload; inline;
@@ -841,9 +856,9 @@ type
     // TODO: XmlDoc
     function Find(AItem: TObject): Integer; overload; inline;
     // TODO: XmlDoc
-    procedure Del(AItem: T); overload;
+    procedure Remove(AItem: T); overload;
     // TODO: XmlDoc
-    procedure Del(AItem: TObject); overload;
+    procedure Remove(AItem: TObject); overload;
 
     // TODO: XmlDoc
     class function ItemToString(AItem: T): string; override;
@@ -1096,9 +1111,19 @@ begin
   FCount := ACount;
 end;
 
-procedure TArray.DelLast;
+procedure TArray.RemoveLast;
 begin
-  DelAt(MaxIndex);
+  RemoveAt(MaxIndex);
+end;
+
+procedure TArray.AfterSort;
+begin
+  // nothing by default
+end;
+
+procedure TArray.BeforeSort;
+begin
+  // nothing by default
 end;
 
 procedure TArray.Clear(AZeroCapacity: Boolean);
@@ -1187,7 +1212,7 @@ function TArray<T>.TIterator.MoveNext: Boolean;
 begin
   if FRemoveFlag then
   begin
-    FList.DelAt(FCurrent);
+    FList.RemoveAt(FCurrent);
     FRemoveFlag := False;
   end
   else if not FReversed then
@@ -1242,12 +1267,19 @@ end;
 
 procedure TArray<T>.TSorterBase.Swap(A, B: Integer);
 begin
-  FArray.Swap(A, B);
+  FArray.SwapUnchecked(A, B);
 end;
 
 constructor TArray<T>.TSorterBase.Create(AArray: TArray<T>);
 begin
   FArray := AArray;
+  FArray.BeforeSort;
+end;
+
+destructor TArray<T>.TSorterBase.Destroy;
+begin
+  FArray.AfterSort;
+  inherited;
 end;
 
 { TArray<T>.TSorterStatic }
@@ -1325,6 +1357,22 @@ begin
   Result := FItems[AIndex];
 end;
 
+procedure TArray<T>.SetIndex(ASource, ADestination: Integer);
+var
+  Tmp: T;
+begin
+  RangeCheckException(ASource);
+  if ASource = ADestination then
+    Exit;
+  RangeCheckException(ADestination);
+  Tmp := Items[ASource];
+  if ASource < ADestination then
+    Move(FItems[ASource + SizeOf(T)], FItems[ASource], SizeOf(T) * (ADestination - ASource))
+  else
+    Move(FItems[ADestination], FItems[ADestination + SizeOf(T)], SizeOf(T) * (ASource - ADestination));
+  Items[ADestination] := Tmp;
+end;
+
 procedure TArray<T>.SetItem(AIndex: Integer; AValue: T);
 begin
   RangeCheckException(AIndex);
@@ -1384,7 +1432,7 @@ begin
   Result := AItem;
 end;
 
-procedure TArray<T>.DelAt(AIndex: Integer);
+procedure TArray<T>.RemoveAt(AIndex: Integer);
 begin
   RangeCheckException(AIndex);
   if ShouldFreeItems then
@@ -1764,7 +1812,6 @@ procedure TArray<T>.Add(AItems: IIterable<T>);
 var
   Item: T;
 begin
-  AItems.Count;
   for Item in AItems do
     Add(Item);
 end;
@@ -1988,24 +2035,24 @@ begin
     end);
 end;
 
-procedure TInterfaceArray<T>.Del(AItem: T);
+procedure TInterfaceArray<T>.Remove(AItem: T);
 var
   I: Integer;
 begin
   I := Find(AItem);
   if I = -1 then
     raise EArrayItemNotFound.Create;
-  DelAt(I);
+  RemoveAt(I);
 end;
 
-procedure TInterfaceArray<T>.Del(AItem: TObject);
+procedure TInterfaceArray<T>.Remove(AItem: TObject);
 var
   I: Integer;
 begin
   I := Find(AItem);
   if I = -1 then
     raise EArrayItemNotFound.Create;
-  DelAt(I);
+  RemoveAt(I);
 end;
 
 class function TInterfaceArray<T>.ItemToString(AItem: T): string;
@@ -2063,8 +2110,8 @@ end;
 
 function TStack.CreateCopy: TStack;
 begin
-  Result := TStack(ClassType).CreateNoArray;
-  FArray := Result.FArray.Copy;
+  Result := TStackClass(ClassType).CreateNoArray;
+  Result.FArray := FArray.Copy;
 end;
 
 constructor TStack.CreateNoArray;
@@ -2111,7 +2158,8 @@ end;
 
 function TStack<T>.Pop: T;
 begin
-  FArray.DelLast;
+  Result := Top;
+  FArray.RemoveLast;
 end;
 
 function TStack<T>.Count: Integer;
@@ -2184,14 +2232,19 @@ end;
 
 { TFindableArray<T> }
 
-procedure TFindableArray<T>.Del(AItem: T);
+function TFindableArray<T>.Reader: TReader;
+begin
+  Result := TReader(Self);
+end;
+
+procedure TFindableArray<T>.Remove(AItem: T);
 var
   I: Integer;
 begin
   I := Find(AItem);
   if I = -1 then
     raise EArrayItemNotFound.Create;
-  DelAt(I);
+  RemoveAt(I);
 end;
 
 { TBaseRefPairArray<K, V> }
@@ -2794,6 +2847,13 @@ begin
     else if Self[I] > Result.High then
       Result.High := Self[I];
   end;
+end;
+
+{ TFindableArray<T>.TReader }
+
+function TFindableArray<T>.TReader.Find(AItem: T): Integer;
+begin
+  Result := TFindableArray<T>(Self).Find(AItem);
 end;
 
 end.

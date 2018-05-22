@@ -4513,7 +4513,7 @@ begin
   if FParent = Value then
     Exit;
   if FParent <> nil then
-    FParent.OnChanged.Del(ParentChanged);
+    FParent.OnChanged.Remove(ParentChanged);
   FParent := Value;
   if FParent <> nil then
     FParent.OnChanged.Add(ParentChanged);
@@ -5352,7 +5352,7 @@ begin
   if Parent = Value then
     Exit;
   if Parent <> nil then
-    Parent.OnChanged.Del(ParentChanged);
+    Parent.OnChanged.Remove(ParentChanged);
   FParent := Value;
   if Parent <> nil then
     Parent.OnChanged.Add(ParentChanged);
@@ -5536,7 +5536,7 @@ end;
 destructor TLocation2.Destroy;
 begin
   if Parent <> nil then
-    Parent.OnChanged.Del(ParentChanged);
+    Parent.OnChanged.Remove(ParentChanged);
   FAxisSystem.Free;
   inherited;
 end;

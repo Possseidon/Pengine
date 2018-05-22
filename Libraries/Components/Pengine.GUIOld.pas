@@ -195,7 +195,7 @@ type
     property Aspect: Single read GetAspect;
 
     procedure AddControl(AControl: TGLControl);
-    procedure DelControl(AControl: TGLControl);
+    procedure RemoveControl(AControl: TGLControl);
 
   end;
 
@@ -274,8 +274,8 @@ type
     function GetBounds: TGBounds2; override;
 
     procedure AddLine(AText: AnsiString);
-    procedure DelLine(AIndex: Cardinal);
-    procedure DelAllLines;
+    procedure RemoveLine(AIndex: Cardinal);
+    procedure ClearLines;
 
     property Lines[I: Cardinal]: AnsiString read GetLine write SetLine;
     property LineCount: Cardinal read GetLineCount;
@@ -693,7 +693,7 @@ type
     procedure AddTextureFromResource(const AResourceName, AName: String); overload;
 
     procedure AddFont(AFont: TBMPFontItem);
-    procedure DelFont(AFont: TBMPFontItem);
+    procedure RemoveFont(AFont: TBMPFontItem);
     function FontExists(AFont: TBMPFontItem): Boolean;
 
     property FocusedControl: TGLControl read FFocusedControl write SetFocusedControl;
@@ -2025,14 +2025,14 @@ begin
   FTextDisplays.Add(NewDisplay);
 end;
 
-procedure TGLLabelList.DelLine(AIndex: Cardinal);
+procedure TGLLabelList.RemoveLine(AIndex: Cardinal);
 begin
-  FTextDisplays.Del(AIndex);
+  FTextDisplays.Remove(AIndex);
 end;
 
-procedure TGLLabelList.DelAllLines;
+procedure TGLLabelList.ClearLines;
 begin
-  FTextDisplays.DelAll;
+  FTextDisplays.Clear;
 end;
 
 { TGLBasicContainerControl }
@@ -2160,9 +2160,9 @@ begin
   FSubControls.Add(AControl);
 end;
 
-procedure TGLBasicContainerControl.DelControl(AControl: TGLControl);
+procedure TGLBasicContainerControl.RemoveControl(AControl: TGLControl);
 begin
-  FSubControls.DelObject(AControl);
+  FSubControls.Remove(AControl);
   FGUIVAO.NotifyChanges;
   FFontVAO.NotifyChanges;
 end;
@@ -2467,7 +2467,7 @@ end;
 destructor TGLControl.Destroy;
 begin
   if FParentControl <> nil then
-    FParentControl.DelControl(Self);
+    FParentControl.RemoveControl(Self);
   inherited;
 end;
 
@@ -2878,9 +2878,9 @@ begin
   FFonts.Add(AFont);
 end;
 
-procedure TGUI.DelFont(AFont: TBMPFontItem);
+procedure TGUI.RemoveFont(AFont: TBMPFontItem);
 begin
-  FFonts.Del(AFont);
+  FFonts.Remove(AFont);
 end;
 
 function TGUI.FontExists(AFont: TBMPFontItem): Boolean;

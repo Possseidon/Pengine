@@ -49,9 +49,9 @@ type
       /// <summary>Adds a new event-handler to the list.</summary>
       procedure Add(AHandler: THandler); overload;
       /// <summary>Removes a static event-handler from the list.</summary>
-      procedure Del(AHandler: THandlerStatic); overload; inline;
+      procedure Remove(AHandler: THandlerStatic); overload; inline;
       /// <summary>Removes an event-handler from the list.</summary>
-      procedure Del(AHandler: THandler); overload;
+      procedure Remove(AHandler: THandler); overload;
 
     end;
 
@@ -117,13 +117,13 @@ type
       /// <summary>Adds a new event-handler without info to the list.</summary>
       procedure Add(AHandler: TEvent.THandler); overload;
       /// <summary>Removes a static event-handler from the list.</summary>
-      procedure Del(AHandler: THandlerStatic); overload; inline;
+      procedure Remove(AHandler: THandlerStatic); overload; inline;
       /// <summary>Removes an event-handler from the list.</summary>
-      procedure Del(AHandler: THandler); overload;
+      procedure Remove(AHandler: THandler); overload;
       /// <summary>Removes a static event-handler without info from the list.</summary>
-      procedure Del(AHandler: TEvent.THandlerStatic); overload; inline;
+      procedure Remove(AHandler: TEvent.THandlerStatic); overload; inline;
       /// <summary>Removes an event-handler without info from the list.</summary>
-      procedure Del(AHandler: TEvent.THandler); overload;
+      procedure Remove(AHandler: TEvent.THandler); overload;
 
     end;
 
@@ -172,6 +172,26 @@ type
 
   end;
 
+  TCancelEventInfo<T> = class(TEventInfo, IEventCancelable)
+  private
+    FCanceled: Boolean;
+
+  public
+    function Canceled: Boolean;
+    procedure Cancel;
+
+  end;
+
+  TSenderCancelEventInfo<T> = class(TSenderEventInfo<T>, IEventCancelable)
+  private
+    FCanceled: Boolean;
+
+  public
+    function Canceled: Boolean;
+    procedure Cancel;
+
+  end;
+
 implementation
 
 { EEventHandlerNotFound }
@@ -213,16 +233,16 @@ begin
   TEvent(FEvent^).Handlers[Length(TEvent(FEvent^).Handlers) - 1] := AHandler;
 end;
 
-procedure TEvent.TAccess.Del(AHandler: THandlerStatic);
+procedure TEvent.TAccess.Remove(AHandler: THandlerStatic);
 var
   M: TMethod;
 begin
   M.Code := @AHandler;
   M.Data := nil;
-  Del(THandler(M));
+  Remove(THandler(M));
 end;
 
-procedure TEvent.TAccess.Del(AHandler: THandler);
+procedure TEvent.TAccess.Remove(AHandler: THandler);
 var
   I: Integer;
 begin
@@ -333,16 +353,16 @@ begin
   TEvent<T>(FEvent^).Handlers[Length(TEvent<T>(FEvent^).Handlers) - 1].HandlerInfo := THandler(AHandler);
 end;
 
-procedure TEvent<T>.TAccess.Del(AHandler: THandlerStatic);
+procedure TEvent<T>.TAccess.Remove(AHandler: THandlerStatic);
 var
   M: TMethod;
 begin
   M.Code := @AHandler;
   M.Data := nil;
-  Del(THandler(M));
+  Remove(THandler(M));
 end;
 
-procedure TEvent<T>.TAccess.Del(AHandler: THandler);
+procedure TEvent<T>.TAccess.Remove(AHandler: THandler);
 var
   I: Integer;
 begin
@@ -359,16 +379,16 @@ begin
     raise EEventHandlerNotFound.Create;
 end;
 
-procedure TEvent<T>.TAccess.Del(AHandler: TEvent.THandlerStatic);
+procedure TEvent<T>.TAccess.Remove(AHandler: TEvent.THandlerStatic);
 var
   M: TMethod;
 begin
   M.Code := @AHandler;
   M.Data := nil;
-  Del(TEvent.THandler(M));
+  Remove(TEvent.THandler(M));
 end;
 
-procedure TEvent<T>.TAccess.Del(AHandler: TEvent.THandler);
+procedure TEvent<T>.TAccess.Remove(AHandler: TEvent.THandler);
 var
   I: Integer;
 begin
@@ -455,6 +475,30 @@ end;
 function TSenderEventInfo<T>.Sender: T;
 begin
   Result := FSender;
+end;
+
+{ TCancelEventInfo<T> }
+
+procedure TCancelEventInfo<T>.Cancel;
+begin
+  FCanceled := True;
+end;
+
+function TCancelEventInfo<T>.Canceled: Boolean;
+begin
+  Result := FCanceled;
+end;
+
+{ TSenderCancelEventInfo<T> }
+
+procedure TSenderCancelEventInfo<T>.Cancel;
+begin
+  FCanceled := True;
+end;
+
+function TSenderCancelEventInfo<T>.Canceled: Boolean;
+begin
+  Result := FCanceled;
 end;
 
 end.

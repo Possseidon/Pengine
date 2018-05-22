@@ -95,7 +95,7 @@ type
     class function GetTypeString: string; virtual; abstract;
 
     procedure AddRef;
-    procedure DelRef;
+    procedure RemoveRef;
 
     property RefCount: Integer read FRefCount;
 
@@ -266,11 +266,11 @@ begin
   try
     AParams.FResourceClass := Self;
     Data := FData[AParams];
-    Data.DelRef;
+    Data.RemoveRef;
     if Data.RefCount = 0 then
     begin
       ReleaseReferences(AParams);
-      FData.Del(AParams);
+      FData.Remove(AParams);
     end;
   finally
     if AFreeParam then
@@ -435,7 +435,7 @@ begin
   Inc(FRefCount);
 end;
 
-procedure TResourceParameterEntry.DelRef;
+procedure TResourceParameterEntry.RemoveRef;
 begin
   Dec(FRefCount);
 end;

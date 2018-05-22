@@ -129,7 +129,7 @@ type
 
     protected
       procedure AddEvents; virtual;
-      procedure DelEvents; virtual;
+      procedure RemoveEvents; virtual;
 
     public
       constructor Create(ASprite: TSprite); virtual;
@@ -187,7 +187,7 @@ type
     TUpdateBehavior = class(TBehavior)
     protected
       procedure AddEvents; override;
-      procedure DelEvents; override;
+      procedure RemoveEvents; override;
 
     protected
       procedure Update; virtual; abstract;
@@ -240,7 +240,7 @@ type
 
     protected
       procedure AddEvents; override;
-      procedure DelEvents; override;
+      procedure RemoveEvents; override;
 
     public
       constructor Create(ASrite: TSprite); overload; override;
@@ -743,8 +743,8 @@ begin
   if FRemoved then
   begin
     if FInChangedSprites then
-      SpriteSystem.FChangedSprites.Del(Self);
-    SpriteSystem.FSprites.DelAt(Self.FIndex);
+      SpriteSystem.FChangedSprites.Remove(Self);
+    SpriteSystem.FSprites.RemoveAt(Self.FIndex);
     for I := FIndex to SpriteSystem.Sprites.MaxIndex do
     begin
       Dec(SpriteSystem.FSprites[I].FIndex);
@@ -1068,7 +1068,7 @@ begin
   Enabled := True;
 end;
 
-procedure TSprite.TBehavior.DelEvents;
+procedure TSprite.TBehavior.RemoveEvents;
 begin
   // nothing
 end;
@@ -1077,7 +1077,7 @@ destructor TSprite.TBehavior.Destroy;
 begin
   Enabled := False;
   if FRemoved then
-    FSprite.FBehaviors.Del(Self);
+    FSprite.FBehaviors.Remove(Self);
   inherited;
 end;
 
@@ -1115,7 +1115,7 @@ begin
   if Enabled then
     AddEvents
   else
-    DelEvents;
+    RemoveEvents;
 end;
 
 { ESpriteBehaviorNoDefault }
@@ -1247,10 +1247,10 @@ begin
   Sprite.OnChanged.Add(SpriteChanged);
 end;
 
-procedure TSprite.TAnimationBeavior.DelEvents;
+procedure TSprite.TAnimationBeavior.RemoveEvents;
 begin
   inherited;
-  Sprite.OnChanged.Del(SpriteChanged);
+  Sprite.OnChanged.Remove(SpriteChanged);
 end;
 
 constructor TSprite.TAnimationBeavior.Create(ASrite: TSprite);
@@ -1294,9 +1294,9 @@ begin
   Sprite.OnUpdate.Add(Update);
 end;
 
-procedure TSprite.TUpdateBehavior.DelEvents;
+procedure TSprite.TUpdateBehavior.RemoveEvents;
 begin
-  Sprite.OnUpdate.Del(Update);
+  Sprite.OnUpdate.Remove(Update);
 end;
 
 { TSprite.TFollowMouseBehavior }
@@ -1447,7 +1447,7 @@ procedure TSpriteSystem.TBorderList.BorderRemoved(AInfo: TBorder.TEventInfo);
 var
   I: Integer;
 begin
-  FBorders.DelAt(AInfo.Sender.Index);
+  FBorders.RemoveAt(AInfo.Sender.Index);
   for I := AInfo.Sender.Index to FBorders.MaxIndex do
   begin
     Dec(FBorders[I].FIndex);
@@ -1472,7 +1472,7 @@ begin
   FUBO.Free;
   for Border in FBorders do
   begin
-    Border.OnRemove.Del(BorderRemoved);
+    Border.OnRemove.Remove(BorderRemoved);
     Border.Free;  
   end;
   FBorders.Free;

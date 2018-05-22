@@ -251,7 +251,7 @@ type
     procedure CallUnlocked(AParams, AResults: Integer); inline;
 
     procedure AddLib(ALib: TLuaLibClass);
-    procedure DelLib(ALib: TLuaLibClass);
+    procedure RemoveLib(ALib: TLuaLibClass);
 
   end;
 
@@ -277,7 +277,7 @@ begin
     begin
       if ptr <> nil then
       begin
-        Self.FAllocations.Del(ptr);
+        Self.FAllocations.Remove(ptr);
         Dec(Self.FMemoryUsage, osize);
         FreeMemory(ptr);
       end;
@@ -304,7 +304,7 @@ begin
       begin
         if ptr <> nil then
         begin
-          Self.FAllocations.Del(ptr);
+          Self.FAllocations.Remove(ptr);
           Dec(Self.FMemoryUsage, osize);
         end;
         Self.FAllocations.Add(Result);
@@ -325,9 +325,9 @@ begin
   FLibs := TClassRefMap<TLuaLib>.Create(True);
 end;
 
-procedure TLua.DelLib(ALib: TLuaLibClass);
+procedure TLua.RemoveLib(ALib: TLuaLibClass);
 begin
-  FLibs.Del(ALib);
+  FLibs.Remove(ALib);
 end;
 
 destructor TLua.Destroy;

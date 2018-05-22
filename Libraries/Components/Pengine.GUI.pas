@@ -280,7 +280,7 @@ end;
 
 procedure TControl.CharRemoved(AInfo: TSprite.TEventInfo);
 begin
-  FCharSprites.Del(TCharSprite(AInfo.Sender));
+  FCharSprites.Remove(TCharSprite(AInfo.Sender));
 end;
 
 constructor TControl.Create(AParent: TControl);
@@ -316,7 +316,7 @@ begin
   FLocation.Free;
   FOriginLocation.Free;
   if FParent is TContainerControl then
-    TContainerControl(FParent).FControls.Del(Self);
+    TContainerControl(FParent).FControls.Remove(Self);
   inherited;
 end;
 
@@ -469,7 +469,7 @@ begin
   if FFontColor.HasValue and (FFontColor.Value = Value) then
     Exit;
   if (Parent <> nil) and not FFontColor.HasValue then
-    Parent.OnFontColorChanged.Del(ParentFontColorChanged);
+    Parent.OnFontColorChanged.Remove(ParentFontColorChanged);
   OldColor := FFontColor.Copy;
   FFontColor.Value := Value;
   for CharSprite in FCharSprites do
@@ -488,7 +488,7 @@ begin
   if Parent <> nil then
   begin
     if (FontTile = nil) and (Value <> nil) then
-      Parent.OnFontChanged.Del(ParentFontChanged)
+      Parent.OnFontChanged.Remove(ParentFontChanged)
     else if (FontTile <> nil) and (Value = nil) then
       Parent.OnFontChanged.Add(ParentFontChanged);
   end;
@@ -537,7 +537,7 @@ end;
 
 procedure TControl.SpriteRemoved(AInfo: TSprite.TEventInfo);
 begin
-  FSprites.Del(AInfo.Sender);
+  FSprites.Remove(AInfo.Sender);
 end;
 
 procedure TControl.UpdateOriginLocation;

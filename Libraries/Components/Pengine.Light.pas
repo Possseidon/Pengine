@@ -200,10 +200,10 @@ type
     destructor Destroy; override;
 
     procedure AddOccluder(ARenderable: IRenderable);
-    procedure DelOccluder(ARenderable: IRenderable);
+    procedure RemoveOccluder(ARenderable: IRenderable);
 
     procedure AddGLProgram(AGLProgram: TGLProgram);
-    procedure DelGLProgram(AGLProgram: TGLProgram);
+    procedure RemoveGLProgram(AGLProgram: TGLProgram);
 
     procedure RenderShadows;
 
@@ -239,10 +239,10 @@ type
     destructor Destroy; override;
 
     procedure AddOccluder(ARenderable: IRenderable);
-    procedure DelOccluder(ARenderable: IRenderable);
+    procedure RemoveOccluder(ARenderable: IRenderable);
 
     procedure AddGLProgram(AGLProgram: TGLProgram);
-    procedure DelGLProgram(AGLProgram: TGLProgram);
+    procedure RemoveGLProgram(AGLProgram: TGLProgram);
 
     procedure RenderShadows;
 
@@ -277,10 +277,10 @@ type
     destructor Destroy; override;
 
     procedure AddOccluder(ARenderable: IRenderable);
-    procedure DelOccluder(ARenderable: IRenderable);
+    procedure RemoveOccluder(ARenderable: IRenderable);
 
     procedure AddGLProgram(AGLProgram: TGLProgram);
-    procedure DelGLProgram(AGLProgram: TGLProgram);
+    procedure RemoveGLProgram(AGLProgram: TGLProgram);
 
     procedure RenderShadows;
 
@@ -336,7 +336,7 @@ type
     property SpotLightTexArray: TTexture2DArray read FSpotLightTexArray;
 
     function AddLight(ALight: TBaseLight): Integer;
-    procedure DelLight(ALight: TBaseLight);
+    procedure RemoveLight(ALight: TBaseLight);
 
     property Ambient: TColorRGB read FAmbient write SetAmbient;
 
@@ -449,9 +449,9 @@ begin
   FCamera.AddRenderable(ARenderable);
 end;
 
-procedure TDirectionalLightShaded.DelOccluder(ARenderable: IRenderable);
+procedure TDirectionalLightShaded.RemoveOccluder(ARenderable: IRenderable);
 begin
-  FCamera.DelRenderable(ARenderable);
+  FCamera.RemoveRenderable(ARenderable);
 end;
 
 procedure TDirectionalLightShaded.AddGLProgram(AGLProgram: TGLProgram);
@@ -459,9 +459,9 @@ begin
   FCamera.AddUniforms(AGLProgram);
 end;
 
-procedure TDirectionalLightShaded.DelGLProgram(AGLProgram: TGLProgram);
+procedure TDirectionalLightShaded.RemoveGLProgram(AGLProgram: TGLProgram);
 begin
-  FCamera.DelUniforms(AGLProgram);
+  FCamera.RemoveUniforms(AGLProgram);
 end;
 
 procedure TDirectionalLightShaded.RenderShadows;
@@ -582,12 +582,12 @@ begin
     FCameras[Side].AddRenderable(ARenderable);
 end;
 
-procedure TPointLightShaded.DelOccluder(ARenderable: IRenderable);
+procedure TPointLightShaded.RemoveOccluder(ARenderable: IRenderable);
 var
   Side: TGLCubeMapSide;
 begin
   for Side := Low(TGLCubeMapSide) to High(TGLCubeMapSide) do
-    FCameras[Side].DelRenderable(ARenderable);
+    FCameras[Side].RemoveRenderable(ARenderable);
 end;
 
 procedure TPointLightShaded.AddGLProgram(AGLProgram: TGLProgram);
@@ -598,12 +598,12 @@ begin
     FCameras[Side].AddUniforms(AGLProgram);
 end;
 
-procedure TPointLightShaded.DelGLProgram(AGLProgram: TGLProgram);
+procedure TPointLightShaded.RemoveGLProgram(AGLProgram: TGLProgram);
 var
   Side: TGLCubeMapSide;
 begin
   for Side := Low(TGLCubeMapSide) to High(TGLCubeMapSide) do
-    FCameras[Side].DelUniforms(AGLProgram);
+    FCameras[Side].RemoveUniforms(AGLProgram);
 end;
 
 procedure TPointLightShaded.RenderShadows;
@@ -688,9 +688,9 @@ begin
   FCamera.AddRenderable(ARenderable);
 end;
 
-procedure TSpotLightShaded.DelOccluder(ARenderable: IRenderable);
+procedure TSpotLightShaded.RemoveOccluder(ARenderable: IRenderable);
 begin
-  FCamera.DelRenderable(ARenderable);
+  FCamera.RemoveRenderable(ARenderable);
 end;
 
 procedure TSpotLightShaded.AddGLProgram(AGLProgram: TGLProgram);
@@ -698,9 +698,9 @@ begin
   FCamera.AddUniforms(AGLProgram);
 end;
 
-procedure TSpotLightShaded.DelGLProgram(AGLProgram: TGLProgram);
+procedure TSpotLightShaded.RemoveGLProgram(AGLProgram: TGLProgram);
 begin
-  FCamera.DelUniforms(AGLProgram);
+  FCamera.RemoveUniforms(AGLProgram);
 end;
 
 procedure TSpotLightShaded.SendCamera;
@@ -1012,7 +1012,7 @@ end;
 
 destructor TBaseLight.Destroy;
 begin
-  FLightSystem.DelLight(Self);
+  FLightSystem.RemoveLight(Self);
   inherited;
 end;
 
@@ -1163,47 +1163,47 @@ begin
     raise Exception.Create('Unsupported Light Class!');
 end;
 
-procedure TLightSystem.DelLight(ALight: TBaseLight);
+procedure TLightSystem.RemoveLight(ALight: TBaseLight);
 var
   Index, I: Integer;
 begin
   if (ALight.ClassType = TDirectionalLight) or (ALight.ClassType = TDirectionalLightShaded) then
   begin
     Index := FDirectionalLights.Find(ALight as TDirectionalLight);
-    FDirectionalLights.DelAt(Index);
+    FDirectionalLights.RemoveAt(Index);
     for I := Index to FDirectionalLights.Count - 1 do
       FDirectionalLights[I].DecIndexAndSendAll;
     SendDirectionalLightCount;
     if ALight.ClassType = TDirectionalLightShaded then
     begin
       Dec(FShadowLightCount);
-      TDirectionalLightShaded(ALight).DelGLProgram(FGLProgram);
+      TDirectionalLightShaded(ALight).RemoveGLProgram(FGLProgram);
     end;
   end
   else if (ALight.ClassType = TPointLight) or (ALight.ClassType = TPointLightShaded) then
   begin
     Index := FPointLights.Find(ALight as TPointLight);
-    FPointLights.DelAt(Index);
+    FPointLights.RemoveAt(Index);
     for I := Index to FPointLights.Count - 1 do
       FPointLights[I].DecIndexAndSendAll;
     SendPointLightCount;
     if ALight.ClassType = TPointLightShaded then
     begin
       Dec(FShadowLightCount);
-      TPointLightShaded(ALight).DelGLProgram(FGLProgram);
+      TPointLightShaded(ALight).RemoveGLProgram(FGLProgram);
     end;
   end
   else if (ALight.ClassType = TSpotLight) or (ALight.ClassType = TSpotLightShaded) then
   begin
     Index := FSpotLights.Find(ALight as TSpotLight);
-    FSpotLights.DelAt(Index);
+    FSpotLights.RemoveAt(Index);
     for I := Index to FSpotLights.Count - 1 do
       FSpotLights[I].DecIndexAndSendAll;
     SendSpotLightCount;
     if ALight.ClassType = TSpotLightShaded then
     begin
       Dec(FShadowLightCount);
-      TSpotLightShaded(ALight).DelGLProgram(FGLProgram);
+      TSpotLightShaded(ALight).RemoveGLProgram(FGLProgram);
     end;
   end
   else

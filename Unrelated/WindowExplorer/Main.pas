@@ -4,7 +4,8 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Lists, Vcl.ComCtrls, OpenGLContext;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Pengine.Collections, Vcl.ComCtrls,
+  Pengine.GLForm;
 
 type
   TfrmMain = class(TForm)
@@ -13,6 +14,7 @@ type
     tbTransparency: TTrackBar;
     btnBorderlessFullscreen: TButton;
     cbHideTaskbar: TCheckBox;
+    Button1: TButton;
     procedure lbChildDblClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -22,6 +24,7 @@ type
     procedure edtWindowNameKeyPress(Sender: TObject; var Key: Char);
     procedure tbTransparencyChange(Sender: TObject);
     procedure btnBorderlessFullscreenClick(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
     procedure cbHideTaskbarClick(Sender: TObject);
   private
     FHandle: HWND;
@@ -39,24 +42,25 @@ implementation
 {$R *.dfm}
 
 procedure TfrmMain.btnBorderlessFullscreenClick(Sender: TObject);
+const
+  FullscreenFlags: NativeUInt = WS_POPUP or WS_CLIPSIBLINGS or WS_CLIPCHILDREN or WS_VISIBLE;
 var
   M: TMonitor;
 begin
-  if FHandle <> 0 then
-  begin
-    SetLastError(0);
-    if (SetWindowLong(FHandle, GWL_STYLE, WS_VISIBLE) = 0) and (GetLastError <> 0) then
-    begin
-      ShowMessage('Could not remove Window decorations!');
-      Exit;
-    end;
-    M := Screen.MonitorFromWindow(FHandle);
-    if not SetWindowPos(FHandle, 0, 0, 0, M.Width, M.Height, SWP_NOZORDER) then
-    begin
-      ShowMessage('Could not go to fullscreen!');
-      Exit;
-    end;
-  end;
+  if FHandle = 0 then
+    Exit;
+  SetWindowLong(FHandle, GWL_STYLE, FullscreenFlags);
+  SetWindowPos(FHandle, 0, 0, 0, Monitor.Width, Monitor.Height, SWP_NOZORDER);
+end;
+
+procedure TfrmMain.Button1Click(Sender: TObject);
+var
+  Style: Int64;
+begin
+  if FHandle = 0 then
+    Exit;
+
+  Style := GetWindowLong(FHandle, GWL_STYLE);
 end;
 
 procedure TfrmMain.cbHideTaskbarClick(Sender: TObject);
@@ -82,7 +86,7 @@ begin
   else
   begin
     edtWindowName.Font.Color := clDefault;
-    FHistory.DelAll;
+    FHistory.Clear;
     FHistory.Add(FHandle);
     EnumChildWindows(FHandle, @EnumFunc, LPARAM(lbChild));
   end;

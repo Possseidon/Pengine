@@ -284,7 +284,7 @@ begin
   while CaptionLength > Length(Caption) do
   begin
     FChars.Last.Remove;
-    FChars.DelLast;
+    FChars.RemoveLast;
   end;
   while CaptionLength < Length(Caption) do
     FChars.Add(AddChar);
@@ -517,7 +517,7 @@ begin
   while Width > Value do
   begin
     FSegments.Last.Remove;
-    FSegments.DelLast;
+    FSegments.RemoveLast;
   end;
   while Width < Value do
     FSegments.Add(Add<TSprite>(TextureTile));

@@ -79,10 +79,10 @@ object frmMain: TfrmMain
   end
   object socClient: TClientSocket
     Active = False
-    Address = 'localhost'
+    Address = '164.132.204.218'
     ClientType = ctNonBlocking
     Host = 'localhost'
-    Port = 42424
+    Port = 42851
     OnRead = socClientRead
     Left = 160
     Top = 72

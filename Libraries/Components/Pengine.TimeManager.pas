@@ -67,17 +67,20 @@ type
 
   TStopWatch = record
   private
-    FStart: Single;
+    FStart: TSeconds;
   public
     procedure Start; inline;
     function Time(ATimeFormat: TTimeFormat = tfSeconds): Single;
   end;
 
 procedure StartTimer;
-function StopTimer: Single;
-procedure StopTimerAndOutput(ATimeFormat: TTimeFormat = tfSeconds); inline;
-function StopTimerGetString(ATimeFormat: TTimeFormat = tfSeconds): string; inline;
-function ConvertSecondsTo(ASeconds: Single; ATimeFormat: TTimeFormat): Single; inline;
+function StopTimer: TSeconds;
+procedure StopTimerAndOutput(ATimeFormat: TTimeFormat); inline; overload;
+procedure StopTimerAndOutput; inline; overload;
+function StopTimerGetString(ATimeFormat: TTimeFormat): string; inline; overload;
+function StopTimerGetString: string; inline; overload;
+function ConvertSecondsTo(ASeconds: TSeconds; ATimeFormat: TTimeFormat): Single; inline;
+function RecommendTimeFormat(ASeconds: TSeconds): TTimeFormat;
 
 const
   TimeFormatString: array [TTimeFormat] of string = (
@@ -115,7 +118,7 @@ begin
   QueryPerformanceCounter(MeassureStart);
 end;
 
-function StopTimer: Single;
+function StopTimer: TSeconds;
 var
   MeassureStop: Int64;
 begin
@@ -130,15 +133,37 @@ begin
                   [ConvertSecondsTo(StopTimer, ATimeFormat)]));
 end;
 
+procedure StopTimerAndOutput;
+var
+  Time: TSeconds;
+  TimeFormat: TTimeFormat;
+begin
+  Time := StopTimer;
+  TimeFormat := RecommendTimeFormat(Time);
+  WriteLn(Format('Meassured Time: %.3f ' +
+                  TimeFormatString[TimeFormat],
+                  [ConvertSecondsTo(Time, TimeFormat)]));
+end;
+
 function StopTimerGetString(ATimeFormat: TTimeFormat): string;
 begin
   Result := Format('%.3f ' + TimeFormatString[ATimeFormat], [ConvertSecondsTo(StopTimer, ATimeFormat)]);
 end;
 
-function ConvertSecondsTo(ASeconds: Single; ATimeFormat: TTimeFormat): Single;
+function StopTimerGetString: string;
+var
+  Time: TSeconds;
+  TimeFormat: TTimeFormat;
+begin
+  Time := StopTimer;
+  TimeFormat := RecommendTimeFormat(Time);
+  Result := Format('%.3f ' + TimeFormatString[TimeFormat], [ConvertSecondsTo(Time, TimeFormat)]);
+end;
+
+function ConvertSecondsTo(ASeconds: TSeconds; ATimeFormat: TTimeFormat): Single;
 begin
   Result := ASeconds;
-  
+
   // smaller
   if ATimeFormat <= tfMilliseconds then
     Result := Result * 1000;
@@ -159,6 +184,26 @@ begin
   if ATimeFormat = tfYears then
     Result := Result / 365;
 
+end;
+
+function RecommendTimeFormat(ASeconds: TSeconds): TTimeFormat;
+begin
+  Result := tfSeconds;
+  if ASeconds <= 1 then
+  begin
+    repeat
+      ASeconds := ASeconds * 1000;
+      Dec(Result);
+    until (ASeconds > 1) or (Result = TTimeFormat(0));
+  end
+  else
+  begin
+    while (ASeconds >= 60) and (Result < tfHours) do
+    begin
+      ASeconds := ASeconds / 60;
+      Inc(Result);
+    end;
+  end;
 end;
 
 { TGLTimer }

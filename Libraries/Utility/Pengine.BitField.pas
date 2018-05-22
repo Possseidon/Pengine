@@ -1002,7 +1002,7 @@ begin
 
   while FSize.Y > Value.Y do
   begin  
-    FData.DelLast;
+    FData.RemoveLast;
     FSize.Y := FSize.Y - 1;
   end;
   
