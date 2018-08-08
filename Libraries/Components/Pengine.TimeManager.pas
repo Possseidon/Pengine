@@ -9,7 +9,7 @@ uses
 
 type
 
-  TSeconds = type Single;
+  TSeconds = Single;
 
   TTimeFormat = (
     tfNanoseconds,

@@ -142,6 +142,11 @@ type
     class function Equal(const AValue1, AValue2: TClass): Boolean; override;
   end;
 
+  TClassEqualler<T> = class(TEqualler<T>)
+  public
+    class function Equal(const AValue1, AValue2: T): Boolean; override;
+  end;
+
   /// <remarks>/!\ Not type checked! You could give this any type, but should only give it an enum.</remarks>
   TEnumEqualler<T> = class(TEqualler<T>)
   public
@@ -330,6 +335,16 @@ end;
 class function TEnumEqualler<T>.Equal(const AValue1, AValue2: T): Boolean;
 begin
   Result := CompareMem(@AValue1, @AValue2, SizeOf(T));
+end;
+
+{ TClassEqualler<T> }
+
+class function TClassEqualler<T>.Equal(const AValue1, AValue2: T): Boolean;
+var
+  AsClass1: TClass absolute AValue1;
+  AsClass2: TClass absolute AValue2;
+begin
+  Result := AsClass1 = AsClass2;
 end;
 
 end.

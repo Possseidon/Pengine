@@ -17,7 +17,7 @@ uses
   Vcl.StdCtrls,
   Vcl.ExtCtrls,
 
-  Minecraft.LootTable;
+  Pengine.MC.LootTable;
 
 type
 

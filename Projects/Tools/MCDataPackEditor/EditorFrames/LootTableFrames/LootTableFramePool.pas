@@ -17,13 +17,14 @@ uses
   Vcl.Dialogs,
   Vcl.ActnList,
   Vcl.StdCtrls,
+  Vcl.ComCtrls,
   Vcl.ExtCtrls,
 
-  Minecraft.LootTable,
+  Pengine.MC.LootTable,
 
   HelperFrameIntBounds,
   HelperFrameBounds,
-  LootTableFrameCondition, Vcl.ComCtrls;
+  LootTableFrameCondition;
 
 type
 
@@ -76,8 +77,8 @@ begin
 end;
 
 procedure TfrmPool.AddCondition(ACondition: TLootTable.TCondition);
-var
-  ConditionFrame: TfrmCondition;
+// var
+//   ConditionFrame: TfrmCondition;
 begin
   {
   ConditionFrame := TfrmCondition.Create(gbConditions, ACondition);

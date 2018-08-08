@@ -57,7 +57,7 @@ type
     constructor Create;
   end;
 
-  /// <summary>A generic class, representing a read-only Key-Value-Pair.</summary>
+  /// <summary>A generic record, representing a read-only Key-Value-Pair.</summary>
   TPair<K, V> = record
   private
     FKey: K;
@@ -190,6 +190,8 @@ type
   // TODO: XmlDoc
   TArray<T> = class(TArray, IIterable<T>)
   public type
+
+    TValue = T;
 
     // TODO: XmlDoc
     TIterator = class(TIterator<T>)
@@ -392,15 +394,16 @@ type
     FItems: array of T;
 
     function GetItem(AIndex: Integer): T;
-    procedure SetItem(AIndex: Integer; AValue: T);
 
     function GetFirst: T;
     procedure SetFirst(const Value: T);
 
     function GetLast: T;
     procedure SetLast(const Value: T);
-
+    
   protected
+    procedure SetItem(AIndex: Integer; AValue: T); virtual;
+
     function GetCapacity: Integer; override;
     procedure SetCapacity(const Value: Integer); override;
 
@@ -410,14 +413,12 @@ type
     // TODO: XmlDoc
     function Add(AItem: T): T; overload; virtual;
     // TODO: XmlDoc
+    procedure Add(AItems: IIterator<T>); overload;
+    // TODO: XmlDoc
     procedure Add(AItems: IIterable<T>); overload;
     // TODO: XmlDoc
-    procedure Add<S: T>(AItems: IIterable<S>); overload;
-    // TODO: XmlDoc
-    procedure Add<S: T>(AItems: TArray<S>.TReader); overload;
-    // TODO: XmlDoc
     procedure Add(AItems: IEnumerable<T>); overload;
-
+    
     // TODO: XmlDoc: Remarks: Insert can also add item at the end
     function Insert(AItem: T; AIndex: Integer): T; virtual;
 
@@ -541,8 +542,6 @@ type
 
     function Reader: TReader; reintroduce; inline;
 
-    function Equals(Obj: TObject): Boolean; override;
-
   end;
 
   // TODO: XmlDoc
@@ -584,12 +583,14 @@ type
     TReader = class(TArray<T>.TReader)
     public
       function Find(AItem: T): Integer; reintroduce; inline;
+      function Contains(AItem: T): Boolean; reintroduce; inline;
 
     end;
 
   public
     // TODO: XmlDoc
     function Find(AItem: T): Integer; virtual; abstract;
+    function Contains(AItem: T): Boolean;
     // TODO: XmlDoc
     procedure Remove(AItem: T);
 
@@ -650,6 +651,7 @@ type
   public
     /// <summary>Creates a <see cref="TObjectArray{T}"/>, which will automatically free all objects on destruction.</summary>
     constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+
   end;
 
   // TODO: XmlDoc DO NOT COPY THIS, IT WON'T KEEP ITS LINK (probably)
@@ -1376,6 +1378,8 @@ end;
 procedure TArray<T>.SetItem(AIndex: Integer; AValue: T);
 begin
   RangeCheckException(AIndex);
+  if ShouldFreeItems then
+    ItemRemoved(AIndex);
   FItems[AIndex] := AValue;
 end;
 
@@ -1426,50 +1430,36 @@ begin
   RangeCheckException(AIndex);
   if Count + 1 > Capacity then
     Capacity := Capacity + FGrowAmount;
+  Finalize(FItems[Count]);
   Move(FItems[AIndex], FItems[AIndex + 1], SizeOf(T) * (Count - AIndex));
+  Initialize(FItems[AIndex]);
   FItems[AIndex] := AItem;
   Inc(FCount);
   Result := AItem;
 end;
 
 procedure TArray<T>.RemoveAt(AIndex: Integer);
+var
+  Tmp: T;
 begin
   RangeCheckException(AIndex);
   if ShouldFreeItems then
     ItemRemoved(AIndex);
   if Count - AIndex > 1 then
+  begin
+    // move the deleted element at the end, so that it will get cleaned up correctly (in other words DON'T TOUCH)
+    Tmp := FItems[AIndex];
     Move(FItems[AIndex + 1], FItems[AIndex], SizeOf(T) * (Count - AIndex - 1));
+    Move(Tmp, FItems[MaxIndex], SizeOf(T));
+  end;
   Dec(FCount);
   if Count <= Capacity - FGrowAmount - ShrinkRetain then
     Capacity := Capacity - FGrowAmount;
 end;
 
-function TArray<T>.Equals(Obj: TObject): Boolean;
-begin
-  if Obj.ClassType <> ClassType then
-    Exit(False);
-  Result := (Count = TArray<T>(Obj).Count) and CompareMem(@FItems[0], @TArray<T>(Obj).FItems[0], SizeOf(T) * Count);
-end;
-
 procedure TArray<T>.Add(AItems: IEnumerable<T>);
 var
   Item: T;
-begin
-  for Item in AItems do
-    Add(Item);
-end;
-
-procedure TArray<T>.Add<S>(AItems: IIterable<S>);
-var
-  Item: S;
-begin
-  for Item in AItems do
-    Add(Item);
-end;
-
-procedure TArray<T>.Add<S>(AItems: TArray<S>.TReader);
-var
-  Item: S;
 begin
   for Item in AItems do
     Add(Item);
@@ -1809,11 +1799,8 @@ begin
 end;
 
 procedure TArray<T>.Add(AItems: IIterable<T>);
-var
-  Item: T;
 begin
-  for Item in AItems do
-    Add(Item);
+  Add(AItems.GetEnumerator);
 end;
 
 function TArray<T>.ToString: string;
@@ -1851,6 +1838,12 @@ end;
 function TArray<T>.BinarySearch(AItem: T; AFunc: TCompareFuncRef<T>): Integer;
 begin
   raise ENotImplemented.Create('BinarySearch not implemented.');
+end;
+
+procedure TArray<T>.Add(AItems: IIterator<T>);
+begin
+  while AItems.MoveNext do
+    Add(AItems.Current);
 end;
 
 { TIntArrayHelper }
@@ -2231,6 +2224,11 @@ begin
 end;
 
 { TFindableArray<T> }
+
+function TFindableArray<T>.Contains(AItem: T): Boolean;
+begin
+  Result := Find(AItem) <> -1;
+end;
 
 function TFindableArray<T>.Reader: TReader;
 begin
@@ -2850,6 +2848,11 @@ begin
 end;
 
 { TFindableArray<T>.TReader }
+
+function TFindableArray<T>.TReader.Contains(AItem: T): Boolean;
+begin
+  Result := TFindableArray<T>(Self).Contains(AItem);
+end;
 
 function TFindableArray<T>.TReader.Find(AItem: T): Integer;
 begin

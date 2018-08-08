@@ -14,7 +14,10 @@ uses
   Pengine.Collections,
   Pengine.Hasher,
   Pengine.HashCollections,
-  Pengine.Parser;
+  Pengine.Parser,
+  Pengine.Utility,
+
+  Pengine.MC.General;
 
 type
 
@@ -75,8 +78,8 @@ type
 
     function Format: string; virtual; abstract;
 
-    function Equals(Obj: TObject): Boolean; override;       
-    
+    function Equals(Obj: TObject): Boolean; override;
+
   end;
 
   /// <summary>A generic tag class, used only for number types.</summary>
@@ -90,7 +93,7 @@ type
     property Value: T read FValue write FValue;
 
     function Equals(Obj: TObject): Boolean; override;
-    
+
   end;
 
   /// <summary>A tag for a signed number with 1 byte of storage.</summary>
@@ -157,7 +160,7 @@ type
     function Format: string; override;
 
     function Equals(Obj: TObject): Boolean; override;
-    
+
   end;
 
   /// <summary>A tag for an array of signed 1 byte numbers.</summary>
@@ -277,7 +280,7 @@ type
     class function LoadFromFile(AFileName: TFileName): TNBTCompound;
 
     function Equals(Obj: TObject): Boolean; override;
-    
+
   end;
 
   TNBTDataParser = class(TObjectParser<TNBTTag>)
@@ -286,11 +289,18 @@ type
 
   public
     class function GetResultName: string; override;
-    class function IgnoreCharInfo: Boolean; override;
+    class function IgnoreContext: Boolean; override;
 
   end;
 
   TNBTParserCompound = class(TNBTDataParser)
+  public type
+
+    TOptionalMode = (
+      omReturnNil,
+      omReturnEmpty
+      );
+
   public const
 
     TokenBracket = 1;
@@ -303,7 +313,7 @@ type
       'Tag',
       'Colon',
       'Comma'
-    );
+      );
 
   protected
     function Parse: Boolean; override;
@@ -315,6 +325,8 @@ type
 
     function ParseResult: TNBTCompound;
     function OwnParseResult: TNBTCompound;
+    class function Require(AInfo: TParseInfo): TNBTCompound;
+    class function Optional(AInfo: TParseInfo; AMode: TOptionalMode): TNBTCompound;
 
   end;
 
@@ -327,7 +339,7 @@ type
     TokenNames: array [TokenBracket .. TokenComma] of string = (
       'Brackets',
       'Comma'
-    );
+      );
 
   protected
     function Parse: Boolean; override;
@@ -346,7 +358,7 @@ type
 
   public
     class function GetResultName: string; override;
-    class function IgnoreCharInfo: Boolean; override;
+    class function IgnoreContext: Boolean; override;
 
   end;
 
@@ -359,7 +371,7 @@ type
     TokenNames: array [TokenNumber .. TokenSuffix] of string = (
       'Number',
       'Suffix'
-    );
+      );
 
   protected
     function Parse: Boolean; override;
@@ -372,6 +384,65 @@ type
   end;
 
   TNBTParserClass = class of TNBTDataParser;
+
+  TNBTPath = class
+  public type
+
+    TKey = class
+    public
+      function Format: string; virtual; abstract;
+
+    end;
+
+    TCompoundKey = class(TKey)
+    private
+      FKey: string;
+
+    public
+      constructor Create(AKey: string);
+
+      property Key: string read FKey write FKey;
+
+      function Format: string; override;
+
+    end;
+
+    TArrayIndex = class(TKey)
+    private
+      FIndex: Integer;
+
+    public
+      constructor Create(AIndex: Integer);
+
+      property Index: Integer read FIndex write FIndex;
+
+      function Format: string; override;
+
+    end;
+
+    TKeys = TObjectArray<TKey>;
+
+  private
+    FKeys: TKeys;
+
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    property Keys: TKeys read FKeys;
+
+    function Format: string;
+
+  end;
+
+  TNBTPathParser = class(TObjectParser<TNBTPath>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
+
+  end;
 
 const
 
@@ -414,7 +485,7 @@ const
     'l',
     'f',
     'd'
-  );
+    );
 
 implementation
 
@@ -608,7 +679,7 @@ end;
 
 function TNBTFloat.Format: string;
 begin
-  Result := Value.ToString(ffGeneral, 7, 0, TFormatSettings.Invariant) + NBTNumberSuffixes[GetType];
+  Result := PrettyFloat(Value) + NBTNumberSuffixes[GetType];
 end;
 
 class function TNBTFloat.GetType: TNBTType;
@@ -620,7 +691,7 @@ end;
 
 function TNBTDouble.Format: string;
 begin
-  Result := Value.ToString(ffGeneral, 15, 0, TFormatSettings.Invariant) + NBTNumberSuffixes[GetType];
+  Result := PrettyFloat(Value) + NBTNumberSuffixes[GetType];
 end;
 
 class function TNBTDouble.GetType: TNBTType;
@@ -650,7 +721,7 @@ end;
 
 function TNBTString.Equals(Obj: TObject): Boolean;
 begin
-  Result := inherited and (TNBTString(Obj).Text = Text);  
+  Result := inherited and (TNBTString(Obj).Text = Text);
 end;
 
 function TNBTString.Format: string;
@@ -831,7 +902,7 @@ procedure TNBTCompound.Remove(AName: string);
 begin
   FMap.Remove(AName);
   FOrder.RemoveAt(FOrder.FindFirstIndex(
-    function (APair: TMap.TPair): Boolean
+    function(APair: TMap.TPair): Boolean
     begin
       Result := APair.Key = AName;
     end));
@@ -959,6 +1030,27 @@ begin
   Result := TokenNames[AIndex];
 end;
 
+class function TNBTParserCompound.Optional(AInfo: TParseInfo; AMode: TOptionalMode): TNBTCompound;
+begin
+  with TNBTParserCompound.Create(AInfo, False) do
+  begin
+    if Success then
+      Result := OwnParseResult
+    else
+    begin
+      case AMode of
+        omReturnNil:
+          Result := nil;
+        omReturnEmpty:
+          Result := TNBTCompound.Create;
+      else
+        raise ENotImplemented.Create('Unknown Mode.');
+      end
+    end;
+    Free;
+  end;
+end;
+
 function TNBTParserCompound.OwnParseResult: TNBTCompound;
 begin
   Result := TNBTCompound(inherited OwnParseResult);
@@ -972,26 +1064,22 @@ var
   DataParser: TNBTDataParser;
   C: Char;
 begin
-  ExtraData := TokenBracket;
+  Token := TokenBracket;
 
-  if not Info.StartsWith('{') then
+  if not StartsWith('{') then
     Exit(False);
 
-  ResetExtraData;
+  ResetToken;
 
-  Info.SkipWhitespace;
-    
+  SkipWhitespace;
+
   SetParseResult(TNBTCompound.Create);
 
-  ExtraData := TokenBracket;
+  Token := TokenBracket;
 
-  while not Info.StartsWith('}') do
+  while not StartsWith('}') do
   begin
-    ResetExtraData;
-
-    Info.SkipWhitespace;
-
-    ExtraData := TokenTag;
+    Token := TokenTag;
 
     TagName := '';
     for C in Info do
@@ -1001,23 +1089,23 @@ begin
       TagName := TagName + C;
     end;
     if TagName = '' then
-      raise EParseError.Create(Info, 'Expected tag name.');
-    
+      raise EParseError.Create('Expected tag name.');
+
     if ParseResult.TagExists(TagName) then
-      raise EParseError.CreateFmt(Info, 'Duplicate key "%s" in compound.', [TagName]);
+      raise EParseError.CreateFmt('Duplicate key "%s" in compound.', [TagName]);
 
-    ResetExtraData;
+    ResetToken;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
 
-    ExtraData := TokenColon;
+    Token := TokenColon;
 
-    if not Info.StartsWith(':') then
-      raise EParseError.Create(Info, 'Expected ":" followed by tag data.');
+    if not StartsWith(':') then
+      raise EParseError.Create('Expected ":" followed by tag data.');
 
-    ResetExtraData;
+    ResetToken;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
 
     DataParser := TNBTDataParser.Create(Info, True);
     try
@@ -1026,20 +1114,20 @@ begin
       DataParser.Free;
     end;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
 
-    ExtraData := TokenComma;
+    Token := TokenComma;
 
-    if Info.StartsWith(',') then
+    if StartsWith(',') then
     begin
-      Info.SkipWhitespace;
+      SkipWhitespace;
       Continue;
     end;
 
-    ExtraData := TokenBracket;
+    Token := TokenBracket;
 
-    if not Info.StartsWith('}', False) then
-      raise EParseError.Create(Info, 'Expected "," or "}" to close the compound.');
+    if not StartsWith('}', False) then
+      raise EParseError.Create('Expected "," or "}" to close the compound.');
 
   end;
 
@@ -1049,6 +1137,11 @@ end;
 function TNBTParserCompound.ParseResult: TNBTCompound;
 begin
   Result := TNBTCompound(inherited ParseResult);
+end;
+
+class function TNBTParserCompound.Require(AInfo: TParseInfo): TNBTCompound;
+begin
+  Result := TNBTCompound(inherited Require(AInfo));
 end;
 
 { TNBTParserListOrArray }
@@ -1073,27 +1166,20 @@ var
   DataParser: TNBTDataParser;
   FirstType: TNBTType;
 begin
-  ExtraData := TokenBracket;
+  Token := TokenBracket;
 
-  if not Info.StartsWith('[') then
+  if not StartsWith('[') then
     Exit(False);
 
-  ResetExtraData;
+  ResetToken;
 
-  Info.SkipWhitespace;
+  SkipWhitespace;
 
-  ExtraData := TokenBracket;
-
-  if Info.StartsWith(']') then
-    Exit(True);
+  Token := TokenBracket;
 
   FirstType := nbtEnd;
-  while True do
+  while not StartsWith(']') do
   begin
-    ResetExtraData;
-
-    Info.SkipWhitespace;
-
     DataParser := TNBTDataParser.Create(Info, True);
     try
       if FirstType = nbtEnd then
@@ -1113,7 +1199,7 @@ begin
 
       if DataParser.ParseResult.GetType <> FirstType then
       begin
-        raise EParseError.CreateFmt(Info, 'Cannot add %s into list of type %s.',
+        raise EParseError.CreateFmt('Cannot add %s into list of type %s.',
           [NBTNames[DataParser.ParseResult.GetType], NBTNames[FirstType]]);
       end;
 
@@ -1131,17 +1217,21 @@ begin
       DataParser.Free;
     end;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
 
-    ExtraData := TokenBracket;
+    Token := TokenComma;
 
-    if Info.StartsWith(']') then
-      Break;
+    if StartsWith(',') then
+    begin
+      SkipWhitespace;
+      Continue;
+    end;
 
-    ExtraData := TokenComma;
+    Token := TokenBracket;
 
-    if not Info.StartsWith(',') then
-      raise EParseError.Create(Info, 'Expected "," or "]" to close the list.');
+    if not StartsWith(']', False) then
+      raise EParseError.Create('Expected "," or "]" to close the list.');
+
   end;
 
   if ParseResult = nil then
@@ -1157,7 +1247,7 @@ begin
   Result := 'NBT-Data';
 end;
 
-class function TNBTDataParser.IgnoreCharInfo: Boolean;
+class function TNBTDataParser.IgnoreContext: Boolean;
 begin
   Result := Self = TNBTDataParser;
 end;
@@ -1177,7 +1267,7 @@ var
 begin
   for ParserClass in ParserClasses do
   begin
-    Parser := ParserClass.Create(Info);
+    Parser := ParserClass.Create(Info, False);
     try
       if Parser.Success then
       begin
@@ -1212,7 +1302,7 @@ begin
   Result := 'NBT-String';
 end;
 
-class function TNBTParserString.IgnoreCharInfo: Boolean;
+class function TNBTParserString.IgnoreContext: Boolean;
 begin
   Result := True;
 end;
@@ -1267,7 +1357,7 @@ var
   NumInt: Int64;
   NumFloat: Double;
 begin
-  ExtraData := TokenNumber;
+  Token := TokenNumber;
 
   IsFloat := False;
   for C in Info do
@@ -1279,32 +1369,32 @@ begin
     Parsed := Parsed + C;
   end;
 
-  ExtraData := TokenSuffix;
+  Token := TokenSuffix;
 
-  FoundType := False;  
+  FoundType := False;
   for NumberType := Low(TNBTNumberType) to High(TNBTNumberType) do
   begin
     if NBTNumberSuffixes[NumberType] = #0 then
       Continue;
-    if Info.First = NBTNumberSuffixes[NumberType] then
+    if First = NBTNumberSuffixes[NumberType] then
     begin
       FoundType := True;
       if IsFloat and (NumberType <= High(TNBTIntegerType)) then
         Exit(False);
       if not IsFloat and (NumberType > High(TNBTIntegerType)) then
         IsFloat := True;
-      Info.Advance;
+      Advance;
       Break;
     end;
-  end; 
-     
+  end;
+
   if not FoundType then
-  begin              
+  begin
     if IsFloat then
       NumberType := nbtDouble
     else
       NumberType := nbtInt;
-  end;          
+  end;
 
   SetParseResult(NBTClasses[NumberType].Create);
 
@@ -1313,10 +1403,10 @@ begin
     if Double.TryParse(Parsed, NumFloat, FormatSettings.Invariant) then
     begin
       case NumberType of
-        nbtFloat: 
+        nbtFloat:
           TNBTFloat(ParseResult).Value := NumFloat;
-        nbtDouble: 
-          TNBTDouble(ParseResult).Value := NumFloat;        
+        nbtDouble:
+          TNBTDouble(ParseResult).Value := NumFloat;
       end;
     end
     else
@@ -1340,7 +1430,7 @@ begin
     else
       Exit(False);
   end;
-  
+
   Result := True;
 end;
 
@@ -1349,6 +1439,128 @@ end;
 constructor ENBTDuplicateTag.Create;
 begin
   inherited Create('Duplicate tag names in compound.');
+end;
+
+{ TNBTPath.TCompoundKey }
+
+constructor TNBTPath.TCompoundKey.Create(AKey: string);
+begin
+  FKey := AKey;
+end;
+
+function TNBTPath.TCompoundKey.Format: string;
+begin
+  if Key.IsEmpty or (Key.IndexOfAny(['"', ' ', '.', '[', ']']) <> -1) then
+    Exit(DblQuoted(Key));
+  Result := Key;
+end;
+
+{ TNBTPath.TArrayIndex }
+
+constructor TNBTPath.TArrayIndex.Create(AIndex: Integer);
+begin
+  FIndex := AIndex;
+end;
+
+function TNBTPath.TArrayIndex.Format: string;
+begin
+  Result := '[' + Index.ToString + ']';
+end;
+
+{ TNBTPath }
+
+constructor TNBTPath.Create;
+begin
+  FKeys := TKeys.Create;
+end;
+
+destructor TNBTPath.Destroy;
+begin
+  FKeys.Free;
+  inherited;
+end;
+
+function TNBTPath.Format: string;
+var
+  I: Integer;
+begin
+  Result := '';
+  for I := 0 to Keys.MaxIndex do
+  begin
+    Result := Result + Keys[I].Format;
+    if (I <> Keys.MaxIndex) and (Keys[I + 1] is TCompoundKey) then
+      Result := Result + '.';
+  end;
+end;
+
+{ TNBTPathParser }
+
+class function TNBTPathParser.GetResultName: string;
+begin
+  Result := 'NBT-Path';
+end;
+
+function TNBTPathParser.Parse: Boolean;
+var
+  Key: string;
+  Marker: TLogMarker;
+  Index: Integer;
+begin
+  if ReachedEnd or First.IsWhitespace then
+    Exit(False);
+
+  SetParseResult(TNBTPath.Create);
+  while not First.IsWhitespace do
+  begin
+    if StartsWith('[') then
+    begin
+      Marker := GetMarker;
+      Key := ReadWhile(['0' .. '9', '-']);
+      if Key.IsEmpty then
+        raise EParseError.Create('Expected integer.');
+      if not TryStrToInt(Key, Index) then
+        Log(Marker, '"%s" is not a valid integer.', [Key])
+      else
+      begin
+        if Index < 0 then
+          Log(Marker, 'The index cannot be less than zero.');
+        ParseResult.Keys.Add(TNBTPath.TArrayIndex.Create(Index));
+      end;
+      if not StartsWith(']') then
+        raise EParseError.Create('Expected "]".');
+
+    end
+    else
+    begin
+      if First = '"' then
+      begin
+        Key := TStringParser.Require(Info);
+      end
+      else
+      begin
+        Key := ReadWhile(
+          function(C: Char): Boolean
+          begin
+            Result := not C.IsWhitespace and not CharInSet(C, ['.', '[', '"']);
+          end);
+        if Key.IsEmpty then
+          raise EParseError.Create('Expected quoted tag, unquoted tag or array index.');
+      end;
+      ParseResult.Keys.Add(TNBTPath.TCompoundKey.Create(Key));
+
+    end;
+
+    if ReachedEnd or First.IsWhitespace then
+      Break;
+
+    if StartsWith('.') or StartsWith('[', False) then
+      Continue;
+
+    raise EParseError.Create('Expected "." or "["', 1);
+
+    Break;
+  end;
+  Result := True;
 end;
 
 end.

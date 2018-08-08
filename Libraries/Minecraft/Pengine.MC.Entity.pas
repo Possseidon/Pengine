@@ -16,7 +16,7 @@ type
 
     // Drop
     etItem,
-    etXPOrb,
+    etExperienceOrb,
 
     // Immobile
     etAreaEffectCloud,
@@ -24,8 +24,8 @@ type
     etPainting,
     etItemFrame,
     etArmorStand,
-    etEvocationFangs,
-    etEnderCrystal,
+    etEvokerFangs,
+    etEndCrystal,
 
     // Projectiles
     etEgg,
@@ -34,9 +34,9 @@ type
     etFireball,
     etSmallFireball,
     etEnderPearl,
-    etEyeOfEnderSignal,
+    etEyeOfEnder,
     etPotion,
-    etXPBottle,
+    etExperienceBottle,
     etWitherSkull,
     etFireworksRocket,
     etSpectralArrow,
@@ -62,12 +62,12 @@ type
     etElderGuardian,
     etWhiterSkeleton,
     etStray,
-    etHust,
+    etHusk,
     etZombieVillager,
-    etEvocationIllager,
+    etEvoker,
     etVex,
-    etVindicationIllager,
-    etIllusionIllager,
+    etVindicator,
+    etIllusioner,
     etCreeper,
     etSkeleton,
     etSpider,
@@ -98,12 +98,12 @@ type
     etSheep,
     etCow,
     etChicken,
-    etSqiud,
+    etSquid,
     etWolf,
     etMooshroom,
-    etSnowman,
+    etSnowGolem,
     etOcelot,
-    etVillageGolem,
+    etIronGolem,
     etHorse,
     etRabbit,
     etPolarBear,
@@ -117,8 +117,8 @@ type
     );
 
   TEntityPlayer = etPlayer .. etPlayer;
-  TEntityDrop = etItem .. etXPOrb;
-  TEntityImmobile = etAreaEffectCloud .. etEnderCrystal;
+  TEntityDrop = etItem .. etExperienceOrb;
+  TEntityImmobile = etAreaEffectCloud .. etEndCrystal;
   TEntityProjectile = etEgg .. etLlamaSpit;
   TEntityBlock = etTNT .. etFallingBlock;
   TEntityVechicle = etBoat .. etCommandblockMinecart;
@@ -134,7 +134,7 @@ const
 
     // Drop
     'item',
-    'xp_orb',
+    'experience_orb',
 
     // Immobile
     'area_effect_cloud',
@@ -142,7 +142,7 @@ const
     'painting',
     'item_frame',
     'armor_stand',
-    'evocation_fangs',
+    'evoker_fangs',
     'ender_crystal',
 
     // Projectiles
@@ -152,9 +152,9 @@ const
     'fireball',
     'small_fireball',
     'ender_pearl',
-    'eye_of_ender_signal',
+    'eye_of_ender',
     'potion',
-    'xp_bottle',
+    'experience_bottle',
     'wither_skull',
     'fireworks_rocket',
     'spectral_arrow',
@@ -180,12 +180,12 @@ const
     'elder_guardian',
     'whiter_skeleton',
     'stray',
-    'hust',
+    'husk',
     'zombie_villager',
-    'evocation_illager',
+    'evoker',
     'vex',
-    'vindication_illager',
-    'illusion_illager',
+    'vindicator',
+    'illusioner',
     'creeper',
     'skeleton',
     'spider',
@@ -216,12 +216,12 @@ const
     'sheep',
     'cow',
     'chicken',
-    'sqiud',
+    'squid',
     'wolf',
     'mooshroom',
-    'snowman',
+    'snow_golem',
     'ocelot',
-    'village_golem',
+    'iron_golem',
     'horse',
     'rabbit',
     'polar_bear',
@@ -238,7 +238,7 @@ const
     'Player',
 
     // Drop
-    'Dropped Item',
+    'Item',
     'Experience Orb',
 
     // Immobile
@@ -247,7 +247,7 @@ const
     'Painting',
     'Item Frame',
     'Armor Stand',
-    'Evocation Fangs',
+    'Evoker Fangs',
     'End Crystal',
 
     // Projectiles
@@ -285,12 +285,12 @@ const
     'Elder Guardian',
     'Whiter Skeleton',
     'Stray',
-    'Hust',
+    'Husk',
     'Zombie Villager',
-    'Evocation Illager',
+    'Evoker',
     'Vex',
-    'Vindication Illager',
-    'Illusion Illager',
+    'Vindicator',
+    'Illusioner',
     'Creeper',
     'Skeleton',
     'Spider',
@@ -321,7 +321,7 @@ const
     'Sheep',
     'Cow',
     'Chicken',
-    'Sqiud',
+    'Squid',
     'Wolf',
     'Mooshroom',
     'Snow Golem',

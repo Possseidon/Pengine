@@ -1,30 +1,8 @@
-TEntity:
-  - Made up of multiple parts
-    -> One is the main part, stored by reference to a list item
-  - Location
-  - Health read only, all parts combined
-    -> total health
-    -> total max health
-    -> percentage
-  
-TEntity.TPart:
-  - Parent part
-    -> Used for location
-    -> If nil, use entities location
-  - Location
-    -> Offset from parent (except root)
-  - Sprite
-    -> Parenting instead of directly using the sprite location enables special effect, that don't affect subparts
-    -> Multiple subsprites, whose locations are parented to the main sprite, so that special effects are linked
-    -> Subsprites have the same z-order as the main sprite and the creation order is used
-  - Health
-  - Hitbox
-  - Connections
-    -> A list of parts, that are directly connected to this part
-    -> Whenever a part gets removed, find each part that is not somehow connected to the entities main part and destroy it
-  
-TEntity.TTemplate:
-  - An entity can only be created from a template
+TEntityBase
+ - 
+ 
+TEntity(TEntityBase)
+ - 
 
-TEntitySystem:
-  - 
+TStructure(TEntityBase)
+ -

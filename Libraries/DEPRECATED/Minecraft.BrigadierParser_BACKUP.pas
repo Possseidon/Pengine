@@ -1284,7 +1284,7 @@ end;
 
 function TBrigadierFloat.Format: string;
 begin
-  Result := Value.ToString(ffGeneral, 7, 0, TFormatSettings.Invariant);
+  Result := PrettyFloat(Value);
 end;
 
 procedure TBrigadierFloat.Parse(ACommand: string);

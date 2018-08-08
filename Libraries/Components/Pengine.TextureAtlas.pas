@@ -117,7 +117,7 @@ type
       // Font
       FWidths: array [Byte] of Single;
       // Regions
-      FRegions: TRegions;
+      // TODO: FRegions: TRegions;
 
       FValues: TValues;
 
@@ -283,6 +283,8 @@ type
     property OnChanged: TEvent.TAccess read GetOnChanged;
 
   end;
+
+  TTexTile = TTextureAtlas.TTile;
 
 implementation
 
@@ -1211,7 +1213,7 @@ begin
   Result := TArray<TTextureData>.Create;
   case FMode of
     tmNone:
-      raise ETextureAtlasInvalidInfoFile.Create('Either Textures, Grid, Font or Regions node expected in texture info file.');
+      raise ETextureAtlasInvalidInfoFile.Create('Either Grid, Font or Regions node expected in texture info file.');
     tmGrid:
       LoadGrid(ATexture, Result);
     tmFont:

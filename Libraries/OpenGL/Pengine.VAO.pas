@@ -124,26 +124,32 @@ type
     TWriter = class(TMapping)
     public type
 
-     TDataArray = array [0 .. 0] of TData;
-     PDataArray = ^TDataArray;
+      TDataArray = array [0 .. 0] of TData;
+      PDataArray = ^TDataArray;
 
     private
       FPos: Integer;
+      FBufferData: PDataArray;
 
       procedure SetPos(const Value: Integer);
+      function GetBuffer(AOffset: Integer): PData;
 
     protected
       class function GetBufferAccess: TGLBufferAccess; override;
 
     public
-      /// <summary></summary>
-      /// <remarks>/!\ Only writeable, also do not change this pointer!</remarks>
-      BufferData: PDataArray;
-
       constructor Create(AVBO: TVBO<TData>);
 
+      /// <summary>Grants easy and fast access to the buffer at <c>BufferPos</c>.
+      /// <p>Default property.</p></summary>
+      /// <remarks>/!\ Only allows write access.</remarks>
+      property Buffer[AOffset: Integer]: PData read GetBuffer; default;
+
+      /// <summary>The current position, where Buffer points to.</summary>
       property BufferPos: Integer read FPos write SetPos;
+      /// <summary>Adds a single data segment and advances the BufferPos.</summary>
       procedure AddToBuffer(AData: TData);
+      /// <summary>Simply advances the bufferpos by one.</summary>
       procedure NextBufferPos;
 
     end;
@@ -332,7 +338,7 @@ type
     procedure Render(const ABounds: TIntBounds1); override;
 
   end;
-  }
+ }
 implementation
 
 { EVBOUnmappable }
@@ -687,14 +693,19 @@ end;
 
 procedure TVBO<TData>.TWriter.AddToBuffer(AData: TData);
 begin
-  BufferData[BufferPos] := AData;
+  FBufferData[BufferPos] := AData;
   NextBufferPos;
 end;
 
 constructor TVBO<TData>.TWriter.Create(AVBO: TVBO<TData>);
 begin
   inherited;
-  BufferData := PDataArray(FData);
+  FBufferData := PDataArray(FData);
+end;
+
+function TVBO<TData>.TWriter.GetBuffer(AOffset: Integer): PData;
+begin
+  Result := @FBufferData[BufferPos + AOffset];
 end;
 
 class function TVBO<TData>.TWriter.GetBufferAccess: TGLBufferAccess;
@@ -710,7 +721,7 @@ end;
 procedure TVBO<TData>.TWriter.SetPos(const Value: Integer);
 begin
   // one more, to allow the buffer to be one after the last value at the end
-  if not (Value in IBounds1(FVBO.Count + 1)) then
+  if not(Value in IBounds1(FVBO.Count + 1)) then
     raise EVBOOutOfRange.Create;
   FPos := Value;
 end;

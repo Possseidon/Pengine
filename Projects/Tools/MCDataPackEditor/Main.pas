@@ -5,31 +5,29 @@ interface
 uses
   Winapi.Windows,
   Winapi.Messages,
-  Winapi.ShLwApi,
+  Winapi.ShellApi,
+  Winapi.ShlObj,
 
   System.SysUtils,
-  System.Variants,
-  System.Classes,
   System.JSON,
+  System.Classes,
   System.IOUtils,
-  System.Zip,
   System.Actions,
   System.ImageList,
 
-  Vcl.Clipbrd,
-  Vcl.Graphics,
-  Vcl.Controls,
-  Vcl.Forms,
-  Vcl.Dialogs,
-  Vcl.StdCtrls,
-  Vcl.ComCtrls,
-  Vcl.ExtCtrls,
-  Vcl.Menus,
-  Vcl.ActnList,
-  Vcl.ImgList,
-  Vcl.ToolWin,
+  // SynEdit,
 
-  SynEdit,
+  Vcl.Forms,
+  Vcl.Menus,
+  Vcl.ImgList,
+  Vcl.Controls,
+  Vcl.Dialogs,
+  Vcl.ActnList,
+  Vcl.ComCtrls,
+  Vcl.ToolWin,
+  Vcl.ExtCtrls,
+  Vcl.ClipBrd,
+  Vcl.Graphics,
 
   Pengine.Collections,
   Pengine.HashCollections,
@@ -37,13 +35,17 @@ uses
   Pengine.TimeManager,
   Pengine.Parser,
 
-  Minecraft.BrigadierParser,
-  Minecraft.Brigadier,
-  Minecraft.NBT,
-  Minecraft.Datapack,
+  Pengine.MC.BrigadierParser,
+  Pengine.MC.Brigadier,
+  Pengine.MC.NBT,
+  Pengine.MC.Datapack,
 
+  DatapackView,
+  ToolFunctionPreferences,
   EditorFrameFunction,
-  DatapackView;
+  FunctionTheme,
+  LightThemePreset,
+  SettingsForm;
 
 type
 
@@ -54,24 +56,19 @@ type
     miAdd: TMenuItem;
     miOpen: TMenuItem;
     Datapack1: TMenuItem;
-    N2: TMenuItem;
     Namespace1: TMenuItem;
     miFileDiv1: TMenuItem;
     miExit: TMenuItem;
     Panel1: TPanel;
     tbView: TToolBar;
-    actOpen: TAction;
+    actOpenDatapack: TAction;
     actExit: TAction;
     dlgOpenDatapack: TOpenDialog;
     tvNamespaces: TTreeView;
     tbNewNamespace: TToolButton;
-    actDataTypeFirst: TAction;
-    miView: TMenuItem;
-    miDataTypeFirst: TMenuItem;
     ilIcons: TImageList;
     ToolButton1: TToolButton;
     actNewNamespace: TAction;
-    Datapack2: TMenuItem;
     actNewDatapack: TAction;
     sbMain: TStatusBar;
     splView: TSplitter;
@@ -102,24 +99,69 @@ type
     tbNewDirectory: TToolButton;
     actNewDirectory: TAction;
     Directory1: TMenuItem;
-    ListView1: TListView;
-    Splitter1: TSplitter;
+    actOpenInExplorer: TAction;
+    OpeninExplorer1: TMenuItem;
+    ToolButton2: TToolButton;
+    actRefresh: TAction;
+    actSave: TAction;
+    actSaveAll: TAction;
+    Save1: TMenuItem;
+    Saveall1: TMenuItem;
+    actRename: TAction;
+    Rename1: TMenuItem;
+    actDelete: TAction;
+    Delete1: TMenuItem;
+    N2: TMenuItem;
+    Datapack2: TMenuItem;
     N5: TMenuItem;
+    Refresh1: TMenuItem;
+    N7: TMenuItem;
+    ToolButton3: TToolButton;
+    ools1: TMenuItem;
+    Formatmcfunction1: TMenuItem;
+    Preferences1: TMenuItem;
+    N6: TMenuItem;
+    FormatcurrentFile1: TMenuItem;
+    FormatAllFiles1: TMenuItem;
+    actFormatCurrent: TAction;
+    actFormatAll: TAction;
+    actFunctionPreferences: TAction;
     procedure actCollapseAllExecute(Sender: TObject);
     procedure actCopyNameExecute(Sender: TObject);
+    procedure actCopyNameUpdate(Sender: TObject);
     procedure actCopyPathExecute(Sender: TObject);
+    procedure actCopyPathUpdate(Sender: TObject);
+    procedure actDeleteExecute(Sender: TObject);
+    procedure actDeleteUpdate(Sender: TObject);
     procedure actExitExecute(Sender: TObject);
-    procedure actOpenExecute(Sender: TObject);
-    procedure actDataTypeFirstExecute(Sender: TObject);
+    procedure actOpenDatapackExecute(Sender: TObject);
     procedure actEditExecute(Sender: TObject);
     procedure actExpandAllExecute(Sender: TObject);
+    procedure actFormatCurrentExecute(Sender: TObject);
+    procedure actFormatCurrentUpdate(Sender: TObject);
+    procedure actFunctionPreferencesExecute(Sender: TObject);
+    procedure actNewDatapackExecute(Sender: TObject);
     procedure actNewDirectoryExecute(Sender: TObject);
+    procedure actNewDirectoryUpdate(Sender: TObject);
     procedure actNewNamespaceExecute(Sender: TObject);
+    procedure actNewNamespaceUpdate(Sender: TObject);
+    procedure actOpenInExplorerExecute(Sender: TObject);
+    procedure actOpenInExplorerUpdate(Sender: TObject);
+    procedure actRefreshExecute(Sender: TObject);
+    procedure actRefreshUpdate(Sender: TObject);
+    procedure actRenameExecute(Sender: TObject);
+    procedure actRenameUpdate(Sender: TObject);
+    procedure actSaveAllExecute(Sender: TObject);
+    procedure actSaveAllUpdate(Sender: TObject);
+    procedure actSaveExecute(Sender: TObject);
+    procedure actSaveUpdate(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure pcTabsDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure pcTabsDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);
     procedure pcTabsMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure pcTabsMouseEnter(Sender: TObject);
     procedure pcTabsMouseLeave(Sender: TObject);
     procedure pcTabsMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure pcTabsMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -128,21 +170,32 @@ type
     procedure tvNamespacesMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure tvNamespacesMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
   private
-    FBrigadierRoot: TBrigadierRoot;
+    FSettings: TMainSettings;
     FDatapack: TDatapack;
     FDatapackTreeView: TDatapackTreeView;
     FDraggedPage: TTabSheet;
     FRemoveTab: Integer;
+    FAddActions: array [TDatapack.TDataType] of TAction;
+    FFunctionTheme: TFunctionTheme;
 
-    procedure InitBrigadierSystem;
     procedure InitDataTypes;
+    procedure InitTheme;
     procedure CheckAppParams;
+    procedure ExceptionLagFix; inline;
+
+    procedure AppActivate(Sender: TObject);
 
     procedure AddData(Sender: TObject);
     procedure LoadDatapack(AFilename: TFilename);
 
+    function DatapackOpen: Boolean;
+
+  protected
+    procedure UpdateActions; override;
+
   public
-    property Brigadier: TBrigadierRoot read FBrigadierRoot;
+    property Settings: TMainSettings read FSettings;
+    property FunctionTheme: TFunctionTheme read FFunctionTheme;
 
   end;
 
@@ -160,22 +213,61 @@ end;
 
 procedure TfrmMain.actCopyNameExecute(Sender: TObject);
 begin
-  Clipboard.AsText := tvNamespaces.Selected.NodeData.FullName;
+  Clipboard.AsText := tvNamespaces.Selected.NodeData.NamespacePath;
+end;
+
+procedure TfrmMain.actCopyNameUpdate(Sender: TObject);
+begin
+  actCopyName.Enabled := tvNamespaces.Focused and
+    (tvNamespaces.Selected <> nil) and
+    (tvNamespaces.Selected.NodeData <> nil) and
+    tvNamespaces.Selected.NodeData.HasNamespacePath;
 end;
 
 procedure TfrmMain.actCopyPathExecute(Sender: TObject);
-var
-  NodeData: TDatapackTreeView.TNodeData;
 begin
-  NodeData := tvNamespaces.Selected.NodeData;
-  case NodeData.NodeType of
-    ntFile, ntDirectory:
-      Clipboard.AsText := NodeData.FullPath;
-    ntType:
-      Clipboard.AsText := NodeData.Namespace.Data[NodeData.DataType].FullPath;
-    ntNamespace:
-      Clipboard.AsText := NodeData.Namespace.FullPath;
+  Clipboard.AsText := tvNamespaces.Selected.NodeData.FullPath;
+end;
+
+procedure TfrmMain.actCopyPathUpdate(Sender: TObject);
+begin
+  actCopyPath.Enabled := tvNamespaces.Focused and (tvNamespaces.Selected <> nil);
+end;
+
+procedure TfrmMain.actDeleteExecute(Sender: TObject);
+
+  function HasSelectedParent(ANode: TTreeNode): Boolean;
+  begin
+    Result := (ANode.Parent <> nil) and (ANode.Parent.Selected or HasSelectedParent(ANode.Parent));
   end;
+
+var
+  I: Cardinal;
+  Selected: TRefArray<TTreeNode>;
+  Node: TTreeNode;
+begin
+  Selected := TRefArray<TTreeNode>.Create;
+
+  try
+    for I := 0 to tvNamespaces.SelectionCount - 1 do
+      if not HasSelectedParent(tvNamespaces.Selections[I]) then
+        Selected.Add(tvNamespaces.Selections[I]);
+
+    for Node in Selected do
+    begin
+      Node.MakeVisible;
+      Node.NodeData.Delete;
+    end;
+
+  finally
+    Selected.Free;
+  end;
+
+end;
+
+procedure TfrmMain.actDeleteUpdate(Sender: TObject);
+begin
+  actDelete.Enabled := tvNamespaces.Focused and (tvNamespaces.Selected <> nil);
 end;
 
 procedure TfrmMain.actExitExecute(Sender: TObject);
@@ -183,7 +275,7 @@ begin
   Close;
 end;
 
-procedure TfrmMain.actOpenExecute(Sender: TObject);
+procedure TfrmMain.actOpenDatapackExecute(Sender: TObject);
 begin
   if dlgOpenDatapack.Execute then
   begin
@@ -196,13 +288,19 @@ var
   DataType: TDatapack.TDataType;
 begin
   DataType := TDatapack.TDataType(TComponent(Sender).Tag);
+  FDatapackTreeView.AddData(DataType);
+end;
+
+procedure TfrmMain.AppActivate(Sender: TObject);
+begin
+  FDatapackTreeView.PageControl.UpdateOpenPages;
 end;
 
 procedure TfrmMain.LoadDatapack(AFilename: TFilename);
 begin
+  FDatapackTreeView.Datapack := nil;
   FDatapack.Free;
   FDatapack := TDatapack.Create(AFilename);
-  // TODO: Close all open pages
   FDatapackTreeView.Datapack := FDatapack;
 end;
 
@@ -214,9 +312,21 @@ begin
   end;
 end;
 
-procedure TfrmMain.actDataTypeFirstExecute(Sender: TObject);
+function TfrmMain.DatapackOpen: Boolean;
 begin
-  FDatapackTreeView.DataTypeFirst := actDataTypeFirst.Checked;
+  Result := FDatapack <> nil;
+end;
+
+procedure TfrmMain.ExceptionLagFix;
+begin
+  // The first time, this exception is raised, the raising takes a little longer with the debugger...
+  // So let's do it at the start so it's not anoying while typing.
+  {$IFDEF DEBUG}
+  try
+    raise EParseError.Create('');
+  except
+  end;
+  {$ENDIF}
 end;
 
 procedure TfrmMain.actEditExecute(Sender: TObject);
@@ -226,7 +336,7 @@ procedure TfrmMain.actEditExecute(Sender: TObject);
     ANode := ANode.GetFirstChild;
     while ANode <> nil do
     begin
-      if ANode.NodeData.NodeType = ntFile then
+      if ANode.NodeData is TDatapack.TFile then
         FDatapackTreeView.PageControl.Open(ANode)
       else
         AddRecursive(ANode);
@@ -240,7 +350,7 @@ begin
   pcTabs.DisableAlign;
   for I := 0 to tvNamespaces.SelectionCount - 1 do
   begin
-    if tvNamespaces.Selections[I].NodeData.NodeType = ntFile then
+    if tvNamespaces.Selections[I].NodeData is TDatapack.TFile then
       FDatapackTreeView.PageControl.Open(tvNamespaces.Selections[I])
     else
       AddRecursive(tvNamespaces.Selections[I]);
@@ -253,46 +363,157 @@ begin
   FDatapackTreeView.ExpandAll;
 end;
 
+procedure TfrmMain.actFormatCurrentExecute(Sender: TObject);
+begin
+  TEditorFunctions(FDatapackTreeView.PageControl.CurrentPage.Editor).Format;
+end;
+
+procedure TfrmMain.actFormatCurrentUpdate(Sender: TObject);
+begin
+  actFormatCurrent.Enabled := FDatapackTreeView.PageControl.IsEditing(dtFunction);
+end;
+
+procedure TfrmMain.actFunctionPreferencesExecute(Sender: TObject);
+begin
+  frmFunctionPreferences.Execute(nil);
+end;
+
+procedure TfrmMain.actNewDatapackExecute(Sender: TObject);
+begin
+  raise ENotImplemented.Create('NewDatapack');
+end;
+
 procedure TfrmMain.actNewDirectoryExecute(Sender: TObject);
 begin
-  // TODO: Add Directory
+  FDatapackTreeView.AddDirectory;
+end;
+
+procedure TfrmMain.actNewDirectoryUpdate(Sender: TObject);
+begin
+  actNewDirectory.Enabled := FDatapackTreeView.CanAddDirectory;
 end;
 
 procedure TfrmMain.actNewNamespaceExecute(Sender: TObject);
 begin
-  // TODO: Add Namespace
+  FDatapackTreeView.AddNamespace;
+end;
+
+procedure TfrmMain.actNewNamespaceUpdate(Sender: TObject);
+begin
+  actNewNamespace.Enabled := DatapackOpen;
+end;
+
+procedure TfrmMain.actOpenInExplorerExecute(Sender: TObject);
+var
+  ItemIDList: PItemIDList;
+  NodeData: TDatapackBase;
+  FileData: TDatapack.TFile;
+begin
+  NodeData := tvNamespaces.Selected.NodeData;
+  if NodeData is TDatapack.TFile then
+  begin
+    FileData := TDatapack.TFile(NodeData);
+    if FileData.FileExists then
+    begin
+      ItemIDList := ILCreateFromPath(PChar(FileData.FullPath));
+      SHOpenFolderAndSelectItems(ItemIDList, 0, nil, 0);
+      ILFree(ItemIDList);
+      if GetLastError <> 0 then
+        RaiseLastOSError;
+      Exit;
+    end
+    else
+      NodeData := FileData.Parent;
+  end;
+
+  ShellExecute(Application.Handle, nil, PChar(NodeData.FullPath), nil, nil, SW_NORMAL);
+  if GetLastError <> 0 then
+    RaiseLastOSError;
+
+end;
+
+procedure TfrmMain.actOpenInExplorerUpdate(Sender: TObject);
+begin
+  actCopyPath.Update;
+  actOpenInExplorer.Enabled := actCopyPath.Enabled;
+end;
+
+procedure TfrmMain.actRefreshExecute(Sender: TObject);
+begin
+  // StartTimer;
+  FDatapackTreeView.UpdateDatapack;
+  // ShowMessage(Format('Refresh took %s', [StopTimerGetString]));
+end;
+
+procedure TfrmMain.actRefreshUpdate(Sender: TObject);
+begin
+  actRefresh.Enabled := DatapackOpen;
+end;
+
+procedure TfrmMain.actRenameExecute(Sender: TObject);
+begin
+  tvNamespaces.Selected.EditText;
+end;
+
+procedure TfrmMain.actRenameUpdate(Sender: TObject);
+var
+  AllowEdit: Boolean;
+begin
+  if tvNamespaces.Selected <> nil then
+    tvNamespaces.OnEditing(nil, tvNamespaces.Selected, AllowEdit)
+  else
+    AllowEdit := False;
+  actRename.Enabled := AllowEdit;
+end;
+
+procedure TfrmMain.actSaveAllExecute(Sender: TObject);
+begin
+  FDatapackTreeView.PageControl.SaveAll;
+end;
+
+procedure TfrmMain.actSaveAllUpdate(Sender: TObject);
+begin
+  actSaveAll.Enabled := DatapackOpen;
+end;
+
+procedure TfrmMain.actSaveExecute(Sender: TObject);
+begin
+  FDatapackTreeView.PageControl.SaveCurrent;
+end;
+
+procedure TfrmMain.actSaveUpdate(Sender: TObject);
+begin
+  actSave.Enabled := DatapackOpen;
+end;
+
+procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  while pcTabs.ActivePage <> nil do
+    if not pcTabs.ActivePage.Editor.Close then
+    begin
+      CanClose := False;
+      Break;
+    end;
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
   // SHAutoComplete(edtTestInput.Handle, SHACF_AUTOAPPEND_FORCE_OFF or SHACF_AUTOSUGGEST_FORCE_OFF);
-  InitBrigadierSystem;
+  FSettings := TMainSettings.Create;
   InitDataTypes;
+  InitTheme;
+  ExceptionLagFix;
   FDatapackTreeView := TDatapackTreeView.Create(tvNamespaces, pcTabs);
   CheckAppParams;
+  Application.OnActivate := AppActivate;
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
+  FFunctionTheme.Free;
   FDatapackTreeView.Free;
   FDatapack.Free;
-  FBrigadierRoot.Free;
-end;
-
-procedure TfrmMain.InitBrigadierSystem;
-var
-  CommandTreeText: string;
-  CommandTree: TJSONObject;
-begin
-  CommandTreeText := TFile.ReadAllText('Data/reports/commands.json');
-  CommandTree := TJSONObject.ParseJSONValue(CommandTreeText) as TJSONObject;
-
-  try
-    FBrigadierRoot := TBrigadierRoot.Create(CommandTree);
-  finally
-    CommandTree.Free;
-  end;
-
+  FSettings.Free;
 end;
 
 procedure TfrmMain.InitDataTypes;
@@ -302,27 +523,33 @@ var
   Action: TAction;
   ToolButton: TToolButton;
 begin
-
   for DataType := Low(TDatapack.TDataType) to High(TDatapack.TDataType) do
   begin
     Action := TAction.Create(alActions);
-    Action.Caption := DPClasses[DataType].GetDisplayName;
+    Action.Caption := DPClasses[DataType].GetDisplayNameNormal;
     Action.ImageIndex := Ord(DataType);
     Action.Tag := Ord(DataType);
     Action.OnExecute := AddData;
-    Action.Hint := 'Add a new ' + DPClasses[DataType].GetDisplayName + '.';
+    // Action.Hint := 'Add a new ' + DPClasses[DataType].GetDisplayNameNormal + '.';
+
+    FAddActions[DataType] := Action;
 
     MenuItem := TMenuItem.Create(miAdd);
     MenuItem.Action := Action;
-
     miAdd.Add(MenuItem);
 
     ToolButton := TToolButton.Create(tbView);
+    ToolButton.Left := tbView.Buttons[tbView.ButtonCount - 1].Left + 1;
     ToolButton.Parent := tbView;
     ToolButton.Action := Action;
-    ToolButton.Left := tbView.Buttons[tbView.ButtonCount - 1].Left + 1;
 
   end;
+end;
+
+procedure TfrmMain.InitTheme;
+begin
+  FFunctionTheme := TFunctionTheme.Create;
+  FFunctionTheme.LoadPreset(TLightTheme);
 end;
 
 procedure TfrmMain.pcTabsDragDrop(Sender, Source: TObject; X, Y: Integer);
@@ -367,6 +594,11 @@ begin
   end;
 end;
 
+procedure TfrmMain.pcTabsMouseEnter(Sender: TObject);
+begin
+  pcTabs.ShowHint := True;
+end;
+
 procedure TfrmMain.pcTabsMouseLeave(Sender: TObject);
 begin
   pcTabs.ShowHint := False;
@@ -375,13 +607,16 @@ end;
 procedure TfrmMain.pcTabsMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
 var
   TabIndex: Integer;
+  NewHint: string;
 begin
   TabIndex := pcTabs.IndexOfTabAt(X, Y);
-  if (TabIndex = -1) or (pcTabs.Hint = pcTabs.Pages[TabIndex].Hint) then
+  if TabIndex = -1 then
+    Exit;
+  NewHint := pcTabs.Pages[TabIndex].NodeData.NamespacePath;
+  if (TabIndex = -1) or (pcTabs.Hint = NewHint) then
     Exit;
   Application.CancelHint;
-  pcTabs.Hint := pcTabs.Pages[TabIndex].Hint;
-  pcTabs.ShowHint := True;
+  pcTabs.Hint := NewHint;
 end;
 
 procedure TfrmMain.pcTabsMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -393,7 +628,7 @@ begin
       begin
         TabIndex := pcTabs.IndexOfTabAt(X, Y);
         if TabIndex = FRemoveTab then
-          pcTabs.Pages[TabIndex].Free;
+          pcTabs.Pages[TabIndex].Editor.Close;
         SetCaptureControl(nil);
       end;
   end;
@@ -402,9 +637,12 @@ end;
 procedure TfrmMain.pcTabsStartDrag(Sender: TObject; var DragObject: TDragObject);
 var
   Pos: TPoint;
+  TabIndex: Integer;
 begin
   Pos := pcTabs.ScreenToClient(Mouse.CursorPos);
-  FDraggedPage := pcTabs.Pages[pcTabs.IndexOfTabAt(Pos.X, Pos.Y)];
+  TabIndex := pcTabs.IndexOfTabAt(Pos.X, Pos.Y);
+  if TabIndex <> -1 then
+    FDraggedPage := pcTabs.Pages[TabIndex];
 end;
 
 procedure TfrmMain.tvNamespacesContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
@@ -412,6 +650,7 @@ var
   Node: TTreeNode;
   NodeClicked: Boolean;
   I, FileCount, DirCount: Integer;
+  NodeData: TDatapackBase;
 begin
   if not(htOnLabel in tvNamespaces.GetHitTestInfoAt(MousePos.X, MousePos.Y)) then
     Exit;
@@ -428,12 +667,13 @@ begin
     FileCount := 0;
     DirCount := 0;
     for I := 0 to tvNamespaces.SelectionCount - 1 do
-      case tvNamespaces.Selections[I].NodeData.NodeType of
-        ntFile:
-          Inc(FileCount);
-        ntDirectory:
-          Inc(DirCount);
-      end;
+    begin
+      NodeData := tvNamespaces.Selections[I].NodeData;
+      if NodeData is TDatapack.TFile then
+        Inc(FileCount)
+      else if NodeData is TDatapack.TDirectory then
+        Inc(DirCount);
+    end;
     actCopyName.Enabled := (tvNamespaces.SelectionCount = 1) and (FileCount + DirCount = 1);
   end
   else
@@ -458,6 +698,20 @@ begin
     Exit;
   if tvNamespaces.GetHitTestInfoAt(X, Y) <= [htNowhere, htOnRight, htOnIndent] then
     tvNamespaces.ClearSelection;
+end;
+
+procedure TfrmMain.UpdateActions;
+var
+  DataType: TDatapack.TDataType;
+  CanAdd: Boolean;
+begin
+  inherited;
+  for DataType := Low(TDatapack.TDataType) to High(TDatapack.TDataType) do
+  begin
+    CanAdd := FDatapackTreeView.CanAddData(DataType);
+    FAddActions[DataType].Visible := CanAdd;
+    FAddActions[DataType].Enabled := CanAdd;
+  end;
 end;
 
 end.

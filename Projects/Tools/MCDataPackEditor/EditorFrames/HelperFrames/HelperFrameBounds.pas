@@ -18,6 +18,7 @@ uses
   Vcl.Samples.Spin,
   Vcl.ExtCtrls,
 
+  Pengine.Utility,
   Pengine.Vector;
 
 type
@@ -126,7 +127,7 @@ end;
 
 procedure TfrmHelperBounds.SetFloat(AEdit: TEdit; AValue: Single);
 begin
-  AEdit.Text := AValue.ToString(ffGeneral, 7, 0, TFormatSettings.Invariant);
+  AEdit.Text := PrettyFloat(AValue);
 end;
 
 procedure TfrmHelperBounds.SetMode(ARanged: Boolean);

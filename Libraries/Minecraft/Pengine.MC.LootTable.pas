@@ -17,8 +17,8 @@ uses
   Pengine.EventHandling,
 
   Pengine.MC.NBT,
-  Pengine.MC.Enchantments,
-  Pengine.MC.Attributes;
+  Pengine.MC.Enchantment,
+  Pengine.MC.Attribute;
 
 type
 

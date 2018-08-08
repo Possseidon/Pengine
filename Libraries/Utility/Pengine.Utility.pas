@@ -94,6 +94,11 @@ type
 
 function GetBitCount(num: NativeUInt): Integer;
 
+function PrettyFloat(AValue: Single): string; overload;
+function PrettyFloat(AValue: Double): string; overload;
+
+function ContainsOnly(AText: string; ASet: TSysCharSet): Boolean;
+
 implementation
 
 function GetBitCount(num: NativeUInt): Integer;
@@ -103,6 +108,26 @@ asm
   {$ELSE}
   POPCNT    eax, num
   {$ENDIF}
+end;
+
+function PrettyFloat(AValue: Single): string;
+begin
+  Result := AValue.ToString(ffGeneral, 7, 0, TFormatSettings.Invariant)
+end;
+
+function PrettyFloat(AValue: Double): string;
+begin
+  Result := AValue.ToString(ffGeneral, 15, 0, TFormatSettings.Invariant)
+end;
+
+function ContainsOnly(AText: string; ASet: TSysCharSet): Boolean;
+var
+  C: Char;
+begin
+  for C in AText do
+    if not CharInSet(C, ASet) then
+      Exit(False);
+  Result := True;
 end;
 
 { EOptWrapperNoValue }

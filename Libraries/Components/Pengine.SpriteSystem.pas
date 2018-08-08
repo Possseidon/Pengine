@@ -46,7 +46,7 @@ type
     constructor Create;
   end;
 
-  TSpriteGLProgamBase = class(TGLProgramResource)
+  TSpriteGLProgramBase = class(TGLProgramResource)
   public type
 
     TData = record
@@ -368,7 +368,7 @@ type
 
     property Behaviors: TBehaviors.TReader read GetBehaviors;
 
-    procedure UpdateVAO(AWriter: TVBO<TSpriteGLProgamBase.TData>.TWriter);
+    procedure UpdateVAO(AWriter: TVBO<TSpriteGLProgramBase.TData>.TWriter);
 
     procedure BeginUpdate;
     procedure EndUpdate;
@@ -385,7 +385,7 @@ type
 
     TSprites = TRefArray<TSprite>;
     TSpriteUpdater = TEventMap<TSprite, TRefHasher<TSprite>>;
-    TVAO = TVAOMutable<TSpriteGLProgamBase.TData>;
+    TVAO = TVAOMutable<TSpriteGLProgramBase.TData>;
      
     TBorder = TSprite.TBorder;
      
@@ -492,9 +492,9 @@ type
 
 implementation
 
-{ TSpriteGLProgamBase }
+{ TSpriteGLProgramBase }
 
-class function TSpriteGLProgamBase.GetAttributeOrder: TGLProgram.TAttributeOrder;
+class function TSpriteGLProgramBase.GetAttributeOrder: TGLProgram.TAttributeOrder;
 begin
   Result := [
     'vpos',
@@ -766,6 +766,8 @@ begin
   if FRemoved then
     raise ESpriteRemovedAlready.Create;
   FRemoved := True;
+  // call changed, to make sure, the vbo is update and the sprite is gone in the next frame
+  Changed([]);
   FOnRemove.Execute(TEventInfo.Create(Self));
 end;
 
@@ -774,76 +776,77 @@ begin
   Border := nil;
 end;
 
-procedure TSprite.UpdateVAO(AWriter: TVBO<TSpriteGLProgamBase.TData>.TWriter);
+procedure TSprite.UpdateVAO(AWriter: TVBO<TSpriteGLProgramBase.TData>.TWriter);
 var
   I: TQuadIndex;
 begin
-  with AWriter do
+  FInChangedSprites := False;
+
+  AWriter.BufferPos := FIndex * 6;
+
+  if Removed then
   begin
-    FInChangedSprites := False;
+    AWriter[2].Color := Color;
+    AWriter[5].Color := Color;
+    Exit;
+  end;
 
-    BufferPos := FIndex * 6;
+  if scPos in FChanges then
+    for I := Low(TQuadIndex) to High(TQuadIndex) do
+      AWriter[I].Pos := Bounds[QuadTexCoords[I]];
 
-    if scPos in FChanges then
-      for I := Low(TQuadIndex) to High(TQuadIndex) do
-        BufferData[BufferPos + I].Pos := Bounds[QuadTexCoords[I]];
+  if scZOrder in FChanges then
+    for I := Low(TQuadIndex) to High(TQuadIndex) do
+      AWriter[I].ZOrder := ZOrder;
 
-    if scZOrder in FChanges then
-      for I := Low(TQuadIndex) to High(TQuadIndex) do
-        BufferData[BufferPos + I].ZOrder := ZOrder;
+  if scColor in FChanges then
+  begin
+    AWriter[2].Color := Color;
+    AWriter[5].Color := Color;
+  end;
 
-    if scColor in FChanges then
+  if scFade in FChanges then
+  begin
+    AWriter[2].Fade := Fade;
+    AWriter[5].Fade := Fade;
+  end;
+
+  if scTexture in FChanges then
+  begin
+    if TextureTile <> nil then
     begin
-      BufferData[BufferPos + 2].Color := Color;
-      BufferData[BufferPos + 5].Color := Color;
+      AWriter[2].TexBorders[0] := TextureTile.BoundsHalfPixelInset;
+      AWriter[5].TexBorders[0] := AWriter[2].TexBorders[0];
     end;
-
-    if scFade in FChanges then
+    if FadeTextureTile <> nil then
     begin
-      BufferData[BufferPos + 2].Fade := Fade;
-      BufferData[BufferPos + 5].Fade := Fade;
+      AWriter[2].TexBorders[1] := FadeTextureTile.BoundsHalfPixelInset;
+      AWriter[5].TexBorders[1] := AWriter[2].TexBorders[1];
     end;
-
-    if scTexture in FChanges then
+    for I := Low(TQuadIndex) to High(TQuadIndex) do
     begin
       if TextureTile <> nil then
-      begin
-        BufferData[BufferPos + 2].TexBorders[0] := TextureTile.BoundsHalfPixelInset;
-        BufferData[BufferPos + 5].TexBorders[0] := BufferData[BufferPos + 2].TexBorders[0];
-      end;
+        AWriter[I].TexCoords[0] := TextureTile.Bounds[QuadTexCoords[I]];
       if FadeTextureTile <> nil then
-      begin
-        BufferData[BufferPos + 2].TexBorders[1] := FadeTextureTile.BoundsHalfPixelInset;
-        BufferData[BufferPos + 5].TexBorders[1] := BufferData[BufferPos + 2].TexBorders[1];
-      end;
-      for I := Low(TQuadIndex) to High(TQuadIndex) do
-      begin
-        with BufferData[BufferPos + I] do
-        begin
-          if TextureTile <> nil then
-            TexCoords[0] := TextureTile.Bounds[QuadTexCoords[I]];
-          if FadeTextureTile <> nil then
-            TexCoords[1] := FadeTextureTile.Bounds[QuadTexCoords[I]];
-        end;
-      end;
+        AWriter[I].TexCoords[1] := FadeTextureTile.Bounds[QuadTexCoords[I]];
     end;
-
-    if scBorder in FChanges then
-    begin
-      if HasBorder then
-      begin
-        BufferData[BufferPos + 2].Border := Border.Index;
-        BufferData[BufferPos + 5].Border := Border.Index;
-      end
-      else
-      begin
-        BufferData[BufferPos + 2].Border := TBorder.DefaultIndex;
-        BufferData[BufferPos + 5].Border := TBorder.DefaultIndex;      
-      end;
-    end;
-
-    FChanges := [];
   end;
+
+  if scBorder in FChanges then
+  begin
+    if HasBorder then
+    begin
+      AWriter[2].Border := Border.Index;
+      AWriter[5].Border := Border.Index;
+    end
+    else
+    begin
+      AWriter[2].Border := TBorder.DefaultIndex;
+      AWriter[5].Border := TBorder.DefaultIndex;
+    end;
+  end;
+
+  FChanges := [];
 end;
 
 { TSpriteSystem }
@@ -926,7 +929,7 @@ end;
 
 procedure TSpriteSystem.UpdateVAO(AUpdateAll: Boolean);
 var
-  Writer: TVBO<TSpriteGLProgamBase.TData>.TWriter;
+  Writer: TVBO<TSpriteGLProgramBase.TData>.TWriter;
   Sprite: TSprite;
 begin
   Writer := FVAO.VBO.Map;
@@ -983,6 +986,7 @@ begin
 
   Game.GLState.Push;
 
+  Game.GLState[stDepthTest] := False;
   Game.GLState[stBlend] := True;
   Game.GLState[stBlendFunc] := TGLBlendFunc.Make(bfsSrcAlpha, bfdOneMinusSrcAlpha);
   Game.GLState[stCullFace] := False;

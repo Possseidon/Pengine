@@ -163,22 +163,18 @@ type
 
   /// <summary>Calculates a hash using 4 characters in the string and uses them as the 4 bytes in the hash.</summary>
   /// <remarks>The used characters are spreaded equally between the first and last character.<p/>
-  /// If the string is shorter than 4 characters, characters will be taken multiple times.<p/>
-  /// An empty string can, by my definition, not be indexed, and getting a hash is therefore not supported in any way.</remarks>
+  /// If the string is shorter than 4 characters, characters will be taken multiple times.</remarks>
   TStringHasher = class(THasher<string, TStringEqualler>)
   public
     class function GetHash(const AValue: string): Cardinal; override;
-    class function CanIndex(const AValue: string): Boolean; override;
   end;
 
   /// <summary>Calculates a hash using 4 characters in the string and uses them as the 4 bytes in the hash.</summary>
   /// <remarks>The used characters are spreaded equally between the first and last character.<p/>
-  /// If the string is shorter than 4 characters, characters will be taken multiple times.<p/>
-  /// An empty string can, by my definition, not be indexed, and getting a hash is therefore not supported in any way.</remarks>
+  /// If the string is shorter than 4 characters, characters will be taken multiple times.</remarks>
   TAnsiStringHasher = class(THasher<AnsiString, TAnsiStringEqualler>)
   public
     class function GetHash(const AValue: AnsiString): Cardinal; override;
-    class function CanIndex(const AValue: AnsiString): Boolean; override;
   end;
 
   /// <summary>Calulates a hash from any class type.</summary>
@@ -187,6 +183,12 @@ type
   public
     class function GetHash(const AValue: TClass): Cardinal; override;
     class function CanIndex(const AValue: TClass): Boolean; override;
+  end;
+
+  TClassHasher<T> = class(THasher<T, TClassEqualler<T>>)
+  public
+    class function GetHash(const AValue: T): Cardinal; override;
+    class function CanIndex(const AValue: T): Boolean; override;
   end;
 
   // Hashers end, everything else in other units!
@@ -556,16 +558,13 @@ var
   L: Integer;
 begin
   L := Length(AValue);
+  if L = 0 then
+    Exit(0);
   Result :=
     Byte(AValue[L * 0 div 4 + 1]) shl $00 or
     Byte(AValue[L * 1 div 4 + 1]) shl $08 or
     Byte(AValue[L * 2 div 4 + 1]) shl $10 or
     Byte(AValue[L * 3 div 4 + 1]) shl $18;
-end;
-
-class function TStringHasher.CanIndex(const AValue: string): Boolean;
-begin
-  Result := AValue <> '';
 end;
 
 { TAnsiStringHasher }
@@ -575,16 +574,13 @@ var
   L: Integer;
 begin
   L := Length(AValue);
+  if L = 0 then
+    Exit(0);
   Result :=
     Byte(AValue[L * 0 div 4 + 1]) shl $00 or
     Byte(AValue[L * 1 div 4 + 1]) shl $08 or
     Byte(AValue[L * 2 div 4 + 1]) shl $10 or
     Byte(AValue[L * 3 div 4 + 1]) shl $18;
-end;
-
-class function TAnsiStringHasher.CanIndex(const AValue: AnsiString): Boolean;
-begin
-  Result := AValue <> '';
 end;
 
 { TClassHasher }
@@ -843,6 +839,22 @@ end;
 function HashOf(const Value: TVectorDir): Cardinal;
 begin
   Result := TVectorDirHasher.GetHash(Value);
+end;
+
+{ TClassHasher<T> }
+
+class function TClassHasher<T>.CanIndex(const AValue: T): Boolean;
+var
+  AsClass: TClass absolute AValue;
+begin
+  Result := TClassHasher.CanIndex(AsClass);
+end;
+
+class function TClassHasher<T>.GetHash(const AValue: T): Cardinal;
+var
+  AsClass: TClass absolute AValue;
+begin
+  Result := TClassHasher.GetHash(AsClass);
 end;
 
 end.

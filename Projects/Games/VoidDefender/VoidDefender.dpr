@@ -2,8 +2,7 @@ program VoidDefender;
 
 uses
   Vcl.Forms,
-  Main in 'Main.pas' {frmMain},
-  VD.Entity in 'VD.Entity.pas';
+  Main in 'Main.pas' {frmMain};
 
 {$R *.res}
 

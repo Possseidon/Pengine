@@ -17,7 +17,7 @@ uses
   Vcl.Forms,
   Vcl.Dialogs,
 
-  Minecraft.LootTable,
+  Pengine.MC.LootTable,
 
   DatapackView,
   LootTableFramePool;
@@ -26,7 +26,7 @@ type
 
   TEditorLootTables = class(TEditor)
   public
-    function GetFrameClass: TFrameClass; override;
+    class function GetFrameClass: TFrameClass; override;
 
   end;
 
@@ -52,7 +52,7 @@ implementation
 
 { TEditorLootTables }
 
-function TEditorLootTables.GetFrameClass: TFrameClass;
+class function TEditorLootTables.GetFrameClass: TFrameClass;
 begin
   Result := TfrmEditorLootTables;
 end;

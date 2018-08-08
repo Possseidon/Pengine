@@ -11,6 +11,7 @@ uses
   Pengine.Parser,
   Pengine.ObservableCollections,
   Pengine.Collections,
+  Pengine.Utility,
 
   Pengine.MC.NBT,
   Pengine.MC.Gamemode,
@@ -23,7 +24,7 @@ type
   public type
 
     TVariable = (
-      svExecutor,
+      svSender,
       svAllPlayers,
       svAllEntites,
       svNearestPlayer,
@@ -40,8 +41,20 @@ type
       'r'
       );
 
+    VariableDisplayNames: array [TVariable] of string = (
+      'Sender',
+      'All Players',
+      'All Entities',
+      'Nearest Player',
+      'Random Player'
+      );
+
+    VariableDefaultMulti = [svAllPlayers, svAllEntites];
+
     IntChars = ['0' .. '9', '-'];
     FloatChars = IntChars + ['.'];
+
+    Prefix = '@';
 
   public type
 
@@ -155,6 +168,18 @@ type
 
       end;
 
+      TSuggestions = class(TParseSuggestionsGenerated<TParser>)
+      private
+        FSelector: TEntitySelector;
+
+      protected
+        procedure Generate; override;
+
+      public
+        constructor Create(ASelector: TEntitySelector);
+
+      end;
+
       TDataParser = class(TRefParser<TOption>);
       TDataParserClass = class of TDataParser;
 
@@ -213,9 +238,43 @@ type
     public
       class function GetDataParserClass: TOption.TDataParserClass; override;
 
+      class function MustBeNormalized: Boolean; virtual;
+      class function GetMinimum(out AValue: Single): Boolean; virtual;
+      class function GetMaximum(out AValue: Single): Boolean; virtual;
+
       property Range: TBounds1 read FRange write FRange;
       property RangeMin: Single read FRange.C1 write FRange.C1;
       property RangeMax: Single read FRange.C2 write FRange.C2;
+
+      function FormatData: string; override;
+
+    end;
+
+    TOptionIntValueOrRange = class(TOption)
+    public type
+
+      TParser = class(TDataParser<TOptionIntValueOrRange>)
+      protected
+        function Parse: Boolean; override;
+
+      public
+        class function GetResultName: string; override;
+
+      end;
+
+    private
+      FRange: TIntBounds1;
+
+    public
+      class function GetDataParserClass: TOption.TDataParserClass; override;
+
+      class function MustBeNormalized: Boolean; virtual;
+      class function GetMinimum(out AValue: Integer): Boolean; virtual;
+      class function GetMaximum(out AValue: Integer): Boolean; virtual;
+
+      property Range: TIntBounds1 read FRange write FRange;
+      property RangeMin: Integer read FRange.C1 write FRange.C1;
+      property RangeMax: Integer read FRange.C2 write FRange.C2;
 
       function FormatData: string; override;
 
@@ -249,6 +308,8 @@ type
 
     public
       class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetMinimum(out AValue: Integer): Boolean; virtual;
+      class function GetMaximum(out AValue: Integer): Boolean; virtual;
 
       property Value: Integer read FValue write FValue;
 
@@ -289,7 +350,7 @@ type
 
       public
         class function GetResultName: string; override;
-        class function IgnoreCharInfo: Boolean; override;
+        class function IgnoreContext: Boolean; override;
 
       end;
 
@@ -333,6 +394,7 @@ type
     public
       class function GetType: TOption.TType; override;
       class function IsApplicable(AVariable: TVariable): Boolean; override;
+      class function GetMinimum(out AValue: Integer): Boolean; override;
 
     end;
 
@@ -352,6 +414,13 @@ type
 
       public
         class function GetResultName: string; override;
+
+      end;
+
+      TSuggestions = class(TParseSuggestionsSimple<TParser>)
+      public
+        class function GetCount: Integer; override;
+        class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
 
       end;
 
@@ -384,6 +453,7 @@ type
     TOptionDistance = class(TOptionValueOrRange)
     public
       class function GetType: TOption.TType; override;
+      class function GetMinimum(out AValue: Single): Boolean; override;
 
     end;
 
@@ -426,12 +496,14 @@ type
     TOptionXRotation = class(TOptionValueOrRange)
     public
       class function GetType: TOption.TType; override;
+      class function MustBeNormalized: Boolean; override;
 
     end;
 
     TOptionYRotation = class(TOptionValueOrRange)
     public
       class function GetType: TOption.TType; override;
+      class function MustBeNormalized: Boolean; override;
 
     end;
 
@@ -451,7 +523,7 @@ type
 
       public
         class function GetResultName: string; override;
-        class function IgnoreCharInfo: Boolean; override;
+        class function IgnoreContext: Boolean; override;
 
       end;
 
@@ -546,6 +618,13 @@ type
 
       end;
 
+      TSuggestions = class(TParseSuggestionsSimple<TParser>)
+      public
+        class function GetCount: Integer; override;
+        class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+
+      end;
+
     private
       FEntity: TEntity;
 
@@ -623,6 +702,13 @@ type
 
       end;
 
+      TSuggestions = class(TParseSuggestionsSimple<TParser>)
+      public
+        class function GetCount: Integer; override;
+        class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+
+      end;
+
     private
       FGamemode: TGamemode;
 
@@ -639,9 +725,10 @@ type
 
     end;
 
-    TOptionLevel = class(TOptionValueOrRange)
+    TOptionLevel = class(TOptionIntValueOrRange)
     public
       class function GetType: TOption.TType; override;
+      class function GetMinimum(out AValue: Integer): Boolean; override;
 
     end;
 
@@ -667,6 +754,13 @@ type
       class function GetResultName: string; override;
       class function GetTokenCount: Integer; override;
       class function GetTokenName(AIndex: Integer): string; override;
+
+    end;
+
+    TSuggestions = class(TParseSuggestionsSimple<TParser>)
+    public
+      class function GetCount: Integer; override;
+      class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
 
     end;
 
@@ -725,8 +819,11 @@ type
     function GetVariableChar: Char;
 
   public
-    constructor Create(AVariable: TVariable = svExecutor);
+    constructor Create(AVariable: TVariable = svSender);
     destructor Destroy; override;
+
+    function AllowsMultiple: Boolean;
+    function AllowsPlayersOnly: Boolean;
 
     property Variable: TVariable read FVariable write FVariable;
     property VariableChar: Char read GetVariableChar;
@@ -817,72 +914,92 @@ function TEntitySelector.TParser.Parse: Boolean;
 var
   Variable: TVariable;
   OptionParser: TOption.TParser;
+  Required: Boolean;
 begin
-  ExtraData := TokenPrefix;
+  BeginSuggestions(TSuggestions);
 
-  if not Info.StartsWith('@') then
+  Token := TokenPrefix;
+
+  if not StartsWith(Prefix) then
     Exit(False);
 
-  if Info.ReachedEnd then
-    raise EParseError.Create(Info, 'Expected entity selector variable.');
+  Result := True;
 
-  ExtraData := TokenVariable;
+  if ReachedEnd then
+    raise EParseError.Create('Expected entity selector variable.');
+
+  Token := TokenVariable;
 
   for Variable := Low(TVariable) to High(TVariable) do
   begin
-    if Info.StartsWith(VariableChars[Variable]) then
+    if StartsWith(VariableChars[Variable]) then
     begin
       SetParseResult(TEntitySelector.Create(Variable));
       Break;
     end;
   end;
 
+  EndSuggestions;
+
   if ParseResult = nil then
-    raise EParseError.CreateFmt(Info, 'Invalid entity selector variable "@%s".', [Info.First]);
+    raise EParseError.CreateFmt('Invalid entity selector variable "@%s".', [First]);
 
-  ExtraData := TokenBrackets;
+  Token := TokenBrackets;
 
-  if not Info.StartsWith('[') then
-    Exit(True);
+  if not StartsWith('[') then
+    Exit;
 
-  ResetExtraData;
-
-  Info.SkipWhitespace;
-
-  ExtraData := TokenBrackets;
-
-  if Info.StartsWith(']') then
-    Exit(True);
-
+  Required := False;
   while True do
   begin
-    ResetExtraData;
+    ResetToken;
 
-    OptionParser := TOption.TParser.Create(Info, ParseResult);
-    ParseResult.Options.Add(OptionParser.OwnParseResult);
+    OptionParser := TOption.TParser.Create(Info, ParseResult, Required);
+    if OptionParser.Success then
+    begin
+      ParseResult.Options.Add(OptionParser.OwnParseResult);
+      Required := True;
+    end;
     OptionParser.Free;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
 
-    ExtraData := TokenBrackets;
-
-    if Info.StartsWith(']') then
-      Break;
-
-    ExtraData := TokenComma;
-
-    if not Info.StartsWith(',') then
-      raise EParseError.Create(Info, 'Expected "," or "]".');
-
-    ResetExtraData;
-
-    Info.SkipWhitespace;
+    if Required then
+    begin
+      case First of
+        ']':
+          begin
+            Token := TokenBrackets;
+            Advance;
+            Break;
+          end;
+        ',':
+          begin
+            Token := TokenComma;
+            Advance;
+          end
+      else
+        if Required then
+          raise EParseError.Create('Expected "," or "]".')
+      end;
+    end
+    else
+    begin
+      Token := TokenBrackets;
+      if StartsWith(']') then
+        Break;
+      raise EParseError.Create('Expected option or "]".');
+    end;
   end;
-
-  Result := True;
 end;
 
 { TEntitySelector.TOptionLimit }
+
+class function TEntitySelector.TOptionLimit.GetMinimum(out AValue: Integer): Boolean;
+begin
+  AValue := 1;
+  Result := True;
+end;
 
 class function TEntitySelector.TOptionLimit.GetType: TOption.TType;
 begin
@@ -891,7 +1008,7 @@ end;
 
 class function TEntitySelector.TOptionLimit.IsApplicable(AVariable: TVariable): Boolean;
 begin
-  Result := AVariable <> svExecutor;
+  Result := AVariable <> svSender;
 end;
 
 { TEntitySelector.TOptionSort }
@@ -918,10 +1035,16 @@ end;
 
 class function TEntitySelector.TOptionSort.IsApplicable(AVariable: TVariable): Boolean;
 begin
-  Result := AVariable <> svExecutor;
+  Result := AVariable <> svSender;
 end;
 
 { TEntitySelector.TOptionDistance }
+
+class function TEntitySelector.TOptionDistance.GetMinimum(out AValue: Single): Boolean;
+begin
+  AValue := 0;
+  Result := True;
+end;
 
 class function TEntitySelector.TOptionDistance.GetType: TOption.TType;
 begin
@@ -977,11 +1100,21 @@ begin
   Result := soXRotation;
 end;
 
+class function TEntitySelector.TOptionXRotation.MustBeNormalized: Boolean;
+begin
+  Result := False;
+end;
+
 { TEntitySelector.TOptionYRotation }
 
 class function TEntitySelector.TOptionYRotation.GetType: TOption.TType;
 begin
   Result := soYRotation;
+end;
+
+class function TEntitySelector.TOptionYRotation.MustBeNormalized: Boolean;
+begin
+  Result := False;
 end;
 
 { TEntitySelector.TOptionName }
@@ -1117,7 +1250,7 @@ end;
 
 class function TEntitySelector.TOptionType.IsApplicable(AVariable: TVariable): Boolean;
 begin
-  Result := AVariable in [svExecutor, svAllEntites];
+  Result := AVariable in [svSender, svAllEntites];
 end;
 
 { TEntitySelector.TOptionAdvancements }
@@ -1186,6 +1319,12 @@ end;
 
 { TEntitySelector.TOptionLevel }
 
+class function TEntitySelector.TOptionLevel.GetMinimum(out AValue: Integer): Boolean;
+begin
+  AValue := 0;
+  Result := True;
+end;
+
 class function TEntitySelector.TOptionLevel.GetType: TOption.TType;
 begin
   Result := soLevel;
@@ -1193,7 +1332,42 @@ end;
 
 { TEntitySelector }
 
-constructor TEntitySelector.Create(AVariable: TVariable = svExecutor);
+function TEntitySelector.AllowsMultiple: Boolean;
+var
+  Option: TOption;
+begin
+  if not TOptionLimit.IsApplicable(Variable) then
+    Exit(False);
+
+  for Option in Options do
+    if Option is TOptionLimit then
+      Exit(TOptionLimit(Option).Value > 1);
+
+  Result := Variable in VariableDefaultMulti;
+end;
+
+function TEntitySelector.AllowsPlayersOnly: Boolean;
+var
+  Option: TOption;
+begin
+  if not TOptionType.IsApplicable(Variable) then
+    Exit(True);
+
+  for Option in Options do
+  begin
+    if Option is TOptionType then
+    begin
+      if TOptionType(Option).Entity = etPlayer then
+        Exit(not TOptionType(Option).Inverted)
+      else if not TOptionType(Option).Inverted then
+        Exit(False);
+    end;
+  end;
+
+  Result := False;
+end;
+
+constructor TEntitySelector.Create(AVariable: TVariable);
 begin
   FVariable := AVariable;
   FOptions := TOptions.Create;
@@ -1239,6 +1413,21 @@ begin
   Result := TParser;
 end;
 
+class function TEntitySelector.TOptionValueOrRange.GetMaximum(out AValue: Single): Boolean;
+begin
+  Result := False;
+end;
+
+class function TEntitySelector.TOptionValueOrRange.GetMinimum(out AValue: Single): Boolean;
+begin
+  Result := False;
+end;
+
+class function TEntitySelector.TOptionValueOrRange.MustBeNormalized: Boolean;
+begin
+  Result := True;
+end;
+
 { TEntitySelector.TOptionInvertible }
 
 function TEntitySelector.TOptionInvertible.FormatData: string;
@@ -1260,11 +1449,21 @@ begin
   Result := TParser;
 end;
 
+class function TEntitySelector.TOptionInteger.GetMaximum(out AValue: Integer): Boolean;
+begin
+  Result := False;
+end;
+
+class function TEntitySelector.TOptionInteger.GetMinimum(out AValue: Integer): Boolean;
+begin
+  Result := False;
+end;
+
 { TEntitySelector.TOptionFloat }
 
 function TEntitySelector.TOptionFloat.FormatData: string;
 begin
-  Result := Value.ToString(ffGeneral, 7, 0, TFormatSettings.Invariant);
+  Result := PrettyFloat(Value);
 end;
 
 class function TEntitySelector.TOptionFloat.GetDataParserClass: TOption.TDataParserClass;
@@ -1325,76 +1524,84 @@ var
   OptionClass: TOptionClass;
   Option: TOption;
   FoundInverted: Boolean;
+  Marker: TLogMarker;
 begin
-  ExtraData := TokenOption;
+  BeginSuggestions(TSuggestions.Create(Selector));
+  SkipWhitespace;
 
-  OptionName := Info.ReadWhile(IdentChars);
+  Marker := GetMarker;
+
+  Token := TokenOption;
+
+  OptionName := ReadWhile(IdentChars);
 
   if OptionName.IsEmpty then
     Exit(False);
 
   OptionClass := TOption.GetClass(OptionName);
   if OptionClass = nil then
-    raise EParseError.CreateFmt(Info, 'Unknown entity selector option "%s".', [OptionName]);
+    raise EParseError.CreateFmt('Unknown entity selector option "%s".', [OptionName], OptionName.Length);
 
   if not OptionClass.IsApplicable(Selector.Variable) then
-    raise EParseError.CreateFmt(Info, '"%s" is not applicable to an entity selector "@%s".',
+    Log(-OptionName.Length, '"%s" is not applicable for "@%s".',
       [OptionClass.GetName, Selector.VariableChar]);
 
+  FoundInverted := False;
   case OptionClass.GetQuantityType of
     qtSingle:
       for Option in Selector.Options do
         if Option is OptionClass then
-          raise EParseError.CreateFmt(Info, 'Multiple occurences of "%s" are not valid in an entity selector.',
+          Log(-OptionName.Length, 'Multiple occurences of "%s" are not valid.',
             [OptionClass.GetName]);
     qtMultipleInverted:
       begin
-        FoundInverted := False;
         for Option in Selector.Options do
         begin
           if Option is OptionClass then
           begin
             if not TOptionInvertible(Option).Inverted then
-              raise EParseError.CreateFmt(Info, 'Entity selector option "%s" got set already.',
-                [OptionClass.GetName]);
-            FoundInverted := True;
+              Log(-OptionName.Length, 'Entity selector option "%s" got set already.',
+                [OptionClass.GetName])
+            else
+              FoundInverted := True;
           end;
         end;
       end;
   end;
 
-  ResetExtraData;
+  ResetToken;
 
-  Info.SkipWhitespace;
+  EndSuggestions;
 
-  ExtraData := TokenEquals;
+  SkipWhitespace;
 
-  if not Info.StartsWith('=') then
-    raise EParseError.Create(Info, 'Expected "=".');
+  Token := TokenEquals;
 
-  ResetExtraData;
+  if not StartsWith('=') then
+    raise EParseError.Create('Expected "=".');
 
-  Info.SkipWhitespace;
+  ResetToken;
+
+  SkipWhitespace;
 
   SetParseResult(OptionClass.Create(Selector));
 
-  ExtraData := TokenInvert;
+  Token := TokenInvert;
   if ParseResult is TOptionInvertible then
   begin
-    if Info.StartsWith('!') then
+    if StartsWith('!') then
     begin
       TOptionInvertible(ParseResult).Inverted := True;
-      ResetExtraData;
-      Info.SkipWhitespace;
+      ResetToken;
+      SkipWhitespace;
     end
     else if FoundInverted then
     begin
-      raise EParseError.CreateFmt(Info, 'Previous inverted entity selector options "%s" would be useless.',
-        [OptionClass.GetName]);
+      Log(Marker, 'Previous inverted option "%s" would be useless.', [OptionClass.GetName], elWarning);
     end;
   end;
 
-  ResetExtraData;
+  ResetToken;
 
   ParseResult.GetDataParserClass.Create(ParseResult, Info).Free;
 
@@ -1418,9 +1625,30 @@ end;
 function TEntitySelector.TOptionValueOrRange.TParser.Parse: Boolean;
 var
   Parser: TRangeParser;
+  Value: Single;
+  Marker: TLogMarker;
+  Range: TBounds1;
 begin
-  Parser := TRangeParser.Create(Info);
+  Marker := GetMarker;
+  Parser := TRangeParser.Create(Info, True);
   ParseObject.Range := Parser.ParseResult;
+  Range := Parser.ParseResult;
+
+  if ParseObject.MustBeNormalized and not Range.Normalized then
+    Log(Marker, 'The minumum can''t be bigger than the maximum.');
+
+  if IsInfinite(Range.C1) then
+    ParseObject.GetMinimum(Range.C1);
+  if IsInfinite(Range.C2) then
+    ParseObject.GetMaximum(Range.C2);
+
+  Range := Range.Normalize;
+
+  if ParseObject.GetMinimum(Value) and not(Range >= Value) then
+    Log(Marker, 'The value must be at least %f.', [Value]);
+  if ParseObject.GetMaximum(Value) and not(Range <= Value) then
+    Log(Marker, 'The value must be at most %f.', [Value]);
+
   Parser.Free;
   Result := True;
 end;
@@ -1432,7 +1660,7 @@ begin
   Result := 'NBT Option';
 end;
 
-class function TEntitySelector.TOptionNBT.TParser.IgnoreCharInfo: Boolean;
+class function TEntitySelector.TOptionNBT.TParser.IgnoreContext: Boolean;
 begin
   Result := True;
 end;
@@ -1454,7 +1682,7 @@ begin
   Result := 'String';
 end;
 
-class function TEntitySelector.TOptionString.TParser.IgnoreCharInfo: Boolean;
+class function TEntitySelector.TOptionString.TParser.IgnoreContext: Boolean;
 begin
   Result := True;
 end;
@@ -1478,7 +1706,7 @@ end;
 
 function TEntitySelector.TOptionIdentifier.TParser.Parse: Boolean;
 begin
-  ParseObject.Text := Info.ReadWhile(IdentChars);
+  ParseObject.Text := ReadWhile(IdentChars);
   Result := True;
 end;
 
@@ -1491,11 +1719,18 @@ end;
 
 function TEntitySelector.TOptionInteger.TParser.Parse: Boolean;
 var
-  Value: Integer;
+  Value, Bound: Integer;
+  Marker: TLogMarker;
 begin
-  Result := TryStrToInt(Info.ReadWhile(IntChars), Value);
-  if Result then
-    ParseObject.Value := Value;
+  Marker := GetMarker;
+  Result := TryStrToInt(ReadWhile(IntChars), Value);
+  if not Result then
+    Exit;
+  ParseObject.Value := Value;
+  if ParseObject.GetMinimum(Bound) and (Value < Bound) then
+    Log(Marker, 'The value must be at least %d.', [Bound]);
+  if ParseObject.GetMaximum(Bound) and (Value > Bound) then
+    Log(Marker, 'The value must be at most %d.', [Bound]);
 end;
 
 { TEntitySelector.TOptionFloat.TParser }
@@ -1509,7 +1744,7 @@ function TEntitySelector.TOptionFloat.TParser.Parse: Boolean;
 var
   Value: Single;
 begin
-  Result := TryStrToFloat(Info.ReadWhile(IntChars), Value, TFormatSettings.Invariant);
+  Result := TryStrToFloat(ReadWhile(FloatChars), Value, TFormatSettings.Invariant);
   if Result then
     ParseObject.Value := Value;
 end;
@@ -1526,14 +1761,20 @@ var
   Text: string;
   SortType: TSortType;
 begin
-  Text := Info.ReadWhile(IdentChars);
+  BeginSuggestions(TSuggestions);
+  Text := ReadWhile(IdentChars);
+  Result := not Text.IsEmpty;
+  if not Result then
+    Exit;
+
   for SortType := Low(TSortType) to High(TSortType) do
     if SortTypeNames[SortType] = Text then
     begin
       ParseObject.SortType := SortType;
-      Exit(True);
+      Exit;
     end;
-  Result := False;
+
+  Log(-Text.Length, '"%s" is not a valid sort type.', [Text], elFatal);
 end;
 
 { TEntitySelector.TOptionGamemode.TParser }
@@ -1548,10 +1789,15 @@ var
   Name: string;
   Gamemode: TGamemode;
 begin
-  Name := Info.ReadWhile(IdentChars);
-  Result := GamemodeFromName(Name, Gamemode);
-  if Result then
-    ParseObject.Gamemode := Gamemode;
+  BeginSuggestions(TSuggestions);
+  Name := ReadWhile(IdentChars);
+  Result := not Name.IsEmpty;
+  if not Result then
+    Exit;
+  if GamemodeFromName(Name, Gamemode) then
+    ParseObject.Gamemode := Gamemode
+  else
+    Log(-Name.Length, '"%s" is not a valid gamemode.', [Name], elFatal);
 end;
 
 { TEntitySelector.TOptionScores.TParser }
@@ -1578,60 +1824,60 @@ var
 begin
   ParseObject.Scores.Clear;
 
-  ExtraData := TokenBrackets;
+  Token := TokenBrackets;
 
-  if not Info.StartsWith('{') then
+  if not StartsWith('{') then
     Exit(False);
 
-  ResetExtraData;
+  ResetToken;
 
-  Info.SkipWhitespace;
+  SkipWhitespace;
 
-  ExtraData := TokenBrackets;
+  Token := TokenBrackets;
 
-  if Info.StartsWith('}') then
+  if StartsWith('}') then
     Exit(True);
 
   while True do
   begin
-    ExtraData := TokenName;
+    Token := TokenName;
 
-    Name := Info.ReadWhile(IdentChars);
+    Name := ReadWhile(IdentChars);
     if Name.IsEmpty then
-      raise EParseError.Create(Info, 'Expected score name.');
+      raise EParseError.Create('Expected score name.');
 
-    ResetExtraData;
+    ResetToken;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
 
-    ExtraData := TokenEquals;
+    Token := TokenEquals;
 
-    if not Info.StartsWith('=') then
-      raise EParseError.Create(Info, 'Expected "=".');
+    if not StartsWith('=') then
+      raise EParseError.Create('Expected "=".');
 
-    ResetExtraData;
+    ResetToken;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
 
     Parser := TIntRangeParser.Create(Info, True);
     ParseObject.Scores.Add(TScore.Create(Name, Parser.ParseResult));
     Parser.Free;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
 
-    ExtraData := TokenBrackets;
+    Token := TokenBrackets;
 
-    if Info.StartsWith('}') then
+    if StartsWith('}') then
       Break;
 
-    ExtraData := TokenComma;
+    Token := TokenComma;
 
-    if not Info.StartsWith(',') then
-      raise EParseError.Create(Info, 'Expected "}" or ",".');
+    if not StartsWith(',') then
+      raise EParseError.Create('Expected "}" or ",".');
 
-    ResetExtraData;
+    ResetToken;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
   end;
 
   Result := True;
@@ -1643,7 +1889,7 @@ class function TEntitySelector.TIntRangeParser.Format(ARange: TIntBounds1): stri
 
   function Format(AValue: Single): string;
   begin
-    Result := AValue.ToString(ffGeneral, 7, 0, TFormatSettings.Invariant);
+    Result := PrettyFloat(AValue);
   end;
 
 begin
@@ -1672,11 +1918,13 @@ begin
 end;
 
 function TEntitySelector.TIntRangeParser.Parse: Boolean;
+var
+  OldPos: Integer;
 
   function ParseInteger(AText: string): Integer;
   begin
     if not TryStrToInt(AText, Result) then
-      raise EParseError.Create(Info, 'Invalid integer value.');
+      raise EParseError.Create('Invalid integer or range.', Info.Pos - OldPos);
   end;
 
   function ParseOptionaInteger(AText: string; APositive: Boolean): Integer;
@@ -1693,26 +1941,27 @@ var
   Range: TIntBounds1;
   Split: Boolean;
 begin
+  OldPos := Info.Pos;
   Split := False;
   RangeMin := '';
   while True do
   begin
-    ExtraData := TokenSplitter;
-    if Info.StartsWith(Splitter) then
+    Token := TokenSplitter;
+    if StartsWith(Splitter) then
     begin
       Split := True;
       Break;
     end;
-    if not CharInSet(Info.First, IntChars) then
+    if not CharInSet(First, IntChars) then
       Break;
-    RangeMin := RangeMin + Info.First;
-    ExtraData := TokenValue;
-    Info.Advance;
+    RangeMin := RangeMin + First;
+    Token := TokenValue;
+    Advance;
   end;
   if Split then
   begin
-    ExtraData := TokenValue;
-    RangeMax := Info.ReadWhile(IntChars);
+    Token := TokenValue;
+    RangeMax := ReadWhile(IntChars);
     Range.C1 := ParseOptionaInteger(RangeMin, False);
     Range.C2 := ParseOptionaInteger(RangeMax, True);
     if (Range.C1 = Integer.MinValue) and (Range.C2 = Integer.MaxValue) then
@@ -1733,7 +1982,7 @@ class function TEntitySelector.TRangeParser.Format(ARange: TBounds1): string;
 
   function Format(AValue: Single): string;
   begin
-    Result := AValue.ToString(ffGeneral, 7, 0, TFormatSettings.Invariant);
+    Result := PrettyFloat(AValue);
   end;
 
 begin
@@ -1762,11 +2011,13 @@ begin
 end;
 
 function TEntitySelector.TRangeParser.Parse: Boolean;
+var
+  OldPos: Integer;
 
   function ParseFloat(AText: string): Double;
   begin
     if not TryStrToFloat(AText, Result, TFormatSettings.Invariant) then
-      raise EParseError.Create(Info, 'Invalid float value.');
+      raise EParseError.Create('Invalid float value.', Info.Pos - OldPos);
   end;
 
   function ParseOptionalFloat(AText: string; APositive: Boolean): Double;
@@ -1783,26 +2034,27 @@ var
   Range: TBounds1;
   Split: Boolean;
 begin
+  OldPos := Info.Pos;
   Split := False;
   RangeMin := '';
   while True do
   begin
-    ExtraData := TokenSplitter;
-    if Info.StartsWith(Splitter) then
+    Token := TokenSplitter;
+    if StartsWith(Splitter) then
     begin
       Split := True;
       Break;
     end;
-    if not CharInSet(Info.First, FloatChars) then
+    if not CharInSet(First, FloatChars) then
       Break;
-    RangeMin := RangeMin + Info.First;
-    ExtraData := TokenValue;
-    Info.Advance;
+    RangeMin := RangeMin + First;
+    Token := TokenValue;
+    Advance;
   end;
   if Split then
   begin
-    ExtraData := TokenValue;
-    RangeMax := Info.ReadWhile(FloatChars);
+    Token := TokenValue;
+    RangeMax := ReadWhile(FloatChars);
     Range.C1 := ParseOptionalFloat(RangeMin, False);
     Range.C2 := ParseOptionalFloat(RangeMax, True);
     if Range.C1.IsNegativeInfinity and Range.C2.IsPositiveInfinity then
@@ -1840,67 +2092,67 @@ var
 begin
   ParseObject.Advancements.Clear;
 
-  ExtraData := TokenBrackets;
+  Token := TokenBrackets;
 
-  if not Info.StartsWith('{') then
+  if not StartsWith('{') then
     Exit(False);
 
-  ResetExtraData;
+  ResetToken;
 
-  Info.SkipWhitespace;
+  SkipWhitespace;
 
-  ExtraData := TokenBrackets;
+  Token := TokenBrackets;
 
-  if Info.StartsWith('}') then
+  if StartsWith('}') then
     Exit(True);
 
   while True do
   begin
-    ExtraData := TokenName;
+    Token := TokenName;
 
-    Name := Info.ReadWhile(NamespaceChars);
+    Name := ReadWhile(NamespaceChars);
     if Name.IsEmpty then
-      raise EParseError.Create(Info, 'Expected advancement name.');
+      raise EParseError.Create('Expected advancement name.');
 
-    ResetExtraData;
+    ResetToken;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
 
-    ExtraData := TokenEquals;
+    Token := TokenEquals;
 
-    if not Info.StartsWith('=') then
-      raise EParseError.Create(Info, 'Expected "=".');
+    if not StartsWith('=') then
+      raise EParseError.Create('Expected "=".');
 
-    ResetExtraData;
+    ResetToken;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
 
-    ExtraData := TokenBoolean;
+    Token := TokenBoolean;
 
-    if Info.StartsWith('true') then
+    if StartsWith('true') then
       ParseObject.Advancements.Add(TAdvancement.Create(Name, True))
-    else if Info.StartsWith('false') then
+    else if StartsWith('false') then
       ParseObject.Advancements.Add(TAdvancement.Create(Name, False))
     else
-      raise EParseError.Create(Info, 'Expected true or false.');
+      raise EParseError.Create('Expected true or false.');
 
-    ResetExtraData;
+    ResetToken;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
 
-    ExtraData := TokenBrackets;
+    Token := TokenBrackets;
 
-    if Info.StartsWith('}') then
+    if StartsWith('}') then
       Break;
 
-    ExtraData := TokenComma;
+    Token := TokenComma;
 
-    if not Info.StartsWith(',') then
-      raise EParseError.Create(Info, 'Expected "}" or ",".');
+    if not StartsWith(',') then
+      raise EParseError.Create('Expected "}" or ",".');
 
-    ResetExtraData;
+    ResetToken;
 
-    Info.SkipWhitespace;
+    SkipWhitespace;
   end;
 
   Result := True;
@@ -1918,10 +2170,150 @@ var
   Name: string;
   Entity: TEntity;
 begin
-  Name := Info.ReadWhile(NamespaceChars);
-  Result := EntityFromName(Name, Entity);
-  if Result then
-    ParseObject.Entity := Entity;
+  BeginSuggestions(TSuggestions);
+  Name := ReadWhile(NamespaceChars);
+  Result := not Name.IsEmpty;
+  if not Result then
+    Exit;
+  if EntityFromName(Name, Entity) then
+    ParseObject.Entity := Entity
+  else
+    Log(-Name.Length, '"%s" is not a valid entity type.', [Name], elFatal);
+end;
+
+{ TEntitySelector.TSuggesions }
+
+class function TEntitySelector.TSuggestions.GetCount: Integer;
+begin
+  Result := Ord(High(TVariable)) + 1;
+end;
+
+class function TEntitySelector.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
+begin
+  Result.Display := System.SysUtils.Format('@%s (%s)',
+    [VariableChars[TVariable(AIndex)], VariableDisplayNames[TVariable(AIndex)]]);
+  Result.Insert := System.SysUtils.Format('@%s', [VariableChars[TVariable(AIndex)]]);
+end;
+
+{ TEntitySelector.TOption.TSuggestions }
+
+constructor TEntitySelector.TOption.TSuggestions.Create(ASelector: TEntitySelector);
+begin
+  inherited Create;
+  FSelector := ASelector;
+end;
+
+procedure TEntitySelector.TOption.TSuggestions.Generate;
+var
+  Option: TOptionClass;
+begin
+  // TODO: More advanced checking, if the type would actually still make sense, like multiple limits
+  for Option in OptionClasses do
+    if Option.IsApplicable(FSelector.Variable) then
+      AddSuggestion(Option.GetName);
+end;
+
+{ TEntitySelector.TOptionIntValueOrRange }
+
+function TEntitySelector.TOptionIntValueOrRange.FormatData: string;
+begin
+  Result := TIntRangeParser.Format(Range);
+end;
+
+class function TEntitySelector.TOptionIntValueOrRange.GetDataParserClass: TOption.TDataParserClass;
+begin
+  Result := TParser;
+end;
+
+class function TEntitySelector.TOptionIntValueOrRange.GetMaximum(out AValue: Integer): Boolean;
+begin
+  Result := False;
+end;
+
+class function TEntitySelector.TOptionIntValueOrRange.GetMinimum(out AValue: Integer): Boolean;
+begin
+  Result := False;
+end;
+
+class function TEntitySelector.TOptionIntValueOrRange.MustBeNormalized: Boolean;
+begin
+  Result := True;
+end;
+
+{ TEntitySelector.TOptionIntValueOrRange.TParser }
+
+class function TEntitySelector.TOptionIntValueOrRange.TParser.GetResultName: string;
+begin
+  Result := 'Integer or Range of Integers';
+end;
+
+function TEntitySelector.TOptionIntValueOrRange.TParser.Parse: Boolean;
+var
+  Parser: TIntRangeParser;
+  Value: Integer;
+  Marker: TLogMarker;
+  Range: TIntBounds1;
+begin
+  Marker := GetMarker;
+  Parser := TIntRangeParser.Create(Info, True);
+  ParseObject.Range := Parser.ParseResult;
+  Range := Parser.ParseResult;
+
+  if ParseObject.MustBeNormalized and not Range.Normalized then
+    Log(Marker, 'The minumum can''t be bigger than the maximum.');
+
+  if Range.C1 = Integer.MinValue then
+    ParseObject.GetMinimum(Range.C1);
+  if Range.C2 = Integer.MaxValue then
+    ParseObject.GetMaximum(Range.C2);
+
+  Range := Range.Normalize;
+
+  if ParseObject.GetMinimum(Value) and not(Range >= Value) then
+    Log(Marker, 'The value must be at least %d.', [Value]);
+  if ParseObject.GetMaximum(Value) and not(Range <= Value) then
+    Log(Marker, 'The value must be at most %d.', [Value]);
+
+  Parser.Free;
+  Result := True;
+end;
+
+{ TEntitySelector.TOptionType.TSuggestions }
+
+class function TEntitySelector.TOptionType.TSuggestions.GetCount: Integer;
+begin
+  Result := Length(EntityNames);
+end;
+
+class function TEntitySelector.TOptionType.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
+begin
+  Result.Display := EntityDisplayNames[TEntity(AIndex)];
+  Result.Insert := EntityNames[TEntity(AIndex)];
+end;
+
+{ TEntitySelector.TOptionSort.TSuggestions }
+
+class function TEntitySelector.TOptionSort.TSuggestions.GetCount: Integer;
+begin
+  Result := Length(SortTypeNames);
+end;
+
+class function TEntitySelector.TOptionSort.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
+begin
+  Result := SortTypeNames[TSortType(AIndex)];
+end;
+
+{ TEntitySelector.TOptionGamemode.TSuggestions }
+
+class function TEntitySelector.TOptionGamemode.TSuggestions.GetCount: Integer;
+begin
+  Result := Length(GamemodeNames);
+end;
+
+class function TEntitySelector.TOptionGamemode.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
+begin
+  Result.Display := GamemodeDisplayNames[TGamemode(AIndex)];
+  Result.Insert := GamemodeNames[TGamemode(AIndex)];
 end;
 
 end.

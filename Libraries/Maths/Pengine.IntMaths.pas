@@ -883,7 +883,7 @@ const
     (X: 0; Y: 1)
     );
 
-  BasicDirectionNames: array [TBasicDir] of AnsiString = (
+  BasicDirectionNames: array [TBasicDir] of string = (
     'none',
     'left',
     'right',
@@ -893,7 +893,7 @@ const
     'forward'
     );
 
-  BasicPrepositionNames: array [TBasicDir] of AnsiString = (
+  BasicPrepositionNames: array [TBasicDir] of string = (
     'none',
     'left',
     'right',
@@ -903,11 +903,18 @@ const
     'front'
     );
 
-  CoordAxisNames: array [TCoordAxis] of AnsiString = (
+  CoordAxisNames: array [TCoordAxis] of string = (
     'None',
     'X',
     'Y',
     'Z'
+    );
+
+  CoordAxisNamesLow: array [TCoordAxis] of string = (
+    'none',
+    'x',
+    'y',
+    'z'
     );
 
   { Shorthand Constructors }

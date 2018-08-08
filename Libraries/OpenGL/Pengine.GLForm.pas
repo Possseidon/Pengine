@@ -54,6 +54,7 @@ type
   protected
     procedure Resize; override;
     procedure DoClose(var Action: TCloseAction); override;
+    procedure Paint; override;
 
   public
     constructor Create(TheOwner: TComponent); override;
@@ -206,8 +207,6 @@ begin
 end;
 
 procedure TGLForm.Resize;
-var
-  Done: Boolean;
 begin
   inherited;
   if not FRunning then
@@ -216,7 +215,7 @@ begin
   FContext.Size := IVec2(ClientWidth, ClientHeight);
   Game.Resize(FContext.Size);
 
-  IdleHandler(nil, Done);
+  Context.Render;
 end;
 
 constructor TGLForm.Create(TheOwner: TComponent);
@@ -303,6 +302,11 @@ begin
   Application.OnDeactivate := DeactivateHandler;
   Application.OnActivate := ActivateHandler;
   Application.OnIdle := IdleHandler;
+end;
+
+procedure TGLForm.Paint;
+begin
+  Context.Render;
 end;
 
 procedure TGLForm.Pause;

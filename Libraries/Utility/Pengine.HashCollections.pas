@@ -16,66 +16,55 @@ uses
 
 type
 
-  // TODO: XmlDoc
+  /// <summary>Raised, if the maximum amount of elements in a hash collection is reached.</summary>
   ETooManyHashBuckets = class(Exception)
   public
     constructor Create;
   end;
 
-  // TODO: XmlDoc
+  /// <summary>Raised, if less than zero buckets are set for a hash collection.</summary>
   EInvalidHashBucketCount = class(Exception)
   public
     constructor Create;
   end;
 
-  // TODO: XmlDoc
+  /// <summary>Raised, if a hash collection does not have a bucket and cannot create one because of manual rehashing.</summary>
   EHashBucketRequired = class(Exception)
   public
     constructor Create;
   end;
 
-  // TODO: XmlDoc
+  /// <summary>Raised, if a key could not be found in a map.</summary>
   EMapKeyNotFound = class(Exception)
   public
     constructor Create;
   end;
 
-  // TODO: XmlDoc
+  /// <summary>Raised, if a key could not be found in a set.</summary>
   ESetKeyNotFound = class(Exception)
   public
     constructor Create;
   end;
 
-  // TODO: XmlDoc
+  /// <summary>Raised, if an already existring key is added to a set.</summary>
   ESetKeyExistsAlready = class(Exception)
   public
     constructor Create;
   end;
 
-  // TODO: XmlDoc
-  EHashEmpty = class(Exception)
+  /// <summary>Raised, if a given key is not hashable.</summary>
+  EHashKeyNotHashable = class(Exception)
   public
     constructor Create;
   end;
 
-  // TODO: XmlDoc
-  EHashKeyNotIndexable = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  EKeyNotHashable = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  // TODO: XmlDoc
+  /// <summary>Allows switching between automatic and manual rehashing of hash collections.</summary>
   THashMode = (
     hmManual,
     hmAuto
     );
 
-  // TODO: XmlDoc
+  /// <summary>A base class for hash collections.</summary>
   THashBase = class(TInterfaceBase)
   public const
 
@@ -87,12 +76,9 @@ type
 
   public type
 
-    // TODO: XmlDoc
     TBucket = TArray;
-    // TODO: XmlDoc
     TBuckets = array of TBucket;
 
-    // TODO: XmlDoc
     TIterator<T> = class abstract(TInterfacedObject, IIterator<T>)
     private
       FHashBase: THashBase;
@@ -149,47 +135,66 @@ type
     procedure SetBuckets(const Value: Integer); virtual; abstract;
     procedure SetBucketsDirect(Value: Integer); virtual; abstract;
 
+    /// <summary>Used, to temporarily unown objects while rehashing.</summary>
     procedure UnownObjects; virtual;
+    /// <summary>Used to reown previously unowned objects after rehashing.</summary>
     procedure ReownObjects; virtual;
+    
+    /// <summary>Completly frees all buckets.</summary>
     procedure ClearBuckets;
     procedure CopyBuckets(AFrom: THashBase); virtual; abstract;
 
-    // TODO: XmlDoc
-    function CreateSame(AHashMode: THashMode = hmAuto): THashBase; inline;
+    /// <summary>Calls the virtual constructor of the classtype.</summary>
+    class function CreateSame(AHashMode: THashMode = hmAuto): THashBase; inline;
 
     function CreateBucket: TBucket; virtual; abstract;
-
+    /// <summary>Uses <c>CreateSame</c> and <c>Assign</c> to create a copy.</summary>
     function CreateCopy(AHashMode: THashMode): THashBase; virtual;
 
   public
     constructor Create(AHashMode: THashMode = hmAuto); virtual;
     destructor Destroy; override;
 
+    /// <returns>A good count of buckets for a specified number of elements.</returns>
     class function GetHashBuckets(ACount: Integer): Integer; static;
 
+    /// <summary>The current bucket count.</summary>
+    /// <remarks>The setter calculates a good count of buckets for the given element count.</remarks>
     property Buckets: Integer read GetBuckets write SetBuckets;
+    /// <summary>Switch between manual and automatic rehashing.</summary>
     property HashMode: THashMode read FHashMode write SetHashMode;
 
+    /// <returns>The element count.</returns>
     function Count: Integer;
+    /// <returns>Wether the count function is o(1).</returns>
     function CountOptimized: Boolean;
 
+    /// <summary>Rehash to an exact number of buckets.</summary>
+    /// <remarks>Calling this function is usually not recommended for manual hashing.
+    /// Use the <c>Buckets</c> setter instead.</remarks>
     procedure Rehash(ABuckets: Integer);
 
-    procedure Clear;
+    /// <summary>Removes all elements.</summary>
+    procedure Clear; virtual;
+    /// <returns>Wether there is no element in the hash collection.</returns>
     function Empty: Boolean; inline;
+
     function Copy(AHashMode: THashMode = hmAuto): THashBase;
 
+    /// <returns>An newly created integer array, filled with the sizes of each bucket.</returns>
+    /// <remarks>Make sure to free this after use!</remarks>
     function BucketCounts: TIntArray;
 
     function Reader: TReader; inline;
 
+    /// <summary>Copies everything from the given collection into itself.</summary>
     procedure Assign(AHashBase: THashBase); virtual;
 
   end;
 
   THashBaseClass = class of THashBase;
 
-  // TODO: XmlDoc
+  /// <summary>A generic base class for hashcollections.</summary>
   THashBase<K; H: THasher<K>> = class abstract(THashBase)
   public type
 
@@ -205,23 +210,22 @@ type
     class function CanIndex(const AKey: K): Boolean;
 
   public
-    // TODO: XmlDoc
+    /// <returns>The capped hash for a given key.</returns>
+    /// <exception><see cref="Pengine.HashCollections|EHashKeyNotHashable"/> if the key is not hashable.</exception>
     function GetCappedHash(AKey: K): Integer;
-
+                                          
     function Copy(AHashMode: THashMode = hmAuto): THashBase<K, H>; reintroduce; inline;
 
     function Reader: TReader; reintroduce; inline;
 
   end;
 
-  // TODO: XmlDoc
+  /// <summary>A generic hashed set.</summary>
   TSet<T; H: THasher<T>> = class abstract(THashBase<T, H>, IIterable<T>)
   public type
 
-    // TODO: XmlDoc
     TBucket = TArray<T>;
 
-    // TODO: XmlDoc
     TIterator = class(THashBase.TIterator<T>)
     public
       constructor Create(ASet: TSet<T, H>);
@@ -266,26 +270,49 @@ type
     procedure CopyBuckets(AFrom: THashBase); override;
 
   public
+    /// <summary>Query or change the existence of elements.</summary>
+    /// <remarks>Changing the existence will not raise exceptions, like <c>Add</c> and <c>Remove</c> do.</remarks>
     property Elements[AElement: T]: Boolean read GetElement write SetElement; default;
 
+    /// <summary>Tries to add an element.</summary>
+    /// <returns>Wether the element did not exist previously.</returns>
     function TryAdd(AElement: T): Boolean;
+    /// <summary>Adds an element to the set.</summary>
+    /// <exception><see cref="Pengine.HashCollections|ESetKeyExistsAlready"/> if the element exists already.</exception>
     procedure Add(AElement: T); overload;
+    /// <summary>Adds every element in the given set to the set.</summary>
+    /// <remarks>Does not raise exceptions for existing keys.</remarks>
     procedure Add(ASet: TSet<T, H>); overload;
 
+    /// <summary>Tries to remove an element.</summary>
+    /// <returns>Wether the element did exist previously.</returns>
     function TryRemove(AElement: T): Boolean;
+    /// <summary>Removes an element from the set.</summary>
+    /// <exception><see cref="Pengine.HashCollections|ESetKeyNotFound"/> if the element did not exist.</exception>
     procedure Remove(AElement: T); overload;
+    /// <summary>Removes each element in the given set from the set.</summary>
+    /// <remarks>Does not throw exceptions for keys, which did not exist in the first place.</remarks>
     procedure Remove(ASet: TSet<T, H>); overload;
 
+    /// <summary>Allows for-in loops.</summary>
     function GetEnumerator: IIterator<T>;
 
     function Copy(AHashMode: THashMode = hmAuto): TSet<T, H>; reintroduce; inline;
 
+    /// <returns>A new set, which is the union of this set with the given one.</returns>
+    /// <remarks>Means: The result contains all elements which are in either of the two sets.</remarks>
     function Union(ASet: TSet<T, H>): TSet<T, H>;
+    /// <returns>A new set, which is the intersection of this set with the given one.</returns>
+    /// <remarks>Means: The result contains only the elements, which are in both sets.</remarks>
     function Intersection(ASet: TSet<T, H>): TSet<T, H>;
+    /// <summary>A copy of this set, which does not contain the keys in the given set.</summary>
     function Without(ASet: TSet<T, H>): TSet<T, H>;
 
+    /// <returns>Wether the set is a superset (contains all elements) of the given set.</returns>
     function IsSupersetOf(ASet: TSet<T, H>): Boolean;
+    /// <returns>Wether the set is a subset (contains only elements) of the given set.</returns>
     function IsSubsetOf(ASet: TSet<T, H>): Boolean;
+
     function Equals(Obj: TObject): Boolean; overload; override;
     function Equals(ASet: TSet<T, H>): Boolean; reintroduce; overload;
 
@@ -293,7 +320,7 @@ type
 
   end;
 
-  // TODO: XmlDoc
+  /// <summary>A generic map, with hashed keys.</summary>
   TMap<K, V; H: THasher<K>> = class abstract(THashBase<K, H>, IIterable<TPair<K, V>>)
   public type
     // TODO: XmlDoc
@@ -315,31 +342,6 @@ type
     TValueIterator = class(THashBase.TIterator<V>)
     public
       function GetCurrent: V; override;
-    end;
-
-    TReader = class(THashBase<K, H>.TReader)
-    private
-      function GetActualKeyE(AKey: K): K;
-      function GetPair(AKey: K): TPair;
-      function GetValue(AKey: K): V;
-
-    public
-      function Get(AKey: K; out AValue: V): Boolean; overload;
-      property Values[AKey: K]: V read GetValue; default;
-      function Get(AKey: K; out APair: TPair): Boolean; overload;
-      property Pairs[AKey: K]: TPair read GetPair;
-
-      function GetActualKey(AKey: K; out AActualKey: K): Boolean;
-      property ActualKeys[AKey: K]: K read GetActualKeyE;
-
-      function KeyExists(AKey: K): Boolean;
-
-      function GetEnumerator: IIterator<TPair>;
-
-      function KeySet(AHashMode: THashMode = hmManual): TSet<K, H>;
-
-      function Copy(AHashMode: THashMode = hmAuto): TMap<K, V, H>; reintroduce; inline;
-
     end;
 
     TKeysWrapper = record
@@ -368,6 +370,33 @@ type
 
     end;
 
+    TReader = class(THashBase<K, H>.TReader)
+    private
+      function GetActualKeyE(AKey: K): K;
+      function GetPair(AKey: K): TPair;
+      function GetValue(AKey: K): V;
+
+    public
+      function Get(AKey: K; out AValue: V): Boolean; overload;
+      property Value[AKey: K]: V read GetValue; default;
+      function Get(AKey: K; out APair: TPair): Boolean; overload;
+      property Pairs[AKey: K]: TPair read GetPair;
+
+      function GetActualKey(AKey: K; out AActualKey: K): Boolean;
+      property ActualKeys[AKey: K]: K read GetActualKeyE;
+
+      function KeyExists(AKey: K): Boolean;
+
+      function GetEnumerator: IIterator<TPair>;
+      function Keys: TKeysWrapper; inline;
+      function Values: TValuesWrapper; inline;
+
+      function KeySet(AHashMode: THashMode = hmAuto): TSet<K, H>;
+
+      function Copy(AHashMode: THashMode = hmAuto): TMap<K, V, H>; reintroduce; inline;
+
+    end;
+
   private
     function GetValue(AKey: K): V;
     procedure SetValue(AKey: K; const Value: V);
@@ -377,6 +406,11 @@ type
     function GetPair(AKey: K): TPair;
 
   protected
+    procedure BeforeValueAdd(AKey: K; AValue: V); virtual;
+    procedure BeforeValueChange(AKey: K; AValue: V); virtual;
+    procedure BeforeRemove(AKey: K); virtual;
+    procedure AfterChange; virtual;
+
     function GetBuckets: Integer; override;
     procedure SetBuckets(const Value: Integer); override;
 
@@ -387,36 +421,57 @@ type
     procedure CopyBuckets(AFrom: THashBase); override;
 
   public
+    /// <summary>Get the value at the given key, if it exists.</summary>
+    /// <returns>If the key exists.</returns>
     function Get(AKey: K; out AValue: V): Boolean; overload;
+    /// <summary>Get or set a value at the given key.</summary>
+    /// <exception><see cref="Pengine.HashCollections|EMapKeyNotFound"/> if the key does not exist.</exception>
+    /// <exception><see cref="Pengine.HashCollections|EHashBucketRequired"/> if no bucket in manual rehash mode.</exception>
     property Value[AKey: K]: V read GetValue write SetValue; default;
+    /// <summary>Get the key-value pair for the given key.</summary>
+    /// <returns>If the key exists.</returns>
     function Get(AKey: K; out APair: TPair): Boolean; overload;
+    /// <summary>Get the actual pair for a given key.</summary>
+    /// <exception><see cref="Pengine.HashCollections|EMapKeyNotFound"/> if the key does not exist.</exception>
     property Pair[AKey: K]: TPair read GetPair;
 
+    /// <summary>Tries to removes a given key from the map.</summary>
+    /// <returns>Wether the key existed previously.</returns>
     function TryRemove(AKey: K): Boolean;
+    /// <summary>Removed a given key from the set.</summary>
+    /// <exception><see cref="Pengine.HashCollections|EMapKeyNotFound"/> if the key did not exist.</exception>
     procedure Remove(AKey: K);
 
+    /// <summary>Tries to get the actual key, which is stored in the map.</summary>
+    /// <returns>Wether the key exists.</returns>
     function GetActualKey(AKey: K; out AActualKey: K): Boolean;
+    /// <summary>Tries to set the actual key.</summary>
+    /// <returns>Wether the key exists.</returns>
     function SetActualKey(AKey, AActualKey: K): Boolean;
+    /// <summary>Gets or sets the actual keys, stored in the map.</summary>
+    /// <exception><see cref="Pengine.HashCollections|EMapKeyNotFound"/> if the key did not exist.</exception>
     property ActualKeys[AKey: K]: K read GetActualKeyE write SetActualKeyE;
 
+    /// <returns>Wether the given key exists in the map.</returns>
     function KeyExists(AKey: K): Boolean;
 
+    /// <summary>Allows for-in loops.</summary>
     function GetEnumerator: IIterator<TPair>;
+    /// <returns>A wrapper, allowing for-in loops and such on the keys.</returns>
     function Keys: TKeysWrapper; inline;
+    /// <returns>A wrapper, allowing for-in loops and such on the values.</returns>
     function Values: TValuesWrapper; inline;
 
+    /// <returns>A newly created set of the keys.</returns>
     function KeySet(AHashMode: THashMode = hmAuto): TSet<K, H>;
 
     function Copy(AHashMode: THashMode = hmAuto): TMap<K, V, H>; reintroduce; inline;
 
     function Reader: TReader; reintroduce; inline;
 
-    function Equals(Obj: TObject): Boolean; overload; override;
-    function Equals(AOther: TMap<K, V, H>): Boolean; reintroduce; overload;
-
   end;
 
-  // TODO: XmlDoc
+  /// <summary>A generic set for object references.</summary>
   TRefSet<T: class; H: THasher<T>> = class(TSet<T, H>)
   private
     FOwnsObjects: Boolean;
@@ -432,25 +487,36 @@ type
     constructor Create(AHashMode: THashMode = hmAuto); overload; override;
     constructor Create(AOwnsObjects: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
 
-    function Copy(AHashMode: THashMode = hmAuto): TRefSet<T, H>; reintroduce; inline;
-
     property OwnsObjects: Boolean read FOwnsObjects write FOwnsObjects;
+
+    function Equals(Obj: TObject): Boolean; overload; override;
+    function Equals(AOther: TRefSet<T, H>): Boolean; reintroduce; overload;
+
+    function Copy(AHashMode: THashMode = hmAuto): TRefSet<T, H>; reintroduce; inline;
 
   end;
 
+  /// <summary>A generic set for object references, that uses the default reference hashing algorithm.</summary>
   TRefSet<T: class> = class(TRefSet<T, TRefHasher<T>>)
   public
     function Copy(AHashMode: THashMode = hmAuto): TRefSet<T>; reintroduce; inline;
+
   end;
 
+  /// <summary>A generic set for objects.</summary>
   TObjectSet<T: class; H: THasher<T>> = class(TRefSet<T, H>)
+  protected
+    function CreateCopy(AHashMode: THashMode = hmAuto): THashBase; override;
+
   public
     constructor Create(AHashMode: THashMode = hmAuto); override;
+    
   end;
 
+  /// <summary>A generic set for objects, that uses the default reference hashing algorithm.</summary>
   TObjectSet<T: class> = class(TObjectSet<T, TRefHasher<T>>);
 
-  // TODO: XmlDoc
+  /// <summary>A generic map where the key is an object reference.</summary>
   TRefMap<K: class; V; H: THasher<K>> = class(TMap<K, V, H>)
   private
     FOwnsKeys: Boolean;
@@ -466,25 +532,33 @@ type
     constructor Create(AHashMode: THashMode = hmAuto); overload; override;
     constructor Create(AOwnsKeys: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
 
-    function Copy(AHashMode: THashMode = hmAuto): TRefMap<K, V, H>; reintroduce; inline;
-
     property OwnsKeys: Boolean read FOwnsKeys write FOwnsKeys;
+
+    function Copy(AHashMode: THashMode = hmAuto): TRefMap<K, V, H>; reintroduce; inline;
 
   end;
 
+  /// <summary>A generic map where the key is an object reference, that uses the default reference hashing algorithm.</summary>
   TRefMap<K: class; V> = class(TRefMap<K, V, TRefHasher<K>>)
   public
     function Copy(AHashMode: THashMode = hmAuto): TRefMap<K, V>; reintroduce; inline;
+
   end;
 
+  /// <summary>A generic map where the key is an object.</summary>
   TObjectMap<K: class; V; H: THasher<K>> = class(TRefMap<K, V, H>)
+  protected
+    function CreateCopy(AHashMode: THashMode = hmAuto): THashBase; override;
+
   public
     constructor Create(AHashMode: THashMode = hmAuto); override;
+
   end;
 
+  /// <summary>A generic map where the key is an object, that uses the default reference hashing algorithm.</summary>
   TObjectMap<K: class; V> = class(TObjectMap<K, V, TRefHasher<K>>);
 
-  // TODO: XmlDoc
+  /// <summary>A generic map from and to an object reference.</summary>
   TRefRefMap<K, V: class; H: THasher<K>> = class(TRefMap<K, V, H>)
   private
     FOwnsValues: Boolean;
@@ -501,50 +575,64 @@ type
     constructor Create(AOwnsObjects: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
     constructor Create(AOwnsKeys, AOwnsValues: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
 
-    function Copy(AHashMode: THashMode = hmAuto): TRefRefMap<K, V, H>; reintroduce; inline;
-
     property OwnsValues: Boolean read FOwnsValues write FOwnsValues;
-            
+
     function Equals(Obj: TObject): Boolean; overload; override;
     function Equals(AOther: TRefRefMap<K, V, H>): Boolean; reintroduce; overload;
 
+    function Copy(AHashMode: THashMode = hmAuto): TRefRefMap<K, V, H>; reintroduce; inline;
+
   end;
 
+  /// <summary>A generic map from and to an object referece, using the default reference hashing algorithm.</summary>
   TRefRefMap<K, V: class> = class(TRefRefMap<K, V, TRefHasher<K>>)
   public
     function Copy(AHashMode: THashMode = hmAuto): TRefRefMap<K, V>; reintroduce; inline;
+
   end;
 
+  /// <summary>A generic map from object to object reference.</summary>
   TObjectRefMap<K, V: class; H: THasher<K>> = class(TRefRefMap<K, V, H>)
   protected
     function CreateCopy(AHashMode: THashMode): THashBase; override;
+
   public
     constructor Create(AHashMode: THashMode = hmAuto); overload; override;
     constructor Create(AOwnsValues: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
+
   end;
 
+  /// <summary>A generic map from object to object reference, using the default reference hashing algorithm.</summary>
   TObjectRefMap<K, V: class> = class(TObjectRefMap<K, V, TRefHasher<K>>);
 
-  TObjectObjectMap<K, V: class; H: THasher<K>> = class(TRefRefMap<K, V, H>)
+  /// <summary>A generic map from and to an object.</summary>
+  TObjectObjectMap<K, V: class; H: THasher<K>> = class(TRefRefMap<K, V, H>)                 
   protected
     function CreateCopy(AHashMode: THashMode): THashBase; override;
+
   public
     constructor Create(AHashMode: THashMode = hmAuto); override;
+
   end;
 
+  /// <summary>A generic map from and to an object, using the default reference hashing algorithm.</summary>
   TObjectObjectMap<K, V: class> = class(TObjectObjectMap<K, V, TRefHasher<K>>);
 
+  /// <summary>A generic map from an object reference to an object.</summary>
   TRefObjectMap<K, V: class; H: THasher<K>> = class(TRefRefMap<K, V, H>)
   protected
     function CreateCopy(AHashMode: THashMode): THashBase; override;
+
   public
     constructor Create(AHashMode: THashMode = hmAuto); overload; override;
     constructor Create(AOwnsKeys: Boolean; AHashMode: THashMode = hmAuto); reintroduce; overload;
+
   end;
 
+  /// <summary>A generic map from an object reference to an object, using the default reference hashing algorithm.</summary>
   TRefObjectMap<K, V: class> = class(TRefObjectMap<K, V, TRefHasher<K>>);
 
-  // TODO: XmlDoc
+  /// <summary>A generic map to an object reference.</summary>
   TToRefMap<K; V: class; H: THasher<K>> = class(TMap<K, V, H>)
   private
     FOwnsValues: Boolean;
@@ -569,25 +657,34 @@ type
 
   end;
 
+  /// <summary>A generic map to an object.</summary>
   TToObjectMap<K; V: class; H: THasher<K>> = class(TToRefMap<K, V, H>)
   protected
     function CreateCopy(AHashMode: THashMode): THashBase; override;
+
   public
     constructor Create(AHashMode: THashMode = hmAuto); override;
+
   end;
 
-  TClassSet = TSet<TClass, TClassHasher>;
+  /// <summary>A set of class references.</summary>
+  // TClassSet = TSet<TClass, TClassHasher>;
 
+  TClassSet<T> = class(TSet<T, TClassHasher<T>>);
+
+  /// <summary>A map from class refernces.</summary>
   TClassMap<T> = class(TMap<TClass, T, TClassHasher>)
   public
     function Copy(AHashMode: THashMode = hmAuto): TClassMap<T>; reintroduce; inline;
   end;
 
+  /// <summary>A map from class references to object references.</summary>
   TClassRefMap<T: class> = class(TToRefMap<TClass, T, TClassHasher>)
   public
     function Copy(AHashMode: THashMode = hmAuto): TClassRefMap<T>; reintroduce; inline;
   end;
-
+                                                                                   
+  /// <summary>A map from class references to objects.</summary>
   TClassObjectMap<T: class> = class(TToObjectMap<TClass, T, TClassHasher>);
 
 implementation
@@ -634,16 +731,9 @@ begin
   inherited Create('The set key exists already.');
 end;
 
-{ EHashEmpty }
-
-constructor EHashEmpty.Create;
-begin
-  inherited Create('The operation requires the hash collection to have at least one item.');
-end;
-
 { EHashKeyNotIndexable }
 
-constructor EHashKeyNotIndexable.Create;
+constructor EHashKeyNotHashable.Create;
 begin
   inherited Create('Hash key is not indexable.');
 end;
@@ -731,9 +821,9 @@ begin
   Result.Assign(Self);
 end;
 
-function THashBase.CreateSame(AHashMode: THashMode): THashBase;
+class function THashBase.CreateSame(AHashMode: THashMode): THashBase;
 begin
-  Result := THashBaseClass(ClassType).Create(AHashMode);
+  Result := Self.Create(AHashMode);
 end;
 
 destructor THashBase.Destroy;
@@ -864,7 +954,7 @@ function THashBase<K, H>.GetCappedHash(AKey: K): Integer;
 begin
   if CanIndex(AKey) then
     Exit(Integer(GetHash(AKey) mod Cardinal(Buckets)));
-  raise EKeyNotHashable.Create;
+  raise EHashKeyNotHashable.Create;
 end;
 
 function THashBase<K, H>.Copy(AHashMode: THashMode): THashBase<K, H>;
@@ -1020,10 +1110,10 @@ function TSet<T, H>.Without(ASet: TSet<T, H>): TSet<T, H>;
 var
   Element: T;
 begin
-  Result := TSet<T, H>(CreateSame(hmManual));
+  Result := TSet<T, H>(CreateSame(hmAuto));
   for Element in Self do
     if not ASet[Element] then
-      TryAdd(Element);
+      Result.TryAdd(Element);
 end;
 
 procedure TSet<T, H>.SetBuckets(const Value: Integer);
@@ -1102,6 +1192,7 @@ begin
   H := GetCappedHash(AElement);
   if FBuckets[H] = nil then
     Exit(False);
+
   I := TBucket(FBuckets[H]).FindFirstIndex(
     function(ACurrent: T): Boolean
     begin
@@ -1109,6 +1200,7 @@ begin
     end);
   if I = -1 then
     Exit(False);
+
   FBuckets[H].RemoveAt(I);
   Dec(FCount);
   if FBuckets[H].Count = 0 then
@@ -1152,6 +1244,26 @@ end;
 
 { TMap<K, V, H> }
 
+procedure TMap<K, V, H>.AfterChange;
+begin
+  // nothing by default
+end;
+
+procedure TMap<K, V, H>.BeforeRemove(AKey: K);
+begin
+  // nothing by default
+end;
+
+procedure TMap<K, V, H>.BeforeValueAdd(AKey: K; AValue: V);
+begin
+  // nothing by default
+end;
+
+procedure TMap<K, V, H>.BeforeValueChange(AKey: K; AValue: V);
+begin
+  // nothing by default
+end;
+
 function TMap<K, V, H>.Copy(AHashMode: THashMode): TMap<K, V, H>;
 begin
   Result := TMap<K, V, H>(CreateCopy(AHashMode));
@@ -1174,31 +1286,6 @@ procedure TMap<K, V, H>.Remove(AKey: K);
 begin
   if not TryRemove(AKey) then
     raise EMapKeyNotFound.Create;
-end;
-
-function TMap<K, V, H>.Equals(Obj: TObject): Boolean;
-begin
-  if Obj.ClassType <> ClassType then
-    Exit(False);
-  Result := Equals(TMap<K, V, H>(Obj));
-end;
-
-function TMap<K, V, H>.Equals(AOther: TMap<K, V, H>): Boolean;
-var
-  Pair: TPair<K, V>;
-  Value: V;
-begin
-  if Count <> AOther.Count then
-    Exit(False);
-
-  for Pair in Self do
-  begin
-    if not AOther.Get(Pair.Key, Value) then
-      Exit(False);
-    if CompareMem(@Value, @Pair.Value, SizeOf(V)) then
-      Exit(False);
-  end;
-  Result := True;
 end;
 
 function TMap<K, V, H>.Get(AKey: K; out AValue: V): Boolean;
@@ -1283,8 +1370,8 @@ var
   H, I: Integer;
 begin
   if Empty then
-
-    H := GetCappedHash(AKey);
+    Exit(False);
+  H := GetCappedHash(AKey);
   if FBuckets[H] = nil then
     Exit(False);
   for I := 0 to FBuckets[H].MaxIndex do
@@ -1346,11 +1433,13 @@ begin
   H := GetCappedHash(AKey);
   if FBuckets[H] = nil then
   begin
+    BeforeValueAdd(AKey, Value);
     FBuckets[H] := CreateBucket;
     TBucket(FBuckets[H]).Add(TPair.Create(AKey, Value));
     Inc(FCount);
     if HashMode = hmAuto then
       Buckets := Count;
+    AfterChange;
     Exit;
   end;
 
@@ -1358,14 +1447,19 @@ begin
   begin
     if KeysEqual(TBucket(FBuckets[H])[I].Key, AKey) then
     begin
+      BeforeValueChange(AKey, Value);
       TBucket(FBuckets[H])[I] := TPair.Create(AKey, Value);
+      AfterChange;
       Exit;
     end;
   end;
+
+  BeforeValueAdd(AKey, Value);
   TBucket(FBuckets[H]).Add(TPair.Create(AKey, Value));
   Inc(FCount);
   if HashMode = hmAuto then
     Buckets := Count;
+  AfterChange;
 end;
 
 function TMap<K, V, H>.TryRemove(AKey: K): Boolean;
@@ -1385,6 +1479,7 @@ begin
     end);
   if I = -1 then
     Exit(False);
+  BeforeRemove(AKey);
   FBuckets[H].RemoveAt(I);
   Dec(FCount);
   if FBuckets[H].Count = 0 then
@@ -1392,6 +1487,7 @@ begin
   if HashMode = hmAuto then
     Buckets := Count;
   Result := True;
+  AfterChange;
 end;
 
 function TMap<K, V, H>.Values: TValuesWrapper;
@@ -1455,6 +1551,28 @@ end;
 function TRefSet<T, H>.CreateBucket: THashBase.TBucket;
 begin
   Result := TRefArrayOwnLinked<T>.Create(@FOwnsObjects, 4, 2);
+end;
+
+function TRefSet<T, H>.Equals(Obj: TObject): Boolean;
+begin
+  if Obj.ClassType <> ClassType then
+    Exit(False);
+  Result := Equals(TRefSet<T, H>(Obj));
+end;
+
+function TRefSet<T, H>.Equals(AOther: TRefSet<T, H>): Boolean;
+var
+  Element: T;
+begin
+  if Count <> AOther.Count then
+    Exit(False);
+
+  for Element in Self do
+  begin
+    if not AOther[Element] then
+      Exit(False);
+  end;
+  Result := True;     
 end;
 
 procedure TRefSet<T, H>.UnownObjects;
@@ -1571,13 +1689,13 @@ end;
 constructor TRefRefMap<K, V, H>.Create(AOwnsObjects: Boolean; AHashMode: THashMode);
 begin
   inherited Create(AOwnsObjects, AHashMode);
-  OwnsValues := AOwnsObjects;
+  FOwnsValues := AOwnsObjects;
 end;
 
 constructor TRefRefMap<K, V, H>.Create(AOwnsKeys, AOwnsValues: Boolean; AHashMode: THashMode);
 begin
   inherited Create(AOwnsKeys, AHashMode);
-  OwnsValues := AOwnsValues;
+  FOwnsValues := AOwnsValues;
 end;
 
 function TRefRefMap<K, V, H>.Copy(AHashMode: THashMode): TRefRefMap<K, V, H>;
@@ -1792,6 +1910,11 @@ begin
   Result := TMap<K, V, H>(Self).KeyExists(AKey);
 end;
 
+function TMap<K, V, H>.TReader.Keys: TKeysWrapper;
+begin
+  Result := TMap<K, V, H>(Self).Keys;
+end;
+
 function TMap<K, V, H>.TReader.GetEnumerator: IIterator<TPair>;
 begin
   Result := TMap<K, V, H>(Self).GetEnumerator;
@@ -1800,6 +1923,11 @@ end;
 function TMap<K, V, H>.TReader.KeySet(AHashMode: THashMode): TSet<K, H>;
 begin
   Result := TMap<K, V, H>(Self).KeySet(AHashMode);
+end;
+
+function TMap<K, V, H>.TReader.Values: TValuesWrapper;
+begin
+  Result := TMap<K, V, H>(Self).Values;
 end;
 
 function TMap<K, V, H>.TReader.Copy(AHashMode: THashMode): TMap<K, V, H>;
@@ -1834,9 +1962,9 @@ var
   Key: K;
 begin
   Result := TSet<K, H>.Create(hmManual);
-  Result.Buckets := FMap.Count;
+  Result.Rehash(FMap.Buckets);
   for Key in Self do
-    Result.Add(Key);
+    Result.TryAdd(Key);
   Result.HashMode := AHashMode;  
 end;
 
@@ -1883,6 +2011,12 @@ begin
   inherited Create(True, AHashMode);
 end;
 
+function TObjectSet<T, H>.CreateCopy(AHashMode: THashMode): THashBase;
+begin
+  Result := TRefSet<T, H>.Create(AHashMode);
+  Result.Assign(Self);  
+end;
+
 { TRefMap<K, V> }
 
 function TRefMap<K, V>.Copy(AHashMode: THashMode): TRefMap<K, V>;
@@ -1895,6 +2029,12 @@ end;
 constructor TObjectMap<K, V, H>.Create(AHashMode: THashMode);
 begin
   inherited Create(True, AHashMode);
+end;
+
+function TObjectMap<K, V, H>.CreateCopy(AHashMode: THashMode): THashBase;
+begin
+  Result := TRefMap<K, V, H>.Create(AHashMode);
+  Result.Assign(Self);
 end;
 
 { TRefRefMap<K, V> }
@@ -1951,13 +2091,6 @@ function TRefObjectMap<K, V, H>.CreateCopy(AHashMode: THashMode): THashBase;
 begin
   Result := TRefRefMap<K, V, H>.Create(AHashMode);
   Result.Assign(Self);
-end;
-
-{ EKeyNotHashable }
-
-constructor EKeyNotHashable.Create;
-begin
-  inherited Create('The given key is not hashable.');
 end;
 
 end.

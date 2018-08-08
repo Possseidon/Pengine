@@ -41,8 +41,8 @@ type
     FSpriteSystem: TSpriteSystem;
     FTextureAtlas: TTextureAtlas;
 
-    FTemplate: TEntity.TTemplate;
-    FEntities: TObjectArray<TEntity>;
+    FStructure: TStructure;
+    FEntitySystem: TEntitySystem;
 
     procedure GameUpdate;
     procedure FPSUpdate;
@@ -71,15 +71,18 @@ procedure TfrmMain.GameUpdate;
 var
   Entity: TEntity;
 begin
-  for Entity in FEntities do
-    Entity.Location.Rotation := Entity.Location.Rotation + DeltaTime * 90 * Entity.Location.PosX * Entity.Location.PosY;
+  for Entity in FEntitySystem.Entities do
+    Entity.Location.Rotation := Entity.Location.Rotation + DeltaTime * 360 * Sqr(Entity.Location.PosX) * Entity.Location.PosY;
+
+  if Input.KeyTyped(VK_SPACE) and not FEntitySystem.Entities.Empty then
+    FEntitySystem.Entities.First.Remove;
 end;
 
 procedure TfrmMain.Init;
 var
   Dir, Path: string;
-  Entity: TEntity;
-  Pos: TIntVector2;
+  Part: TEntityBase.TPart;
+  P: TVector2;
 begin
   Context.VSync := False;
   Context.Samples := Context.MaxSamples;
@@ -94,47 +97,56 @@ begin
       FTextureAtlas.AddFromFile(ExtractFileName(Path.Substring(0, Path.Length - 4)), Path);
   FTextureAtlas.Texture.MagFilter := magNearest;
 
-  FTemplate := TEntity.TTemplate.Create;
-  FTemplate.MainPart := FTemplate.AddPart;
-  FTemplate.MainPart.Texture := FTextureAtlas['spaceship_body_1'];
+  FStructure := TStructure.Create;
+  Part := FStructure.AddPart;
+  Assert(Part.Entity = FStructure);
+  FStructure.MainPart := Part;
+  FStructure.MainPart.DefaultTexture := FTextureAtlas['spaceship_body_1'];
+  FStructure.BaseTransformation.Scale := 0.2;
 
-  with FTemplate.AddPart do
+  with FStructure.AddPart do
   begin
-    Texture := FTextureAtlas['spaceship_body_2'];
+    DefaultTexture := FTextureAtlas['spaceship_body_3'];
+    Location.Scale := 1.5;
+    Location.Pos := Vec2(-1.5, 0.2);
+    Location.Rotation := -10;
+  end;
+
+  with FStructure.AddPart do
+  begin
+    DefaultTexture := FTextureAtlas['spaceship_body_3'];
+    Location.Scale := 1.5;
+    Location.ScaleX := -1.5;
+    Location.Pos := Vec2(1.5, 0.2);
+    Location.Rotation := 10;
+  end;
+
+  with FStructure.AddPart do
+  begin
+    DefaultTexture := FTextureAtlas['spaceship_body_2'];
     Location.Scale := 0.4;
     Location.PosX := -0.9;
     Location.Rotation := -10;
   end;
 
-  with FTemplate.AddPart do
+  with FStructure.AddPart do
   begin
-    Texture := FTextureAtlas['spaceship_body_2'];
+    DefaultTexture := FTextureAtlas['spaceship_body_2'];
     Location.Scale := 0.4;
     Location.ScaleX := -0.4;
     Location.PosX := 0.9;
     Location.Rotation := 10;
   end;
 
-  with FTemplate.AddPart do
+  FEntitySystem := TEntitySystem.Create(Game, FSpriteGLProgram);
+  for P in IBounds2I(-5, 5) do
   begin
-    Texture := FTextureAtlas['spaceship_body_3'];
-    Location.Scale := 1.5;
-    Location.PosX := -1.5;
-    Location.Rotation := -10;
+    with FEntitySystem.Add(FStructure) do
+    begin
+      Location.Pos := P * 0.15;
+      Location.Scale := 1;
+    end;
   end;
-
-  with FTemplate.AddPart do
-  begin
-    Texture := FTextureAtlas['spaceship_body_3'];
-    Location.Scale := 1.5;
-    Location.ScaleX := -1.5;
-    Location.PosX := 1.5;
-    Location.Rotation := 10;
-  end;
-
-  FEntities := TObjectArray<TEntity>.Create;
-  Entity := TEntity.Create(FSpriteSystem, FTemplate);
-  FEntities.Add(Entity);
 
   Game.OnUpdate.Add(GameUpdate);
   Game.Timer.OnFPSUpdate.Add(FPSUpdate);
@@ -142,8 +154,8 @@ end;
 
 procedure TfrmMain.Finalize;
 begin
-  FEntities.Free;
-  FTemplate.Free;
+  FEntitySystem.Free;
+  FStructure.Free;
   FSpriteSystem.Free;
   if FSpriteGLProgram <> nil then
     TSpriteGLProgram.Release(GLState.ResParam);

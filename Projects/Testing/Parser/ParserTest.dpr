@@ -102,11 +102,7 @@ begin
         Break;
 
       StartTimer;
-      for I := 0 to 1000 do
-      begin
-        Parser.Free;
-        Parser := TEntitySelector.TParser.Create(S);
-      end;
+      Parser := TEntitySelector.TParser.Create(S);
       StopTimerAndOutput;
 
       if Parser.Success then
@@ -124,13 +120,13 @@ begin
         Writeln('       at ', Parser.ErrorLine, '|', Parser.ErrorLinePos);
       end;
 
-      for I := 0 to Parser.CharInfo.Count - 1 do
+      for I := 0 to Parser.Context.Count - 1 do
       begin
         Write(S[I + 1], ' ');
-        for ParserClass in Parser.CharInfo.Parsers[I] do
+        for ParserClass in Parser.Context.Parsers[I] do
           Write(ParserClass.GetResultName, ' | ');
-        if Parser.CharInfo.ExtraData[I] <> 0 then
-          Writeln(Parser.CharInfo.Parsers[I].Last.GetTokenName(Parser.CharInfo.ExtraData[I]))
+        if Parser.Context.Tokens[I] <> 0 then
+          Writeln(Parser.Context.Parsers[I].Last.GetTokenName(Parser.Context.Tokens[I]))
         else
           Writeln('-');
       end;

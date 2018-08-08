@@ -463,6 +463,7 @@ constructor TLua.TLuaThread.Create(ALua: TLua);
 begin
   inherited Create;
   FLua := ALua;
+  TSimpleEvent
   FStartWorkEvent := TEvent.Create;
 end;
 

@@ -5535,8 +5535,6 @@ end;
 
 destructor TLocation2.Destroy;
 begin
-  if Parent <> nil then
-    Parent.OnChanged.Remove(ParentChanged);
   FAxisSystem.Free;
   inherited;
 end;

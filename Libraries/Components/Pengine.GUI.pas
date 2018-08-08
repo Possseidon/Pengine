@@ -34,6 +34,7 @@ type
 
     class operator Equal(const A, B: TOrigin): Boolean; static;
     class operator NotEqual(const A, B: TOrigin): Boolean; static;
+
   end;
 
   TControl = class abstract
@@ -155,8 +156,6 @@ type
     procedure NotifyAspectChanged;
     function GetAspect: Single; virtual; abstract;
 
-    class procedure AddRequiredTextures(ARequiredTextures: TArray<string>); virtual;
-    
   public
     constructor Create(AParent: TControl); virtual;
     destructor Destroy; override;
@@ -241,14 +240,16 @@ type
     
   end;
 
+function Origin(X: TOriginX; Y: TOriginY): TOrigin; inline;
+
 implementation
 
-{ TControl }
-
-class procedure TControl.AddRequiredTextures(ARequiredTextures: TArray<string>);
+function Origin(X: TOriginX; Y: TOriginY): TOrigin;
 begin
-  // nothing
+  Result.Create(X, Y);
 end;
+
+{ TControl }
 
 procedure TControl.NotifyAspectChanged;
 begin

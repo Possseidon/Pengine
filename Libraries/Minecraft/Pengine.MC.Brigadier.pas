@@ -4,16 +4,21 @@ interface
 
 uses
   System.SysUtils,
+  System.Math,
   System.JSON,
   System.Generics.Collections,
-  System.RegularExpressions,
   System.Character,
+  System.IOUtils,
 
   Pengine.CollectionInterfaces,
   Pengine.Collections,
   Pengine.HashCollections,
   Pengine.Hasher,
-  Pengine.Parser;
+  Pengine.Parser,
+  Pengine.Settings,
+
+  Pengine.MC.General,
+  Pengine.MC.Namespace;
 
 type
 
@@ -37,15 +42,38 @@ type
     constructor Create(AParserString: string);
   end;
 
-  EBrigadierInvalidProperties = class(Exception)
-  public
-    constructor Create;
-  end;
+  EBrigadierProperties = class(Exception);
 
   TBrigadierRoot = class;
   TBrigadierLiteral = class;
   TBrigadierArgument = class;
   TBrigadierArgumentParameter = class;
+
+  TBrigadierSettings = class(TSettings)
+  public const
+
+    DefaultPath = 'Data\reports\commands.json';
+
+  private
+    FPath: string;
+    FBrigadier: TBrigadierRoot;
+
+    procedure SetPath(const Value: string);
+
+  public
+    destructor Destroy; override;
+
+    class function GetTitle: string; override;
+    class function GetDescription: string; override;
+
+    procedure SetDefaults; override;
+
+    property Path: string read FPath write SetPath;
+    property Brigadier: TBrigadierRoot read FBrigadier;
+
+    procedure Reload;
+
+  end;
 
   TBrigadierParser = class;
   TBrigadierParserClass = class of TBrigadierParser;
@@ -58,16 +86,20 @@ type
     constructor Create(AProperties: TJSONObject); virtual;
   end;
 
-  TBrigadierParser = class abstract(TParser<TBrigadierArgumentParameter>)
+  TBrigadierParser = class abstract(TObjectParserWithSettings<TBrigadierArgumentParameter>)
   public type
 
     TLookup = TMap<string, TBrigadierParserClass, TStringHasher>;
-    
+
   private
     FProperties: TBrigadierParserProperties;
+    FArgument: TBrigadierArgument;
 
-  class var
-    FLookup: TLookup;
+    class var
+      FLookup: TLookup;
+
+  protected
+    property Argument: TBrigadierArgument read FArgument;
 
   public
     class constructor Create;
@@ -76,7 +108,7 @@ type
     class procedure RegisterClass;
 
     class function GetParserClass(AName: string): TBrigadierParserClass; static;
-    class function GetParserString: string; virtual; abstract;
+    class function GetParserString: TNSPath; virtual; abstract;
     class function GetParameterClass: TBrigadierParameterClass; virtual; abstract;
     class function GetPropertiesClass: TBrigadierParserPropertiesClass; virtual;
 
@@ -87,13 +119,15 @@ type
   end;
 
   TBrigadierParser<T: TBrigadierArgumentParameter> = class(TBrigadierParser)
+  private
+    function GetSettings: TRootSettings;
   protected
-    procedure Cleanup; override;
+    procedure SetParseResult(AResult: T);
 
   public
-    constructor Create(AInfo: TParseInfo; AArgument: TBrigadierArgument; AProperties: TBrigadierParserProperties); override;
-
     function ParseResult: T;
+
+    property Settings: TRootSettings read GetSettings;
 
   end;
 
@@ -134,6 +168,7 @@ type
 
     function GetRedirectedChild: TBrigadierChild;
     function GetRedirection: TRedirection.TReader;
+    function GetSettings: TRootSettings;
 
   public
     constructor Create(ARoot: TBrigadierRoot; AJSONObject: TJSONObject);
@@ -144,6 +179,7 @@ type
     class function GetTypeString: string; virtual; abstract;
 
     property Root: TBrigadierRoot read FRoot;
+    property Settings: TRootSettings read GetSettings;
 
     property Executable: Boolean read FExecutable;
 
@@ -153,6 +189,8 @@ type
 
     property Redirection: TRedirection.TReader read GetRedirection;
     property RedirectedChild: TBrigadierChild read GetRedirectedChild;
+
+    function IsOrRedirects(AChild: TBrigadierChild): Boolean;
 
   end;
 
@@ -196,7 +234,8 @@ type
   /// <summary>An abstract base class for a single parsed parameter of a brigadier command.</summary>
   TBrigadierParameter = class abstract
   protected
-    function GetExecutable: Boolean; virtual; abstract;
+    function GetChild: TBrigadierChild; virtual; abstract;
+    function GetExecutable: Boolean;
 
   public
     /// <summary>Converts the parsed content back into a string, which could have been given as parameter.</summary>
@@ -205,73 +244,56 @@ type
     /// <summary>Propagates from backing literal or argument.</summary>
     property Executable: Boolean read GetExecutable;
 
+    property Child: TBrigadierChild read GetChild;
+
+  end;
+
+  TBrigadierParameter<T: TBrigadierChild> = class abstract(TBrigadierParameter)
+  private
+    FChild: T;
+
+  protected
+    function GetChild: TBrigadierChild; override;
+
+  public
+    constructor Create(AChild: T); virtual;
+
+    property Child: T read FChild;
+
   end;
 
   /// <summary>A simple literal parameter.</summary>
-  TBrigadierLiteralParameter = class(TBrigadierParameter)
-  private
-    FLiteral: TBrigadierLiteral;
-
-  protected
-    function GetExecutable: Boolean; override;
-
+  TBrigadierLiteralParameter = class(TBrigadierParameter<TBrigadierLiteral>)
   public
-    constructor Create(ALiteral: TBrigadierLiteral);
-
-    /// <summary>The literal, which was used for this parameter.</summary>
-    property Literal: TBrigadierLiteral read FLiteral;
-
     function Format: string; override;
 
   end;
 
   /// <summary>An abstract base class for arguments using a parser.</summary>
-  TBrigadierArgumentParameter = class abstract(TBrigadierParameter)
-  private
-    FArgument: TBrigadierArgument;
-    FSuccess: Boolean;
-
-  protected
-    function GetExecutable: Boolean; override;
-
-  public
-    constructor Create(AArgument: TBrigadierArgument); virtual;
-
-    /// <returns>The parser class of the current argument.</returns>
-    function ParserClass: TBrigadierParserClass;
-    /// <summary>The argument, which this parameter was meant for.</summary>
-    property Argument: TBrigadierArgument read FArgument;
-    /// <summary>Wether the parsing of the parameter was successful.</summary>
-    property Success: Boolean read FSuccess;
-
-  end;
+  TBrigadierArgumentParameter = class(TBrigadierParameter<TBrigadierArgument>);
 
   /// <summary>Stores all kinds of information of a parsed command.</summary>
-  TBrigadierParseResult = class
+  TBrigadierCommand = class
   public type
 
     TParameters = TObjectArray<TBrigadierParameter>;
-    TSuggestions = TRefArray<TBrigadierChild>;
 
   private
     FParameters: TParameters;
-    FSuggestions: TSuggestions;
-    FSuccess: Boolean;
+    FComment: string;
 
     function GetExecutable: Boolean;
-    function GetParameters: TParameters.TReader;
-    function GetSuggestions: TSuggestions.TReader;
 
   public
     constructor Create;
     destructor Destroy; override;
 
-    /// <summary>True, if there was no error while parsing the command.</summary>
-    property Success: Boolean read FSuccess;
-    /// <summary>A readonly list of all parsed parameters, used in the command.</summary>
-    property Parameters: TParameters.TReader read GetParameters;
-    /// <summary>All children, which could continue the current command.</summary>
-    property Suggestions: TSuggestions.TReader read GetSuggestions;
+    /// <summary>A list of all parsed parameters, used in the command.</summary>
+    property Parameters: TParameters read FParameters;
+    /// <returns>Wether the command is just a comment.</returns>
+    function IsComment: Boolean;
+    /// <summary>The comment text.</summary>
+    property Comment: string read FComment;
     /// <summary>If the command as-is could get executed.</summary>
     property Executable: Boolean read GetExecutable;
 
@@ -282,42 +304,155 @@ type
 
   /// <summary>The root of the brigadier command system.</summary>
   TBrigadierRoot = class(TBrigadierChild)
+  private
+    FSettings: TRootSettings;
+    FBrigadierSettings: TBrigadierSettings;
+    FTeleport: TBrigadierChild;
+
+    procedure TeleportFix;
+
   public
-    constructor Create(AJSONObject: TJSONObject);
+    constructor Create(ASettings: TRootSettings);
 
     class function GetTypeString: string; override;
 
+    property Settings: TRootSettings read FSettings;
+    property BrigadierSettings: TBrigadierSettings read FBrigadierSettings;
+
+    property Teleport: TBrigadierChild read FTeleport;
+
   end;
 
-  TBrigadierCommandParser = class(TParser<TBrigadierParseResult>)
+  TBrigadierCommandParser = class(TObjectParser<TBrigadierCommand>)
+  public type
+
+    TSettings = class
+    public type
+
+      TSlashMode = (
+        smNone,
+        smOptional,
+        smRequired
+        );
+
+    private
+      FBrigadier: TBrigadierRoot;
+      FSlashMode: TSlashMode;
+      FAllowComment: Boolean;
+      FAllowPreceedingSpace: Boolean;
+      FAllowEmpty: Boolean;
+
+    public
+      constructor Create(ABrigadier: TBrigadierRoot);
+
+      property Brigadier: TBrigadierRoot read FBrigadier;
+      property SlashMode: TSlashMode read FSlashMode write FSlashMode;
+      property AllowComment: Boolean read FAllowComment write FAllowComment;
+      property AllowPreceedingSpace: Boolean read FAllowPreceedingSpace write FAllowPreceedingSpace;
+      property AllowEmpty: Boolean read FAllowEmpty write FAllowEmpty;
+
+    end;
+
+    TSuggestions = class(TParseSuggestionsGenerated)
+    private
+      FChild: TBrigadierChild;
+
+    protected
+      procedure Generate; override;
+
+    public
+      constructor Create(AChild: TBrigadierChild);
+
+      function GetTitle: string; override;
+
+    end;
+
+  public const
+
+    TokenMainCommand = 1;
+    TokenSubCommand = 2;
+    TokenInvalidLiteral = 3;
+    TokenComment = 4;
+    TokenSlash = 5;
+
+    TokenNames: array [TokenMainCommand.. TokenSlash] of string = (
+      'Main-Command',
+      'Sub-Command',
+      'Invalid Literal',
+      'Comment',
+      'Slash'
+      );
+
   private
-    FRoot: TBrigadierRoot;
+    FSettings: TBrigadierCommandParser.TSettings;
+
+    procedure RaiseExpectedError(AChild: TBrigadierChild);
 
   protected
     function Parse: Boolean; override;
 
-    procedure Cleanup; override;
+    property Settings: TBrigadierCommandParser.TSettings read FSettings;
 
   public
-    constructor Create(ARoot: TBrigadierRoot; AText: string);
+    constructor Create(ASettings: TBrigadierCommandParser.TSettings; AText: string);
+
+    class function GetTokenCount: Integer; override;
+    class function GetTokenName(AIndex: Integer): string; override;
+    class function GetResultName: string; override;
 
   end;
 
 implementation
 
 uses
-  Minecraft.BrigadierParser;
+  Pengine.MC.BrigadierParser;
 
 { TBrigadierRoot }
 
-constructor TBrigadierRoot.Create(AJSONObject: TJSONObject);
+constructor TBrigadierRoot.Create(ASettings: TRootSettings);
+var
+  BrigadierText: string;
+  BrigadierJSON: TJSONObject;
 begin
-  inherited Create(Self, AJSONObject);
+  FSettings := ASettings;
+  FBrigadierSettings := Settings.Sub<TBrigadierSettings>;
+
+  if TFile.Exists(BrigadierSettings.Path) then
+  begin
+    BrigadierText := TFile.ReadAllText(BrigadierSettings.Path);
+    BrigadierJSON := TJSONObject.ParseJSONValue(BrigadierText) as TJSONObject;
+  end
+  else
+  begin
+    BrigadierJSON := TJSONObject.Create;
+    BrigadierJSON.AddPair('type', 'root');
+    BrigadierJSON.AddPair('children', TJSONObject.Create);
+  end;
+
+  try
+    inherited Create(Self, BrigadierJSON);
+  finally
+    BrigadierJSON.Free;
+  end;
+
+  TeleportFix;
 end;
 
 class function TBrigadierRoot.GetTypeString: string;
 begin
   Result := 'root';
+end;
+
+procedure TBrigadierRoot.TeleportFix;
+begin
+  FTeleport := Self['teleport'];
+  if FTeleport = nil then
+    Exit;
+  Teleport.FArguments.Remove(Teleport['destination'] as TBrigadierArgument);
+  with Teleport['targets'] as TBrigadierArgument do
+  begin
+    FExecutable := True;
+  end;
 end;
 
 { TBrigadierSystem.TLiteral }
@@ -358,13 +493,16 @@ begin
   end
   else
   begin
-    raise ENotImplemented.CreateFmt('Unknown Parser: %s', [ParserName]);
+    // TFile.AppendAllText('output.txt', ParserName + sLineBreak);
+    // raise ENotImplemented.CreateFmt('Unknown Parser: %s', [ParserName]);
   end;
 end;
 
 function TBrigadierArgument.CreateParser(AInfo: TParseInfo): TBrigadierParser;
 begin
-  Result := ParserClass.Create(AInfo, Self, ParserProperties);
+  if ParserClass <> nil then
+    Exit(ParserClass.Create(AInfo, Self, ParserProperties));
+  Result := nil;
 end;
 
 destructor TBrigadierArgument.Destroy;
@@ -420,8 +558,14 @@ begin
 end;
 
 function TBrigadierChild.GetArguments: TArguments.TReader;
+var
+  Re: TBrigadierChild;
 begin
-  Result := FArguments.Reader;
+  Re := RedirectedChild;
+  if Re = nil then
+    Result := FArguments.Reader
+  else
+    Result := Re.FArguments.Reader;
 end;
 
 function TBrigadierChild.GetChild(AName: string): TBrigadierChild;
@@ -433,17 +577,24 @@ begin
   for Literal in Literals do
     if Literal.Literal = AName then
       Exit(Literal);
+
   // search through arguments
   for Argument in Arguments do
     if Argument.Name = AName then
       Exit(Argument);
 
-  raise EBrigadierChildNotFound.Create;
+  Result := nil;
 end;
 
 function TBrigadierChild.GetLiterals: TLiterals.TReader;
+var
+  Re: TBrigadierChild;
 begin
-  Result := FLiterals.Reader;
+  Re := RedirectedChild;
+  if Re = nil then
+    Result := FLiterals.Reader
+  else
+    Result := Re.FLiterals.Reader;
 end;
 
 function TBrigadierChild.GetRedirectedChild: TBrigadierChild;
@@ -455,7 +606,7 @@ begin
 
   if FRedirection.Empty then
   begin
-    if not Executable and Literals.Empty and Arguments.Empty then
+    if not Executable and FLiterals.Empty and FArguments.Empty then
       Exit(FRoot) // workaround for missing "execute run ..." redirection
     else
       Exit(nil);
@@ -474,7 +625,17 @@ begin
   Result := FRedirection.Reader;
 end;
 
-procedure TBrigadierChild.LoadChildren;
+function TBrigadierChild.GetSettings: TRootSettings;
+begin
+  Result := Root.Settings;
+end;
+
+function TBrigadierChild.IsOrRedirects(AChild: TBrigadierChild): Boolean;
+begin
+  Result := (AChild = Self) or (AChild = RedirectedChild);
+end;
+
+procedure TBrigadierChild.LoadChildren(AJSONObject: TJSONObject);
 var
   ChildrenNode: TJSONObject;
   ChildNode: TJSONPair;
@@ -530,25 +691,27 @@ begin
   inherited Create('Only one child of type root can exist in the brigadier command tree.');
 end;
 
-{ TBrigadierParseResult }
+{ TBrigadierCommand }
 
-constructor TBrigadierParseResult.Create;
+constructor TBrigadierCommand.Create;
 begin
   FParameters := TParameters.Create;
-  FSuggestions := TSuggestions.Create;
 end;
 
-destructor TBrigadierParseResult.Destroy;
+destructor TBrigadierCommand.Destroy;
 begin
   FParameters.Free;
-  FSuggestions.Free;
   inherited;
 end;
 
-function TBrigadierParseResult.Format: string;
+function TBrigadierCommand.Format: string;
 var
   I: Integer;
 begin
+  if IsComment then
+    Exit(Comment);
+
+  Result := '';
   for I := 0 to Parameters.MaxIndex do
   begin
     Result := Result + Parameters[I].Format;
@@ -557,19 +720,14 @@ begin
   end;
 end;
 
-function TBrigadierParseResult.GetExecutable: Boolean;
+function TBrigadierCommand.GetExecutable: Boolean;
 begin
-  Result := Success and not Parameters.Empty and Parameters.Last.Executable;
+  Result := not Parameters.Empty and Parameters.Last.Executable;
 end;
 
-function TBrigadierParseResult.GetParameters: TParameters.TReader;
+function TBrigadierCommand.IsComment: Boolean;
 begin
-  Result := FParameters.Reader;
-end;
-
-function TBrigadierParseResult.GetSuggestions: TSuggestions.TReader;
-begin
-  Result := FSuggestions.Reader;
+  Result := not FComment.IsEmpty;
 end;
 
 { EBrigadierChildNotFound }
@@ -588,34 +746,13 @@ end;
 
 constructor TBrigadierParser.Create(AInfo: TParseInfo; AArgument: TBrigadierArgument; AProperties: TBrigadierParserProperties);
 begin
-  if (GetPropertiesClass <> nil) and not (AProperties is GetPropertiesClass) then
-    raise EBrigadierInvalidProperties.Create;
+  if (GetPropertiesClass <> nil) and not(AProperties is GetPropertiesClass) then
+    raise EBrigadierProperties.Create('Invalid brigadier property class.');
   FProperties := AProperties;
-  inherited Create(AInfo);
+  FArgument := AArgument;
+  inherited Create(AInfo, False);
 end;
-{
-class function TBrigadierParser.CreateTyped(AName: string; AProperties: TJSONObject): TBrigadierParser;
-var
-  ParserClass: TBrigadierParserClass;
-  Properties: TSet<string, TStringHasher>;
-  Prop: TJSONPair;
-begin
-  if not FParserProperties.Get(AName, Properties) then
-  begin
-    Properties := TSet<string, TStringHasher>.Create;
-    FParserProperties[AName] := Properties;
-  end;
 
-  if AProperties <> nil then
-    for Prop in AProperties do
-      Properties.TryAdd(Prop.JsonString.Value);
-
-  if FLookup.Get(AName, ParserClass) then
-    Exit(ParserClass.Create(AProperties));
-
-  raise EBriadierParserNotRegistered.Create(AName);
-end;
-}
 class destructor TBrigadierParser.Destroy;
 begin
   FLookup.Free;
@@ -646,40 +783,6 @@ begin
   Result := GetParserString;
 end;
 
-{ TBrigadierLiteralParameter }
-
-constructor TBrigadierLiteralParameter.Create(ALiteral: TBrigadierLiteral);
-begin
-  FLiteral := ALiteral;
-end;
-
-function TBrigadierLiteralParameter.Format: string;
-begin
-  Result := Literal.Literal;
-end;
-
-function TBrigadierLiteralParameter.GetExecutable: Boolean;
-begin
-  Result := Literal.Executable;
-end;
-
-{ TBrigadierArgumentParameter }
-
-constructor TBrigadierArgumentParameter.Create(AArgument: TBrigadierArgument);
-begin
-  FArgument := AArgument;
-end;
-
-function TBrigadierArgumentParameter.GetExecutable: Boolean;
-begin
-  Result := Argument.Executable;
-end;
-
-function TBrigadierArgumentParameter.ParserClass: TBrigadierParserClass;
-begin
-  Result := Argument.ParserClass;
-end;
-
 { EBgriadierParserNotRegistered }
 
 constructor EBriadierParserNotRegistered.Create(AParserString: string);
@@ -689,15 +792,59 @@ end;
 
 { TBrigadierCommandParser }
 
-procedure TBrigadierCommandParser.Cleanup;
+constructor TBrigadierCommandParser.Create(ASettings: TSettings; AText: string);
 begin
-  ParseResult.Free;
+  FSettings := ASettings;
+  inherited Create(AText);
 end;
 
-constructor TBrigadierCommandParser.Create(ARoot: TBrigadierRoot; AText: string);
+procedure TBrigadierCommandParser.RaiseExpectedError(AChild: TBrigadierChild);
+var
+  Msg: string;
+  EntryCount, I: Integer;
+  Entries: array of string;
 begin
-  FRoot := ARoot;
-  inherited Create(AText);
+  SkipWhitespace;
+
+  EntryCount := AChild.Literals.Count + AChild.Arguments.Count;
+  if EntryCount = 0 then
+    raise EParseError.Create('Expected end of command.', -AllText.Length);
+
+  SetLength(Entries, EntryCount);
+  for I := 0 to AChild.Literals.MaxIndex do
+    Entries[I] := '"' + AChild.Literals[I].Literal + '"';
+  for I := 0 to AChild.Arguments.MaxIndex do
+    Entries[I + AChild.Literals.Count] := AChild.Arguments[I].Name;
+
+  Msg := 'Expected ';
+  for I := 0 to EntryCount - 1 do
+  begin
+    Msg := Msg + Entries[I];
+    if I = EntryCount - 2 then
+      Msg := Msg + ' or '
+    else if I <> EntryCount - 1 then
+      Msg := Msg + ', ';
+  end;
+  Msg := Msg + '.';
+  if ReachedEnd then
+    Log(1, Msg, elError)
+  else
+    Log(1, Msg, elFatal);
+end;
+
+class function TBrigadierCommandParser.GetResultName: string;
+begin
+  Result := 'Minecraft Command';
+end;
+
+class function TBrigadierCommandParser.GetTokenCount: Integer;
+begin
+  Result := High(TokenNames);
+end;
+
+class function TBrigadierCommandParser.GetTokenName(AIndex: Integer): string;
+begin
+  Result := TokenNames[AIndex];
 end;
 
 function TBrigadierCommandParser.Parse: Boolean;
@@ -706,80 +853,140 @@ var
   Literal: TBrigadierLiteral;
   Argument: TBrigadierArgument;
   Found: Boolean;
-  OldPos: Integer;
   ArgumentParser: TBrigadierParser;
   ScannedLiteral: string;
+  LastIteration: Boolean;
+  PreceedingWhitespace: Boolean;
+  StartMarker: TLogMarker;
 begin
   Result := True;
+  SetParseResult(TBrigadierCommand.Create);
+  CurrentChild := Settings.Brigadier;
 
-  Info.SkipWhitespace;
-  Info.StartsWith('/');
+  StartMarker := GetMarker;
 
-  SetParseResult(TBrigadierParseResult.Create);
+  // Preceeding Whitespace
+  PreceedingWhitespace := First.IsWhiteSpace;
+  if PreceedingWhitespace then
+    SkipWhitespace;
 
-  // start the parsing
-  CurrentChild := FRoot;
-
-  // after a part got parsed it gets removed, therefore it should be empty at the end
-  while not Info.ReachedEnd do
+  // Empty/Whitespace strings
+  if ReachedEnd then
   begin
-    OldPos := Info.Pos;
+    if not Settings.AllowEmpty then
+      Exit(False);
+    BeginSuggestions(TSuggestions.Create(CurrentChild));
+    Exit;
+  end
+  else if PreceedingWhitespace and not Settings.AllowPreceedingSpace then
+    Log(StartMarker, 'Preceeding whitespaces are not allowed.');
+
+  // Comments
+  if StartsWith('#', False) then
+  begin
+    Token := TokenComment;
+    ParseResult.FComment := AllText;
+    if not Settings.AllowComment then
+      Log(ParseResult.FComment.Length, 'Comments are not allowed.');
+    AdvanceToEnd;
+    Exit;
+  end;
+
+  Token := TokenSlash;
+  if StartsWith('/') and (Settings.SlashMode = smNone) then
+    Log(-1, 'A preceeding slash is not allowed.');
+
+  // Command
+  LastIteration := False;
+  while True do
+  begin
     Found := False;
 
+    // Check for Literals
     if not CurrentChild.Literals.Empty then
     begin
-      ScannedLiteral := Info.ReadWhile(
+      BeginSuggestions(TSuggestions.Create(CurrentChild));
+      ScannedLiteral := ReadWhile(
         function(C: Char): Boolean
         begin
-          Result := C <> ' ';
-        end);
-
-      // first scan through the simple literals
+          Result := not C.IsWhiteSpace
+        end, False);
       for Literal in CurrentChild.Literals do
       begin
-        if ScannedLiteral <> Literal.Literal then
+        if ScannedLiteral.TrimLeft <> Literal.Literal then
           Continue;
         ParseResult.FParameters.Add(TBrigadierLiteralParameter.Create(Literal));
         Found := True;
-        Info.SkipWhitespace;
+        Token := IfThen(CurrentChild.IsOrRedirects(Settings.Brigadier), TokenMainCommand, TokenSubCommand);
+        Advance(ScannedLiteral.Length);
+        ResetToken;
         CurrentChild := Literal;
         Break;
       end;
+      EndSuggestions;
     end;
 
+    // Check for Arguments, if no Literal was found
     if not Found then
     begin
-      Info.Pos := OldPos;
-      // no literal found, try to parse each argument
       for Argument in CurrentChild.Arguments do
       begin
         ArgumentParser := Argument.CreateParser(Info);
-        try
-          if ArgumentParser.Success then
-          begin
-            ParseResult.FParameters.Add(ArgumentParser.ParseResult);
-            Found := True;
-            Info.SkipWhitespace;
-            CurrentChild := Argument;
-            Break;
+        if ArgumentParser <> nil then
+        begin
+          try
+            if ArgumentParser.Success then
+            begin
+              ParseResult.FParameters.Add(ArgumentParser.OwnParseResult);
+              Found := True;
+              CurrentChild := Argument;
+              Break;
+            end;
+          finally
+            ArgumentParser.Free;
           end;
-        finally
-          ArgumentParser.Free;
-        end;
+        end
+        else
+          Log(1, 'The parser for %s is not yet implemented.', [Argument.Name], elHint);
       end;
     end;
 
-    if CurrentChild.RedirectedChild <> nil then
-      CurrentChild := CurrentChild.RedirectedChild;
+    if LastIteration then
+      Break;
 
     if not Found then
+    begin
+      RaiseExpectedError(CurrentChild);
       Exit(True);
+    end;
+
+    if ReachedEnd then
+    begin
+      LastIteration := True;
+
+      // Teleport Fix
+      if (ParseResult.Parameters.Count = 2) and
+        ParseResult.Parameters[0].Child.IsOrRedirects(Settings.Brigadier.Teleport) and
+        (ParseResult.Parameters[1] is TBrigadierEntitySelector) and
+        TBrigadierEntitySelector(ParseResult.Parameters[1]).Selector.AllowsMultiple then
+      begin
+        Log(StartMarker, 'If the entity is used as destination, the selector must not be able to match multiple entities.');
+      end;
+
+    end
+    else if CurrentChild.Literals.Count + CurrentChild.Arguments.Count = 0 then
+      RaiseExpectedError(CurrentChild)
+    else if not First.IsWhiteSpace then
+      raise EParseError.Create('Expected whitespace.');
+
+    Advance;
+
+    SkipWhitespace;
+
   end;
 
-  ParseResult.FSuggestions.Add<TBrigadierLiteral>(CurrentChild.Literals);
-  ParseResult.FSuggestions.Add<TBrigadierArgument>(CurrentChild.Arguments);
-
-  ParseResult.FSuccess := True;
+  if not ParseResult.Executable then
+    RaiseExpectedError(CurrentChild);
 end;
 
 { TBrigadierParserSettings }
@@ -789,29 +996,21 @@ begin
   // nothing by default
 end;
 
-{ EBrigadierInvalidProperties }
-
-constructor EBrigadierInvalidProperties.Create;
-begin
-  inherited Create('Invalid brigadier argument property class.');
-end;
-
 { TBrigadierParser<T> }
 
-procedure TBrigadierParser<T>.Cleanup;
+function TBrigadierParser<T>.GetSettings: TRootSettings;
 begin
-  ParseResult.Free;
-end;
-
-constructor TBrigadierParser<T>.Create(AInfo: TParseInfo; AArgument: TBrigadierArgument; AProperties: TBrigadierParserProperties);
-begin
-  SetParseResult(T.Create(AArgument));
-  inherited;
+  Result := Argument.Settings;
 end;
 
 function TBrigadierParser<T>.ParseResult: T;
 begin
   Result := T(inherited ParseResult);
+end;
+
+procedure TBrigadierParser<T>.SetParseResult(AResult: T);
+begin
+  inherited SetParseResult(AResult);
 end;
 
 { TBrigadierParser<T, P> }
@@ -824,6 +1023,99 @@ end;
 function TBrigadierParser<T, P>.Properties: P;
 begin
   Result := P(FProperties);
+end;
+
+{ TBrigadierCommandParser.TSuggestions }
+
+constructor TBrigadierCommandParser.TSuggestions.Create(AChild: TBrigadierChild);
+begin
+  FChild := AChild;
+end;
+
+procedure TBrigadierCommandParser.TSuggestions.Generate;
+var
+  Literal: TBrigadierLiteral;
+begin
+  for Literal in FChild.Literals do
+    AddSuggestion(Literal.Literal);
+end;
+
+function TBrigadierCommandParser.TSuggestions.GetTitle: string;
+begin
+  if FChild is TBrigadierRoot then
+    Result := TokenNames[TokenMainCommand]
+  else
+    Result := TokenNames[TokenSubCommand];
+end;
+
+{ TBrigadierCommandParser.TSettings }
+
+constructor TBrigadierCommandParser.TSettings.Create(ABrigadier: TBrigadierRoot);
+begin
+  FBrigadier := ABrigadier;
+end;
+
+{ TBrigadierParameter }
+
+function TBrigadierParameter.GetExecutable: Boolean;
+begin
+  Result := Child.Executable;
+end;
+
+{ TBrigadierParameter<T> }
+
+constructor TBrigadierParameter<T>.Create(AChild: T);
+begin
+  FChild := AChild;
+end;
+
+function TBrigadierParameter<T>.GetChild: TBrigadierChild;
+begin
+  Result := FChild;
+end;
+
+{ TBrigadierLiteralParameter }
+
+function TBrigadierLiteralParameter.Format: string;
+begin
+  Result := Child.Literal;
+end;
+
+{ TBrigadierSettings }
+
+destructor TBrigadierSettings.Destroy;
+begin
+  FBrigadier.Free;
+  inherited;
+end;
+
+class function TBrigadierSettings.GetDescription: string;
+begin
+  Result := 'Path configuration for commands, items and blocks json files.';
+end;
+
+class function TBrigadierSettings.GetTitle: string;
+begin
+  Result := 'Brigadier';
+end;
+
+procedure TBrigadierSettings.Reload;
+begin
+  FBrigadier.Free;
+  FBrigadier := TBrigadierRoot.Create(Root);
+end;
+
+procedure TBrigadierSettings.SetDefaults;
+begin
+  Path := DefaultPath;
+end;
+
+procedure TBrigadierSettings.SetPath(const Value: string);
+begin
+  if Path = Value then
+    Exit;
+  FPath := Value;
+  Reload;
 end;
 
 end.

@@ -32,7 +32,6 @@ type
 
   private
     FVSync: Boolean;
-    FMaxDeltaTime: Single;
     FTimer: TDeltaTimer;
     FFPSLimit: Single;
     FClearMask: TGLAttribMaskFlags;
@@ -97,7 +96,6 @@ type
     property Size: TIntVector2 read FSize write SetSize;
     property VSync: Boolean read FVSync write SetVSync;
     property ClearMask: TGLAttribMaskFlags read FClearMask write FClearMask;
-    property MaxDeltaTime: Single read FMaxDeltaTime write FMaxDeltaTime;
 
     property Timer: TDeltaTimer read FTimer;
     property DeltaTime: TSeconds read GetDeltaTime;
@@ -305,8 +303,6 @@ begin
 
   VSync := True;
   FPSLimit := Infinity;
-
-  MaxDeltaTime := 0.5;
 
   ClearMask := [amColor, amDepth];
 

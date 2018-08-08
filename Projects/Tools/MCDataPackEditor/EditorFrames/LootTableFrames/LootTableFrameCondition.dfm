@@ -12,10 +12,6 @@ object frmCondition: TfrmCondition
     Align = alClient
     Caption = 'Condition'
     TabOrder = 0
-    ExplicitLeft = 64
-    ExplicitTop = 32
-    ExplicitWidth = 185
-    ExplicitHeight = 105
     object Panel1: TPanel
       AlignWithMargins = True
       Left = 5
@@ -26,7 +22,6 @@ object frmCondition: TfrmCondition
       BevelKind = bkFlat
       BevelOuter = bvNone
       TabOrder = 0
-      ExplicitWidth = 224
       object btnMoveLeft: TButton
         AlignWithMargins = True
         Left = 3
@@ -46,7 +41,6 @@ object frmCondition: TfrmCondition
         Align = alRight
         Caption = '\/'
         TabOrder = 1
-        ExplicitLeft = 278
       end
       object btnRemove: TButton
         AlignWithMargins = True
@@ -57,8 +51,6 @@ object frmCondition: TfrmCondition
         Align = alClient
         Caption = 'Remove'
         TabOrder = 2
-        ExplicitLeft = 71
-        ExplicitWidth = 164
       end
     end
   end
