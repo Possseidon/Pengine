@@ -3,7 +3,7 @@ object frmMain: TfrmMain
   Top = 0
   Caption = 'Billiard AI'
   ClientHeight = 570
-  ClientWidth = 796
+  ClientWidth = 904
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

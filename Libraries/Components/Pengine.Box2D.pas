@@ -391,7 +391,7 @@ type
       constructor Create(AType: TType; APosition: TVector2);
 
       property &Type: TType read GetType write SetType;
-
+      
       /// <summary>The position in <c>m</c>.</summary>
       property Position: TVector2 read GetPosition write SetPosition;
       /// <summary>The rotation in radians.</summary>
@@ -490,6 +490,7 @@ type
 
   private
     FWrapper: b2BodyWrapper;
+    FUserData: TObject;
     FWorld: TWorld;
     FLocations: TLocations;
     FOnLocationChanged: TEvent;
@@ -546,6 +547,7 @@ type
     property Wrapper: b2BodyWrapper read FWrapper;
     property World: TWorld read FWorld;
     property &Type: TType read GetType write SetType;
+    property UserData: TObject read FUserData write FUserData;
 
     function GetNext: TBody;
 
@@ -633,7 +635,7 @@ type
     // TODO: ContactList
 
   end;
-
+  
   /// <summary>A base class, which can add various constraints to bodies.</summary>
   TJoint = class abstract
   public type
@@ -1330,15 +1332,20 @@ type
   TWorld = class
   public type
 
-    TDestructionListener = class(TInterfacedObject, Ib2DestructionListener)
+    TListener = class(TInterfacedObject, Ib2ContactListener)
     private
       FWorld: TWorld;
 
     public
       constructor Create(AWorld: TWorld);
 
-      procedure SayGoodbye(AJoint: b2JointHandle); overload; cdecl;
-      procedure SayGoodbye(AFixture: Pb2Fixture); overload; cdecl;
+      property World: TWorld read FWorld;
+      
+      // Ib2ContactListener
+      procedure BeginContact(AContact: b2ContactHandle); cdecl;
+      procedure EndContact(AContact: b2ContactHandle); cdecl;
+      procedure PreSolve(AContact: b2ContactHandle; AOldManifold: Pb2Manifold); cdecl;
+      procedure PostSolve(AContact: b2ContactHandle; AImpulse: Pb2ContactImpulse); cdecl;
 
     end;
 
@@ -1396,6 +1403,97 @@ type
 
     end;
 
+    TContact = record
+    private
+      FWrapper: b2ContactWrapper;
+
+      function GetChainIndexA: Integer;
+      function GetChainIndexB: Integer;
+      function GetEnabled: Boolean;
+      function GetFixtureA: TFixture;
+      function GetFixtureB: TFixture;
+      function GetFriction: Single;
+      function GetRestitution: Single;
+      function GetTangentSpeed: Single;
+      function GetTouching: Boolean;
+      procedure SetEnabled(const Value: Boolean);
+      procedure SetFriction(const Value: Single);
+      procedure SetRestition(const Value: Single);
+      procedure SetTangentSpeed(const Value: Single);
+
+    public
+      constructor Create(AWrapper: b2ContactWrapper);
+
+      property Wrapper: b2ContactWrapper read FWrapper;
+
+      property Touching: Boolean read GetTouching;
+
+      property Enabled: Boolean read GetEnabled write SetEnabled;
+
+      function GetNext: TContact;
+
+      property FixtureA: TFixture read GetFixtureA;
+      property ChainIndexA: Integer read GetChainIndexA;
+      property FixtureB: TFixture read GetFixtureB;
+      property ChainIndexB: Integer read GetChainIndexB;
+
+      property Firction: Single read GetFriction write SetFriction;
+      procedure ResetFriction;
+
+      property Restitution: Single read GetRestitution write SetRestition;
+      procedure ResetRestitution;
+
+      property TangetSpeed: Single read GetTangentSpeed write SetTangentSpeed;
+
+      // TODO: Evaluate
+      // TODO: GetManifold
+      // TODO: GetWorldManifold
+
+    end;
+
+    TContactIterator = class(TIterator, IIterator<TContact>)
+    private
+      FCurrent: TContact;
+      FNext: TContact;
+
+      function GetCurrent: TContact;
+
+    public
+      constructor Create(AWorld: TWorld);
+
+      function MoveNext: Boolean;
+
+    end;
+
+    TContactsWrapper = record
+    private
+      FWorld: TWorld;
+
+      constructor Create(AWorld: TWorld);
+
+    public
+      function First: TContact;
+      function GetEnumerator: IIterator<TContact>;
+
+    end;
+
+    TEventInfo = TSenderEventInfo<TWorld>;
+
+    TEvent = TEvent<TEventInfo>;
+
+    TContactEventInfo = class(TEventInfo)
+    private
+      FContact: TContact;
+
+    public
+      constructor Create(ASender: TWorld; AContact: TContact);
+
+      property Contact: TContact read FContact;
+
+    end;
+
+    TContactEvent = TEvent<TContactEventInfo>;
+
   public const
 
     DefaultVelocityIterations = 20;
@@ -1405,7 +1503,9 @@ type
     FWrapper: b2WorldWrapper;
     FVelocityIterations: Integer;
     FPositionIterations: Integer;
-    FDestructionListener: b2DestructionListenerWrapper;
+    FContactListener: b2ContactListenerWrapper;
+    FOnBeginContact: TContactEvent;
+    FOnEndContact: TContactEvent;
 
     function GetAllowSleeping: Boolean; inline;
     procedure SetAllowSleeping(const Value: Boolean); inline;
@@ -1413,6 +1513,9 @@ type
     procedure SetGravity(const Value: TVector2); inline;
     function GetBodies: TBodiesWrapper;
     function GetJoints: TJointsWrapper;
+
+    procedure InitializeListeners;
+    function GetContacts: TContactsWrapper;
 
   public
     constructor Create(AGravity: TVector2; AAllowSleeping: Boolean = True);
@@ -1425,6 +1528,7 @@ type
 
     property Bodies: TBodiesWrapper read GetBodies;
     property Joints: TJointsWrapper read GetJoints;
+    property Contacts: TContactsWrapper read GetContacts;
 
     property VelocityIterations: Integer read FVelocityIterations write FVelocityIterations;
     property PositionIterations: Integer read FPositionIterations write FPositionIterations;
@@ -1433,6 +1537,9 @@ type
     procedure StepNoUpdate(ATimeStep: TSeconds);
 
     procedure UpdateLocations;
+
+    function OnBeginContact: TContactEvent.TAccess;
+    function OnEndContact: TContactEvent.TAccess;
 
   end;
 
@@ -1476,8 +1583,7 @@ begin
   AllowSleeping := AAllowSleeping;
   FVelocityIterations := DefaultVelocityIterations;
   FPositionIterations := DefaultPositionIterations;
-  FDestructionListener := Create_b2DestructionListener_delegate(TDestructionListener.Create(Self));
-  Wrapper.SetDestructionListener(FDestructionListener);
+  InitializeListeners;
 end;
 
 destructor TWorld.Destroy;
@@ -1490,7 +1596,7 @@ begin
     Body.Free;
   end;
   Wrapper.Destroy;
-  Destroy_b2DestructionListener_delegate(FDestructionListener);
+  Destroy_b2ContactListener_delegate(FContactListener);
   inherited;
 end;
 
@@ -1504,6 +1610,11 @@ begin
   Result.Create(Self);
 end;
 
+function TWorld.GetContacts: TContactsWrapper;
+begin
+  Result.Create(Self);
+end;
+
 function TWorld.GetGravity: TVector2;
 begin
   Result := b2VecConv(Wrapper.GetGravity);
@@ -1512,6 +1623,25 @@ end;
 function TWorld.GetJoints: TJointsWrapper;
 begin
   Result.Create(Self);
+end;
+
+procedure TWorld.InitializeListeners;
+var
+  Listener: TListener;
+begin
+  Listener := TListener.Create(Self);
+  FContactListener := Create_b2ContactListener_delegate(Listener);
+  Wrapper.SetContactListener(FContactListener);
+end;
+
+function TWorld.OnBeginContact: TContactEvent.TAccess;
+begin
+  Result := FOnBeginContact.Access;
+end;
+
+function TWorld.OnEndContact: TContactEvent.TAccess;
+begin
+  Result := FOnEndContact.Access;
 end;
 
 procedure TWorld.SetAllowSleeping(const Value: Boolean);
@@ -2538,19 +2668,29 @@ end;
 
 { TWorld.TDestructionListener }
 
-constructor TWorld.TDestructionListener.Create(AWorld: TWorld);
+procedure TWorld.TListener.BeginContact(AContact: b2ContactHandle);
+begin
+  World.FOnBeginContact.Execute(TContactEventInfo.Create(World, TContact.Create(AContact)));
+end;
+
+constructor TWorld.TListener.Create(AWorld: TWorld);
 begin
   FWorld := AWorld;
 end;
 
-procedure TWorld.TDestructionListener.SayGoodbye(AFixture: Pb2Fixture);
-begin
-  // raise ENotImplemented.Create('Implicit destruction of fixtures.');
+procedure TWorld.TListener.EndContact(AContact: b2ContactHandle);
+begin                                                                      
+  World.FOnEndContact.Execute(TContactEventInfo.Create(World, TContact.Create(AContact)));
 end;
 
-procedure TWorld.TDestructionListener.SayGoodbye(AJoint: b2JointHandle);
+procedure TWorld.TListener.PostSolve(AContact: b2ContactHandle; AImpulse: Pb2ContactImpulse);
 begin
-  // raise ENotImplemented.Create('Implicit destruction of joints.');
+  // not implemented
+end;
+
+procedure TWorld.TListener.PreSolve(AContact: b2ContactHandle; AOldManifold: Pb2Manifold);
+begin
+  // not implemented
 end;
 
 { TDefBase }
@@ -3798,7 +3938,6 @@ end;
 function TFrictionJoint.GetLocalAnchorB: TVector2;
 begin
   Result := b2VecConv(Wrapper.GetLocalAnchorB^);
-
 end;
 
 function TFrictionJoint.GetMaxForce: Single;
@@ -3899,6 +4038,139 @@ end;
 procedure TMotorJoint.SetMaxTorque(const Value: Single);
 begin
   Wrapper.SetMaxTorque(Value);
+end;
+
+{ TWorld.TContact }
+
+constructor TWorld.TContact.Create(AWrapper: b2ContactWrapper);
+begin
+  FWrapper := AWrapper;
+end;
+
+function TWorld.TContact.GetChainIndexA: Integer;
+begin
+  Result := Wrapper.GetChildIndexA;
+end;
+
+function TWorld.TContact.GetChainIndexB: Integer;
+begin
+  Result := Wrapper.GetChildIndexB;
+end;
+
+function TWorld.TContact.GetEnabled: Boolean;
+begin
+  Result := Wrapper.IsEnabled;
+end;
+
+function TWorld.TContact.GetFixtureA: TFixture;
+begin
+  Result := TFixture(b2Fixture(Wrapper.GetFixtureA^).GetUserData);
+end;
+
+function TWorld.TContact.GetFixtureB: TFixture;
+begin
+  Result := TFixture(b2Fixture(Wrapper.GetFixtureB^).GetUserData);
+end;
+
+function TWorld.TContact.GetFriction: Single;
+begin
+  Result := Wrapper.GetFriction;
+end;
+
+function TWorld.TContact.GetNext: TContact;
+begin
+  Result.Create(Wrapper.GetNext);
+end;
+
+function TWorld.TContact.GetRestitution: Single;
+begin
+  Result := Wrapper.GetRestitution;
+end;
+
+function TWorld.TContact.GetTangentSpeed: Single;
+begin
+  Result := Wrapper.GetTangentSpeed;
+end;
+
+function TWorld.TContact.GetTouching: Boolean;
+begin
+  Result := Wrapper.IsTouching;
+end;
+
+procedure TWorld.TContact.ResetFriction;
+begin
+  Wrapper.ResetFriction;
+end;
+
+procedure TWorld.TContact.ResetRestitution;
+begin
+  Wrapper.ResetRestitution;
+end;
+
+procedure TWorld.TContact.SetEnabled(const Value: Boolean);
+begin
+  Wrapper.SetEnabled(Value);
+end;
+
+procedure TWorld.TContact.SetFriction(const Value: Single);
+begin
+  Wrapper.SetFriction(Value);
+end;
+
+procedure TWorld.TContact.SetRestition(const Value: Single);
+begin
+  Wrapper.SetRestitution(Value);
+end;
+
+procedure TWorld.TContact.SetTangentSpeed(const Value: Single);
+begin
+  Wrapper.SetTangentSpeed(Value);
+end;
+
+{ TWorld.TContactWrapper }
+
+constructor TWorld.TContactsWrapper.Create(AWorld: TWorld);
+begin
+  FWorld := AWorld;
+end;
+
+function TWorld.TContactsWrapper.First: TContact;
+begin
+  Result.Create(FWorld.Wrapper.GetContactList);
+end;
+
+function TWorld.TContactsWrapper.GetEnumerator: IIterator<TContact>;
+begin
+  Result := TContactIterator.Create(FWorld);
+end;
+
+{ TWorld.TContactIterator }
+
+constructor TWorld.TContactIterator.Create(AWorld: TWorld);
+begin
+  inherited;
+  FNext := AWorld.Contacts.First;
+end;
+
+function TWorld.TContactIterator.GetCurrent: TContact;
+begin
+  Result := FCurrent;
+end;
+
+function TWorld.TContactIterator.MoveNext: Boolean;
+begin
+  FCurrent := FNext;
+  Result := FCurrent.Wrapper.FHandle <> 0;
+  if Result then
+    FNext := FNext.GetNext;
+end;
+
+{ TWorld.TBeginContactEventInfo }
+
+constructor TWorld.TContactEventInfo.Create(ASender: TWorld; AContact: TContact);
+begin
+  inherited Create(ASender);
+  FContact := AContact;
 end;
 
 end.

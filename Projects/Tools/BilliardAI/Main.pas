@@ -9,6 +9,7 @@ uses
   System.SysUtils,
   System.Variants,
   System.Classes,
+  System.UITypes,
 
   Vcl.Graphics,
   Vcl.Controls,
@@ -46,6 +47,8 @@ type
     procedure ButtonDown(AInfo: TButtonEventInfo);
     procedure FPSUpdate;
 
+    procedure CueBallCollideBall(AInfo: TBilliard.TBall.TCollideBallEventInfo);
+
   public
     procedure Init; override;
     procedure Finalize; override;
@@ -76,9 +79,10 @@ end;
 
 procedure TfrmMain.Init;
 var
-  I: TBilliard.TBall.TIndex;
+  Button: TButton;
 begin
-  Context.VSync := False;
+  Context.VSync := True;
+  Context.Samples := Context.MaxSamples;
 
   FBilliard := TBilliard.Create;
 
@@ -97,14 +101,21 @@ begin
   FBilliardControl := FGUI.Add<TBilliardControl>;
   FBilliardControl.Billiard := FBilliard;
   FBilliardControl.Origin := Origin(oxCenter, oyBottom);
-  FBilliardControl.Location.Scale := 1.5;
+  FBilliardControl.Location.Scale := 1.7;
 
-  for I := Low(TBilliard.TBall.TIndex) to High(TBilliard.TBall.TIndex) do
-    FBilliard.Balls[I].Pos := TVector2.RandomBox * 0.25;
+  Button := FGUI.Add<TButton>;
+  Button.Origin := Origin(oxCenter, oyTop);
+  Button.Location.Scale := 0.2;
+  Button.Location.Offset := Vec2(0, -0.25);
+  Button.Width := 5;
+  Button.Caption := 'Reset';
+  Button.OnPressed.Add(FBilliard.Reset);
 
   Game.OnUpdate.Add(GameUpdate);
   Game.Timer.OnFPSUpdate.Add(FPSUpdate);
   Input.OnButtonDown.Add(ButtonDown);
+
+  FBilliard.CueBall.OnCollideBall.Add(CueBallCollideBall);
 end;
 
 procedure TfrmMain.ButtonDown(AInfo: TButtonEventInfo);
@@ -114,15 +125,23 @@ begin
   case AInfo.Button of
     mbLeft:
       begin
+        if not(Input.MousePos in FBilliardControl.Bounds) then
+          Exit;
+
         V := FBilliard.CueBall.Pos.VectorTo(FBilliardControl.InnerBounds.InvPoint[Input.MousePos]);
         FBilliard.CueBall.AngVelocity := 0;
         FBilliard.CueBall.Velocity := V * 5;
 
-        //StartTimer;
-        //FBilliard.SimulateAll(1 / 60);
-        //ShowMessage(Format('Simulation took %s.', [StopTimerGetString]));
+        // StartTimer;
+        // FBilliard.SimulateAll(1 / 60);
+        // ShowMessage(Format('Simulation took %s.', [StopTimerGetString]));
       end;
   end;
+end;
+
+procedure TfrmMain.CueBallCollideBall(AInfo: TBilliard.TBall.TCollideBallEventInfo);
+begin
+  // AInfo.Sender.Velocity := 0;
 end;
 
 procedure TfrmMain.Finalize;

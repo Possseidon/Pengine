@@ -152,7 +152,7 @@ type
 
     TBehaviorClass = class of TBehavior;
 
-    TBehaviors = TRefSet<TBehavior, TRefHasher<TBehavior>>;
+    TBehaviors = TRefArray<TBehavior>;
 
     TEventInfo = TSenderEventInfo<TSprite>;
 
@@ -737,7 +737,7 @@ var
 begin
   FLocation.Free;
   FBounds.Free;
-  for Behavior in FBehaviors do
+  for Behavior in FBehaviors.InReverse do
     Behavior.Free;
   FBehaviors.Free;
   if FRemoved then
@@ -1109,6 +1109,7 @@ procedure TSprite.TBehavior.Remove;
 begin
   FRemoved := True;
   FOnDone.Execute(TSenderEventInfo<TBehavior>.Create(Self));
+  Free;
 end;
 
 procedure TSprite.TBehavior.SetEnabled(const Value: Boolean);

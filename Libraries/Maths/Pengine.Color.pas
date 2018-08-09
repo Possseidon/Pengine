@@ -50,8 +50,11 @@ type
 
     function ToWinColor: TColor;
     function ToBytes: TBytes;
+    function ToVector4: TVector4;
+    function ToVector: TVector3;
 
     function EnsureColor: TColorRGBA;
+
   end;
 
   TColorRGB = record
@@ -458,6 +461,16 @@ begin
   Result.G := Floor(G * High(Byte) + 0.5);
   Result.B := Floor(B * High(Byte) + 0.5);
   Result.A := Floor(A * High(Byte) + 0.5);
+end;
+
+function TColorRGBA.ToVector: TVector3;
+begin
+  Result := ToVector4;
+end;
+
+function TColorRGBA.ToVector4: TVector4;
+begin
+  Result := PVector4(@Self)^;
 end;
 
 function TColorRGBA.ToWinColor: TColor;

@@ -6,7 +6,8 @@ uses
   Pengine.Vector,
   Pengine.Box2D,
   Pengine.Collections,
-  Pengine.EventHandling;
+  Pengine.EventHandling,
+  System.Math;
 
 type
 
@@ -17,13 +18,26 @@ type
 
     TBall = class
     public type
-     
+
       TIndex = 1 .. 16;
       TIndices = set of TIndex;
 
       TEventInfo = TSenderEventInfo<TBall>;
 
       TEvent = TEvent<TEventInfo>;
+
+      TCollideBallEventInfo = class(TEventInfo)
+      private
+        FOtherBall: TBall;
+
+      public
+        constructor Create(ASender: TBall; AOtherBall: TBall);
+
+        property OtherBall: TBall read FOtherBall;
+
+      end;
+
+      TCollideBallEvent = TEvent<TCollideBallEventInfo>;
 
     public const
 
@@ -42,9 +56,35 @@ type
       // Physics Properties
       Density = 1.0;
       Friction = 0.05;
-      Restitution = 0.95;
-      LinearDamping = 1.0;
+      Restitution = 0.97;
+      LinearDamping = 1.2;
       AngularDamping = 1.0;
+
+      DefaultBallGridPos: array [TIndex] of TVector2 = (
+        // Full
+        (X: 0; Y: 0),
+        (X: 0; Y: 1),
+        (X: 0; Y: 2),
+        (X: 0; Y: 3),
+        (X: 4; Y: 0),
+        (X: 1; Y: 3),
+        (X: 2; Y: 1),
+
+        // Eight
+        (X: 1; Y: 1),
+
+        // Half
+        (X: 1; Y: 0),
+        (X: 2; Y: 0),
+        (X: 3; Y: 0),
+        (X: 0; Y: 4),
+        (X: 3; Y: 1),
+        (X: 1; Y: 2),
+        (X: 2; Y: 2),
+
+        // Cue (unused)
+        (X: 0; Y: 0)
+        );
 
     private
       FBilliard: TBilliard;
@@ -53,6 +93,8 @@ type
       FPocket: TPocket;
       FOnPocketedChanged: TEvent;
       FOnLocationChanged: TEvent;
+      FOnCollideBall: TCollideBallEvent;
+      FOnCollideTable: TEvent;
 
       function GetDefaultPos: TVector2;
       function GetPos: TVector2;
@@ -66,7 +108,11 @@ type
       procedure SetPocket(const Value: TPocket);
 
       procedure BodyLocationChanged(AInfo: TBody.TEventInfo);
-      
+      function GetRotation: Single;
+      procedure SetRotation(const Value: Single);
+
+      procedure BeginContact(AInfo: TWorld.TContactEventInfo);
+
     public
       constructor Create(ABilliard: TBilliard; AIndex: Integer);
 
@@ -90,15 +136,21 @@ type
       property Body: TBody read FBody;
       property Pos: TVector2 read GetPos write SetPos;
       property Velocity: TVector2 read GetVelocity write SetVelocity;
+      property Rotation: Single read GetRotation write SetRotation;
       property AngVelocity: Single read GetAngVelocity write SetAngVelocity;
 
       property Moving: Boolean read GetMoving;
 
       procedure Hit(AForce: TVector2);
+      procedure Reset;
 
       function OnPocketedChanged: TEvent.TAccess;
       function OnLocationChanged: TEvent.TAccess;
-      
+
+      /// <remarks>Only used on the cue ball.</remarks>
+      function OnCollideBall: TCollideBallEvent.TAccess;
+      function OnCollideTable: TEvent.TAccess;
+
     end;
 
     TPocket = class
@@ -151,7 +203,7 @@ type
       MiddlePocketRadius = 0.12;
       MiddlePocketBackRadius = 0.16;
       MiddlePocketBackOffset = 0.08;
-      EdgePocketRadius = 0.2;
+      EdgePocketRadius = 0.18;
       EdgePocketBackOffset = 0.14;
 
       Restitution = 0.5;
@@ -176,14 +228,55 @@ type
     end;
 
     TPlayer = class
+    public type
+
+      TBallType = (
+        btOpen,
+        btFull,
+        btHalf
+        );
+
+      TOrder = (
+        poFirst,
+        poSecond
+        );
+
     private
+      FBilliard: TBilliard;
+      FOrder: TOrder;
+      FBallType: TBallType;
+      FMadeFoolTurn: Boolean;
+
+      function GetOtherPlayer: TPlayer;
+      procedure SetBallType(const Value: TBallType);
+
+    public
+      constructor Create(ABilliard: TBilliard; AOrder: TOrder);
+
+      property Billiard: TBilliard read FBilliard;
+
+      property OtherPlayer: TPlayer read GetOtherPlayer;
+      property Order: TOrder read FOrder;
+      function IsCurrent: Boolean;
+      property BallType: TBallType read FBallType write SetBallType;
+
+      procedure MakeTurn(AForce: TVector2);
 
     end;
+
+    TState = (
+      bsWaitingForInput,
+      bsRunning,
+      bsCuePlacement
+      );
 
   private
     FWorld: TWorld;
     FTable: TTable;
     FBalls: array [TBall.TIndex] of TBall;
+    FPlayers: array [TPlayer.TOrder] of TPlayer;
+    FCurrentPlayer: TPlayer.TOrder;
+    FState: TState;
     FOnBallPocketedChange: TBall.TEvent;
 
     function GetBall(AIndex: TBall.TIndex): TBall;
@@ -191,6 +284,8 @@ type
     function GetEightBall: TBall;
 
     procedure BallPocketedChange(AInfo: TBall.TEventInfo);
+    function GetPlayer(AOrder: TPlayer.TOrder): TPlayer;
+    function GetCurrentPlayer: TPlayer;
 
   public
     constructor Create;
@@ -198,27 +293,43 @@ type
 
     property World: TWorld read FWorld;
 
+    property Table: TTable read FTable;
     property Balls[AIndex: TBall.TIndex]: TBall read GetBall;
     property EightBall: TBall read GetEightBall;
     property CueBall: TBall read GetCueBall;
 
-    function OnBallPocketedChange: TBall.TEvent.TAccess;
-
-    property Table: TTable read FTable;
-
+    procedure HitCueBall(AForce: TVector2);
     function AllBallsStill: Boolean;
 
+    property Players[AOrder: TPlayer.TOrder]: TPlayer read GetPlayer;
+    property CurrentPlayer: TPlayer read GetCurrentPlayer;
+
     procedure Step(ATimeStep: Single);
-
     procedure SimulateAll(ATimeStep: Single);
+    procedure Reset;
 
-    procedure HitCueBall(AForce: TVector2);
+    function OnBallPocketedChange: TBall.TEvent.TAccess;
 
   end;
 
 implementation
 
 { TBilliard.TBall }
+
+procedure TBilliard.TBall.BeginContact(AInfo: TWorld.TContactEventInfo);
+var
+  Other: TObject;
+begin
+  if AInfo.Contact.FixtureA = Body.Fixtures.First then
+    Other := AInfo.Contact.FixtureB.Body.UserData
+  else if AInfo.Contact.FixtureB = Body.Fixtures.First then
+    Other := AInfo.Contact.FixtureA.Body.UserData
+  else
+    Other := nil;
+
+  if Other is TBall then
+    FOnCollideBall.Execute(TCollideBallEventInfo.Create(Self, TBall(Other)));
+end;
 
 procedure TBilliard.TBall.BodyLocationChanged(AInfo: TBody.TEventInfo);
 begin
@@ -254,6 +365,10 @@ begin
   BallShape.Free;
 
   Body.OnLocationChanged.Add(BodyLocationChanged);
+  Body.UserData := Self;
+
+  if IsCueBall then
+    Billiard.World.OnBeginContact.Add(BeginContact);
 end;
 
 function TBilliard.TBall.GetAngVelocity: Single;
@@ -262,13 +377,21 @@ begin
 end;
 
 function TBilliard.TBall.GetDefaultPos: TVector2;
+var
+  AxisSystem: TAxisSystem2;
 begin
+  if IsCueBall then
+    Exit(Vec2(-1, 0));
 
+  AxisSystem.S := Vec2(1, 0);
+  AxisSystem.DX := Vec2(Diameter, 0).Rotate(-30);
+  AxisSystem.DY := Vec2(Diameter, 0).Rotate(+30);
+  Result := AxisSystem[DefaultBallGridPos[Index]];
 end;
 
 function TBilliard.TBall.GetMoving: Boolean;
 begin
-  Result := Velocity <> 0;
+  Result := Body.Active and Body.Awake;
 end;
 
 function TBilliard.TBall.GetPocketed: Boolean;
@@ -279,6 +402,11 @@ end;
 function TBilliard.TBall.GetPos: TVector2;
 begin
   Result := Body.Position;
+end;
+
+function TBilliard.TBall.GetRotation: Single;
+begin
+  Result := Body.Rotation;
 end;
 
 function TBilliard.TBall.GetVelocity: TVector2;
@@ -311,6 +439,16 @@ begin
   Result := Index in HalfBallIndices;
 end;
 
+function TBilliard.TBall.OnCollideBall: TCollideBallEvent.TAccess;
+begin
+  Result := FOnCollideBall.Access;
+end;
+
+function TBilliard.TBall.OnCollideTable: TEvent.TAccess;
+begin
+  Result := FOnCollideTable.Access;
+end;
+
 function TBilliard.TBall.OnLocationChanged: TEvent.TAccess;
 begin
   Result := FOnLocationChanged.Access;
@@ -334,6 +472,15 @@ begin
   Result := FOnPocketedChanged.Access;
 end;
 
+procedure TBilliard.TBall.Reset;
+begin
+  Pos := DefaultPos;
+  Velocity := 0;
+  AngVelocity := 0;
+  Rotation := 0;
+  Pocket := nil;
+end;
+
 function TBilliard.TBall.OnPocket(APocket: TPocket): Boolean;
 begin
   Result := APocket.Check(Pos);
@@ -353,6 +500,7 @@ begin
   begin
     Pos := Pocket.PocketedPosition;
     Body.Active := False;
+    Velocity := 0;
   end
   else
   begin
@@ -368,9 +516,14 @@ begin
   Body.UpdateLocations;
 end;
 
+procedure TBilliard.TBall.SetRotation(const Value: Single);
+begin
+  Body.Rotation := Value;
+end;
+
 procedure TBilliard.TBall.SetVelocity(const Value: TVector2);
 begin
-  FBody.LinearVelocity := Value;
+  Body.LinearVelocity := Value;
 end;
 
 procedure TBilliard.TBall.UpdatePocketed;
@@ -398,6 +551,7 @@ end;
 constructor TBilliard.Create;
 var
   I: TBall.TIndex;
+  Order: TBilliard.TPlayer.TOrder;
 begin
   FWorld := TWorld.Create(0);
   World.VelocityIterations := 10;
@@ -408,6 +562,8 @@ begin
     FBalls[I] := TBall.Create(Self, I);
     FBalls[I].OnPocketedChanged.Add(BallPocketedChange);
   end;
+  for Order := Low(TBilliard.TPlayer.TOrder) to High(TBilliard.TPlayer.TOrder) do
+    FPlayers[Order] := TPlayer.Create(Self, Order);
 end;
 
 destructor TBilliard.Destroy;
@@ -431,19 +587,38 @@ begin
   Result := Balls[TBall.CueBallIndex];
 end;
 
+function TBilliard.GetCurrentPlayer: TPlayer;
+begin
+  Result := Players[FCurrentPlayer];
+end;
+
 function TBilliard.GetEightBall: TBall;
 begin
   Result := Balls[TBall.EightBallIndex];
 end;
 
+function TBilliard.GetPlayer(AOrder: TPlayer.TOrder): TPlayer;
+begin
+  Result := FPlayers[AOrder];
+end;
+
 procedure TBilliard.HitCueBall(AForce: TVector2);
 begin
   CueBall.Hit(AForce);
+  FState := bsRunning;
 end;
 
 function TBilliard.OnBallPocketedChange: TBall.TEvent.TAccess;
 begin
   Result := FOnBallPocketedChange.Access;
+end;
+
+procedure TBilliard.Reset;
+var
+  Ball: TBall;
+begin
+  for Ball in FBalls do
+    Ball.Reset;
 end;
 
 procedure TBilliard.SimulateAll(ATimeStep: Single);
@@ -585,6 +760,50 @@ begin
 
   if Index in Bottom then
     Result.Y := -Result.Y;
+end;
+
+{ TBilliard.TPlayer }
+
+constructor TBilliard.TPlayer.Create(ABilliard: TBilliard; AOrder: TOrder);
+begin
+  FBilliard := ABilliard;
+  FOrder := AOrder;
+end;
+
+function TBilliard.TPlayer.GetOtherPlayer: TPlayer;
+begin
+  Result := Billiard.Players[TOrder(1 - Ord(Order))];
+end;
+
+function TBilliard.TPlayer.IsCurrent: Boolean;
+begin
+  Result := Billiard.CurrentPlayer = Self;
+end;
+
+procedure TBilliard.TPlayer.MakeTurn(AForce: TVector2);
+begin
+  FMadeFoolTurn := False;
+  Billiard.HitCueBall(AForce);
+end;
+
+procedure TBilliard.TPlayer.SetBallType(const Value: TBallType);
+begin
+  FBallType := Value;
+  case BallType of
+    btOpen:
+      OtherPlayer.FBallType := btOpen;
+    btFull:
+      OtherPlayer.FBallType := btHalf;
+    btHalf:
+      OtherPlayer.FBallType := btFull;
+  end;
+end;
+
+{ TBilliard.TBall.TCollideBallEventInfo }
+
+constructor TBilliard.TBall.TCollideBallEventInfo.Create(ASender: TBall; AOtherBall: TBall);
+begin
+  inherited Create(ASender);
 end;
 
 end.

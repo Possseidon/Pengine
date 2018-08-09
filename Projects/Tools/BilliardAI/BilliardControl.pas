@@ -18,6 +18,22 @@ type
 
   EBilliardControl = class(Exception);
 
+  TBallPocketBehavior = class(TSprite.TUpdateBehavior)
+  private
+    FBall: TBilliard.TBall;
+    FReflection: Boolean;
+    FTime: Single;
+
+  protected
+    constructor Create(ASprite: TSprite; ABall: TBilliard.TBall; AReflection: Boolean); reintroduce;
+
+    property Ball: TBilliard.TBall read FBall;
+    property Reflection: Boolean read FReflection;
+
+    procedure Update; override;
+
+  end;
+
   TBilliardControl = class(TControl)
   public const
 
@@ -74,6 +90,8 @@ procedure TBilliardControl.BallLocationChanged(AInfo: TBilliard.TBall.TEventInfo
 begin
   with AInfo.Sender do
   begin
+    if Pocketed then
+      Exit;
     FBallReflectionSprites[Index].Location.Pos := Body.Position;
     FBallSprites[Index].Location.Rotation := Body.Rotation;
   end;
@@ -85,13 +103,21 @@ begin
   begin
     if Pocketed then
     begin
+      FBallSprites[Index].ZOrder := 0;
+      FBallReflectionSprites[Index].ZOrder := 0;
+      TBallPocketBehavior.Create(FBallSprites[Index], AInfo.Sender, False);
+      TBallPocketBehavior.Create(FBallReflectionSprites[Index], AInfo.Sender, True);
+      {
       FBallSprites[Index].Color := ColorRGB(0.4, 0.4, 0.6);
       FBallReflectionSprites[Index].Color := ColorRGB(0.4, 0.4, 0.6);
       FBallReflectionSprites[Index].Location.Scale := TBilliard.TBall.Diameter * 0.85;
+      }
     end
     else
     begin
+      FBallSprites[Index].ZOrder := 0.1;
       FBallSprites[Index].Color := ColorWhite;
+      FBallReflectionSprites[Index].ZOrder := 0.1;
       FBallReflectionSprites[Index].Color := ColorWhite;
       FBallReflectionSprites[Index].Location.Scale := TBilliard.TBall.Diameter;
     end;
@@ -172,6 +198,7 @@ begin
   Billiard.OnBallPocketedChange.Add(BallPocketedChange);
 
   FTableSprite := Add<TSprite>(TableTexture);
+  FTableSprite.ZOrder := -0.1;
   for I := Low(TBilliard.TBall.TIndex) to High(TBilliard.TBall.TIndex) do
   begin
     FBallSprites[I] := Add<TSprite>(BallTexture.SubTiles[I - 1]);
@@ -179,10 +206,10 @@ begin
     FBallReflectionSprites[I] := Add<TSprite>(BallReflectionTexture);
     FBallReflectionSprites[I].Location.Scale := TBilliard.TBall.Diameter;
     FBallReflectionSprites[I].Location.Parent := FInnerLocation;
-
     FBallSprites[I].Location.Parent := FBallReflectionSprites[I].Location;
 
     FBilliard.Balls[I].OnLocationChanged.Add(BallLocationChanged);
+
   end;
 end;
 
@@ -193,6 +220,47 @@ begin
   FTableTexture := Value;
   if FTableSprite <> nil then
     FTableSprite.TextureTile := TableTexture;
+end;
+
+{ TBallPocketBehavior }
+
+constructor TBallPocketBehavior.Create(ASprite: TSprite; ABall: TBilliard.TBall; AReflection: Boolean);
+begin
+  inherited Create(ASprite);
+  FBall := ABall;
+  FReflection := AReflection;
+end;
+
+procedure TBallPocketBehavior.Update;
+const
+  TargetColor: TColorRGB = (R: 0.4; G: 0.4; B: 0.6);
+  TargetScale = TBilliard.TBall.Diameter * 0.85;
+begin
+  if not Ball.Pocketed then
+  begin
+    Remove;
+    Exit;
+  end;
+
+  FTime := FTime + Game.DeltaTime;
+  if FTime > 1.0 then
+  begin
+    Sprite.Color := TargetColor;
+    if Reflection then
+    begin
+      Sprite.Location.Pos := Ball.Pocket.PocketedPosition;
+      Sprite.Location.Scale := TargetScale;
+    end;
+    Remove;
+    Exit;
+  end;
+
+  Sprite.Color := Sprite.Color - (Sprite.Color - TargetColor) * Game.DeltaTime * 10;
+  if Reflection then
+  begin
+    Sprite.Location.Pos := Sprite.Location.Pos - (Sprite.Location.Pos - Ball.Pocket.PocketedPosition) * Game.DeltaTime * 20;
+    Sprite.Location.Scale := Sprite.Location.Scale - (Sprite.Location.Scale - TargetScale) * Game.DeltaTime * 10;
+  end;
 end;
 
 end.

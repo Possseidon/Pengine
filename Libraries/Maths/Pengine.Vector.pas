@@ -1722,6 +1722,7 @@ type
   PBounds2 = ^TBounds2;
   PBounds3 = ^TBounds3;
 
+  PVector4 = ^TVector4;
   PVector3 = ^TVector3;
   PVector2 = ^TVector2;
   PVectorDir = ^TVectorDir;
