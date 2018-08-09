@@ -17,7 +17,8 @@ uses
   Pengine.TimeManager,
   Pengine.Vector,
   Pengine.CollectionInterfaces,
-  Pengine.Collections;
+  Pengine.Collections,
+  Pengine.EventHandling;
 
 type
 
@@ -483,10 +484,15 @@ type
 
     TLocations = TRefArray<TLocation2>;
 
+    TEventInfo = TSenderEventInfo<TBody>;
+
+    TEvent = TEvent<TEventInfo>;
+
   private
     FWrapper: b2BodyWrapper;
     FWorld: TWorld;
     FLocations: TLocations;
+    FOnLocationChanged: TEvent;
 
     function GetFixtures: TFixturesWrapper;
 
@@ -616,6 +622,8 @@ type
     procedure AddLocation(ALocation: TLocation2);
     /// <summary>Removes a location from being automatically updated by the Step function.</summary>
     procedure RemoveLocation(ALocation: TLocation2);
+
+    function OnLocationChanged: TEvent.TAccess;
 
     procedure UpdateLocations;
 
@@ -1390,8 +1398,8 @@ type
 
   public const
 
-    DefaultVelocityIterations = 10;
-    DefaultPositionIterations = 5;
+    DefaultVelocityIterations = 20;
+    DefaultPositionIterations = 10;
 
   private
     FWrapper: b2WorldWrapper;
@@ -1422,6 +1430,9 @@ type
     property PositionIterations: Integer read FPositionIterations write FPositionIterations;
 
     procedure Step(ATimeStep: TSeconds);
+    procedure StepNoUpdate(ATimeStep: TSeconds);
+
+    procedure UpdateLocations;
 
   end;
 
@@ -1514,10 +1525,20 @@ begin
 end;
 
 procedure TWorld.Step(ATimeStep: TSeconds);
+begin
+  Wrapper.Step(ATimeStep, VelocityIterations, PositionIterations);
+  UpdateLocations;
+end;
+
+procedure TWorld.StepNoUpdate(ATimeStep: TSeconds);
+begin
+  Wrapper.Step(ATimeStep, VelocityIterations, PositionIterations);
+end;
+
+procedure TWorld.UpdateLocations;
 var
   Body: TBody;
 begin
-  Wrapper.Step(ATimeStep, VelocityIterations, PositionIterations);
   for Body in Bodies do
     Body.UpdateLocations;
 end;
@@ -1732,6 +1753,11 @@ begin
   Result := b2VecConv(Wrapper.GetWorldVector(b2VecConv(ALocalVector)));
 end;
 
+function TBody.OnLocationChanged: TEvent.TAccess;
+begin
+  Result := FOnLocationChanged.Access;
+end;
+
 procedure TBody.SetActive(const Value: Boolean);
 begin
   Wrapper.SetActive(Value);
@@ -1811,6 +1837,8 @@ begin
     Location.Pos := Position;
     Location.Rotation := Rotation;
   end;
+  if FOnLocationChanged.HasHandler then
+    FOnLocationChanged.Execute(TEventInfo.Create(Self));
 end;
 
 procedure TBody.RemoveLocation(ALocation: TLocation2);

@@ -5,7 +5,7 @@
         <FrameworkType>VCL</FrameworkType>
         <MainSource>BilliardAI.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>1</TargetedPlatforms>
         <AppType>Application</AppType>
@@ -110,10 +110,6 @@
             <ResourceType>RCDATA</ResourceType>
             <ResourceId>BILLIARD_BALLS_INFO</ResourceId>
         </RcItem>
-        <RcItem Include="Data\Textures\BilliardBalls.png">
-            <ResourceType>RCDATA</ResourceType>
-            <ResourceId>BILLIARD_BALLS</ResourceId>
-        </RcItem>
         <RcItem Include="Data\Textures\BilliardTable.png">
             <ResourceType>RCDATA</ResourceType>
             <ResourceId>BILLIARD_TABLE</ResourceId>
@@ -137,6 +133,23 @@
             <ResourceType>RCDATA</ResourceType>
             <ResourceId>SPRITE_VS</ResourceId>
         </RcItem>
+        <RcItem Include="Data\Textures\stone_button.info">
+            <ContainerId>ResourceItem</ContainerId>
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>STONE_BUTTON_INFO</ResourceId>
+        </RcItem>
+        <RcItem Include="Data\Textures\stone_button.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>STONE_BUTTON</ResourceId>
+        </RcItem>
+        <RcItem Include="Data\Textures\BilliardBallReflection.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>BILLIARD_BALL_REFLECTION</ResourceId>
+        </RcItem>
+        <RcItem Include="Data\Textures\BilliardBallsNoReflection.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>BILLIARD_BALLS</ResourceId>
+        </RcItem>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -159,13 +172,7 @@
                 </Source>
             </Delphi.Personality>
             <Deployment Version="3">
-                <DeployFile LocalName="Data\Textures\BilliardBalls.png" Configuration="Debug" Class="ProjectFile">
-                    <Platform Name="Win32">
-                        <RemoteDir>.\</RemoteDir>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="Data\Shaders\sprite.vs" Configuration="Debug" Class="ProjectFile">
+                <DeployFile LocalName="Data\Textures\BilliardBallsNoReflection.png" Configuration="Debug" Class="ProjectFile">
                     <Platform Name="Win32">
                         <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
@@ -177,13 +184,7 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="Win32\Debug\BilliardAI.exe" Configuration="Debug" Class="ProjectOutput">
-                    <Platform Name="Win32">
-                        <RemoteName>BilliardAI.exe</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="Data\Shaders\sprite.fs" Configuration="Debug" Class="ProjectFile">
+                <DeployFile LocalName="Data\Textures\stone_button.png" Configuration="Debug" Class="ProjectFile">
                     <Platform Name="Win32">
                         <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
@@ -195,13 +196,43 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
+                <DeployFile LocalName="Win32\Debug\BilliardAI.exe" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>BilliardAI.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Data\Textures\font.info" Configuration="Debug" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Data\Shaders\sprite.vs" Configuration="Debug" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Data\Shaders\sprite.fs" Configuration="Debug" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="Data\Textures\BilliardTable.png" Configuration="Debug" Class="ProjectFile">
                     <Platform Name="Win32">
                         <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="Data\Textures\font.info" Configuration="Debug" Class="ProjectFile">
+                <DeployFile LocalName="Data\Textures\BilliardBallReflection.png" Configuration="Debug" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Data\Textures\stone_button.info" Configuration="Debug" Class="ProjectFile">
                     <Platform Name="Win32">
                         <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
