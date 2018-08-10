@@ -42,12 +42,12 @@ type
     FGUI: TGUI;
     FBilliard: TBilliard;
     FBilliardControl: TBilliardControl;
+    FInfoLabel: TLabel;
 
     procedure GameUpdate;
     procedure ButtonDown(AInfo: TButtonEventInfo);
     procedure FPSUpdate;
-
-    procedure CueBallCollideBall(AInfo: TBilliard.TBall.TCollideBallEventInfo);
+    procedure StateChanged;
 
   public
     procedure Init; override;
@@ -65,15 +65,7 @@ implementation
 { TfrmMain }
 
 procedure TfrmMain.GameUpdate;
-var
-  V: TVector2;
 begin
-  if Input.ButtonDown(mbRight) then
-  begin
-    V := FBilliard.CueBall.Pos.VectorTo(FBilliardControl.InnerBounds.InvPoint[Input.MousePos]);
-    V := V.Normalize * 0.5;
-    FBilliard.HitCueBall(V);
-  end;
   FBilliard.Step(DeltaTime);
 end;
 
@@ -83,8 +75,6 @@ var
 begin
   Context.VSync := True;
   Context.Samples := Context.MaxSamples;
-
-  FBilliard := TBilliard.Create;
 
   FSpriteGLProgram := TSpriteGLProgram.Make(GLState.ResParam);
 
@@ -98,15 +88,22 @@ begin
   FGUI.TextureAtlas.AddFromResource(TButton.DefaultTextureName, 'STONE_BUTTON');
   FGUI.TextureAtlas.AddFromResource('font', 'FONT');
 
+  FInfoLabel := FGUI.Add<TLabel>;
+  FInfoLabel.Origin := Origin(oxLeft, oyTop);
+  FInfoLabel.Location.Scale := 0.2;
+  FInfoLabel.Location.Offset := Vec2(0.25, -0.25);
+
+  FBilliard := TBilliard.Create;
+
   FBilliardControl := FGUI.Add<TBilliardControl>;
   FBilliardControl.Billiard := FBilliard;
   FBilliardControl.Origin := Origin(oxCenter, oyBottom);
   FBilliardControl.Location.Scale := 1.7;
 
   Button := FGUI.Add<TButton>;
-  Button.Origin := Origin(oxCenter, oyTop);
+  Button.Origin := Origin(oxRight, oyTop);
   Button.Location.Scale := 0.2;
-  Button.Location.Offset := Vec2(0, -0.25);
+  Button.Location.Offset := -0.25;
   Button.Width := 5;
   Button.Caption := 'Reset';
   Button.OnPressed.Add(FBilliard.Reset);
@@ -114,34 +111,52 @@ begin
   Game.OnUpdate.Add(GameUpdate);
   Game.Timer.OnFPSUpdate.Add(FPSUpdate);
   Input.OnButtonDown.Add(ButtonDown);
+  FBilliard.OnStateChange.Add(StateChanged);
 
-  FBilliard.CueBall.OnCollideBall.Add(CueBallCollideBall);
+end;
+
+procedure TfrmMain.StateChanged;
+begin
+  case FBilliard.State of
+    bsWaitingForInput:
+      case FBilliard.CurrentPlayer.Order of
+        poFirst:
+          FInfoLabel.Caption := 'Player 1 Turn';
+        poSecond:
+          FInfoLabel.Caption := 'Player 2 Turn';
+      end;
+    bsRunning:
+      FInfoLabel.Caption := '...';
+    bsCuePlacement:
+      case FBilliard.CurrentPlayer.Order of
+        poFirst:
+          FInfoLabel.Caption := 'Player 1 place Cue';
+        poSecond:
+          FInfoLabel.Caption := 'Player 2 place Cue';
+      end;
+  end;
 end;
 
 procedure TfrmMain.ButtonDown(AInfo: TButtonEventInfo);
 var
   V: TVector2;
 begin
-  case AInfo.Button of
-    mbLeft:
+  case FBilliard.State of
+    bsWaitingForInput:
+      if AInfo.Button = mbLeft then
       begin
-        if not(Input.MousePos in FBilliardControl.Bounds) then
+        if not FBilliardControl.MouseHovered then
           Exit;
 
         V := FBilliard.CueBall.Pos.VectorTo(FBilliardControl.InnerBounds.InvPoint[Input.MousePos]);
-        FBilliard.CueBall.AngVelocity := 0;
-        FBilliard.CueBall.Velocity := V * 5;
+        FBilliard.CurrentPlayer.MakeTurn(V * 5);
 
-        // StartTimer;
-        // FBilliard.SimulateAll(1 / 60);
-        // ShowMessage(Format('Simulation took %s.', [StopTimerGetString]));
       end;
+    bsRunning:
+      ;
+    bsCuePlacement:
+      ;
   end;
-end;
-
-procedure TfrmMain.CueBallCollideBall(AInfo: TBilliard.TBall.TCollideBallEventInfo);
-begin
-  // AInfo.Sender.Velocity := 0;
 end;
 
 procedure TfrmMain.Finalize;

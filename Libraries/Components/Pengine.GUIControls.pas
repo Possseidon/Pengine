@@ -239,7 +239,7 @@ begin
   for I := 0 to FChars.Count - 1 do
   begin
     FChars[I].BeginUpdate;
-    FChars[I].Char := FCaption[I + 1];
+    FChars[I].Char := Caption[I + 1];
     if I = 0 then
       Offset := Offset + FChars[I].Width / 2
     else

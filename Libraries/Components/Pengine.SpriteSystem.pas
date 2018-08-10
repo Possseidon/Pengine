@@ -766,6 +766,7 @@ begin
   if FRemoved then
     raise ESpriteRemovedAlready.Create;
   FRemoved := True;
+  Location.Parent := nil;
   // call changed, to make sure, the vbo is update and the sprite is gone in the next frame
   Changed([]);
   FOnRemove.Execute(TEventInfo.Create(Self));
