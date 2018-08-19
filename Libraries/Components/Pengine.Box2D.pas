@@ -1340,7 +1340,7 @@ type
       constructor Create(AWorld: TWorld);
 
       property World: TWorld read FWorld;
-      
+
       // Ib2ContactListener
       procedure BeginContact(AContact: b2ContactHandle); cdecl;
       procedure EndContact(AContact: b2ContactHandle); cdecl;
@@ -1506,6 +1506,8 @@ type
     FContactListener: b2ContactListenerWrapper;
     FOnBeginContact: TContactEvent;
     FOnEndContact: TContactEvent;
+    FOnPreSolve: TContactEvent;
+    FOnPostSolve: TContactEvent;
 
     function GetAllowSleeping: Boolean; inline;
     procedure SetAllowSleeping(const Value: Boolean); inline;
@@ -1540,6 +1542,8 @@ type
 
     function OnBeginContact: TContactEvent.TAccess;
     function OnEndContact: TContactEvent.TAccess;
+    function OnPreSolve: TContactEvent.TAccess;
+    function OnPostSolve: TContactEvent.TAccess;
 
   end;
 
@@ -1642,6 +1646,16 @@ end;
 function TWorld.OnEndContact: TContactEvent.TAccess;
 begin
   Result := FOnEndContact.Access;
+end;
+
+function TWorld.OnPostSolve: TContactEvent.TAccess;
+begin
+  Result := FOnPostSolve.Access;
+end;
+
+function TWorld.OnPreSolve: TContactEvent.TAccess;
+begin
+  Result := FOnPreSolve.Access;
 end;
 
 procedure TWorld.SetAllowSleeping(const Value: Boolean);
@@ -2685,12 +2699,12 @@ end;
 
 procedure TWorld.TListener.PostSolve(AContact: b2ContactHandle; AImpulse: Pb2ContactImpulse);
 begin
-  // not implemented
+  World.FOnPostSolve.Execute(TContactEventInfo.Create(World, TContact.Create(AContact)));  
 end;
 
 procedure TWorld.TListener.PreSolve(AContact: b2ContactHandle; AOldManifold: Pb2Manifold);
 begin
-  // not implemented
+  World.FOnPreSolve.Execute(TContactEventInfo.Create(World, TContact.Create(AContact)));  
 end;
 
 { TDefBase }

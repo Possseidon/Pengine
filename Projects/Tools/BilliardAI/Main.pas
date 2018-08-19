@@ -112,6 +112,7 @@ begin
   Game.Timer.OnFPSUpdate.Add(FPSUpdate);
   Input.OnButtonDown.Add(ButtonDown);
   FBilliard.OnStateChange.Add(StateChanged);
+  StateChanged;
 
 end;
 
@@ -126,7 +127,7 @@ begin
           FInfoLabel.Caption := 'Player 2 Turn';
       end;
     bsRunning:
-      FInfoLabel.Caption := '...';
+      FInfoLabel.Caption := 'Wating for balls...';
     bsCuePlacement:
       case FBilliard.CurrentPlayer.Order of
         poFirst:
