@@ -88,6 +88,14 @@ object frmMain: TfrmMain
     Font.Pitch = fpFixed
     Font.Style = []
     TabOrder = 1
+    CodeFolding.GutterShapeSize = 11
+    CodeFolding.CollapsedLineColor = clGrayText
+    CodeFolding.FolderBarLinesColor = clGrayText
+    CodeFolding.IndentGuidesColor = clGray
+    CodeFolding.IndentGuides = True
+    CodeFolding.ShowCollapsedLine = False
+    CodeFolding.ShowHintMark = True
+    UseCodeFolding = False
     Gutter.AutoSize = True
     Gutter.DigitCount = 2
     Gutter.Font.Charset = ANSI_CHARSET

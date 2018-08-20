@@ -108,7 +108,7 @@ type
     TTableEntry = class(TEntry)
     private
       FEntries: TRefArray<TEntry>;
-        function GetEntry(AIndex: Integer): TEntry;
+      function GetEntry(AIndex: Integer): TEntry;
 
     public
       constructor Create(AName: TLuaString = '');
@@ -352,9 +352,10 @@ var
 begin
   StopWatch.Start;
   Result := False;
-  while not FThread.Started do TThread.Yield;
+  while not FThread.Started do
+    TThread.Yield;
   FThread.Start(AParams, AResults);
-  while StopWatch.Time < ATimeOut do
+  while StopWatch.Time < ATimeout do
   begin
     if FThread.Done then
     begin
@@ -463,8 +464,7 @@ constructor TLua.TLuaThread.Create(ALua: TLua);
 begin
   inherited Create;
   FLua := ALua;
-  TSimpleEvent
-  FStartWorkEvent := TEvent.Create;
+  FStartWorkEvent := TEvent.Create(nil, False, False, '');
 end;
 
 destructor TLua.TLuaThread.Destroy;
@@ -484,7 +484,6 @@ begin
     FStartWorkEvent.WaitFor;
     if Terminated then
       Break;
-    FStartWorkEvent.ResetEvent;
 
     Err := FLua.L.PCall(FParams, FResults, 0);
 
