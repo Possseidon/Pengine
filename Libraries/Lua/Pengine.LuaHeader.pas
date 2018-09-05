@@ -6,6 +6,7 @@ uses
   System.SysUtils,
   System.AnsiStrings,
 
+  Pengine.Utility,
   Pengine.LuaConf;
 
 const

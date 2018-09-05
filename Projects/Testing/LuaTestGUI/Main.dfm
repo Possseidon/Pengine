@@ -5,6 +5,7 @@ object frmMain: TfrmMain
   ClientHeight = 383
   ClientWidth = 504
   Color = clBtnFace
+  DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
@@ -56,6 +57,7 @@ object frmMain: TfrmMain
       Width = 61
       Height = 22
       Anchors = [akTop, akRight]
+      Enabled = False
       MaxValue = 60000
       MinValue = 1
       TabOrder = 1
@@ -68,8 +70,6 @@ object frmMain: TfrmMain
       Height = 17
       Anchors = [akTop, akRight]
       Caption = 'Timeout (ms):'
-      Checked = True
-      State = cbChecked
       TabOrder = 2
       OnClick = cbTimeoutClick
     end
@@ -105,12 +105,7 @@ object frmMain: TfrmMain
     Gutter.Font.Style = []
     Gutter.ShowLineNumbers = True
     Lines.Strings = (
-      'x = {}'
-      'for i = 1, 999990 do'
-      '  x[i] = i'
-      'end'
-      ''
-      'table.unpack(x)')
+      'print(first.test)')
     Options = [eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabsToSpaces]
     TabWidth = 2
     WantTabs = True

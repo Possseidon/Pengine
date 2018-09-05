@@ -23,13 +23,33 @@ uses
 
   SynEdit,
 
+  Pengine.Utility,
   Pengine.Lua,
   Pengine.LuaHeader,
+  Pengine.LuaObject,
   Pengine.TimeManager,
   Pengine.LuaDefaultLibs,
   Pengine.Collections;
 
 type
+
+  TLuaTestObject = class
+  private
+    FTest: string;
+    FA: Integer;
+    FB: Double;
+    FBool: Boolean;
+
+  public
+    constructor Create(ATest: string);
+
+  published
+    property Test: string read FTest;
+    property A: Integer read FA write FA;
+    property B: Double read FB write FB;
+    property Bool: Boolean read FBool write FBool;
+
+  end;
 
   TLuaLibHelp = class(TLuaLib)
   private
@@ -55,6 +75,7 @@ type
     procedure actRunExecute(Sender: TObject);
   private
     FLua: TLua;
+    FObjects: array [0 .. 3] of TLuaTestObject;
 
   end;
 
@@ -70,7 +91,11 @@ var
   Err: TLuaPCallError;
   NoTimeout: Boolean;
 begin
+  TLuaObject.Push(FLua.L, Self);
+  FLua.L.SetGlobal('form');
+
   StartTimer;
+
   FLua.L.GetGlobal('code');
   if cbTimeout.Checked then
     NoTimeout := FLua.CallTimeout(0, 0, seTimeout.Value / 1000, Err)
@@ -111,11 +136,16 @@ begin
   FLua.AddLib(TLuaLibTable);
   FLua.AddLib(TLuaLibMath);
   FLua.AddLib(TLuaLibCoroutine);
+
   seCodeChange(nil);
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
+var
+  I: Integer;
 begin
+  for I := 0 to 0 do
+    FObjects[I].Free;
   FLua.Free;
 end;
 
@@ -153,6 +183,15 @@ begin
   L.CheckEnd(2);
   MessageBoxA(0, L.ToString, 'print', 0);
   Result := 0;
+end;
+
+{ TLuaTestObject }
+
+constructor TLuaTestObject.Create(ATest: string);
+begin
+  FTest := ATest;
+  FA := 42;
+  FB := 2.5;
 end;
 
 end.

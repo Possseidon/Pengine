@@ -348,7 +348,7 @@ end;
 function TLua.CallTimeout(AParams, AResults: Integer; ATimeout: Single; out AError: TLuaPCallError): Boolean;
 var
   StopWatch: TStopWatch;
-  Pair: TPair<TClass, TLuaLib>;
+  Lib: TLuaLib;
 begin
   StopWatch.Start;
   Result := False;
@@ -374,8 +374,8 @@ begin
 
   MakeLuaState;
 
-  for Pair in FLibs do
-    Pair.Value.ChangeLuaState(L);
+  for Lib in FLibs.Values do
+    Lib.ChangeLuaState(L);
 end;
 
 procedure TLua.CallUnlocked(AParams, AResults: Integer);
