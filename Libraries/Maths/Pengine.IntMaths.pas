@@ -11,6 +11,8 @@ uses
 
 type
 
+  // TODO: Big todo! Make bounds [C1, C2] instead of [C1, C2) as it is not cabable of representing every int value
+
   /// <summary>A vertex-index for a triangle in range: <c>[0, 3)</c></summary>
   TTriangleIndex = 0 .. 2;
   /// <summary>A vertex-index for a render-quad in range: <c>[0, 6)</c></summary>
@@ -1756,7 +1758,7 @@ end;
 
 function TIntBounds1.ToString: string;
 begin
-  Result := Format('<%d~%d>', [C1, C2]);
+  Result := Format('[%d, %d]', [C1, C2 - 1]);
 end;
 
 class operator TIntBounds1.Implicit(ABounds: TIntBounds1): string;
@@ -1947,7 +1949,7 @@ end;
 
 function TIntBounds2.ToString: string;
 begin
-  Result := Format('<%s~%s>', [C1.ToString, C2.ToString]);
+  Result := Format('[%s, %s]', [C1.ToString, (C2 - 1).ToString]);
 end;
 
 class operator TIntBounds2.Implicit(ABounds: TIntBounds2): string;
@@ -2225,7 +2227,7 @@ end;
 
 function TIntBounds3.ToString: string;
 begin
-  Result := Format('<%s~%s>', [C1.ToString, C2.ToString]);
+  Result := Format('[%s, %s]', [C1.ToString, (C2 - 1).ToString]);
 end;
 
 class operator TIntBounds3.Implicit(ABounds: TIntBounds3): string;

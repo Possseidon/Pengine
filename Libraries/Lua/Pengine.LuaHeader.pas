@@ -299,11 +299,12 @@ type
     function IsUserdata(index: Integer = -1): LongBool; inline;
     function Type_X(index: Integer = -1): Integer; inline;
     function &Type(index: Integer = -1): TLuaType; inline;
-    function TypeName_X(tp: Integer = -1): PAnsiChar; inline;
+    function TypeName_X(tp: Integer): PAnsiChar; inline;
     function TypeName(tp: TLuaType): PAnsiChar; inline;
 
     function ToNumberX(isnum: PLongBool; index: Integer = -1): TLuaNumber; inline;
-    function ToIntegerX(isnum: PLongBool; index: Integer = -1): TLuaInteger; inline;
+    function ToIntegerX(isnum: PLongBool; index: Integer = -1): TLuaInteger; overload; inline;
+    function ToIntegerX(var AResult: TLuaInteger; index: Integer = -1): Boolean; overload; inline;
     function ToBoolean(index: Integer = -1): LongBool; inline;
     function ToLString(len: PNativeUInt; index: Integer = -1): PAnsiChar; inline;
     function RawLen(index: Integer = -1): NativeUInt; inline;
@@ -326,7 +327,8 @@ type
     function PushLString(s: PAnsiChar; len: NativeUInt): PAnsiChar; inline;
     function PushVFString(fmt, argp: PAnsiChar): PAnsiChar; inline;
     function PushFString(fmt: PAnsiChar; args: array of const): PAnsiChar;
-    function PushString(s: PAnsiChar): PAnsiChar; inline;
+    function PushString(s: PAnsiChar): PAnsiChar; overload; inline;
+    function PushString(s: AnsiString): PAnsiChar; overload; inline;
     procedure PushCClosure(fn: lua_CFunction; n: Integer); inline;
     procedure PushBoolean(b: LongBool); inline;
     procedure PushLightuserdata(p: Pointer); inline;
@@ -376,7 +378,7 @@ type
     function Resume_X(from: TLuaState; nargs: Integer): Integer; inline;
     function Resume(from: TLuaState; nargs: Integer): TLuaStatus; inline;
     function Status_X: Integer; inline;
-    function Status: TLuaStatus; inline;
+    function status: TLuaStatus; inline;
     function IsYieldable: LongBool; inline;
     function Yield(nresults: Integer): Integer; inline;
 
@@ -387,7 +389,7 @@ type
     function Error_X: Integer; inline;
     function Next(index: Integer): LongBool; inline;
     procedure Concat(n: Integer); inline;
-    procedure Len(index: Integer); inline;
+    procedure len(index: Integer); inline;
     function StringToNumber(s: PAnsiChar): NativeUInt; inline;
 
     function GetAllocF(ud: PPointer): TLuaAlloc; inline;
@@ -932,8 +934,8 @@ var
   R: TReaderRec;
 begin
   R.Done := False;
-  R.Data := PPAnsiChar(@AString)^;
-  Result := Load(Reader, @R, PPAnsiChar(@AChunkName)^, 't');
+  R.Data := PAnsiChar(AString);
+  Result := Load(Reader, @R, PAnsiChar(AChunkName), 't');
 end;
 
 procedure TLuaStateRec.Where(ALevel: Integer);
@@ -955,7 +957,7 @@ end;
 function TLuaStateRec.Error(AMessage: AnsiString; ALevel: Integer): Integer;
 begin
   Where(ALevel);
-  PushString(PPAnsiChar(@AMessage)^);
+  PushString(AMessage);
   Concat(2);
   Result := Error_X;
 end;
@@ -967,13 +969,13 @@ end;
 
 function TLuaStateRec.FormatStack: AnsiString;
 var
-  I: Integer;
+  i: Integer;
 begin
   Result := '';
-  for I := Top downto 1 do
+  for i := Top downto 1 do
   begin
-    PushValue(I);
-    Result := Result + System.AnsiStrings.Format('[%d/-%d] %s', [I, Top - I, ToString]) + #10;
+    PushValue(i);
+    Result := Result + System.AnsiStrings.Format('[%d/-%d] %s', [i, Top - i, ToString]) + #10;
     Pop;
   end;
 end;
@@ -1010,7 +1012,7 @@ end;
 function TLuaStateRec.CheckType(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean): TLuaType;
 begin
   Result := &Type(AIndex);
-  if (Result = ltNone) and not ANone or (Result <> ltNone) and not (Result in ATypes) then
+  if (Result = ltNone) and not ANone or (Result <> ltNone) and not(Result in ATypes) then
     ErrorFmt('arg #%d: %s expected, got %s', [AIndex, FormatTypes(ATypes, ANone), TypeName(Result)]);
 end;
 
@@ -1124,7 +1126,7 @@ end;
 
 function TLuaStateRec.Compare(index1, index2: Integer; op: TLuaCompareOp): LongBool;
 begin
-  Result := lua_compare(@Self, index1, index2, Ord(Op));
+  Result := lua_compare(@Self, index1, index2, Ord(op));
 end;
 
 function TLuaStateRec.CompareX(index1, index2, op: Integer): LongBool;
@@ -1140,6 +1142,11 @@ end;
 procedure TLuaStateRec.PushNumber(n: lua_Number);
 begin
   lua_pushnumber(@Self, n);
+end;
+
+function TLuaStateRec.PushString(s: AnsiString): PAnsiChar;
+begin
+  Result := PushString(PAnsiChar(s));
 end;
 
 procedure TLuaStateRec.PushInteger(n: lua_Integer);
@@ -1357,7 +1364,7 @@ begin
   Result := lua_resume(@Self, from, nargs);
 end;
 
-function TLuaStateRec.Status: TLuaStatus;
+function TLuaStateRec.status: TLuaStatus;
 begin
   Result := TLuaStatus(Status_X);
 end;
@@ -1397,7 +1404,7 @@ begin
   lua_concat(@Self, n);
 end;
 
-procedure TLuaStateRec.Len(index: Integer);
+procedure TLuaStateRec.len(index: Integer);
 begin
   lua_len(@Self, index);
 end;
@@ -1432,6 +1439,11 @@ begin
   Result := lua_tointeger(@Self, index);
 end;
 
+function TLuaStateRec.ToIntegerX(var AResult: TLuaInteger; index: Integer): Boolean;
+begin
+  AResult := ToIntegerX(@Result, index);
+end;
+
 procedure TLuaStateRec.Pop(n: Integer);
 begin
   lua_pop(@Self, n);
@@ -1452,8 +1464,7 @@ begin
   lua_pushcfunction(@Self, f);
 end;
 
-function TLuaStateRec.PushFString(fmt: PAnsiChar;
-  args: array of const): PAnsiChar;
+function TLuaStateRec.PushFString(fmt: PAnsiChar; args: array of const): PAnsiChar;
 var
   list: array of PAnsiChar;
   i, L: Integer;
@@ -1475,7 +1486,7 @@ begin
         vtString:
           begin
             s := args[i].VString^;
-            list[i] := PPAnsiChar(@s)^;
+            list[i] := PAnsiChar(s);
           end;
         vtPointer:
           list[i] := PAnsiChar(args[i].VPointer);
@@ -1488,7 +1499,7 @@ begin
         vtPWideChar:
           begin
             s := AnsiString(WideString(args[i].VPWideChar));
-            list[i] := PPAnsiChar(@s)^;
+            list[i] := PAnsiChar(s);
           end;
         vtAnsiString:
           list[i] := args[i].VAnsiString;
@@ -1498,14 +1509,14 @@ begin
         vtWideString:
           begin
             s := AnsiString(WideString(args[i].VWideString));
-            list[i] := PPAnsiChar(@s)^;
+            list[i] := PAnsiChar(s);
           end;
         vtInt64:
           list[i] := PAnsiChar(args[i].VInt64^);
         vtUnicodeString:
           begin
             s := AnsiString(UnicodeString(args[i].VUnicodeString));
-            list[i] := PPAnsiChar(@s)^;
+            list[i] := PAnsiChar(s);
           end;
       else
         raise ENotSupportedException.CreateFmt('Unsupported Formatting VariantType: %d', [args[i].VType]);
@@ -1592,7 +1603,7 @@ begin
       PushFString('lightuserdata: %p', [ToPointer(index)]);
     // ltNumber: ; // default
     // ltString: ; // default
-    ltTable:
+    ltTable, ltUserdata:
       begin
         if GetMetatable(index) then
         begin
@@ -1607,7 +1618,7 @@ begin
         else
           PushFString('%s: %p', [TypeName(T), ToPointer(index)]);
       end;
-    ltFunction .. ltThread:
+    ltFunction, ltThread:
       PushFString('%s: %p', [TypeName(T), ToPointer(index)]);
   else
     Exit(ToString_X(index));

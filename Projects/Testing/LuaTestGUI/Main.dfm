@@ -24,6 +24,7 @@ object frmMain: TfrmMain
     Height = 39
     Align = alBottom
     TabOrder = 0
+    ExplicitLeft = -2
     DesignSize = (
       498
       39)
@@ -31,14 +32,12 @@ object frmMain: TfrmMain
       AlignWithMargins = True
       Left = 4
       Top = 4
-      Width = 279
+      Width = 259
       Height = 31
       Align = alLeft
       Anchors = [akLeft, akTop, akRight, akBottom]
       AutoSize = False
       WordWrap = True
-      ExplicitWidth = 235
-      ExplicitHeight = 22
     end
     object btnRun: TButton
       AlignWithMargins = True
@@ -88,14 +87,6 @@ object frmMain: TfrmMain
     Font.Pitch = fpFixed
     Font.Style = []
     TabOrder = 1
-    CodeFolding.GutterShapeSize = 11
-    CodeFolding.CollapsedLineColor = clGrayText
-    CodeFolding.FolderBarLinesColor = clGrayText
-    CodeFolding.IndentGuidesColor = clGray
-    CodeFolding.IndentGuides = True
-    CodeFolding.ShowCollapsedLine = False
-    CodeFolding.ShowHintMark = True
-    UseCodeFolding = False
     Gutter.AutoSize = True
     Gutter.DigitCount = 2
     Gutter.Font.Charset = ANSI_CHARSET
@@ -105,7 +96,7 @@ object frmMain: TfrmMain
     Gutter.Font.Style = []
     Gutter.ShowLineNumbers = True
     Lines.Strings = (
-      'print(first.test)')
+      'print(test)')
     Options = [eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabsToSpaces]
     TabWidth = 2
     WantTabs = True

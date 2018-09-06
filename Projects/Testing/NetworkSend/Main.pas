@@ -90,17 +90,7 @@ begin
       end;
     ctClient:
       begin
-        
-        for I := 0 to 360 do
-        begin
-          S := '';
-          for J := 0 to Round((Sin(I / 18 * Pi) + 1) * 40) do
-            S := S + '#';                  
-          socClient.Socket.SendText(S + #10);
-        end;
-        
-        S := edtInput.Text + #10;
-        socClient.Socket.SendBuf(S[1], Length(S) + 1);
+        socClient.Socket.SendText(edtInput.Text);
       end;
   end;
   edtInput.Text := '';
