@@ -29,6 +29,7 @@ type
     class function LuaToNumber(L: TLuaState): Integer; static; cdecl;
     class function LuaToString(L: TLuaState): Integer; static; cdecl;
     class function LuaType(L: TLuaState): Integer; static; cdecl;
+    // TODO: pcall
 
     class function LuaINext(L: TLuaState): Integer; static; cdecl;
 

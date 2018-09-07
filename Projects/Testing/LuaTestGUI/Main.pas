@@ -10,6 +10,8 @@ uses
   System.Variants,
   System.Classes,
   System.TypInfo,
+  System.Actions,
+  System.Math,
 
   Vcl.Graphics,
   Vcl.Controls,
@@ -20,10 +22,9 @@ uses
   Vcl.Samples.Spin,
   Vcl.ActnList,
 
-  System.Actions,
-
   SynEdit,
 
+  Pengine.Vector,
   Pengine.Utility,
   Pengine.Lua,
   Pengine.LuaHeader,
@@ -42,8 +43,6 @@ type
     class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
   end;
 
-  TTest = Word;
-
   TfrmMain = class(TForm)
     pnlBottom: TPanel;
     seCode: TSynEdit;
@@ -60,11 +59,9 @@ type
     procedure actRunExecute(Sender: TObject);
   private
     FLua: TLua;
-    FTest: TTest;
 
   published
-
-    property Test: TTest read FTest write FTest;
+    function DoStuff(A, B: Integer): Integer;
 
   end;
 
@@ -80,8 +77,14 @@ var
   Err: TLuaPCallError;
   NoTimeout: Boolean;
 begin
-  TLuaWrapper.PushObject(FLua.L, Self, mvPublic);
+  TLuaWrapper.PushObject(FLua.L, Self);
   FLua.L.SetGlobal('form');
+
+  TLuaWrapper.PushEnum<TAlign>(FLua.L);
+  FLua.L.SetGlobal('TAlign');
+
+  TLuaWrapper.PushFunction(FLua.L, 'DoStuff', Self);
+  FLua.L.SetGlobal('DoStuff');
 
   StartTimer;
 
@@ -102,12 +105,12 @@ begin
     end
     else
     begin
-      ShowMessage(Format('Success! %s', [StopTimerGetString(tfMilliseconds)]));
+      ShowMessage(Format('Success! %s', [StopTimerGetString]));
     end;
   end
   else
   begin
-    ShowMessage(Format('Timeout! %s', [StopTimerGetString(tfMilliseconds)]));
+    ShowMessage(Format('Timeout! %s', [StopTimerGetString]));
     seCodeChange(nil);
   end;
 end;
@@ -115,6 +118,11 @@ end;
 procedure TfrmMain.cbTimeoutClick(Sender: TObject);
 begin
   seTimeout.Enabled := cbTimeout.Checked;
+end;
+
+function TfrmMain.DoStuff(A, B: Integer): Integer;
+begin
+  Result := Min(A, B);
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
@@ -125,9 +133,6 @@ begin
   FLua.AddLib(TLuaLibTable);
   FLua.AddLib(TLuaLibMath);
   FLua.AddLib(TLuaLibCoroutine);
-
-  TLuaWrapper.PushEnum<TAlign>(FLua.L);
-  FLua.L.SetGlobal('TAlign');
 
   seCodeChange(nil);
 end;
