@@ -37,6 +37,7 @@ object frmMain: TfrmMain
       Anchors = [akLeft, akTop, akRight, akBottom]
       AutoSize = False
       WordWrap = True
+      ExplicitTop = 12
     end
     object btnRun: TButton
       AlignWithMargins = True
@@ -55,11 +56,10 @@ object frmMain: TfrmMain
       Width = 61
       Height = 22
       Anchors = [akTop, akRight]
-      Enabled = False
       MaxValue = 60000
       MinValue = 1
       TabOrder = 1
-      Value = 100
+      Value = 10
     end
     object cbTimeout: TCheckBox
       Left = 269
@@ -68,6 +68,8 @@ object frmMain: TfrmMain
       Height = 17
       Anchors = [akTop, akRight]
       Caption = 'Timeout (ms):'
+      Checked = True
+      State = cbChecked
       TabOrder = 2
       OnClick = cbTimeoutClick
     end
@@ -86,14 +88,6 @@ object frmMain: TfrmMain
     Font.Pitch = fpFixed
     Font.Style = []
     TabOrder = 1
-    CodeFolding.GutterShapeSize = 11
-    CodeFolding.CollapsedLineColor = clGrayText
-    CodeFolding.FolderBarLinesColor = clGrayText
-    CodeFolding.IndentGuidesColor = clGray
-    CodeFolding.IndentGuides = True
-    CodeFolding.ShowCollapsedLine = False
-    CodeFolding.ShowHintMark = True
-    UseCodeFolding = False
     Gutter.AutoSize = True
     Gutter.DigitCount = 2
     Gutter.Font.Charset = ANSI_CHARSET
@@ -103,7 +97,9 @@ object frmMain: TfrmMain
     Gutter.Font.Style = []
     Gutter.ShowLineNumbers = True
     Lines.Strings = (
-      'print(test)')
+      'while true do'
+      ''
+      'end')
     Options = [eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabsToSpaces]
     TabWidth = 2
     WantTabs = True

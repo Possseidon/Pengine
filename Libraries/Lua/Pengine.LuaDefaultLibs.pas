@@ -452,8 +452,7 @@ begin
     L.Pop;
     if I < B then
       S := S + L.ToString_X(2);
-    if Lua.ShouldTerminate then
-      Exit(0);
+    Lua.CheckTimeout;
     Inc(Counter);
   end;
   if S = '' then
@@ -491,8 +490,7 @@ begin
   begin
     L.GetI(I, 1);
     L.SetI(I + 1, 1);
-    if Lua.ShouldTerminate then
-      Exit(0);
+    Lua.CheckTimeout;
   end;
   L.SetI(Pos, 1);
   Result := 0;
@@ -522,8 +520,7 @@ begin
   begin
     L.GetI(F + I, 1);
     L.SetI(T + I, 5);
-    if Lua.ShouldTerminate then
-      Exit(0);
+    Lua.CheckTimeout;
   end;
   Result := 1;
 end;
@@ -539,8 +536,7 @@ begin
   for I := L.Top - 1 downto 1 do
   begin
     L.SetI(I, 1);
-    if Lua.ShouldTerminate then
-      Exit(0);
+    Lua.CheckTimeout;
   end;
   Result := 1;
 end;
@@ -616,8 +612,7 @@ begin
   for I := A to B do
   begin
     L.GetI(I, 1);
-    if Lua.ShouldTerminate then
-      Exit(0);
+    Lua.CheckTimeout;
   end;
   Result := B - A + 1;
 end;
@@ -651,9 +646,8 @@ begin
     L.PushValue(2);
     L.Insert(4);
     L.GetI(I, 1);
-    Lua.CallUnlocked(2, 1);
-    if Lua.ShouldTerminate then
-      Exit(0);
+    L.Call(2, 1);
+    Lua.CheckTimeout;
   end;
   Result := 1;
 end;
@@ -690,11 +684,9 @@ end;
 
 class function TLuaLibTable.LuaCopyIf(L: TLuaState): Integer;
 var
-  Lua: TLua;
   A, B, I, J: Integer;
   Add: Boolean;
 begin
-  Lua := TLua.FromState(L);
   L.CheckType(1, ltTable);
   L.CheckType(2, ltFunction);
   if L.Top <= 3 then
@@ -718,7 +710,7 @@ begin
     L.GetI(I, 1); // 6
     L.PushValue(2); // function
     L.PushValue(6); // value
-    Lua.CallUnlocked(1, 1);
+    L.Call(1, 1);
     Add := L.ToBoolean;
     L.Pop;
     if Add then
@@ -754,10 +746,9 @@ begin
     L.PushValue(3);
     L.GetI(I, 1);
     L.GetI(I, 2);
-    Lua.CallUnlocked(2, 1);
+    L.Call(2, 1);
     L.SetI(I, 6);
-    if Lua.ShouldTerminate then
-      Exit(0);
+    Lua.CheckTimeout;
   end;
   Result := 1; 
 end;
@@ -786,7 +777,7 @@ begin
   L.PushValue(2); // function
   L.GetI(I, 1);   // tested element
   L.PushValue(3); // pivot element
-  FLua.CallUnlocked(2, 1);
+  L.Call(2, 1);
   Result := L.ToBoolean;
   L.Pop;
 end;
@@ -796,7 +787,7 @@ begin
   L.PushValue(2); // function
   L.PushValue(3); // pivot element
   L.GetI(I, 1);   // tested element
-  FLua.CallUnlocked(2, 1);
+  L.Call(2, 1);
   Result := L.ToBoolean;
   L.Pop;
 end;
@@ -1016,8 +1007,7 @@ begin
   begin
     if L.Compare(MaxIndex, I, lcoLessThan) then
       MaxIndex := I;
-    if Lua.ShouldTerminate then
-      Exit(0);
+    Lua.CheckTimeout;
   end;
   L.PushValue(MaxIndex);
   Result := 1;
@@ -1036,8 +1026,7 @@ begin
   begin
     if L.Compare(I, MinIndex, lcoLessThan) then
       MinIndex := I;
-    if Lua.ShouldTerminate then
-      Exit(0);
+    Lua.CheckTimeout;
   end;
   L.PushValue(MinIndex);
   Result := 1;
@@ -1237,11 +1226,9 @@ end;
 
 class function TLuaLibCoroutine.LuaResumeHelper(L, C: TLuaState; AArgs: Integer): Integer;
 var
-  Lua: TLua;
   Status: TLuaStatus;
   ResultCount: Integer;
 begin
-  Lua := TLua.FromState(L);
   if not C.CheckStack(AArgs) then
   begin
     L.PushString('too many arguments to resume');
@@ -1253,9 +1240,7 @@ begin
     Exit(-1);
   end;
   L.XMove(C, AArgs);
-  Lua.Unlock;
   Status := C.Resume(L, AArgs);
-  Lua.Interlock;
   if Status in [lstOk, lstYield] then
   begin
     ResultCount := C.Top;

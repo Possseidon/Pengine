@@ -21,7 +21,7 @@ type
     tfDays,
     tfWeeks,
     tfYears
-  );
+    );
 
   TDeltaTimer = class
   public type
@@ -67,10 +67,14 @@ type
 
   TStopWatch = record
   private
-    FStart: TSeconds;
+    FStart: Int64;
+
   public
-    procedure Start; inline;
+    procedure Start;
     function Time(ATimeFormat: TTimeFormat = tfSeconds): Single;
+    function Format(ATimeFormat: TTimeFormat): string; overload;
+    function Format: string; overload;
+
   end;
 
 procedure StartTimer;
@@ -79,11 +83,16 @@ procedure StopTimerAndOutput(ATimeFormat: TTimeFormat); inline; overload;
 procedure StopTimerAndOutput; inline; overload;
 function StopTimerGetString(ATimeFormat: TTimeFormat): string; inline; overload;
 function StopTimerGetString: string; inline; overload;
+
+function FormatTime(ATime: TSeconds; ATimeFormat: TTimeFormat): string; overload; inline;
+function FormatTime(ATime: TSeconds): string; overload; inline;
+
 function ConvertSecondsTo(ASeconds: TSeconds; ATimeFormat: TTimeFormat): Single; inline;
 function RecommendTimeFormat(ASeconds: TSeconds): TTimeFormat;
 
 const
-  TimeFormatString: array [TTimeFormat] of string = (
+
+  TimeFormatStrings: array [TTimeFormat] of string = (
     'nanoseconds',
     'microseconds',
     'milliseconds',
@@ -93,7 +102,7 @@ const
     'days',
     'weeks',
     'years'
-  );
+    );
 
 implementation
 
@@ -128,36 +137,33 @@ end;
 
 procedure StopTimerAndOutput(ATimeFormat: TTimeFormat);
 begin
-  WriteLn(Format('Meassured Time: %.3f ' +
-                  TimeFormatString[ATimeFormat],
-                  [ConvertSecondsTo(StopTimer, ATimeFormat)]));
+  WriteLn(Format('Meassured Time: %s', [FormatTime(StopTimer, ATimeFormat)]));
 end;
 
 procedure StopTimerAndOutput;
-var
-  Time: TSeconds;
-  TimeFormat: TTimeFormat;
 begin
-  Time := StopTimer;
-  TimeFormat := RecommendTimeFormat(Time);
-  WriteLn(Format('Meassured Time: %.3f ' +
-                  TimeFormatString[TimeFormat],
-                  [ConvertSecondsTo(Time, TimeFormat)]));
+  WriteLn(Format('Meassured Time: %s', [FormatTime(StopTimer)]));
 end;
 
 function StopTimerGetString(ATimeFormat: TTimeFormat): string;
 begin
-  Result := Format('%.3f ' + TimeFormatString[ATimeFormat], [ConvertSecondsTo(StopTimer, ATimeFormat)]);
+  Result := FormatTime(StopTimer, ATimeFormat);
 end;
 
 function StopTimerGetString: string;
-var
-  Time: TSeconds;
-  TimeFormat: TTimeFormat;
 begin
-  Time := StopTimer;
-  TimeFormat := RecommendTimeFormat(Time);
-  Result := Format('%.3f ' + TimeFormatString[TimeFormat], [ConvertSecondsTo(Time, TimeFormat)]);
+  Result := FormatTime(StopTimer);
+end;
+
+function FormatTime(ATime: Single; ATimeFormat: TTimeFormat): string;
+begin
+  Result := Format('%.4g %s', [ConvertSecondsTo(ATime, ATimeFormat), TimeFormatStrings[ATimeFormat]],
+    TFormatSettings.Invariant);
+end;
+
+function FormatTime(ATime: TSeconds): string;
+begin
+  Result := FormatTime(ATime, RecommendTimeFormat(ATime));
 end;
 
 function ConvertSecondsTo(ASeconds: TSeconds; ATimeFormat: TTimeFormat): Single;
@@ -183,12 +189,12 @@ begin
     Result := Result / 7;
   if ATimeFormat = tfYears then
     Result := Result / 365;
-
 end;
 
 function RecommendTimeFormat(ASeconds: TSeconds): TTimeFormat;
 begin
   Result := tfSeconds;
+  ASeconds := Abs(ASeconds);
   if ASeconds <= 1 then
   begin
     repeat
@@ -206,7 +212,7 @@ begin
   end;
 end;
 
-{ TGLTimer }
+{ TDeltaTimer }
 
 constructor TDeltaTimer.Create(AUpdateSpeed: Single = 4; AUpdateInterval: TSeconds = 0.5);
 begin
@@ -259,23 +265,34 @@ end;
 
 { TStopWatch }
 
+function TStopWatch.Format: string;
+begin
+  Result := FormatTime(Time);
+end;
+
+function TStopWatch.Format(ATimeFormat: TTimeFormat): string;
+begin
+  Result := FormatTime(Time, ATimeFormat);
+end;
+
 procedure TStopWatch.Start;
 begin
-  FStart := 0;
-  FStart := Time;
+  QueryPerformanceCounter(FStart);
 end;
 
 function TStopWatch.Time(ATimeFormat: TTimeFormat): Single;
 var
-  StartTime: Int64;
+  CurrentTime: Int64;
 begin
-  QueryPerformanceCounter(StartTime);
-  Result := StartTime / Frequency - FStart;
+  QueryPerformanceCounter(CurrentTime);
+  Result := (CurrentTime - FStart) / Frequency;
   if ATimeFormat <> tfSeconds then
     Result := ConvertSecondsTo(Result, ATimeFormat);
 end;
 
 initialization
-  InitFrequency;
-  StartTimer;
+
+InitFrequency;
+StartTimer;
+
 end.

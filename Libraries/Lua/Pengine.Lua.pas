@@ -174,61 +174,17 @@ type
   { TLua }
 
   TLua = class
-  private type
-
-    { TLuaThread }
-
-    TLuaThread = class(TThread)
-    private
-      FLua: TLua;
-      FParams: Integer;
-      FResults: Integer;
-      FError: TLuaPCallError;
-      FDone: Boolean;
-      FStartWorkEvent: TEvent;
-    protected
-      procedure Execute; override;
-    public
-      constructor Create(ALua: TLua);
-      destructor Destroy; override;
-
-      procedure Start(AParams, AResults: Integer);
-      procedure ForceKill;
-      property Error: TLuaPCallError read FError;
-      property Done: Boolean read FDone;
-    end;
-
-    { TAllocationList }
-
-    TAllocationList = class(TSet<Pointer, TPointerHasher>)
-    private
-      FOwnsPointers: Boolean;
-      FStoredOwnsPointers: Boolean;
-
-    protected
-      procedure UnownObjects; override;
-      procedure ReownObjects; override;
-
-    public
-      // don't override, so that copy will be referenced
-      constructor Create(AHashMode: THashMode = hmAuto); reintroduce;
-      destructor Destroy; override;
-
-      procedure PerformCleanup;
-
-    end;
-
   private
     FL: TLuaState;
-    FAllocations: TAllocationList;
     FMemoryLimit: NativeUInt;
     FMemoryUsage: NativeUInt;
+    FCallTimer: TStopWatch;
+    FCallTimeout: Single;
     FLock: TCriticalSection;
-    FLockCounter: Integer;
-    FThread: TLuaThread;
     FLibs: TClassRefMap<TLuaLib>;
 
     class function Alloc(ud, ptr: Pointer; osize, nsize: NativeUInt): Pointer; static; cdecl;
+    class procedure LuaTimeoutHook(L: TLuaState; ar: Plua_Debug); static; cdecl;
 
     procedure MakeLuaState;
 
@@ -243,12 +199,9 @@ type
 
     function Lib<T: TLuaLib>: T;
 
-    procedure Interlock;
-    procedure Unlock;
-    function ShouldTerminate: Boolean;
+    procedure CheckTimeout;
 
-    function CallTimeout(AParams, AResults: Integer; ATimeout: Single; out AError: TLuaPCallError): Boolean;
-    procedure CallUnlocked(AParams, AResults: Integer); inline;
+    function CallTimeout(AParams, AResults: Integer; ATimeout: Single): TLuaPCallError;
 
     procedure AddLib(ALib: TLuaLibClass);
     procedure RemoveLib(ALib: TLuaLibClass);
@@ -271,56 +224,28 @@ var
   Self: TLua;
 begin
   Self := TLua(ud);
-  Self.Interlock;
-  try
-    if nsize = 0 then
-    begin
-      if ptr <> nil then
-      begin
-        Self.FAllocations.Remove(ptr);
-        Dec(Self.FMemoryUsage, osize);
-        FreeMemory(ptr);
-      end;
-      Result := nil;
-    end
-    else
-    begin
-      if Self.FMemoryLimit <> 0 then
-      begin
-        if ptr = nil then
-        begin
-          if Self.FMemoryUsage + nsize > Self.FMemoryLimit then
-            Exit(nil);
-        end
-        else
-        begin
-          if Self.FMemoryUsage - osize + nsize > Self.FMemoryLimit then
-            Exit(nil);
-        end;
-      end;
 
-      Result := ReallocMemory(ptr, nsize);
-      if Result <> nil then
-      begin
-        if ptr <> nil then
-        begin
-          Self.FAllocations.Remove(ptr);
-          Dec(Self.FMemoryUsage, osize);
-        end;
-        Self.FAllocations.Add(Result);
-        Inc(Self.FMemoryUsage, nsize);
-      end;
-    end;
-  finally
-    Self.Unlock;
+  // if ptr is nil, osize defines what is allocated
+  if ptr = nil then
+    osize := 0;
+
+  if (Self.MemoryLimit <> 0) and (Self.MemoryUsage - osize + nsize > Self.MemoryLimit) then
+    Exit(nil);
+
+  if nsize <> 0 then
+    Result := ReallocMemory(ptr, nsize)
+  else
+  begin
+    FreeMemory(ptr);
+    Result := nil;
   end;
+
+  Inc(Self.FMemoryUsage, nsize - osize);
 end;
 
 constructor TLua.Create;
 begin
   FLock := TCriticalSection.Create;
-  FAllocations := TAllocationList.Create;
-  FThread := TLuaThread.Create(Self);
   MakeLuaState;
   FLibs := TClassRefMap<TLuaLib>.Create(True);
 end;
@@ -330,12 +255,16 @@ begin
   FLibs.Remove(ALib);
 end;
 
+procedure TLua.CheckTimeout;
+begin
+  if (FCallTimeout <> 0) and (FCallTimer.Time > FCallTimeout) then
+    L.ErrorFmt('timeout after %s', [FCallTimer.Format]);
+end;
+
 destructor TLua.Destroy;
 begin
   FLibs.Free;
   L.Close;
-  FThread.Free;
-  FAllocations.Free;
   FLock.Free;
   inherited;
 end;
@@ -345,55 +274,20 @@ begin
   Result := TLua(AL.GetExtraSpace^);
 end;
 
-function TLua.CallTimeout(AParams, AResults: Integer; ATimeout: Single; out AError: TLuaPCallError): Boolean;
-var
-  StopWatch: TStopWatch;
-  Lib: TLuaLib;
+function TLua.CallTimeout(AParams, AResults: Integer; ATimeout: Single): TLuaPCallError;
 begin
-  StopWatch.Start;
-  Result := False;
-  while not FThread.Started do
-    TThread.Yield;
-  FThread.Start(AParams, AResults);
-  while StopWatch.Time < ATimeout do
-  begin
-    if FThread.Done then
-    begin
-      AError := FThread.Error;
-      Exit(True);
-    end;
-    TThread.Yield;
-  end;
-
-  FThread.ForceKill;
-  FAllocations.PerformCleanup;
-  FMemoryUsage := 0;
-
-  FThread.Free;
-  FThread := TLuaThread.Create(Self);
-
-  MakeLuaState;
-
-  for Lib in FLibs.Values do
-    Lib.ChangeLuaState(L);
-end;
-
-procedure TLua.CallUnlocked(AParams, AResults: Integer);
-begin
-  Unlock;
-  L.Call(AParams, AResults);
-  Interlock;
+  FCallTimeout := ATimeout;
+  L.SetHook(LuaTimeoutHook, LUA_MASKCOUNT, 100);
+  FCallTimer.Start;
+  Result := L.PCall(AParams, AResults, 0);
+  L.SetHook(nil, 0, 0);
+  FCallTimeout := 0;
 end;
 
 procedure TLua.MakeLuaState;
 begin
   FL := NewLuaState(Alloc, Self);
   PPointer(FL.GetExtraSpace)^ := Self;
-end;
-
-function TLua.ShouldTerminate: Boolean;
-begin
-  Result := FThread.Terminated;
 end;
 
 function TLua.Lib<T>: T;
@@ -405,109 +299,9 @@ begin
   raise ELibNotLoaded.Create(T);
 end;
 
-procedure TLua.Interlock;
+class procedure TLua.LuaTimeoutHook(L: TLuaState; ar: Plua_Debug);
 begin
-  if (FLockCounter = 0) and not FLock.TryEnter then
-    Sleep(INFINITE);
-  Inc(FLockCounter);
-end;
-
-procedure TLua.Unlock;
-begin
-  Dec(FLockCounter);
-  if FLockCounter = 0 then
-  begin
-    FLock.Leave;
-    if ShouldTerminate then
-      Sleep(INFINITE);
-  end;
-end;
-
-{ TLua.TAllocationList }
-
-procedure TLua.TAllocationList.UnownObjects;
-begin
-  FStoredOwnsPointers := FOwnsPointers;
-  FOwnsPointers := False;
-end;
-
-procedure TLua.TAllocationList.ReownObjects;
-begin
-  FOwnsPointers := FStoredOwnsPointers;
-end;
-
-constructor TLua.TAllocationList.Create(AHashMode: THashMode);
-begin
-  inherited;
-  FOwnsPointers := True;
-end;
-
-destructor TLua.TAllocationList.Destroy;
-begin
-  if FOwnsPointers then
-    PerformCleanup;
-  inherited;
-end;
-
-procedure TLua.TAllocationList.PerformCleanup;
-var
-  P: Pointer;
-begin
-  for P in Self do
-    FreeMemory(P);
-  Clear;
-end;
-
-{ TLua.TLuaThread }
-
-constructor TLua.TLuaThread.Create(ALua: TLua);
-begin
-  inherited Create;
-  FLua := ALua;
-  FStartWorkEvent := TEvent.Create(nil, False, False, '');
-end;
-
-destructor TLua.TLuaThread.Destroy;
-begin
-  Terminate;
-  FStartWorkEvent.SetEvent;
-  FStartWorkEvent.Free;
-  inherited;
-end;
-
-procedure TLua.TLuaThread.Execute;
-var
-  Err: TLuaPCallError;
-begin
-  while True do
-  begin
-    FStartWorkEvent.WaitFor;
-    if Terminated then
-      Break;
-
-    Err := FLua.L.PCall(FParams, FResults, 0);
-
-    FLua.Interlock;
-    FError := Err;
-    FDone := True;
-    FLua.Unlock;
-  end;
-end;
-
-procedure TLua.TLuaThread.ForceKill;
-begin
-  Terminate;
-  FLua.FLock.Enter;
-  TerminateThread(Handle, 0);
-  FLua.FLock.Leave;
-end;
-
-procedure TLua.TLuaThread.Start(AParams, AResults: Integer);
-begin
-  FParams := AParams;
-  FResults := AResults;
-  FDone := False;
-  FStartWorkEvent.SetEvent;
+  TLua.FromState(L).CheckTimeout;
 end;
 
 { TLuaLib }
@@ -600,16 +394,8 @@ begin
 end;
 
 class function TLuaLib.TFunctionEntry.WrapperFunc(L: TLuaState): Integer;
-var
-  Lua: TLua;
 begin
-  Lua := TLua.FromState(L);
-  Lua.Interlock;
-  try
-    Result := TLuaCFunction(L.ToUserdata(L.UpvalueIndex(1)))(L);
-  finally
-    Lua.Unlock;
-  end;
+  Result := TLuaCFunction(L.ToUserdata(L.UpvalueIndex(1)))(L);
 end;
 
 { TLuaLib.TTableEntry }

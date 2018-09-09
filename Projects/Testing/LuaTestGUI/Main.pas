@@ -43,6 +43,8 @@ type
     class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
   end;
 
+  TOperation = function(A, B: Integer): Integer of object;
+
   TfrmMain = class(TForm)
     pnlBottom: TPanel;
     seCode: TSynEdit;
@@ -59,9 +61,13 @@ type
     procedure actRunExecute(Sender: TObject);
   private
     FLua: TLua;
+    FOnOperation: TOperation;
 
   published
-    function DoStuff(A, B: Integer): Integer;
+    function Add(A, B: Integer): Integer;
+    function Sub(A, B: Integer): Integer;
+
+    property OnOperation: TOperation read FOnOperation write FOnOperation;
 
   end;
 
@@ -75,54 +81,42 @@ implementation
 procedure TfrmMain.actRunExecute(Sender: TObject);
 var
   Err: TLuaPCallError;
-  NoTimeout: Boolean;
 begin
+  StartTimer;
+
   TLuaWrapper.PushObject(FLua.L, Self);
   FLua.L.SetGlobal('form');
 
   TLuaWrapper.PushEnum<TAlign>(FLua.L);
   FLua.L.SetGlobal('TAlign');
 
-  TLuaWrapper.PushFunction(FLua.L, 'DoStuff', Self);
-  FLua.L.SetGlobal('DoStuff');
+  TLuaWrapper.PushObject(FLua.L, Mouse);
+  FLua.L.SetGlobal('Mouse');
 
-  StartTimer;
 
   FLua.L.GetGlobal('code');
   if cbTimeout.Checked then
-    NoTimeout := FLua.CallTimeout(0, 0, seTimeout.Value / 1000, Err)
+    Err := FLua.CallTimeout(0, 0, seTimeout.Value / 1000)
   else
-  begin
-    NoTimeout := True;
     Err := FLua.L.PCall(0, 0, 0);
-  end;
-  if NoTimeout then
+
+  if Err <> lceOK then
   begin
-    if Err <> lceOK then
-    begin
-      ShowMessage(string(FLua.L.ToString));
-      FLua.L.Pop;
-    end
-    else
-    begin
-      ShowMessage(Format('Success! %s', [StopTimerGetString]));
-    end;
+    ShowMessage(string(FLua.L.ToString) + sLineBreak + StopTimerGetString);
+    FLua.L.Pop;
   end
   else
-  begin
-    ShowMessage(Format('Timeout! %s', [StopTimerGetString]));
-    seCodeChange(nil);
-  end;
+    ShowMessageFmt('Success! %s', [StopTimerGetString]);
+end;
+
+function TfrmMain.Add(A, B: Integer): Integer;
+begin
+  Result := A + B;
 end;
 
 procedure TfrmMain.cbTimeoutClick(Sender: TObject);
 begin
   seTimeout.Enabled := cbTimeout.Checked;
-end;
-
-function TfrmMain.DoStuff(A, B: Integer): Integer;
-begin
-  Result := Min(A, B);
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
@@ -133,7 +127,7 @@ begin
   FLua.AddLib(TLuaLibTable);
   FLua.AddLib(TLuaLibMath);
   FLua.AddLib(TLuaLibCoroutine);
-
+  FLua.MemoryLimit := 0;
   seCodeChange(nil);
 end;
 
@@ -158,6 +152,11 @@ begin
     lbError.Font.Color := clRed;
     actRun.Enabled := False;
   end;
+end;
+
+function TfrmMain.Sub(A, B: Integer): Integer;
+begin
+  Result := A - B;
 end;
 
 { THelpLib }

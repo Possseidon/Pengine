@@ -38,6 +38,7 @@ type
     TRecordRec = packed record
       TypeInfo: PTypeInfo;
       // [ record data ]
+
       function Data: Pointer;
 
     end;
@@ -317,7 +318,10 @@ begin
     // tkChar: ;
     // tkSet: ;
     tkMethod:
-      TLuaWrapper.PushEvent(L, TRttiInvokableType(R.GetType(AValue.TypeInfo)), AValue);
+      if TValueData(AValue).FAsMethod.Data = nil then
+        L.PushNil
+      else
+        TLuaWrapper.PushEvent(L, TRttiInvokableType(R.GetType(AValue.TypeInfo)), AValue);
     // tkWChar: ;
     // tkVariant: ;
     // tkArray: ;
@@ -461,27 +465,35 @@ begin
       Result := string(L.ToString(Index));
     // tkSet: ;
     // tkClass: ;
-    // tkMethod: ;
+    tkMethod:
+      case L.&Type of
+        ltUserdata:
+          begin
+            // TODO: From event
+            // TODO: From function
+          end;
+        // TODO: From lua function
+      else
+        Exit(L.Error('event can only be assigned with another event'));
+      end;
     // tkWChar: ;
     // tkVariant: ;
     // tkArray: ;
     tkRecord:
-      begin
-        case L.&Type of
-          ltUserdata:
-            begin
-              if not CheckUserdata(L, LuaRecordEq, Index) then
-                Exit(L.Error('value is not a record value'));
-              Rec := L.ToUserdata(Index);
-              if ATypeInfo <> Rec.TypeInfo then
-                Exit(L.ErrorFmt('incompatible record types %s and %s',
-                  [GetTypeName(ATypeInfo), GetTypeName(Rec.TypeInfo)]));
-              TValue.Make(Rec.Data, ATypeInfo, Result);
-            end;
+      case L.&Type of
+        ltUserdata:
+          begin
+            if not CheckUserdata(L, LuaRecordEq, Index) then
+              Exit(L.Error('value is not a record value'));
+            Rec := L.ToUserdata(Index);
+            if ATypeInfo <> Rec.TypeInfo then
+              Exit(L.ErrorFmt('incompatible record types %s and %s',
+                [GetTypeName(ATypeInfo), GetTypeName(Rec.TypeInfo)]));
+            TValue.Make(Rec.Data, ATypeInfo, Result);
+          end;
           // TODO: From table, init by zero and then set each value
-        else
-          Exit(L.Error('record can only be assigned with another record'));
-        end;
+      else
+        Exit(L.Error('record can only be assigned with another record'));
       end;
     // tkInterface: ;
     // tkDynArray: ;
@@ -541,6 +553,7 @@ begin
     Exit(L.ErrorFmt('enums can only be indexed by integer or string, got %s', [L.TypeNameAt]));
   PushEnumValue(L, Data.EnumType, Value);
   Result := 1;
+
 end;
 
 class function TLuaWrapper.LuaEnumLen(L: TLuaState): Integer;
@@ -668,35 +681,29 @@ var
   IndexedProp: TRttiIndexedProperty;
   Field: TRttiField;
 begin
-  TLua.FromState(L).Interlock;
-  try
-    L.CheckType(2, ltString);
-    Name := string(L.ToString_X);
-    Data := L.ToUserdata(1);
+  L.CheckType(2, ltString);
+  Name := string(L.ToString_X);
+  Data := L.ToUserdata(1);
 
-    SelfType := R.GetType(Data.Self.ClassInfo);
+  SelfType := R.GetType(Data.Self.ClassInfo);
 
-    Prop := SelfType.GetProperty(Name);
-    if (Prop <> nil) and (Prop.Visibility >= Visibility) then
-      Exit(Index(L, Prop, Data.Self));
+  Prop := SelfType.GetProperty(Name);
+  if (Prop <> nil) and (Prop.Visibility >= Visibility) then
+    Exit(Index(L, Prop, Data.Self));
 
-    Method := SelfType.GetMethod(Name);
-    if (Method <> nil) and (Method.Visibility >= Visibility) then
-      Exit(Index(L, Method, Data.Self));
+  Method := SelfType.GetMethod(Name);
+  if (Method <> nil) and (Method.Visibility >= Visibility) then
+    Exit(Index(L, Method, Data.Self));
 
-    IndexedProp := SelfType.GetIndexedProperty(Name);
-    if (IndexedProp <> nil) and (IndexedProp.Visibility >= Visibility) then
-      Exit(Index(L, IndexedProp, Data.Self));
+  IndexedProp := SelfType.GetIndexedProperty(Name);
+  if (IndexedProp <> nil) and (IndexedProp.Visibility >= Visibility) then
+    Exit(Index(L, IndexedProp, Data.Self));
 
-    Field := SelfType.GetField(Name);
-    if (Field <> nil) and (Field.Visibility >= Visibility) then
-      Exit(Index(L, Field, Data.Self));
+  Field := SelfType.GetField(Name);
+  if (Field <> nil) and (Field.Visibility >= Visibility) then
+    Exit(Index(L, Field, Data.Self));
 
-    Exit(L.ErrorFmt('invalid class member "%s"', [Name]));
-
-  finally
-    TLua.FromState(L).Unlock;
-  end;
+  Exit(L.ErrorFmt('invalid class member "%s"', [Name]));
 end;
 
 class function TLuaWrapper.LuaObjectNewIndex(L: TLuaState): Integer;
@@ -708,31 +715,25 @@ var
   IndexedProp: TRttiIndexedProperty;
   Field: TRttiField;
 begin
-  TLua.FromState(L).Interlock;
-  try
-    L.CheckType(2, ltString);
-    Name := string(L.ToString_X(2));
-    Data := L.ToUserdata(1);
+  L.CheckType(2, ltString);
+  Name := string(L.ToString_X(2));
+  Data := L.ToUserdata(1);
 
-    SelfType := R.GetType(Data.Self.ClassInfo);
+  SelfType := R.GetType(Data.Self.ClassInfo);
 
-    Prop := SelfType.GetProperty(Name);
-    if (Prop <> nil) and (Prop.Visibility >= Visibility) then
-      Exit(NewIndex(L, Prop, Data.Self));
+  Prop := SelfType.GetProperty(Name);
+  if (Prop <> nil) and (Prop.Visibility >= Visibility) then
+    Exit(NewIndex(L, Prop, Data.Self));
 
-    IndexedProp := SelfType.GetIndexedProperty(Name);
-    if IndexedProp <> nil then
-      Exit(NewIndex(L, IndexedProp, Data.Self));
+  IndexedProp := SelfType.GetIndexedProperty(Name);
+  if IndexedProp <> nil then
+    Exit(NewIndex(L, IndexedProp, Data.Self));
 
-    Field := SelfType.GetField(Name);
-    if Field <> nil then
-      Exit(NewIndex(L, Field, Data.Self));
+  Field := SelfType.GetField(Name);
+  if Field <> nil then
+    Exit(NewIndex(L, Field, Data.Self));
 
-    Exit(L.ErrorFmt('invalid class member "%s"', [Name]));
-
-  finally
-    TLua.FromState(L).Unlock;
-  end;
+  Exit(L.ErrorFmt('invalid class member "%s"', [Name]));
 end;
 
 class function TLuaWrapper.LuaObjectToString(L: TLuaState): Integer;
@@ -754,7 +755,6 @@ var
   Name: string;
   Data: PRecordRec;
   RecType: TRttiType;
-  Prop: TRttiProperty;
   Method: TRttiMethod;
   IndexedProp: TRttiIndexedProperty;
   Field: TRttiField;
@@ -765,7 +765,7 @@ begin
 
   RecType := R.GetType(Data.TypeInfo);
 
-  // RTTI doesn't contain record properties...
+    // RTTI doesn't contain record properties...
 
   Method := RecType.GetMethod(Name);
   if (Method <> nil) and (Method.Visibility >= Visibility) then
@@ -780,7 +780,6 @@ begin
     Exit(Index(L, Field, Data.Data));
 
   Exit(L.ErrorFmt('invalid class member "%s"', [Name]));
-
 end;
 
 class function TLuaWrapper.LuaRecordNewIndex(L: TLuaState): Integer;
@@ -811,7 +810,6 @@ begin
     Exit(NewIndex(L, Field, Data.Data));
 
   Exit(L.ErrorFmt('invalid class member "%s"', [Name]));
-
 end;
 
 class function TLuaWrapper.LuaRecordToString(L: TLuaState): Integer;
