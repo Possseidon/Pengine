@@ -106,7 +106,7 @@ begin
   Button.Location.Offset := -0.25;
   Button.Width := 5;
   Button.Caption := 'Reset';
-  Button.OnPressed.Add(FBilliard.Reset);
+  Button.OnPressed.Add(FBilliard.ResetBalls);
 
   Game.OnUpdate.Add(GameUpdate);
   Game.Timer.OnFPSUpdate.Add(FPSUpdate);

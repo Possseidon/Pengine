@@ -5,12 +5,15 @@ interface
 uses
   System.SysUtils,
 
+  Vcl.Controls,
+
   Pengine.SpriteSystem,
   Pengine.GUI,
   Pengine.GUIControls,
   Pengine.TextureAtlas,
   Pengine.Vector,
   Pengine.Color,
+  Pengine.InputHandler,
 
   BilliardGame;
 
@@ -43,6 +46,12 @@ type
 
     ScaleCorrectionFactor = 2.48;
 
+  public type
+
+    TPlayer = class(TBilliard.TPlayer)
+
+    end;
+
   private
     FBallSprites: array [TBilliard.TBall.TIndex] of TSprite;
     FBallReflectionSprites: array [TBilliard.TBall.TIndex] of TSprite;
@@ -65,12 +74,14 @@ type
 
     procedure BallPocketedChange(AInfo: TBilliard.TBall.TEventInfo);
     procedure BallLocationChanged(AInfo: TBilliard.TBall.TEventInfo);
+    procedure BilliardStateChange;
 
   protected
     function GetAspect: Single; override;
 
   public
     constructor Create(AParent: TControl); override;
+    destructor Destroy; override;
 
     property BallTexture: TTexTile read GetBallTexture write SetBallTexture;
     property BallReflectionTexture: TTexTile read GetBallReflectionTexture write SetBallReflectionTexture;
@@ -79,6 +90,35 @@ type
     property Billiard: TBilliard read FBilliard write SetBilliard;
     property InnerLocation: TLocation2 read FInnerLocation;
     property InnerBounds: TAxisSystem2 read GetInnerBounds;
+
+  end;
+
+  TCuePlacementBehavior = class(TSprite.TBehavior)
+  private
+    FControl: TBilliardControl;
+
+    procedure MouseMove;
+    procedure ButtonDown(AInfo: TButtonEventInfo);
+    function GetCueBall: TBilliard.TBall;
+    function GetReflectionSprite: TSprite;
+    function GetBilliard: TBilliard;
+    function GetBallSprite: TSprite;
+
+    // TODO: Cache as FPos and update in MouseMove
+    function GetPos: TVector2;
+
+  protected
+    procedure AddEvents; override;
+    procedure RemoveEvents; override;
+
+  public
+    constructor Create(AControl: TBilliardControl); reintroduce;
+
+    property Control: TBilliardControl read FControl;
+    property Billiard: TBilliard read GetBilliard;
+    property CueBall: TBilliard.TBall read GetCueBall;
+    property ReflectionSprite: TSprite read GetReflectionSprite;
+    property BallSprite: TSprite read GetBallSprite;
 
   end;
 
@@ -108,9 +148,9 @@ begin
       TBallPocketBehavior.Create(FBallSprites[Index], AInfo.Sender, False);
       TBallPocketBehavior.Create(FBallReflectionSprites[Index], AInfo.Sender, True);
       {
-      FBallSprites[Index].Color := ColorRGB(0.4, 0.4, 0.6);
-      FBallReflectionSprites[Index].Color := ColorRGB(0.4, 0.4, 0.6);
-      FBallReflectionSprites[Index].Location.Scale := TBilliard.TBall.Diameter * 0.85;
+        FBallSprites[Index].Color := ColorRGB(0.4, 0.4, 0.6);
+        FBallReflectionSprites[Index].Color := ColorRGB(0.4, 0.4, 0.6);
+        FBallReflectionSprites[Index].Location.Scale := TBilliard.TBall.Diameter * 0.85;
       }
     end
     else
@@ -130,6 +170,22 @@ begin
   FInnerLocation := TLocation2.Create;
   FInnerLocation.Parent := Location;
   FInnerLocation.Scale := 1 / ScaleCorrectionFactor;
+end;
+
+destructor TBilliardControl.Destroy;
+begin
+  Billiard.OnBallPocketedChange.Remove(BallPocketedChange);
+  Billiard.OnStateChange.Remove(BilliardStateChange);
+  FInnerLocation.Free;
+  inherited;
+end;
+
+procedure TBilliardControl.BilliardStateChange;
+begin
+  case Billiard.State of
+    bsCuePlacement:
+      TCuePlacementBehavior.Create(Self);
+  end;
 end;
 
 function TBilliardControl.GetAspect: Single;
@@ -196,6 +252,7 @@ begin
   FBilliard := Value;
 
   Billiard.OnBallPocketedChange.Add(BallPocketedChange);
+  Billiard.OnStateChange.Add(BilliardStateChange);
 
   FTableSprite := Add<TSprite>(TableTexture);
   FTableSprite.ZOrder := -0.1;
@@ -258,9 +315,89 @@ begin
   Sprite.Color := Sprite.Color - (Sprite.Color - TargetColor) * Game.DeltaTime * 10;
   if Reflection then
   begin
-    Sprite.Location.Pos := Sprite.Location.Pos - (Sprite.Location.Pos - Ball.Pocket.PocketedPosition) * Game.DeltaTime * 20;
+    Sprite.Location.Pos := Sprite.Location.Pos - (Sprite.Location.Pos - Ball.Pocket.PocketedPosition) *
+      Game.DeltaTime * 20;
     Sprite.Location.Scale := Sprite.Location.Scale - (Sprite.Location.Scale - TargetScale) * Game.DeltaTime * 10;
   end;
+end;
+
+{ TBallPlacementBehavior }
+
+procedure TCuePlacementBehavior.AddEvents;
+begin
+  Game.Input.OnMouseMove.Add(MouseMove);
+  Game.Input.OnButtonDown.Add(ButtonDown);
+end;
+
+procedure TCuePlacementBehavior.ButtonDown(AInfo: TButtonEventInfo);
+var
+  NewPos: TVector2;
+begin
+  if AInfo.Button <> mbLeft then
+    Exit;
+
+  NewPos := GetPos;
+  if not Billiard.CanPlaceCueBall(GetPos) then
+    Exit;
+
+  Billiard.PlaceCueBall(NewPos);
+  Remove;
+end;
+
+constructor TCuePlacementBehavior.Create(AControl: TBilliardControl);
+begin
+  FControl := AControl;
+  inherited Create(ReflectionSprite);
+  MouseMove;
+end;
+
+function TCuePlacementBehavior.GetBallSprite: TSprite;
+begin
+  Result := Control.FBallSprites[TBilliard.TBall.CueBallIndex];
+end;
+
+function TCuePlacementBehavior.GetBilliard: TBilliard;
+begin
+  Result := Control.Billiard;
+end;
+
+function TCuePlacementBehavior.GetCueBall: TBilliard.TBall;
+begin
+  Result := Billiard.CueBall;
+end;
+
+function TCuePlacementBehavior.GetPos: TVector2;
+begin
+  Result := Control.InnerBounds.InvPoint[Game.Input.MousePos];
+end;
+
+function TCuePlacementBehavior.GetReflectionSprite: TSprite;
+begin
+  Result := Control.FBallReflectionSprites[TBilliard.TBall.CueBallIndex];
+end;
+
+procedure TCuePlacementBehavior.MouseMove;
+var
+  NewPos: TVector2;
+begin
+  NewPos := GetPos;
+  Sprite.Location.Pos := NewPos;
+  if Billiard.CanPlaceCueBall(NewPos) then
+  begin
+    ReflectionSprite.Color := ColorWhite;
+    BallSprite.Color := ColorWhite;
+  end
+  else
+  begin
+    ReflectionSprite.Color := $7F7FFF;
+    BallSprite.Color := $7F7FFF;
+  end;
+end;
+
+procedure TCuePlacementBehavior.RemoveEvents;
+begin
+  Game.Input.OnMouseMove.Remove(MouseMove);
+  Game.Input.OnButtonDown.Remove(ButtonDown);
 end;
 
 end.

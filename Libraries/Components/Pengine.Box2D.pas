@@ -57,7 +57,7 @@ type
 
   TShapeClass = class of TShape;
 
-  TShape<W: record> = class abstract(TShape)
+  TShape<W: record > = class abstract(TShape)
   private
     function GetWrapper: W; inline;
 
@@ -391,7 +391,7 @@ type
       constructor Create(AType: TType; APosition: TVector2);
 
       property &Type: TType read GetType write SetType;
-      
+
       /// <summary>The position in <c>m</c>.</summary>
       property Position: TVector2 read GetPosition write SetPosition;
       /// <summary>The rotation in radians.</summary>
@@ -635,7 +635,7 @@ type
     // TODO: ContactList
 
   end;
-  
+
   /// <summary>A base class, which can add various constraints to bodies.</summary>
   TJoint = class abstract
   public type
@@ -679,7 +679,7 @@ type
 
     end;
 
-    TDef<T: record> = class(TDef)
+    TDef<T: record > = class(TDef)
     public type
 
       PT = ^T;
@@ -758,7 +758,7 @@ type
 
   TJointClass = class of TJoint;
 
-  TJoint<T: record> = class abstract(TJoint)
+  TJoint<T: record > = class abstract(TJoint)
   private
     function GetWrapper: T;
 
@@ -1420,6 +1420,10 @@ type
       procedure SetFriction(const Value: Single);
       procedure SetRestition(const Value: Single);
       procedure SetTangentSpeed(const Value: Single);
+      function GetBodyA: TBody;
+      function GetBodyB: TBody;
+      function GetUserDataA: TObject;
+      function GetUserDataB: TObject;
 
     public
       constructor Create(AWrapper: b2ContactWrapper);
@@ -1434,8 +1438,13 @@ type
 
       property FixtureA: TFixture read GetFixtureA;
       property ChainIndexA: Integer read GetChainIndexA;
+      property BodyA: TBody read GetBodyA;
+      property UserDataA: TObject read GetUserDataA;
+
       property FixtureB: TFixture read GetFixtureB;
       property ChainIndexB: Integer read GetChainIndexB;
+      property BodyB: TBody read GetBodyB;
+      property UserDataB: TObject read GetUserDataB;
 
       property Firction: Single read GetFriction write SetFriction;
       procedure ResetFriction;
@@ -1729,7 +1738,7 @@ end;
 constructor TBody.Create(AWorld: TWorld; ADef: TDef);
 begin
   FWorld := AWorld;
-  ADef.Data.userData := Self;
+  ADef.Data.UserData := Self;
   FWrapper := World.Wrapper.CreateBody(ADef.Data);
   if ADef.FreeAfterUse then
     ADef.Free;
@@ -2032,7 +2041,7 @@ end;
 
 constructor TFixture.Create(ABody: TBody; ADef: TFixture.TDef);
 begin
-  ADef.FData.userData := Self;
+  ADef.FData.UserData := Self;
   FWrapper := ABody.Wrapper.CreateFixture(ADef.Data)^;
   if ADef.FreeAfterUse then
     ADef.Free;
@@ -2693,18 +2702,18 @@ begin
 end;
 
 procedure TWorld.TListener.EndContact(AContact: b2ContactHandle);
-begin                                                                      
+begin
   World.FOnEndContact.Execute(TContactEventInfo.Create(World, TContact.Create(AContact)));
 end;
 
 procedure TWorld.TListener.PostSolve(AContact: b2ContactHandle; AImpulse: Pb2ContactImpulse);
 begin
-  World.FOnPostSolve.Execute(TContactEventInfo.Create(World, TContact.Create(AContact)));  
+  World.FOnPostSolve.Execute(TContactEventInfo.Create(World, TContact.Create(AContact)));
 end;
 
 procedure TWorld.TListener.PreSolve(AContact: b2ContactHandle; AOldManifold: Pb2Manifold);
 begin
-  World.FOnPreSolve.Execute(TContactEventInfo.Create(World, TContact.Create(AContact)));  
+  World.FOnPreSolve.Execute(TContactEventInfo.Create(World, TContact.Create(AContact)));
 end;
 
 { TDefBase }
@@ -2792,7 +2801,7 @@ end;
 
 constructor TJoint.Create(AWorld: TWorld; ADef: TDef);
 begin
-  ADef.Data.userData := Self;
+  ADef.Data.UserData := Self;
   FWrapper := AWorld.Wrapper.CreateJoint(ADef.Data);;
   Assert(GetType = ADef.GetType, 'JointDef-Type and Object-Type must match.');
   FWorld := AWorld;
@@ -4061,6 +4070,16 @@ begin
   FWrapper := AWrapper;
 end;
 
+function TWorld.TContact.GetBodyA: TBody;
+begin
+  Result := FixtureA.Body;
+end;
+
+function TWorld.TContact.GetBodyB: TBody;
+begin
+  Result := FixtureB.Body;
+end;
+
 function TWorld.TContact.GetChainIndexA: Integer;
 begin
   Result := Wrapper.GetChildIndexA;
@@ -4109,6 +4128,16 @@ end;
 function TWorld.TContact.GetTouching: Boolean;
 begin
   Result := Wrapper.IsTouching;
+end;
+
+function TWorld.TContact.GetUserDataA: TObject;
+begin
+  Result := BodyA.UserData;
+end;
+
+function TWorld.TContact.GetUserDataB: TObject;
+begin
+  Result := BodyB.UserData;
 end;
 
 procedure TWorld.TContact.ResetFriction;
