@@ -142,6 +142,7 @@ type
     class operator Subtract(const A, B: TIntVector2): TIntVector2;
     class operator Multiply(const A, B: TIntVector2): TIntVector2;
     class operator IntDivide(const A, B: TIntVector2): TIntVector2;
+    class operator Modulus(const A, B: TIntVector2): TIntVector2;
 
     class operator Positive(const A: TIntVector2): TIntVector2; inline;
     class operator Negative(const A: TIntVector2): TIntVector2;
@@ -299,6 +300,7 @@ type
     class operator Subtract(const A, B: TIntVector3): TIntVector3;
     class operator Multiply(const A, B: TIntVector3): TIntVector3;
     class operator IntDivide(const A, B: TIntVector3): TIntVector3;
+    class operator Modulus(const A, B: TIntVector3): TIntVector3;
 
     class operator Positive(const A: TIntVector3): TIntVector3; inline;
     class operator Negative(const A: TIntVector3): TIntVector3;
@@ -1092,6 +1094,12 @@ begin
   Result.Y := System.Math.Min(Y, A.Y);
 end;
 
+class operator TIntVector2.Modulus(const A, B: TIntVector2): TIntVector2;
+begin
+  Result.X := A.X mod B.X;
+  Result.Y := A.Y mod B.Y;
+end;
+
 function TIntVector2.Max(const A: TIntVector2): TIntVector2;
 begin
   Result.X := System.Math.Max(X, A.X);
@@ -1607,6 +1615,13 @@ begin
   Result.X := System.Math.Min(X, A.X);
   Result.Y := System.Math.Min(Y, A.Y);
   Result.Z := System.Math.Min(Z, A.Z);
+end;
+
+class operator TIntVector3.Modulus(const A, B: TIntVector3): TIntVector3;
+begin
+  Result.X := A.X mod B.X;
+  Result.Y := A.Y mod B.Y;
+  Result.Z := A.Z mod B.Z;
 end;
 
 function TIntVector3.Max(const A: TIntVector3): TIntVector3;
