@@ -69,7 +69,7 @@ type
       function GetOutput: Single; override;
 
     public
-      constructor Create(ANet: TNeuralNet);
+      constructor Create(ANet: TNeuralNet); virtual;
       destructor Destroy; override;
 
       property Output: Single read GetOutput write SetOutput;
@@ -130,6 +130,8 @@ type
       function AddInput(ANode: TNode; AOffset: Single = 0; AWeight: Single = 0): TWeightedNode;
       procedure RemoveInput(ANode: TNode);
 
+      procedure ClearInputs;
+
     end;
 
     TNodes = TRefArray<TNode>;
@@ -151,6 +153,8 @@ type
     function GetOutputs: TOutputs.TReader;
     function GetNeurons: TNeurons.TReader;
 
+    procedure FreeNodes;
+
   public
     constructor Create;
     destructor Destroy; override;
@@ -158,7 +162,10 @@ type
     /// <summary>Turns any given value into range <c>(-1, +1)</c>, but keeps relations.</summary>
     class function Sigmoid(AValue: Single): Single; static;
 
-    function AddInput: TInput;
+    procedure Clear;
+
+    function AddInput: TInput; overload;
+    function AddInput<T: TInput>: T; overload;
     function AddHiddenNode: TNeuron;
     function AddOutput: TNeuron;
 
@@ -167,12 +174,6 @@ type
     property Neurons: TNeurons.TReader read GetNeurons;
     property HiddenNodes: THiddenNodes.TReader read GetHiddenNodes;
     property Outputs: TOutputs.TReader read GetOutputs;
-
-  end;
-
-  TLayeredNeuralNet = class
-  private
-    FNet: TNeuralNet;
 
   end;
 
@@ -251,9 +252,11 @@ var
 begin
   Invalidate;
   if Net <> nil then
+  begin
     Net.FNodes.Remove(Self);
-  for Node in Outputs.InReverse do
-    Node.RemoveInput(Self);
+    for Node in Outputs.InReverse do
+      Node.RemoveInput(Self);
+  end;
   FOutputs.Free;
   inherited;
 end;
@@ -298,9 +301,24 @@ begin
   Result := TInput.Create(Self);
 end;
 
+function TNeuralNet.AddInput<T>: T;
+begin
+  Result := T.Create(Self);
+end;
+
 function TNeuralNet.AddOutput: TNeuron;
 begin
   Result := TNeuron.Create(Self, True);
+end;
+
+procedure TNeuralNet.Clear;
+begin
+  FInputs.Clear;
+  FOutputs.Clear;
+  FNeurons.Clear;
+  FHiddenNodes.Clear;
+  FreeNodes;
+  FNodes.Clear;
 end;
 
 constructor TNeuralNet.Create;
@@ -313,20 +331,25 @@ begin
 end;
 
 destructor TNeuralNet.Destroy;
-var
-  Node: TNode;
 begin
   FInputs.Free;
   FNeurons.Free;
   FHiddenNodes.Free;
   FOutputs.Free;
+  FreeNodes;
+  FNodes.Free;
+  inherited;
+end;
+
+procedure TNeuralNet.FreeNodes;
+var
+  Node: TNode;
+begin
   for Node in Nodes do
   begin
     Node.FNet := nil;
     Node.Free;
   end;
-  FNodes.Free;
-  inherited;
 end;
 
 function TNeuralNet.GetHiddenNodes: THiddenNodes.TReader;
@@ -377,6 +400,14 @@ begin
     FOutput := FOutput + Node.Output;
   FOutput := Sigmoid(FOutput / WeightedNodes.Count * 2);
   FCalculated := True;
+end;
+
+procedure TNeuralNet.TNeuron.ClearInputs;
+var
+  Node: TWeightedNode;
+begin
+  for Node in FWeightedNodes do
+    RemoveInput(Node.Node);
 end;
 
 constructor TNeuralNet.TNeuron.Create(ANet: TNeuralNet; AIsOutput: Boolean);

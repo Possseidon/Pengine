@@ -73,14 +73,15 @@ type
 
     function GetSize: TIntVector2; override;
     function GetFields: Integer;
+    procedure GeneratePercentage(AMinePercentage: Single);
 
   public
     constructor Create(ASize: TIntVector2);
     destructor Destroy; override;
-    
+
     procedure Clear;
-    procedure Generate(AMines: Integer);
-    procedure GeneratePercentage(AMinePercentage: Single);
+    procedure Generate(AMines: Integer); overload;
+    procedure Generate(AMines: Integer; APreventMineAt: TIntVector2); overload;
 
     property Mines: Integer read FMineCount;
     property Fields: Integer read GetFields;
@@ -142,18 +143,29 @@ begin
 end;
 
 procedure TMinesweeper.Generate(AMines: Integer);
+begin
+  Generate(AMines, -1);
+end;
+
+procedure TMinesweeper.Generate(AMines: Integer; APreventMineAt: TIntVector2);
 
   function FieldIndexToPos(AIndex: Integer): TIntVector2;
   begin
     Result.Create(AIndex mod Size.X, AIndex div Size.X);
   end;
 
+  function PosToFieldIndex(APos: TIntVector2): Integer;
+  begin
+    Result := APos.X + APos.Y * Size.X;
+  end;
+
 var
   Indices: TIntArray;
-  I: Integer;
-  Selected: Integer;
+  I, Selected: Integer;
+  Pos: TIntVector2;
+  Bounds: TIntBounds2;
 begin
-  if (AMines < 0) or (AMines > Fields) then
+  if AMines < 0 then
     raise EMinesweeper.Create('Invalid number of mines.');
 
   Clear;
@@ -165,15 +177,27 @@ begin
 
   Indices := TIntArray.Create;
   Indices.Capacity := Fields;
+  Indices.ForceCount(Indices.Capacity);
 
-  for I := 0 to Indices.Capacity - 1 do
-    Indices.Add(I);
+  for I := 0 to Indices.MaxIndex do
+    Indices[I] := I;
 
-  for I := Indices.Count downto Indices.Count - AMines + 1 do
+  I := Indices.MaxIndex;
+
+  if APreventMineAt <> -1 then
   begin
-    Selected := Random(I);
+    for Pos in CheckBounds(APreventMineAt){.InReverse} do
+    begin
+      Indices[PosToFieldIndex(Pos)] := Indices[I];
+      Dec(I);
+    end;
+  end;
+
+  for I := I downto I - AMines + 1 do
+  begin
+    Selected := Random(I + 1);
     FMines[FieldIndexToPos(Indices[Selected])] := True;
-    Indices[Selected] := I - 1;
+    Indices[Selected] := Indices[I];
   end;
 
   Indices.Free;
@@ -214,7 +238,10 @@ end;
 
 function TMinesweeper.IsRevealed(APos: TIntVector2): Boolean;
 begin
-  Result := FRevealed[APos];
+  if WrapAround then
+    Result := FRevealed[IBounds2(Size).RangedMod(APos)]
+  else
+    Result := (APos in Size) and FRevealed[APos];
 end;
 
 function TMinesweeper.Reveal(APos: TIntVector2): TRevealResult;
@@ -232,8 +259,8 @@ begin
   Result := rrZeroMines;
 
   for Pos in CheckBounds(APos) do
-    if Pos <> APos then
-      Reveal(APos);
+    if not IsRevealed(Pos) then
+      Reveal(Pos);
 end;
 
 { TMinesweeper.TRevealEventInfo }

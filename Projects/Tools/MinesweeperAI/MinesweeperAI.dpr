@@ -3,7 +3,8 @@ program MinesweeperAI;
 uses
   Vcl.Forms,
   Main in 'Main.pas' {frmMain},
-  MinesweeperDefine in 'MinesweeperDefine.pas';
+  MinesweeperDefine in 'MinesweeperDefine.pas',
+  MinesweeperNerualNet in 'MinesweeperNerualNet.pas';
 
 {$R *.res}
 

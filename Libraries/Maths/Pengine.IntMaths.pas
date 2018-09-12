@@ -94,8 +94,11 @@ type
   PIntVector3 = ^TIntVector3;
 
   TIntBounds1Iterator = class;
+  TIntBounds1ReverseIterator = class;
   TIntBounds2Iterator = class;
+  TIntBounds2ReverseIterator = class;
   TIntBounds3Iterator = class;
+  TIntBounds3ReverseIterator = class;
 
   /// <summary>A two component vector of type <see cref="System|Integer"/>.</summary>
   TIntVector2 = record
@@ -444,6 +447,13 @@ type
     /// </code></summary>
     TCorners = array [TCornerIndex] of TIntVector2;
 
+    PReverseWrapper = ^TReverseWrapper;
+    TReverseWrapper = record
+    public
+      function GetEnumerator: TIntBounds2ReverseIterator;
+
+    end;
+
   private
 
     function GetLineX: TIntBounds1; inline;
@@ -536,6 +546,7 @@ type
     class operator Implicit(ABounds: TIntBounds2): string; inline;
 
     function GetEnumerator: TIntBounds2Iterator;
+    function InReverse: TReverseWrapper;
 
   end;
 
@@ -712,6 +723,21 @@ type
 
     function MoveNext: Boolean;
     property Current: Integer read FCurrent;
+
+  end;
+
+  // TODO: XmlDoc
+  TIntBounds1ReverseIterator = class
+  private
+    FCurrent: Integer;
+    FEnd: Integer;
+
+  public
+    constructor Create(const ABounds: TIntBounds1);
+
+    function MoveNext: Boolean;
+    property Current: Integer read FCurrent;
+
   end;
 
   // TODO: XmlDoc
@@ -725,6 +751,21 @@ type
 
     function MoveNext: Boolean;
     property Current: TIntVector2 read FCurrent;
+
+  end;
+
+  // TODO: XmlDoc
+  TIntBounds2ReverseIterator = class
+  private
+    FCurrent: TIntVector2;
+    FC1, FC2: TIntVector2;
+
+  public
+    constructor Create(const ABounds: TIntBounds2);
+
+    function MoveNext: Boolean;
+    property Current: TIntVector2 read FCurrent;
+
   end;
 
   // TODO: XmlDoc
@@ -738,6 +779,21 @@ type
 
     function MoveNext: Boolean;
     property Current: TIntVector3 read FCurrent;
+
+  end;
+
+  // TODO: XmlDoc
+  TIntBounds3ReverseIterator = class
+  private
+    FCurrent: TIntVector3;
+    FC1, FC2: TIntVector3;
+
+  public
+    constructor Create(const ABounds: TIntBounds3);
+
+    function MoveNext: Boolean;
+    property Current: TIntVector3 read FCurrent;
+
   end;
 
   TIntVector2Helper = record helper for TIntVector2
@@ -1886,6 +1942,11 @@ begin
   Result.LineY := LineY.Normalize;
 end;
 
+function TIntBounds2.InReverse: TReverseWrapper;
+begin
+  Result := PReverseWrapper(@Self)^;
+end;
+
 function TIntBounds2.Inset(AAmount: TIntVector2): TIntBounds2;
 begin
   Result.C1 := C1 + AAmount;
@@ -2396,6 +2457,13 @@ end;
 function TIntVector3Helper.Bounds(ASize: TIntVector3): TIntBounds3;
 begin
   Result.Create(Self, Self + ASize);
+end;
+
+{ TIntBounds2.TReverseWrapper }
+
+function TIntBounds2.TReverseWrapper.GetEnumerator: TIntBounds2ReverseIterator;
+begin
+  Result := TIntBounds2ReverseIterator.Create(PIntBounds2(@Self)^);
 end;
 
 end.
