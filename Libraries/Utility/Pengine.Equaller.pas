@@ -142,6 +142,11 @@ type
     class function Equal(const AValue1, AValue2: TClass): Boolean; override;
   end;
 
+  TGUIDEqualler = class(TEqualler<TGUID>)
+  public
+    class function Equal(const AValue1, AValue2: TGUID): Boolean; override;
+  end;
+
   TClassEqualler<T> = class(TEqualler<T>)
   public
     class function Equal(const AValue1, AValue2: T): Boolean; override;
@@ -335,6 +340,13 @@ end;
 class function TEnumEqualler<T>.Equal(const AValue1, AValue2: T): Boolean;
 begin
   Result := CompareMem(@AValue1, @AValue2, SizeOf(T));
+end;
+
+{ TGUIDEqualler }
+
+class function TGUIDEqualler.Equal(const AValue1, AValue2: TGUID): Boolean;
+begin
+  Result := AValue1 = AValue2;
 end;
 
 { TClassEqualler<T> }

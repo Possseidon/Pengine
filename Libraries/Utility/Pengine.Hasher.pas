@@ -185,6 +185,12 @@ type
     class function CanIndex(const AValue: TClass): Boolean; override;
   end;
 
+  TGUIDHasher = class(THasher<TGUID, TGUIDEqualler>)
+  public
+    class function GetHash(const AValue: TGUID): Cardinal; override;
+    class function CanIndex(const AValue: TGUID): Boolean; override;
+  end;
+
   TClassHasher<T> = class(THasher<T, TClassEqualler<T>>)
   public
     class function GetHash(const AValue: T): Cardinal; override;
@@ -839,6 +845,20 @@ end;
 function HashOf(const Value: TVectorDir): Cardinal;
 begin
   Result := TVectorDirHasher.GetHash(Value);
+end;
+
+{ TGUIDHasher }
+
+class function TGUIDHasher.CanIndex(const AValue: TGUID): Boolean;
+begin
+  Result := AValue <> TGUID.Empty;
+end;
+
+class function TGUIDHasher.GetHash(const AValue: TGUID): Cardinal;
+var
+  A: array [0 .. 3] of Cardinal absolute AValue;
+begin
+  Result := A[0] xor A[1] xor A[2] xor A[3];
 end;
 
 { TClassHasher<T> }
