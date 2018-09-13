@@ -334,12 +334,12 @@ type
   end;
 
   /// <summary>
-  /// Represents 1-Dimensional bounds <c>[C1, C2)</c> using two <see cref="System|Integer"/>.
+  /// Represents 1-Dimensional bounds <c>[C1, C2]</c> using two <see cref="System|Integer"/>.
   /// <p>Shorthand constructor using: <see cref="Pengine.IntMaths|IBounds1"/></p>
   /// </summary>
   /// <remarks>
-  /// For better performance, most functions assume, that the bounds are normalized: <c>C1 &lt;= C2</c><p/>
-  /// Iteration with a <c>for-in</c> loop is possible.
+  /// For better performance, most functions assume, that the bounds are normalized: <c>C1 &lt;= C2 + 1</c><p/>
+  /// Iteration is possible with a <c>for-in</c> loop.
   /// </remarks>
   TIntBounds1 = record
   public type
@@ -354,16 +354,19 @@ type
     /// </code></summary>
     TCorners = array [TCornerIndex] of Integer;
 
+    PReverseWrapper = ^TReverseWrapper;
+
+    TReverseWrapper = record
+    public
+      function GetEnumerator: TIntBounds1ReverseIterator;
+
+    end;
+
   public
     /// <summary>The (usually) lower value of the bounds.</summary>
     C1: Integer;
     /// <summary>The (usually) higher value of the bounds.</summary>
     C2: Integer;
-
-    /// <summary>Alias for <see cref="Pengine.IntMaths|TIntBounds1.C1"/>.</summary>
-    property Low: Integer read C1 write C1;
-    /// <summary>Alias for <see cref="Pengine.IntMaths|TIntBounds1.C2"/>.</summary>
-    property High: Integer read C2 write C2;
 
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds1"/> with the specified range.</summary>
     constructor Create(AC1, AC2: Integer); overload;
@@ -382,13 +385,13 @@ type
     /// <returns>The given bounds clamped to be inside of the calling bounds.</returns>
     /// <remarks>This operation is performed inclusive, so that repeated clamping stays the same.</remarks>
     function Clamp(ARange: TIntBounds1): TIntBounds1; overload;
-    /// <returns>The given value being clamped to the bounds <c>[C1, C2).</c></returns>
+    /// <returns>The given value being clamped to the bounds <c>[C1, C2].</c></returns>
     function Clamp(AValue: Integer): Integer; overload;
 
-    /// <returns>The given value in the interval: <c>[C1..C2)</c></returns>
+    /// <returns>The given value in the interval: <c>[C1, C2]</c></returns>
     function RangedMod(AValue: Integer): Integer;
 
-    /// <returns>True, if C1 &lt;= C2</returns>
+    /// <returns>True, if C1 &lt;= C2 + 1</returns>
     function Normalized: Boolean; inline;
     /// <returns>The normalized version of the bounds.</summary>
     function Normalize: TIntBounds1;
@@ -403,9 +406,7 @@ type
     class operator Multiply(const A, B: TIntBounds1): TIntBounds1;
     class operator IntDivide(const A, B: TIntBounds1): TIntBounds1;
 
-    // inclusive
     class operator in (const A, B: TIntBounds1): Boolean;
-    // exclusive
     class operator in (A: Integer; const B: TIntBounds1): Boolean;
 
     class operator Equal(const A, B: TIntBounds1): Boolean;
@@ -415,21 +416,22 @@ type
     class operator LessThan(const A, B: TIntBounds1): Boolean;
     class operator LessThanOrEqual(const A, B: TIntBounds1): Boolean;
 
-    /// <returns>A string representative in the form: <c>&lt;C1~C2&gt;</c></returns>
+    /// <returns>A string representative in the form: <c>[C1, C2]</c></returns>
     /// <remarks>Direct implicit conversion to string is possible.</remarks>
     function ToString: string; inline;
     class operator Implicit(ABounds: TIntBounds1): string; inline;
 
     function GetEnumerator: TIntBounds1Iterator;
+    function InReverse: TReverseWrapper;
 
   end;
 
   /// <summary>
-  /// Represents 2-Dimensional bounds <c>[C1, C2)</c> using two <see cref="Pengine.IntMaths|TIntVector2"/>.
+  /// Represents 2-Dimensional bounds <c>[C1, C2]</c> using two <see cref="Pengine.IntMaths|TIntVector2"/>.
   /// <p>Shorthand constructor using: <see cref="Pengine.IntMaths|IBounds2"/></p>
   /// </summary>
   /// <remarks>
-  /// For better performance, most functions assume, that the bounds are normalized: <c>C1 &lt;= C2</c><p/>
+  /// For better performance, most functions assume, that the bounds are normalized: <c>C1 &lt;= C2 + 1</c><p/>
   /// Iteration with a <c>for-in</c> loop is possible.
   /// </remarks>
   TIntBounds2 = record
@@ -440,14 +442,15 @@ type
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
     /// Index  X, Y<p/>
-    /// [0]  (0, 0)<p/>
-    /// [1]  (1, 0)<p/>
-    /// [2]  (0, 1)<p/>
-    /// [3]  (1, 1)<p/>
+    /// [0]   (0, 0)<p/>
+    /// [1]   (1, 0)<p/>
+    /// [2]   (0, 1)<p/>
+    /// [3]   (1, 1)<p/>
     /// </code></summary>
     TCorners = array [TCornerIndex] of TIntVector2;
 
     PReverseWrapper = ^TReverseWrapper;
+
     TReverseWrapper = record
     public
       function GetEnumerator: TIntBounds2ReverseIterator;
@@ -455,7 +458,6 @@ type
     end;
 
   private
-
     function GetLineX: TIntBounds1; inline;
     function GetLineY: TIntBounds1; inline;
 
@@ -468,17 +470,11 @@ type
     /// <summary>The (usually) higher value of the bounds.</summary>
     C2: TIntVector2;
 
-    /// <summary>Alias for <see cref="Pengine.IntMaths|TIntBounds2.C1"/>.</summary>
-    property Low: TIntVector2 read C1 write C1;
-    /// <summary>Alias for <see cref="Pengine.IntMaths|TIntBounds2.C2"/>.</summary>
-    property High: TIntVector2 read C2 write C2;
-
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds2"/> with the specified range.</summary>
     constructor Create(AC1, AC2: TIntVector2); overload;
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds2"/> with both bounds laying on the same, given value.</summary>
     constructor Create(A: TIntVector2); overload;
 
-    // class operator Implicit(A: Integer): TIntBounds2; inline;
     class operator Implicit(A: TIntVector2): TIntBounds2; inline;
 
     /// <returns>The difference between C1 and C2.</returns>
@@ -513,7 +509,7 @@ type
     /// <returns>The given value in the interval: <c>[C1..C2)</c></returns>
     function RangedMod(AValue: TIntVector2): TIntVector2;
 
-    /// <returns>True, if C1 &lt;= C2</returns>
+    /// <returns>True, if C1 &lt;= C2 + 1</returns>
     function Normalized: Boolean; inline;
     /// <returns>The normalized version of the bounds.</summary>
     function Normalize: TIntBounds2;
@@ -528,9 +524,7 @@ type
     class operator Multiply(const A, B: TIntBounds2): TIntBounds2;
     class operator IntDivide(const A, B: TIntBounds2): TIntBounds2;
 
-    // inclusive
     class operator in (const A, B: TIntBounds2): Boolean;
-    // exclusive
     class operator in (A: TIntVector2; const B: TIntBounds2): Boolean;
 
     class operator Equal(const A, B: TIntBounds2): Boolean;
@@ -566,19 +560,18 @@ type
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
     /// Index  X, Y, Z<p/>
-    ///  [0]  (0, 0, 0)<p/>
-    ///  [1]  (1, 0, 0)<p/>
-    ///  [2]  (0, 1, 0)<p/>
-    ///  [3]  (1, 1, 0)<p/>
-    ///  [4]  (0, 0, 1)<p/>
-    ///  [5]  (1, 0, 1)<p/>
-    ///  [6]  (0, 1, 1)<p/>
-    ///  [7]  (1, 1, 1)<p/>
+    /// [0]  (0, 0, 0)<p/>
+    /// [1]  (1, 0, 0)<p/>
+    /// [2]  (0, 1, 0)<p/>
+    /// [3]  (1, 1, 0)<p/>
+    /// [4]  (0, 0, 1)<p/>
+    /// [5]  (1, 0, 1)<p/>
+    /// [6]  (0, 1, 1)<p/>
+    /// [7]  (1, 1, 1)<p/>
     /// </code></summary>
     TCorners = array [TCornerIndex] of TIntVector2;
 
   private
-
     function GetLineX: TIntBounds1; inline;
     function GetLineY: TIntBounds1; inline;
     function GetLineZ: TIntBounds1; inline;
@@ -606,11 +599,6 @@ type
     C1: TIntVector3;
     /// <summary>The (usually) higher values of the bounds.</summary>
     C2: TIntVector3;
-
-    /// <summary>Alias for <see cref="Pengine.IntMaths|TIntBounds3.C1"/>.</summary>
-    property Low: TIntVector3 read C1 write C1;
-    /// <summary>Alias for <see cref="Pengine.IntMaths|TIntBounds3.C2"/>.</summary>
-    property High: TIntVector3 read C2 write C2;
 
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds3"/> with the specified range.</summary>
     constructor Create(AC1, AC2: TIntVector3); overload;
@@ -670,10 +658,10 @@ type
     /// <returns>The given bounds clamped to be inside of the calling bounds.</returns>
     /// <remarks>This operation is performed inclusive, so that repeated clamping stays the same.</remarks>
     function Clamp(ARange: TIntBounds3): TIntBounds3; overload;
-    /// <returns>The given value being clamped to the bounds <c>[C1, C2).</c></returns>
+    /// <returns>The given value being clamped to the bounds <c>[C1, C2].</c></returns>
     function Clamp(AValue: TIntVector3): TIntVector3; overload;
 
-    /// <returns>The given value in the interval: <c>[C1..C2)</c></returns>
+    /// <returns>The given value in the interval: <c>[C1, C2]</c></returns>
     function RangedMod(AValue: TIntVector3): TIntVector3;
 
     /// <returns>True, if C1 &lt;= C2</returns>
@@ -744,7 +732,8 @@ type
   TIntBounds2Iterator = class
   private
     FCurrent: TIntVector2;
-    FC1, FC2: TIntVector2;
+    FSave: Integer;
+    FEnd: TIntVector2;
 
   public
     constructor Create(const ABounds: TIntBounds2);
@@ -758,7 +747,8 @@ type
   TIntBounds2ReverseIterator = class
   private
     FCurrent: TIntVector2;
-    FC1, FC2: TIntVector2;
+    FSave: Integer;
+    FEnd: TIntVector2;
 
   public
     constructor Create(const ABounds: TIntBounds2);
@@ -772,7 +762,8 @@ type
   TIntBounds3Iterator = class
   private
     FCurrent: TIntVector3;
-    FC1, FC2: TIntVector3;
+    FSave: TIntVector2;
+    FEnd: TIntVector3;
 
   public
     constructor Create(const ABounds: TIntBounds3);
@@ -786,7 +777,8 @@ type
   TIntBounds3ReverseIterator = class
   private
     FCurrent: TIntVector3;
-    FC1, FC2: TIntVector3;
+    FSave: TIntVector2;
+    FEnd: TIntVector3;
 
   public
     constructor Create(const ABounds: TIntBounds3);
@@ -817,11 +809,11 @@ const
     );
 
   Vec2Dir: array [TBasicDir2Nonable] of TIntVector2 = (
-    (X:  0; Y:  0),
-    (X: -1; Y:  0),
-    (X: +1; Y:  0),
-    (X:  0; Y: -1),
-    (X:  0; Y: +1)
+    (X: 0; Y: 0),
+    (X: -1; Y: 0),
+    (X: +1; Y: 0),
+    (X: 0; Y: -1),
+    (X: 0; Y: +1)
     );
 
   Vec3Dir: array [TBasicDir] of TIntVector3 = (
@@ -1708,7 +1700,7 @@ end;
 
 function TIntBounds1.Length: Integer;
 begin
-  Result := C2 - C1;
+  Result := C2 - C1 + 1;
 end;
 
 function TIntBounds1.Clamp(ARange: TIntBounds1): TIntBounds1;
@@ -1719,12 +1711,12 @@ end;
 
 function TIntBounds1.Center: Integer;
 begin
-  Result := (C1 + C2 - 1) div 2;
+  Result := (C1 + C2) div 2;
 end;
 
 function TIntBounds1.Clamp(AValue: Integer): Integer;
 begin
-  Result := EnsureRange(AValue, C1, C2 - 1);
+  Result := EnsureRange(AValue, C1, C2);
 end;
 
 function TIntBounds1.RangedMod(AValue: Integer): Integer;
@@ -1740,7 +1732,7 @@ end;
 
 function TIntBounds1.Normalized: Boolean;
 begin
-  Result := C1 <= C2;
+  Result := C1 <= C2 + 1;
 end;
 
 function TIntBounds1.Normalize: TIntBounds1;
@@ -1749,6 +1741,11 @@ begin
     Exit(Self);
   Result.C1 := C2;
   Result.C2 := C1;
+end;
+
+function TIntBounds1.InReverse: TReverseWrapper;
+begin
+  Result := PReverseWrapper(@Self)^;
 end;
 
 function TIntBounds1.Inset(AAmount: Integer): TIntBounds1;
@@ -1794,7 +1791,7 @@ end;
 
 class operator TIntBounds1.In(A: Integer; const B: TIntBounds1): Boolean;
 begin
-  Result := (A >= B.C1) and (A < B.C2);
+  Result := (A >= B.C1) and (A <= B.C2);
 end;
 
 class operator TIntBounds1.Equal(const A, B: TIntBounds1): Boolean;
@@ -1829,7 +1826,7 @@ end;
 
 function TIntBounds1.ToString: string;
 begin
-  Result := Format('[%d, %d]', [C1, C2 - 1]);
+  Result := Format('[%d, %d]', [C1, C2]);
 end;
 
 class operator TIntBounds1.Implicit(ABounds: TIntBounds1): string;
@@ -1877,12 +1874,7 @@ begin
   C1 := A;
   C2 := A;
 end;
-                                                            {
-class operator TIntBounds2.Implicit(A: Integer): TIntBounds2;
-begin
-  Result.Create(A);
-end;
-                                                             }
+
 class operator TIntBounds2.Implicit(A: TIntVector2): TIntBounds2;
 begin
   Result.Create(A);
@@ -1890,7 +1882,7 @@ end;
 
 function TIntBounds2.Size: TIntVector2;
 begin
-  Result := C2 - C1;
+  Result := C2 - C1 + 1;
 end;
 
 function TIntBounds2.Area: Integer;
@@ -1916,7 +1908,7 @@ end;
 
 function TIntBounds2.Center: TIntVector2;
 begin
-  Result := (C1 + C2 - 1) div 2;
+  Result := (C1 + C2) div 2;
 end;
 
 function TIntBounds2.Clamp(AValue: TIntVector2): TIntVector2;
@@ -1933,7 +1925,7 @@ end;
 
 function TIntBounds2.Normalized: Boolean;
 begin
-  Result := C1 <= C2;
+  Result := C1 <= C2 + 1;
 end;
 
 function TIntBounds2.Normalize: TIntBounds2;
@@ -1990,7 +1982,7 @@ end;
 
 class operator TIntBounds2.In(A: TIntVector2; const B: TIntBounds2): Boolean;
 begin
-  Result := (A >= B.C1) and (A < B.C2);
+  Result := (A >= B.C1) and (A <= B.C2);
 end;
 
 class operator TIntBounds2.Equal(const A, B: TIntBounds2): Boolean;
@@ -2025,7 +2017,7 @@ end;
 
 function TIntBounds2.ToString: string;
 begin
-  Result := Format('[%s, %s]', [C1.ToString, (C2 - 1).ToString]);
+  Result := Format('[%s, %s]', [C1.ToString, C2.ToString]);
 end;
 
 class operator TIntBounds2.Implicit(ABounds: TIntBounds2): string;
@@ -2164,7 +2156,7 @@ end;
 
 function TIntBounds3.Size: TIntVector3;
 begin
-  Result.Create(Width, Height, Depth);
+  Result := C2 - C1 + 1;
 end;
 
 function TIntBounds3.Volume: Integer;
@@ -2215,7 +2207,7 @@ end;
 
 function TIntBounds3.Normalized: Boolean;
 begin
-  Result := C1 <= C2;
+  Result := C1 <= C2 + 1;
 end;
 
 function TIntBounds3.Normalize: TIntBounds3;
@@ -2327,7 +2319,7 @@ end;
 function TIntBounds1Iterator.MoveNext: Boolean;
 begin
   Inc(FCurrent);
-  Result := FCurrent < FEnd;
+  Result := FCurrent <= FEnd;
 end;
 
 { TIntBounds2Iterator }
@@ -2336,19 +2328,19 @@ constructor TIntBounds2Iterator.Create(const ABounds: TIntBounds2);
 begin
   FCurrent.X := ABounds.C1.X - 1;
   FCurrent.Y := ABounds.C1.Y;
-  FC1 := ABounds.C1;
-  FC2 := ABounds.C2;
+  FSave := ABounds.C1.X;
+  FEnd := ABounds.C2;
 end;
 
 function TIntBounds2Iterator.MoveNext: Boolean;
 begin
   Inc(FCurrent.X);
-  if FCurrent.X >= FC2.X then
+  if FCurrent.X > FEnd.X then
   begin
-    FCurrent.X := FC1.X;
+    FCurrent.X := FSave;
     Inc(FCurrent.Y);
   end;
-  Result := FCurrent.Y < FC2.Y;
+  Result := FCurrent.Y <= FEnd.Y;
 end;
 
 { TIntBounds3Iterator }
@@ -2358,24 +2350,24 @@ begin
   FCurrent.X := ABounds.C1.X - 1;
   FCurrent.Y := ABounds.C1.Y;
   FCurrent.Z := ABounds.C1.Z;
-  FC1 := ABounds.C1;
-  FC2 := ABounds.C2;
+  FSave := ABounds.C1.XY;
+  FEnd := ABounds.C2;
 end;
 
 function TIntBounds3Iterator.MoveNext: Boolean;
 begin
   Inc(FCurrent.X);
-  if FCurrent.X >= FC2.X then
+  if FCurrent.X >= FEnd.X then
   begin
-    FCurrent.X := FC1.X;
+    FCurrent.X := FSave.X;
     Inc(FCurrent.Y);
-    if FCurrent.Y >= FC2.Y then
+    if FCurrent.Y >= FEnd.Y then
     begin
-      FCurrent.Y := FC1.Y;
+      FCurrent.Y := FSave.Y;
       Inc(FCurrent.Z);
     end;
   end;
-  Result := FCurrent.Z < FC2.Z;
+  Result := FCurrent.Z < FEnd.Z;
 end;
 
 { Shorthand Constructors }
@@ -2402,12 +2394,12 @@ end;
 
 function IBounds1(A, B: Integer): TIntBounds1;
 begin
-  Result.Create(A, B);
+  Result.Create(A, B - 1);
 end;
 
 function IBounds1I(A, B: Integer): TIntBounds1;
 begin
-  Result.Create(A, B + 1);
+  Result.Create(A, B);
 end;
 
 function IBounds1(A: Integer): TIntBounds1;
@@ -2417,32 +2409,32 @@ end;
 
 function IBounds2(A, B: TIntVector2): TIntBounds2;
 begin
-  Result.Create(A, B);
+  Result.Create(A, B - 1);
 end;
 
 function IBounds2I(A, B: TIntVector2): TIntBounds2;
 begin
-  Result.Create(A, B + 1);
+  Result.Create(A, B);
 end;
 
 function IBounds2(A: TIntVector2): TIntBounds2;
 begin
-  Result.Create(0, A);
+  Result.Create(0, A - 1);
 end;
 
 function IBounds3(A, B: TIntVector3): TIntBounds3;
 begin
-  Result.Create(A, B);
+  Result.Create(A, B - 1);
 end;
 
 function IBounds3I(A, B: TIntVector3): TIntBounds3;
 begin
-  Result.Create(A, B + 1);
+  Result.Create(A, B);
 end;
 
 function IBounds3(A: TIntVector3): TIntBounds3;
 begin
-  Result.Create(0, A);
+  Result.Create(0, A - 1);
 end;
 
 { TIntVector2Helper }
@@ -2464,6 +2456,75 @@ end;
 function TIntBounds2.TReverseWrapper.GetEnumerator: TIntBounds2ReverseIterator;
 begin
   Result := TIntBounds2ReverseIterator.Create(PIntBounds2(@Self)^);
+end;
+
+{ TIntBounds1.TReverseWrapper }
+
+function TIntBounds1.TReverseWrapper.GetEnumerator: TIntBounds1ReverseIterator;
+begin
+  Result := TIntBounds1ReverseIterator.Create(PIntBounds1(@Self)^);
+end;
+
+{ TIntBounds1ReverseIterator }
+
+constructor TIntBounds1ReverseIterator.Create(const ABounds: TIntBounds1);
+begin
+  FCurrent := ABounds.C2 + 1;
+  FEnd := ABounds.C1;
+end;
+
+function TIntBounds1ReverseIterator.MoveNext: Boolean;
+begin
+  Dec(FCurrent);
+  Result := FCurrent >= FEnd;
+end;
+
+{ TIntBounds2ReverseIterator }
+
+constructor TIntBounds2ReverseIterator.Create(const ABounds: TIntBounds2);
+begin
+  FCurrent.X := ABounds.C2.X + 1;
+  FCurrent.Y := ABounds.C2.Y;
+  FSave := ABounds.C2.X;
+  FEnd := ABounds.C1;
+end;
+
+function TIntBounds2ReverseIterator.MoveNext: Boolean;
+begin
+  Dec(FCurrent.X);
+  if FCurrent.X < FEnd.X then
+  begin
+    FCurrent.X := FSave;
+    Dec(FCurrent.Y);
+  end;
+  Result := FCurrent.Y >= FEnd.Y;
+end;
+
+{ TIntBounds3ReverseIterator }
+
+constructor TIntBounds3ReverseIterator.Create(const ABounds: TIntBounds3);
+begin
+  FCurrent.X := ABounds.C2.X + 1;
+  FCurrent.Y := ABounds.C2.Y;
+  FCurrent.Z := ABounds.C2.Z;
+  FSave := ABounds.C2.XY;
+  FEnd := ABounds.C1;
+end;
+
+function TIntBounds3ReverseIterator.MoveNext: Boolean;
+begin
+  Dec(FCurrent.X);
+  if FCurrent.X < FEnd.X then
+  begin
+    FCurrent.X := FSave.X;
+    Dec(FCurrent.Y);
+    if FCurrent.Y < FEnd.Y then
+    begin
+      FCurrent.Y := FSave.Y;
+      Dec(FCurrent.Z);
+    end;
+  end;
+  Result := FCurrent.Z >= FEnd.Z;
 end;
 
 end.

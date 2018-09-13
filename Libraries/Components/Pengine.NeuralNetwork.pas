@@ -387,7 +387,7 @@ end;
 function TNeuralNet.TNeuron.AddInput(ANode: TNode; AOffset, AWeight: Single): TWeightedNode;
 begin
   ANode.FOutputs.Add(Self);
-  FWeightedNodes.Add(TWeightedNode.Create(Self, ANode, AOffset, AWeight));
+  Result := FWeightedNodes.Add(TWeightedNode.Create(Self, ANode, AOffset, AWeight));
   Invalidate;
 end;
 

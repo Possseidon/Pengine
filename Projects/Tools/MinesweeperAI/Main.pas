@@ -35,7 +35,7 @@ type
     procedure FormPaint(Sender: TObject);
   public const
 
-    FieldSize = 20;
+    FieldSize = 40;
 
   private
     FMinesweeper: TMinesweeper;
@@ -59,7 +59,7 @@ end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
-  FMinesweeper := TMinesweeper.Create(9);
+  FMinesweeper := TMinesweeper.Create(IVec2(30, 16));
 
   FNet := TMinesweeperNeuralNet.Create;
   FNet.BeginUpdate;
@@ -87,7 +87,7 @@ begin
         BestPos := FNet.BestPosition(FMinesweeper);
 
         if FMinesweeper.Mines = 0 then
-          FMinesweeper.Generate(10, BestPos);
+          FMinesweeper.Generate(FMinesweeper.Fields div 5, BestPos);
 
         if FMinesweeper.Reveal(BestPos) = rrMine then
           FLost := True;
@@ -111,7 +111,7 @@ begin
 
         Pos := IVec2(X, Y) div FieldSize;
         if FMinesweeper.Mines = 0 then
-          FMinesweeper.Generate(10, Pos);
+          FMinesweeper.Generate(FMinesweeper.Fields div 5, Pos);
 
         if FMinesweeper.Reveal(Pos) = rrMine then
           FLost := True;
@@ -120,9 +120,8 @@ begin
       end;
     mbRight:
       begin
-        FLost := True;
+        FLost := False;
         FMinesweeper.Clear;
-        FMinesweeper.Generate(81 - 4, IVec2(8, 8));
         Invalidate;
       end;
   end;
@@ -143,6 +142,7 @@ begin
   Canvas.Rectangle(Canvas.ClipRect);
 
   Canvas.Font.Name := 'Gill Sans Ultra Bold';
+  Canvas.Font.Size := 20;
 
   Canvas.Pen.Style := psSolid;
   Canvas.Pen.Width := 3;

@@ -1898,10 +1898,10 @@ begin
   Result := Self[0];
   for I := 0 to MaxIndex do
   begin
-    if Self[I] < Result.Low then
-      Result.Low := Self[I]
-    else if Self[I] > Result.High then
-      Result.High := Self[I];
+    if Self[I] < Result.C1 then
+      Result.C1 := Self[I]
+    else if Self[I] > Result.C2 then
+      Result.C2 := Self[I];
   end;
 end;
 

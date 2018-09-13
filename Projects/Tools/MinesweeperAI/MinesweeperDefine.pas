@@ -73,7 +73,6 @@ type
 
     function GetSize: TIntVector2; override;
     function GetFields: Integer;
-    procedure GeneratePercentage(AMinePercentage: Single);
 
   public
     constructor Create(ASize: TIntVector2);
@@ -163,7 +162,6 @@ var
   Indices: TIntArray;
   I, Selected: Integer;
   Pos: TIntVector2;
-  Bounds: TIntBounds2;
 begin
   if AMines < 0 then
     raise EMinesweeper.Create('Invalid number of mines.');
@@ -186,7 +184,7 @@ begin
 
   if APreventMineAt <> -1 then
   begin
-    for Pos in CheckBounds(APreventMineAt){.InReverse} do
+    for Pos in CheckBounds(APreventMineAt).InReverse do
     begin
       Indices[PosToFieldIndex(Pos)] := Indices[I];
       Dec(I);
@@ -201,11 +199,6 @@ begin
   end;
 
   Indices.Free;
-end;
-
-procedure TMinesweeper.GeneratePercentage(AMinePercentage: Single);
-begin
-  Generate(Floor(Fields * AMinePercentage + 0.5));
 end;
 
 function TMinesweeper.GetFields: Integer;

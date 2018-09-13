@@ -107,7 +107,7 @@ procedure TMinesweeperNeuralNet.BuildNetwork;
 var
   HiddenLayer: TNeuralNet.THiddenNodes;
   Pos: TIntVector2;
-  I, J, K: Integer;
+  I, J: Integer;
   Node: TNeuralNet.TNode;
 begin
   if FUpdate <> 0 then
