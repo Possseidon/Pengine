@@ -35,9 +35,9 @@ type
 
     function GetPixelCount: Integer;
     function GetDataSize: Integer;
-    function GetPixel(APos: TIntVector2): TColorRGBA;
+    function GetPixel(APos: TIntVector2): TColorRGBA; overload;
     function GetPixelB(APos: TIntVector2): TColorRGBA.TBytes;
-    procedure SetPixel(APos: TIntVector2; const Value: TColorRGBA);
+    procedure SetPixel(APos: TIntVector2; const Value: TColorRGBA); overload;
     procedure SetPixelB(APos: TIntVector2; const Value: TColorRGBA.TBytes);
 
     procedure SetSubDataPointer(ABounds: TIntBounds2; const Value: PByte); 

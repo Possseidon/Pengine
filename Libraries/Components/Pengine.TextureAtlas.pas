@@ -410,7 +410,7 @@ end;
 
 function TTextureAtlas.TTile.GetTexelBounds: TIntBounds2;
 begin
-  Result.Create(Position, Position + Texture.Size);
+  Result := IBounds2(Position, Position + Texture.Size);
 end;
 
 function TTextureAtlas.TTile.HasSubTiles: Boolean;
@@ -779,7 +779,7 @@ begin
     // lengthened
     if not FRows.Empty and (FRows.Last.C2 = Size) then
       // lengthen the last row
-      FRows.Last := TIntBounds1.Create(FRows.Last.C1, Value)
+      FRows.Last := IBounds1I(FRows.Last.C1, Value)
     else
       // add a new row with the required space
       FRows.Add(IBounds1(Size, Value));

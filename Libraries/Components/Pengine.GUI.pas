@@ -70,7 +70,7 @@ type
       constructor Create(ASender: TControl; AOldColor: TColorRGBA); overload;
       constructor Create(ASender: TControl; AOldColor: TOpt<TColorRGBA>); overload;
       destructor Destroy; override;
-      
+
       property OldColor: TOpt<TColorRGBA>.TReader read GetOldColor;
 
     end;
@@ -96,6 +96,7 @@ type
   private
     FGUI: TGUI;
     FParent: TControl;
+    FRemoving: Boolean;
     FZOrder: Integer;
     FSprites: TSprites;
     FCharSprites: TCharSprites;
@@ -229,7 +230,8 @@ type
     function GetAspect: Single; override;
 
   public
-    constructor Create(AGLGame: TGLGame; AGLProgram: TGLProgram; ABorders: TSpriteSystem.TBorderList = nil); reintroduce;
+    constructor Create(AGLGame: TGLGame; AGLProgram: TGLProgram; ABorders: TSpriteSystem.TBorderList = nil);
+      reintroduce;
     destructor Destroy; override;
 
     property Borders: TSpriteSystem.TBorderList read FBorders;
@@ -237,7 +239,7 @@ type
     property Game: TGLGame read GetGame;
 
     property TextureAtlas: TTextureAtlas read GetTextureAtlas;
-    
+
   end;
 
 function Origin(X: TOriginX; Y: TOriginY): TOrigin; inline;
@@ -281,7 +283,9 @@ end;
 
 procedure TControl.CharRemoved(AInfo: TSprite.TEventInfo);
 begin
-  FCharSprites.Remove(TCharSprite(AInfo.Sender));
+  AInfo.Sender.Location.Parent := nil;
+  if not FRemoving then
+    FCharSprites.Remove(TCharSprite(AInfo.Sender));
 end;
 
 constructor TControl.Create(AParent: TControl);
@@ -310,7 +314,16 @@ begin
 end;
 
 destructor TControl.Destroy;
+var
+  Sprite: TSprite;
 begin
+  FRemoving := True;
+
+  for Sprite in FSprites do
+    Sprite.Remove;
+  for Sprite in FCharSprites do
+    Sprite.Remove;
+
   FFontColor.Free;
   FCharSprites.Free;
   FSprites.Free;
@@ -436,7 +449,7 @@ var
 begin
   for CharSprite in FCharSprites do
     CharSprite.Color := FontColor;
-  FOnFontColorChanged.Execute(AInfo, False);  
+  FOnFontColorChanged.Execute(AInfo, False);
 end;
 
 procedure TControl.SelfAspectChanged(AInfo: TEventInfo);
@@ -538,7 +551,9 @@ end;
 
 procedure TControl.SpriteRemoved(AInfo: TSprite.TEventInfo);
 begin
-  FSprites.Remove(AInfo.Sender);
+  AInfo.Sender.Location.Parent := nil;
+  if not FRemoving then
+    FSprites.Remove(AInfo.Sender);
 end;
 
 procedure TControl.UpdateOriginLocation;
@@ -599,7 +614,10 @@ var
   Control: TControl;
 begin
   for Control in FControls.InReverse do
+  begin
+    Control.FParent := nil;
     Control.Free;
+  end;
   FControls.Free;
   inherited;
 end;
@@ -664,8 +682,8 @@ destructor TGUI.Destroy;
 begin
   if not FBordersRef then
     FBorders.Free;
-  FSpriteSystem.Free;
   inherited;
+  FSpriteSystem.Free;
 end;
 
 { TControl.TFontChangeEventInfo }
@@ -685,19 +703,19 @@ end;
 
 constructor TControl.TFontColorChangeEventInfo.Create(ASender: TControl; AOldColor: TOpt<TColorRGBA>);
 begin
-  inherited Create(ASender);  
+  inherited Create(ASender);
   FOldColor := AOldColor.Copy;
 end;
 
 constructor TControl.TFontColorChangeEventInfo.Create(ASender: TControl);
-begin                           
-  inherited Create(ASender);  
+begin
+  inherited Create(ASender);
   FOldColor := TOpt<TColorRGBA>.Create;
 end;
 
 constructor TControl.TFontColorChangeEventInfo.Create(ASender: TControl; AOldColor: TColorRGBA);
 begin
-  inherited Create(ASender);  
+  inherited Create(ASender);
   FOldColor := TOpt<TColorRGBA>.Create(AOldColor);
 end;
 
@@ -739,4 +757,3 @@ begin
 end;
 
 end.
-

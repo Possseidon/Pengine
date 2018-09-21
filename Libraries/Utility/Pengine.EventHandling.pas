@@ -3,8 +3,6 @@ unit Pengine.EventHandling;
 interface
 
 uses
-  System.IOUtils, // TODO: Remove this
-
   System.SysUtils;
 
 type
@@ -34,7 +32,9 @@ type
 
   TEvent = record
   public type
+
     THandlerStatic = procedure;
+
     THandler = procedure of object;
 
     TAccess = record
@@ -85,21 +85,24 @@ type
     property Enabled: Boolean read GetEnabled;
 
     /// <returns>True, if the event has at least one event handler.</returns>
-    function HasHandler: Boolean;
+    function HasHandler: Boolean; inline;
 
   end;
 
   TEvent<T: TEventInfo> = record
   public type
+
     THandlerStatic = procedure(AInfo: T);
+
     THandler = procedure(AInfo: T) of object;
 
     THandlerRec = record
-    case Info: Boolean of
-      False: (HandlerInfo: THandler);
-      True: (Handler: TEvent.THandler);
+      case Info: Boolean of
+        False:
+          (HandlerInfo: THandler);
+        True:
+          (Handler: TEvent.THandler);
     end;
-
 
     TAccess = record
     private
@@ -157,7 +160,7 @@ type
     property Enabled: Boolean read GetEnabled;
 
     /// <returns>True, if the event has at least one event handler.</returns>
-    function HasHandler: Boolean;
+    function HasHandler: Boolean; inline;
 
   end;
 
@@ -212,7 +215,7 @@ begin
   begin
     Method := TMethod(TEvent(FEvent^).Handlers[Result]);
     if (Method.Code = FindMethod.Code) and
-       ((Method.Data = FindMethod.Data) or (Method.Data = nil)) then
+      ((Method.Data = FindMethod.Data) or (Method.Data = nil)) then
       Exit;
   end;
   Result := -1;
@@ -269,7 +272,7 @@ end;
 
 function TEvent.HasHandler: Boolean;
 begin
-  Result := Length(Handlers) > 0;
+  Result := Handlers <> nil;
 end;
 
 function TEvent.Access: TAccess;
@@ -281,7 +284,7 @@ procedure TEvent.Execute;
 var
   Handler: THandler;
 begin
-  if (Handlers = nil) or Disabled then
+  if not HasHandler or Disabled then
     Exit;
   for Handler in Handlers do
   begin
@@ -313,7 +316,7 @@ begin
   begin
     Method := TMethod(TEvent<T>(FEvent^).Handlers[Result].Handler);
     if (Method.Code = FindMethod.Code) and
-       ((Method.Data = FindMethod.Data) or (Method.Data = nil)) then
+      ((Method.Data = FindMethod.Data) or (Method.Data = nil)) then
       Exit;
   end;
   Result := -1;
@@ -416,7 +419,7 @@ end;
 
 function TEvent<T>.HasHandler: Boolean;
 begin
-  Result := Length(Handlers) > 0;
+  Result := Handlers <> nil;
 end;
 
 procedure TEvent<T>.Execute(AInfo: T; AFreeInfo: Boolean = True);
@@ -424,7 +427,7 @@ var
   Handler: THandlerRec;
 begin
   try
-    if (Handlers <> nil) and Enabled then
+    if HasHandler and Enabled then
     begin
       for Handler in Handlers do
       begin

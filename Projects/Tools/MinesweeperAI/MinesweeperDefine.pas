@@ -67,12 +67,15 @@ type
   private
     FOnReveal: TEvent;
     FWrapAround: Boolean;
+    FRevealedFields: Integer;
     FMineCount: Integer;
     FMines: TBitfieldArray;
     FRevealed: TBitfieldArray;
 
     function GetSize: TIntVector2; override;
     function GetFields: Integer;
+    function GetNoneMineFields: Integer;
+    function GetRevealedPercentage: Single;
 
   public
     constructor Create(ASize: TIntVector2);
@@ -84,6 +87,10 @@ type
 
     property Mines: Integer read FMineCount;
     property Fields: Integer read GetFields;
+    property NoneMineFields: Integer read GetNoneMineFields;
+    property RevealedFields: Integer read FRevealedFields;
+    property RevealedPercentage: Single read GetRevealedPercentage;
+    function IsFullyRevealed: Boolean;
 
     function IsMine(APos: TIntVector2): Boolean; inline;
     function IsRevealed(APos: TIntVector2): Boolean; override;
@@ -123,6 +130,7 @@ procedure TMinesweeper.Clear;
 begin
   if Mines = 0 then
     Exit;
+  FRevealedFields := 0;
   FMineCount := 0;
   FMines.Clear;
   FRevealed.Clear;
@@ -206,6 +214,16 @@ begin
   Result := Size.X * Size.Y;
 end;
 
+function TMinesweeper.GetNoneMineFields: Integer;
+begin
+  Result := Fields - Mines;
+end;
+
+function TMinesweeper.GetRevealedPercentage: Single;
+begin
+  Result := RevealedFields / NoneMineFields;
+end;
+
 function TMinesweeper.GetSize: TIntVector2;
 begin
   Result := FMines.Size;
@@ -219,6 +237,11 @@ begin
     if IsMine(Pos) then
       Exit(True);
   Result := False;
+end;
+
+function TMinesweeper.IsFullyRevealed: Boolean;
+begin
+  Result := RevealedFields = NoneMineFields;
 end;
 
 function TMinesweeper.IsMine(APos: TIntVector2): Boolean;
@@ -241,10 +264,14 @@ function TMinesweeper.Reveal(APos: TIntVector2): TRevealResult;
 var
   Pos: TIntVector2;
 begin
-  FRevealed[APos] := True;
+  if FRevealed[APos] then
+    Exit;
 
   if IsMine(APos) then
     Exit(rrMine);
+
+  FRevealed[APos] := True;
+  Inc(FRevealedFields);
 
   if HasAdjacentMines(APos) then
     Exit(rrSomeMines);
@@ -252,8 +279,7 @@ begin
   Result := rrZeroMines;
 
   for Pos in CheckBounds(APos) do
-    if not IsRevealed(Pos) then
-      Reveal(Pos);
+    Reveal(Pos);
 end;
 
 { TMinesweeper.TRevealEventInfo }

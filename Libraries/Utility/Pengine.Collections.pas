@@ -175,6 +175,8 @@ type
     // TODO: XmlDoc
     procedure SwapUnchecked(A, B: Integer); virtual; abstract;
 
+    procedure Shuffle;
+
     // TODO: XmlDoc
     function DataPointer: Pointer; virtual; abstract;
 
@@ -1186,6 +1188,14 @@ end;
 function TArray.ShouldFreeItems: Boolean;
 begin
   Result := False;
+end;
+
+procedure TArray.Shuffle;
+var
+  I: Integer;
+begin
+  for I := MaxIndex downto 0 do
+    SwapUnchecked(Random(I + 1), I);
 end;
 
 procedure TArray.ItemRemoved(AIndex: Integer);

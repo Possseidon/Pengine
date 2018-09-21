@@ -132,15 +132,13 @@ type
     class operator Implicit(A: TIntVector2): TPoint;
     class operator Implicit(A: TPoint): TIntVector2;
 
-    {$REGION 'All versions of rearrangement TIntVector2'}
-
+{$REGION 'All versions of rearrangement TIntVector2'}
     property XX: TIntVector2 read GetXX;
     property XY: TIntVector2 read GetXY write SetXY;
     property YX: TIntVector2 read GetYX write SetYX;
     property YY: TIntVector2 read GetYY;
 
-    {$ENDREGION}
-
+{$ENDREGION}
     class operator Add(const A, B: TIntVector2): TIntVector2;
     class operator Subtract(const A, B: TIntVector2): TIntVector2;
     class operator Multiply(const A, B: TIntVector2): TIntVector2;
@@ -254,8 +252,7 @@ type
 
     class operator Implicit(V: Integer): TIntVector3; inline;
 
-    {$REGION 'All versions of rearrangement TIntVector2'}
-
+{$REGION 'All versions of rearrangement TIntVector2'}
     property XX: TIntVector2 read GetXX;
     property XY: TIntVector2 read GetXY write SetXY;
     property XZ: TIntVector2 read GetXZ write SetXZ;
@@ -266,9 +263,8 @@ type
     property ZY: TIntVector2 read GetZY write SetZY;
     property ZZ: TIntVector2 read GetZZ;
 
-    {$ENDREGION}
-    {$REGION 'All versions of rearrangement TIntVector3'}
-
+{$ENDREGION}
+{$REGION 'All versions of rearrangement TIntVector3'}
     property XXX: TIntVector3 read GetXXX;
     property XXY: TIntVector3 read GetXXY;
     property XXZ: TIntVector3 read GetXXZ;
@@ -297,8 +293,7 @@ type
     property ZZY: TIntVector3 read GetZZY;
     property ZZZ: TIntVector3 read GetZZZ;
 
-    {$ENDREGION}
-
+{$ENDREGION}
     class operator Add(const A, B: TIntVector3): TIntVector3;
     class operator Subtract(const A, B: TIntVector3): TIntVector3;
     class operator Multiply(const A, B: TIntVector3): TIntVector3;
@@ -368,8 +363,11 @@ type
     /// <summary>The (usually) higher value of the bounds.</summary>
     C2: Integer;
 
+  private
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds1"/> with the specified range.</summary>
     constructor Create(AC1, AC2: Integer); overload;
+
+  public
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds1"/> with both bounds laying on the same, given value.</summary>
     constructor Create(A: Integer); overload;
 
@@ -470,8 +468,11 @@ type
     /// <summary>The (usually) higher value of the bounds.</summary>
     C2: TIntVector2;
 
+  private
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds2"/> with the specified range.</summary>
     constructor Create(AC1, AC2: TIntVector2); overload;
+
+  public
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds2"/> with both bounds laying on the same, given value.</summary>
     constructor Create(A: TIntVector2); overload;
 
@@ -810,10 +811,10 @@ const
 
   Vec2Dir: array [TBasicDir2Nonable] of TIntVector2 = (
     (X: 0; Y: 0),
-    (X: -1; Y: 0),
-    (X: +1; Y: 0),
-    (X: 0; Y: -1),
-    (X: 0; Y: +1)
+    (X: - 1; Y: 0),
+    (X: + 1; Y: 0),
+    (X: 0; Y: - 1),
+    (X: 0; Y: + 1)
     );
 
   Vec3Dir: array [TBasicDir] of TIntVector3 = (
@@ -921,12 +922,12 @@ const
     );
 
   QuadMiddleCoords: array [TQuadIndex] of TIntVector2 = (
-    (X: -1; Y: -1),
-    (X: +1; Y: -1),
-    (X: +1; Y: +1),
-    (X: +1; Y: +1),
-    (X: -1; Y: +1),
-    (X: -1; Y: -1)
+    (X: - 1; Y: - 1),
+    (X: + 1; Y: - 1),
+    (X: + 1; Y: + 1),
+    (X: + 1; Y: + 1),
+    (X: - 1; Y: + 1),
+    (X: - 1; Y: - 1)
     );
 
   TriangleTexCoords: array [TTriangleIndex] of TIntVector2 = (
@@ -971,7 +972,7 @@ const
 
   { Shorthand Constructors }
 
-/// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given values for X and Y.</returns>
+  /// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given values for X and Y.</returns>
 function IVec2(X, Y: Integer): TIntVector2; overload; inline;
 /// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given value for X and Y.</returns>
 function IVec2(V: Integer): TIntVector2; overload; inline;
@@ -1162,6 +1163,7 @@ end;
 
 {$REGION 'All version of rearrangement TIntVector2'}
 
+
 function TIntVector2.GetXX: TIntVector2;
 begin
   Result.X := X;
@@ -1218,6 +1220,7 @@ begin
 end;
 
 {$REGION 'All version of rearrangement TIntVector2'}
+
 
 function TIntVector3.GetXX: TIntVector2;
 begin
@@ -1311,6 +1314,7 @@ end;
 
 {$ENDREGION}
 {$REGION 'All version of rearrangement TIntVector3'}
+
 
 function TIntVector3.GetXXX: TIntVector3;
 begin
@@ -1544,6 +1548,7 @@ begin
 end;
 
 {$ENDREGION}
+
 
 constructor TIntVector3.Create(X, Y, Z: Integer);
 begin
@@ -2357,17 +2362,17 @@ end;
 function TIntBounds3Iterator.MoveNext: Boolean;
 begin
   Inc(FCurrent.X);
-  if FCurrent.X >= FEnd.X then
+  if FCurrent.X > FEnd.X then
   begin
     FCurrent.X := FSave.X;
     Inc(FCurrent.Y);
-    if FCurrent.Y >= FEnd.Y then
+    if FCurrent.Y > FEnd.Y then
     begin
       FCurrent.Y := FSave.Y;
       Inc(FCurrent.Z);
     end;
   end;
-  Result := FCurrent.Z < FEnd.Z;
+  Result := FCurrent.Z <= FEnd.Z;
 end;
 
 { Shorthand Constructors }
@@ -2404,7 +2409,7 @@ end;
 
 function IBounds1(A: Integer): TIntBounds1;
 begin
-  Result.Create(0, A);
+  Result.Create(0, A - 1);
 end;
 
 function IBounds2(A, B: TIntVector2): TIntBounds2;

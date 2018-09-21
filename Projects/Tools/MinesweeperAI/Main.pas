@@ -21,18 +21,21 @@ uses
   Pengine.HashCollections,
   Pengine.Hasher,
   Pengine.TimeManager,
+  Pengine.NeuralNetwork,
 
   MinesweeperDefine,
-  MinesweeperNerualNet, Pengine.NeuralNetwork;
+  MinesweeperNerualNet;
 
 type
 
   TfrmMain = class(TForm)
+    tmrAutoEvolve: TTimer;
     procedure FormDestroy(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure FormPaint(Sender: TObject);
+    procedure tmrAutoEvolveTimer(Sender: TObject);
   public const
 
     FieldSize = 40;
@@ -40,6 +43,7 @@ type
   private
     FMinesweeper: TMinesweeper;
     FNet: TMinesweeperNeuralNet;
+    FEvolver: TMinesweeperNeuralNetEvolver;
     FLost: Boolean;
 
   end;
@@ -54,21 +58,18 @@ implementation
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
   FMinesweeper.Free;
-  FNet.Free;
+  FEvolver.Free;
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
-  FMinesweeper := TMinesweeper.Create(IVec2(30, 16));
+  FMinesweeper := TMinesweeper.Create(IVec2(9, 9));
 
-  FNet := TMinesweeperNeuralNet.Create;
-  FNet.BeginUpdate;
-  FNet.ScanRange := 3;
-  FNet.HiddenLayers := 0;
-  // FNet.HiddenLayerSize[0] := 10;
-  FNet.EndUpdate;
-  FNet.Randomize;
+  FEvolver := TMinesweeperNeuralNetEvolver.Create(100);
+  FEvolver.RateAndSort;
 
+  FNet := FEvolver.BestNet.Net;
+  
   ClientWidth := FieldSize * FMinesweeper.Size.X;
   ClientHeight := FieldSize * FMinesweeper.Size.Y;
 
@@ -77,6 +78,8 @@ end;
 procedure TfrmMain.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 var
   BestPos: TIntVector2;
+  Net: TMinesweeperNeuralNetEvolver.TRatedNeuralNet;
+  Avg: Single;
 begin
   case Key of
     VK_RETURN:
@@ -87,15 +90,38 @@ begin
         BestPos := FNet.BestPosition(FMinesweeper);
 
         if FMinesweeper.Mines = 0 then
-          FMinesweeper.Generate(FMinesweeper.Fields div 5, BestPos);
-
-        if FMinesweeper.Reveal(BestPos) = rrMine then
-          FLost := True;
+          FMinesweeper.Generate(10, BestPos);
 
         Caption := Format('Revealed %s', [BestPos.ToString]);
 
+        if FMinesweeper.Reveal(BestPos) = rrMine then
+        begin
+          FLost := True;
+          Caption := Caption + Format(' got %f %%', [FMinesweeper.RevealedPercentage * 100]);
+        end;
+        
         Invalidate;
       end;
+    VK_SPACE:
+      begin      
+        FEvolver.Evolve;
+        FEvolver.RateAndSort;
+
+        FNet := FEvolver.BestNet.Net;
+        
+        Avg := 0;
+        for Net in FEvolver.Nets do
+        begin
+          Avg := Avg + Net.Fitness
+        end;
+        Avg := Avg / FEvolver.Nets.Count;
+
+        Caption := Format('Best fitness: %f %% - Average: %f %%', [FEvolver.BestNet.Fitness * 100, Avg * 100]);
+
+      end;
+    Ord('A'):
+      tmrAutoEvolve.Enabled := not tmrAutoEvolve.Enabled;
+    
   end;
 end;
 
@@ -111,7 +137,7 @@ begin
 
         Pos := IVec2(X, Y) div FieldSize;
         if FMinesweeper.Mines = 0 then
-          FMinesweeper.Generate(FMinesweeper.Fields div 5, Pos);
+          FMinesweeper.Generate(10, Pos);
 
         if FMinesweeper.Reveal(Pos) = rrMine then
           FLost := True;
@@ -166,8 +192,8 @@ begin
     end;
 
     Canvas.Brush.Style := bsSolid;
-    Canvas.RoundRect(Pos.X * FieldSize + 2, Pos.Y * FieldSize + 2,
-      (Pos.X + 1) * FieldSize - 2, (Pos.Y + 1) * FieldSize - 2, 10, 10);
+    Canvas.RoundRect(Pos.X * FieldSize + 2, Pos.Y * FieldSize + 2, (Pos.X + 1) * FieldSize - 2,
+      (Pos.Y + 1) * FieldSize - 2, 10, 10);
 
     Canvas.Brush.Style := bsClear;
     if (FMinesweeper.IsRevealed(Pos) or FLost) and not FMinesweeper.IsMine(Pos) then
@@ -177,6 +203,14 @@ begin
     end;
 
   end;
+end;
+
+procedure TfrmMain.tmrAutoEvolveTimer(Sender: TObject);
+var
+  Key: Word;
+begin
+  Key := VK_SPACE;
+  FormKeyDown(nil, Key, []);
 end;
 
 end.

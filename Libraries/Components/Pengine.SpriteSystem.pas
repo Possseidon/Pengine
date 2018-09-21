@@ -362,6 +362,8 @@ type
 
     property Bounds: TAxisSystem2 read GetBounds;
 
+    function Hittest(APos: TVector2; AAlphaThreshold: Single = 0): Boolean;
+
     procedure ResetBorder;
     property Border: TBorder read FBorder write SetBorder;
     function HasBorder: Boolean;
@@ -680,6 +682,18 @@ begin
   Result := FBorder <> nil;
 end;
 
+function TSprite.Hittest(APos: TVector2; AAlphaThreshold: Single): Boolean;
+var
+  Point: TVector2;
+  Pixel: TIntVector2;
+begin
+  Point := Bounds.InvPoint[APos];
+  Pixel := (TextureTile.Texture.Size * Point).Floor;
+  if not (Pixel in TextureTile.Size) then
+    Exit(False);
+  Result := TextureTile.Texture[Pixel].A > AAlphaThreshold;
+end;
+
 procedure TSprite.LocationChanged(AInfo: TLocation2.TChangeEventInfo);
 begin
   Changed(scPos);
@@ -766,7 +780,6 @@ begin
   if FRemoved then
     raise ESpriteRemovedAlready.Create;
   FRemoved := True;
-  Location.Parent := nil;
   // call changed, to make sure, the vbo is update and the sprite is gone in the next frame
   Changed([]);
   FOnRemove.Execute(TEventInfo.Create(Self));
@@ -787,8 +800,8 @@ begin
 
   if Removed then
   begin
-    AWriter[2].Color := Color;
-    AWriter[5].Color := Color;
+    AWriter[2].Color := ColorTransparent;
+    AWriter[5].Color := ColorTransparent;
     Exit;
   end;
 

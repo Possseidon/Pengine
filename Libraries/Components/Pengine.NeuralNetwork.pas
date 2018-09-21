@@ -175,6 +175,54 @@ type
     property HiddenNodes: THiddenNodes.TReader read GetHiddenNodes;
     property Outputs: TOutputs.TReader read GetOutputs;
 
+    procedure Randomize;
+
+  end;
+
+  TLayeredNeuralNet = class
+  private
+    FNet: TNeuralNet;
+    FInputCount: Integer;
+    FHiddenLayers: array of Integer;
+    FOutputCount: Integer;
+    FUpdate: Integer;
+
+    procedure BuildNetwork;
+
+    function GetHiddenLayerCount: Integer;
+    function GetHiddenNodes: TNeuralNet.THiddenNodes.TReader;
+    function GetInputCount: Integer;
+    function GetInputs: TNeuralNet.TInputs.TReader;
+    function GetNeurons: TNeuralNet.TNeurons.TReader;
+    function GetNodes: TNeuralNet.TNodes.TReader;
+    function GetOutputCount: Integer;
+    function GetOutputs: TNeuralNet.TOutputs.TReader;
+    procedure SetHiddenLayerCount(const Value: Integer);
+    procedure SetInputCount(const Value: Integer);
+    procedure SetOutputCount(const Value: Integer);
+    function GetHiddenLayer(AIndex: Integer): Integer;
+    procedure SetHiddenLayer(AIndex: Integer; const Value: Integer);
+
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure BeginUpdate;
+    procedure EndUpdate;
+
+    property InputCount: Integer read GetInputCount write SetInputCount;
+    property OutputCount: Integer read GetOutputCount write SetOutputCount;
+    property HiddenLayerCount: Integer read GetHiddenLayerCount write SetHiddenLayerCount;
+    property HiddenLayers[AIndex: Integer]: Integer read GetHiddenLayer write SetHiddenLayer;
+
+    property Nodes: TNeuralNet.TNodes.TReader read GetNodes;
+    property Inputs: TNeuralNet.TInputs.TReader read GetInputs;
+    property Neurons: TNeuralNet.TNeurons.TReader read GetNeurons;
+    property HiddenNodes: TNeuralNet.THiddenNodes.TReader read GetHiddenNodes;
+    property Outputs: TNeuralNet.TOutputs.TReader read GetOutputs;
+
+    procedure Randomize;
+
   end;
 
 implementation
@@ -268,7 +316,7 @@ end;
 
 function TNeuralNet.TNode.GetOutputInt(ARange: TIntBounds1): Integer;
 begin
-  Result := Floor(Bounds1(-1, 1).Convert(Output, ARange));
+  Result := Floor(Bounds1(-1, 1).Convert(Output, ARange) + 0.5);
 end;
 
 function TNeuralNet.TNode.GetOutputRanged(ARange: TBounds1): Single;
@@ -375,6 +423,19 @@ end;
 function TNeuralNet.GetOutputs: TOutputs.TReader;
 begin
   Result := FOutputs.Reader;
+end;
+
+procedure TNeuralNet.Randomize;
+var
+  Neuron: TNeuron;
+  Node: TNeuron.TWeightedNode;
+begin
+  for Neuron in Neurons do
+    for Node in Neuron.WeightedNodes do
+    begin
+      Node.Weight := Random * 2 - 1;
+      Node.Offset := Random * 2 - 1;
+    end;
 end;
 
 class function TNeuralNet.Sigmoid(AValue: Single): Single;
@@ -501,6 +562,168 @@ begin
     Exit;
   FWeight := Value;
   Parent.Invalidate;
+end;
+
+{ TLayeredNeuralNet }
+
+procedure TLayeredNeuralNet.BeginUpdate;
+begin
+  Inc(FUpdate);
+end;
+
+procedure TLayeredNeuralNet.BuildNetwork;
+var
+  I, J: Integer;
+  Layer, LastLayer, CurrentLayer: Integer;
+  Node: TNeuralNet.TNode;
+  Neuron: TNeuralNet.TNeuron;
+begin
+  if FUpdate <> 0 then
+    Exit;
+
+  FNet.Clear;
+
+  for I := 0 to InputCount - 1 do
+    FNet.AddInput;
+
+  LastLayer := 0;
+  CurrentLayer := 0;
+  for Layer := 0 to HiddenLayerCount - 1 do
+  begin
+    for I := 0 to HiddenLayers[Layer] do
+    begin
+      Neuron := FNet.AddHiddenNode;
+      if Layer = 0 then
+      begin
+        for Node in FNet.Inputs do
+          Neuron.AddInput(Node);
+      end
+      else
+      begin
+        for J := LastLayer to CurrentLayer - 1 do
+          Neuron.AddInput(FNet.HiddenNodes[J]); 
+      end;
+    end;  
+    LastLayer := CurrentLayer;                      
+    Inc(CurrentLayer, HiddenLayers[Layer]);
+  end;
+
+  for I := 0 to OutputCount - 1 do
+  begin
+    Neuron := FNet.AddOutput;
+    if HiddenLayerCount = 0 then
+    begin
+      for Node in FNet.Inputs do
+        Neuron.AddInput(Node);
+    end
+    else
+    begin
+      for Node in FNet.HiddenNodes.InReverse do
+      begin
+        Neuron.AddInput(Node);
+      end;
+    end;
+  end;
+end;
+
+constructor TLayeredNeuralNet.Create;
+begin
+  FNet := TNeuralNet.Create;
+end;
+
+destructor TLayeredNeuralNet.Destroy;
+begin
+  FNet.Free;
+  inherited;
+end;
+
+procedure TLayeredNeuralNet.EndUpdate;
+begin
+  Dec(FUpdate);
+  if FUpdate = 0 then
+    BuildNetwork;
+end;
+
+function TLayeredNeuralNet.GetHiddenLayer(AIndex: Integer): Integer;
+begin
+  Result := FHiddenLayers[AIndex];
+end;
+
+function TLayeredNeuralNet.GetHiddenLayerCount: Integer;
+begin
+  Result := Length(FHiddenLayers);
+end;
+
+function TLayeredNeuralNet.GetHiddenNodes: TNeuralNet.THiddenNodes.TReader;
+begin
+  Result := FNet.HiddenNodes;
+end;
+
+function TLayeredNeuralNet.GetInputCount: Integer;
+begin
+  Result := FInputCount;
+end;
+
+function TLayeredNeuralNet.GetInputs: TNeuralNet.TInputs.TReader;
+begin
+  Result := FNet.Inputs;
+end;
+
+function TLayeredNeuralNet.GetNeurons: TNeuralNet.TNeurons.TReader;
+begin
+  Result := FNet.Neurons;
+end;
+
+function TLayeredNeuralNet.GetNodes: TNeuralNet.TNodes.TReader;
+begin
+  Result := FNet.Nodes;
+end;
+
+function TLayeredNeuralNet.GetOutputCount: Integer;
+begin
+  Result := FOutputCount;
+end;
+
+function TLayeredNeuralNet.GetOutputs: TNeuralNet.TOutputs.TReader;
+begin
+  Result := FNet.Outputs;
+end;
+
+procedure TLayeredNeuralNet.Randomize;
+begin
+  FNet.Randomize;
+end;
+
+procedure TLayeredNeuralNet.SetHiddenLayer(AIndex: Integer; const Value: Integer);
+begin
+  if HiddenLayers[AIndex] = Value then
+    Exit;
+  FHiddenLayers[AIndex] := Value;
+  BuildNetwork;
+end;
+
+procedure TLayeredNeuralNet.SetHiddenLayerCount(const Value: Integer);
+begin
+  if HiddenLayerCount = Value then
+    Exit;
+  SetLength(FHiddenLayers, Value);
+  BuildNetwork;
+end;
+
+procedure TLayeredNeuralNet.SetInputCount(const Value: Integer);
+begin
+  if InputCount = Value then
+    Exit;
+  FInputCount := Value;
+  BuildNetwork;
+end;
+
+procedure TLayeredNeuralNet.SetOutputCount(const Value: Integer);
+begin
+  if OutputCount = Value then
+    Exit;
+  FOutputCount := Value;
+  BuildNetwork;
 end;
 
 end.

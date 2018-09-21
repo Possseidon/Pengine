@@ -21,4 +21,11 @@ object frmMain: TfrmMain
   OnPaint = FormPaint
   PixelsPerInch = 96
   TextHeight = 18
+  object tmrAutoEvolve: TTimer
+    Enabled = False
+    Interval = 20
+    OnTimer = tmrAutoEvolveTimer
+    Left = 184
+    Top = 168
+  end
 end

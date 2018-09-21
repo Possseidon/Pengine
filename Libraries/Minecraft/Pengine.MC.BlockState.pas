@@ -178,6 +178,7 @@ type
     TPropertiesParser = class(TRefParser<TProperties>)
     public type
 
+      TBlockList = TRefArray<TBlockState>;
 
     private
       FBlocks: TBlockList.TReader;
@@ -457,7 +458,7 @@ begin
 
   // Properties
   PropertiesStart := GetMarker;
-  
+
 
   if ParseResult.NBT = nil then
     ParseResult.NBT := TNBTParserCompound.Optional(Info, omReturnNil);
@@ -605,6 +606,10 @@ begin
 end;
 
 function TBlockState.TPropertiesParser.Parse: Boolean;
+var
+  PropertyName: string;
+  PropertyValue: string;
+  BlockExists: Boolean;
 begin
   if not StartsWith('[') then
     Exit(False);

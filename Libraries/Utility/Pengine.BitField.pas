@@ -195,6 +195,11 @@ type
     /// <returns>True, if all bits in the range are false.</returns>
     function AllFalse(ABounds: TIntBounds1): Boolean;
 
+    /// <returns>True, if all bits are false.</returns>
+    function Empty: Boolean;
+    /// <returns>True, if all bits are true.</returns>
+    function Filled: Boolean;
+
     /// <summary>Finds a row of the same bits.</summary>
     /// <returns>The index of the found position or -1 if no row was found.</returns>
     function Find(AValue: Boolean; ACount: Integer): Integer;  
@@ -589,6 +594,11 @@ begin
   end;  
 end;
 
+function TBitfield.Filled: Boolean;
+begin
+  Result := AllTrue(IBounds1(Size));
+end;
+
 function TBitfield.Find(AValue: Boolean; ACount: Integer): Integer;
 var
   Found: Boolean;
@@ -876,6 +886,11 @@ begin
     if (FData + I)^ <> (ABitfield.FData + I)^ then
       Exit(False);
   Result := True;
+end;
+
+function TBitfield.Empty: Boolean;
+begin
+  Result := AllFalse(IBounds1(Size));
 end;
 
 function TBitfield.Equals(Obj: TObject): Boolean;

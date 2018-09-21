@@ -7,7 +7,7 @@ uses
 
 type
 
-  TSpriteGLProgram = class(TSpriteGLProgamBase)
+  TSpriteGLProgram = class(TSpriteGLProgramBase)
   protected
     class procedure GetData(out AName: string; out AResource: Boolean); override;
   end;
