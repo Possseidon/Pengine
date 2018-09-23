@@ -157,7 +157,7 @@ begin
   try
     B := Bounds;
     if B.Length > 1 then
-      Result := QuickSortRecursive(B.C1, B.C2 - 1)
+      Result := QuickSortRecursive(B.C1, B.C2)
     else
       Result := True;
   finally

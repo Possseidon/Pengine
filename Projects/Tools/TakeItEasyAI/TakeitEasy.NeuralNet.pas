@@ -34,13 +34,14 @@ type
 
   private
     FNet: TLayeredNeuralNet;
-    FFitness: Single;
+    FTotalScore: Integer;
+    FPlayCount: Integer;
 
     function GetPosValue(APos: TTakeItEasy.TBoard.TPiecePos): Single;
+    function GetAverageScore: Single;
 
   public
     constructor Create(ARandomize: Boolean = True); overload;
-    constructor Create(ANetA, ANetB: TTakeItEasyNeuralNet); overload;
     destructor Destroy; override;
 
     procedure PlacePiece(APos: TTakeItEasy.TBoard.TPiecePos; APiece: TTakeItEasy.TPiece);
@@ -52,7 +53,9 @@ type
     procedure ResetInputs;
     procedure Randomize;
 
-    property Fitness: Single read FFitness;
+    procedure Reproduce(ANetA, ANetB: TTakeItEasyNeuralNet);
+
+    property AverageScore: Single read GetAverageScore;
 
   end;
 
@@ -97,7 +100,10 @@ begin
   FNet.PlacePiece(Pos, APiece);
   Board.PlacePiece(Pos, APiece);
   if Board.IsFilled then
-    FNet.FFitness := Board.CalculateScore;
+  begin
+    Inc(FNet.FTotalScore, Board.CalculateScore);
+    Inc(FNet.FPlayCount);
+  end;
   Result := nil;
 end;
 
@@ -144,7 +150,7 @@ begin
   FNet.BeginUpdate;
   FNet.InputCount := (TTakeItEasy.TBoard.FieldCount + 1) * 3;
   FNet.HiddenLayerCount := 0;
-  // FNet.HiddenLayers[0] := 10;
+  // FNet.HiddenLayers[0] := 40;
   FNet.OutputCount := TTakeItEasy.TBoard.FieldCount;
   FNet.EndUpdate;
 
@@ -154,17 +160,17 @@ begin
     Randomize;
 end;
 
-constructor TTakeItEasyNeuralNet.Create(ANetA, ANetB: TTakeItEasyNeuralNet);
+procedure TTakeItEasyNeuralNet.Reproduce(ANetA, ANetB: TTakeItEasyNeuralNet);
 var
   I, J: Integer;
 begin
-  Create;
-
+  FTotalScore := 0;
+  FPlayCount := 0;
   for I := 0 to FNet.Neurons.MaxIndex do
   begin
     for J := 0 to FNet.Neurons[I].WeightedNodes.MaxIndex do
     begin
-      if ANetA.Fitness * Random > ANetB.Fitness * Random then
+      if ANetA.AverageScore * Random > ANetB.AverageScore * Random then
       begin
         FNet.Neurons[I].WeightedNodes[J].Weight := ANetA.FNet.Neurons[I].WeightedNodes[J].Weight;
         FNet.Neurons[I].WeightedNodes[J].Offset := ANetA.FNet.Neurons[I].WeightedNodes[J].Offset;
@@ -184,6 +190,11 @@ destructor TTakeItEasyNeuralNet.Destroy;
 begin
   FNet.Free;
   inherited;
+end;
+
+function TTakeItEasyNeuralNet.GetAverageScore: Single;
+begin
+  Result := FTotalScore / FPlayCount;
 end;
 
 function TTakeItEasyNeuralNet.GetPosValue(APos: TTakeItEasy.TBoard.TPiecePos): Single;
@@ -246,7 +257,7 @@ begin
   Middle := FNets.Count div 2;
   for I := Middle to FNets.MaxIndex do
   begin
-    FNets[I] := TTakeItEasyNeuralNet.Create(FNets[Random(I - Middle)], FNets[Random(I - Middle)]);
+    FNets[I].Reproduce(FNets[Random(I - Middle)], FNets[Random(I - Middle)]);
   end;
 end;
 
@@ -270,6 +281,7 @@ var
   Game: TTakeItEasy;
   Player: TTakeItEasyNeuralNet.TPlayer;
   Net: TTakeItEasyNeuralNet;
+  I: Integer;
 begin
   Game := TTakeItEasy.Create;
 
@@ -279,13 +291,16 @@ begin
     Player.Net := Net;
   end;
 
-  Game.Start;
-  Game.PlayAll;
+  for I := 1 to 20 do
+  begin
+    Game.Start;
+    Game.PlayAll;
+  end;
 
   FNets.Sort(
     function (A, B: TTakeItEasyNeuralNet): Boolean
     begin
-      Result := A.Fitness > B.Fitness;
+      Result := A.AverageScore > B.AverageScore;
     end);
 
   Game.Free;

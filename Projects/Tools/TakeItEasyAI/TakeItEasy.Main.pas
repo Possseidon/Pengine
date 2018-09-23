@@ -132,16 +132,16 @@ begin
   FScoreB.OriginY := oyTop;
 
   FGameControlA := FGUI.Add<TTakeItEasyControl>;
-  FGameControlA.Location.Scale := 1.7;
+  FGameControlA.Location.Scale := 1.4;
   FGameControlA.OriginX := oxLeft;
 
   FGameControlB := FGUI.Add<TTakeItEasyControl>;
-  FGameControlB.Location.Scale := 1.5;
+  FGameControlB.Location.Scale := 1.4;
   FGameControlB.OriginX := oxRight;
 
   FGame := TTakeItEasy.Create;
 
-  FEvolver := TTakeItEasyEvolver.Create(500);
+  FEvolver := TTakeItEasyEvolver.Create(200);
 
   Game.Timer.OnFPSUpdate.Add(UpdateFPS);
   Game.OnUpdate.Add(GameUpdate);
@@ -171,10 +171,12 @@ begin
 
   Avg := 0;
   for Net in FEvolver.Nets do
-    Avg := Avg + Net.Fitness;
+    Avg := Avg + Net.AverageScore;
   Avg := Avg / FEvolver.Nets.Count;
 
-  FFitnessLabel.Caption := Format('Top: %g | Avg: %.2g', [FEvolver.Best.Fitness, Avg], TFormatSettings.Invariant);
+
+  FFitnessLabel.Caption := Format('%f | %f | %f', [FEvolver.Best.AverageScore, Avg, FEvolver.Worst.AverageScore],
+    TFormatSettings.Invariant);
 
   // FGameControlA.Player := FGame.AddPlayer<TTakeItEasyControl.TPlayer>;
   NetPlayer := FGame.AddPlayer<TTakeItEasyNeuralNet.TPlayer>;
@@ -187,7 +189,7 @@ begin
   Inc(FGeneration);
   // '"Generation" "Top" "Average" "Worst" "Second Try"');
   TFile.AppendAllText(LogName, Format('%d;%f;%f;%f;%d' + sLineBreak,
-    [FGeneration, FEvolver.Best.Fitness, Avg, FEvolver.Worst.Fitness, NetPlayer.Board.CalculateScore]));
+    [FGeneration, FEvolver.Best.AverageScore, Avg, FEvolver.Worst.AverageScore, NetPlayer.Board.CalculateScore]));
 end;
 
 procedure TfrmMain.UpdateFPS;

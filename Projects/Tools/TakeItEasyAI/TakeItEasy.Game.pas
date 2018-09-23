@@ -4,6 +4,7 @@ interface
 
 uses
   System.SysUtils,
+  System.Threading,
 
   Pengine.Collections,
   Pengine.Equaller,
@@ -24,7 +25,7 @@ type
     -  0     8    16
     -     3    12
     -        7
-  }
+ }
 
   TTakeItEasy = class
   public type
@@ -357,6 +358,18 @@ begin
   for Dir := Low(TRowDirection) to High(TRowDirection) do
     for Index := Low(TRowIndex) to High(TRowIndex) do
       SetLength(FPiecePos[Dir, Index], RowLength[Index]);
+
+  {
+    -       11
+    -     6    15
+    -  2    10    18
+    -     5    14
+    -  1     9    17
+    -     4    13
+    -  0     8    16
+    -     3    12
+    -        7
+ }
 
   FPiecePos[rdDiagRight, 0] := TPiecePosArray.Create(7, 12, 16);
   FPiecePos[rdDiagRight, 1] := TPiecePosArray.Create(3, 8, 13, 17);
