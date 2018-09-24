@@ -20,10 +20,11 @@ uses
 
 type
 
-  /// <summary>A collection of all possible properties and their values.</summary>
-  TBlockProperties = class
+  /// <summary>A block type with all its possible properties and their respective values.</summary>
+  TBlockType = class
   public type
 
+    /// <summary>A single block property and all its possible values.</summary>
     TProperty = class
     public type
 
@@ -46,14 +47,14 @@ type
     end;
 
     TMap = TToObjectMap<string, TProperty, TStringHasher>;
-    TOrder = TRefArray<TProperty>;
+    TProperties = TRefArray<TProperty>;
 
   private
     FNSPath: TNSPath;
     FMap: TMap;
-    FOrder: TOrder;
+    FProperties: TProperties;
 
-    function GetOrder: TOrder.TReader;
+    function GetOrder: TProperties.TReader;
 
   public
     constructor Create(AJSONPair: TJSONPair);
@@ -61,39 +62,40 @@ type
 
     property NSPath: TNSPath read FNSPath;
 
-    function Exists(AName: string): Boolean;
-    function Get(AName: string; out AProperty: TProperty): Boolean;
+    function PropertyExists(AName: string): Boolean;
+    function GetProperty(AName: string; out AProperty: TProperty): Boolean;
 
-    property Order: TOrder.TReader read GetOrder;
+    property Properties: TProperties.TReader read GetOrder;
 
   end;
 
-  /// <summary>All available blocks.</summary>
-  TBlocks = class
+  TBlockTypes = TRefArray<TBlockType>;
+
+  /// <summary>A collection of all block types.</summary>
+  TBlockTypeCollection = class
   public type
 
-    TMap = TToObjectMap<TNSPath, TBlockProperties, TNSPathHasher>;
-    TOrder = TRefArray<TBlockProperties>;
+    TMap = TToObjectMap<TNSPath, TBlockType, TNSPathHasher>;
 
   private
     FMap: TMap;
-    FOrder: TOrder;
-    FSorted: TOrder;
+    FOrder: TBlockTypes;
+    FSorted: TBlockTypes;
 
-    function GetOrder: TOrder.TReader;
-    function GetSorted: TOrder.TReader;
+    function GetOrder: TBlockTypes.TReader;
+    function GetSorted: TBlockTypes.TReader;
 
   public
     constructor Create(AJSONObject: TJSONObject);
     destructor Destroy; override;
 
     function Exists(ANSPath: TNSPath): Boolean;
-    function Get(ANSPath: TNSPath; out ABlockProperties: TBlockProperties): Boolean;
+    function Get(ANSPath: TNSPath; out ABlockProperties: TBlockType): Boolean;
 
-    /// <summary>A read-only array of the order, as found in the file.</summary>
-    property Order: TOrder.TReader read GetOrder;
-    /// <summary>An alpha-sorted version of the same array.</summary>
-    property Sorted: TOrder.TReader read GetSorted;
+    /// <summary>All block types as found in the file.</summary>
+    property Order: TBlockTypes.TReader read GetOrder;
+    /// <summary>All block types sorted alphabetically.</summary>
+    property Sorted: TBlockTypes.TReader read GetSorted;
 
   end;
 
@@ -104,7 +106,7 @@ type
     DefaultPath = 'Data\reports\blocks.json';
 
   private
-    FBlocks: TBlocks;
+    FBlocks: TBlockTypeCollection;
     FPath: string;
 
     procedure SetPath(const Value: string);
@@ -118,17 +120,20 @@ type
     procedure SetDefaults; override;
 
     property Path: string read FPath write SetPath;
-    property Blocks: TBlocks read FBlocks;
+    property Blocks: TBlockTypeCollection read FBlocks;
 
     procedure Reload;
 
   end;
 
-  /// <summary>A parserable and formattable blockstate with properties and NBT.</summary>
+  /// <summary>
+  /// <p>A block state defined by namespace identifier and optional Properties and NBT.</p>
+  /// <p>Example: <c>minecraft:chest[facing=south]{Inventory:[]}</c></p>
+  /// </summary>
   TBlockState = class
   public type
 
-    /// <summary>A parser for </summary>
+    /// <summary>Parses a whole block state.</summary>
     TParser = class(TObjectParserWithSettings<TBlockState>)
     private
       FSettings: TBlockSettings;
@@ -158,6 +163,7 @@ type
 
     end;
 
+    /// <summary>A value for a property of a block state.</summary>
     TPropertyValue = class
     private
       FProperty: string;
@@ -173,47 +179,50 @@ type
 
     end;
 
-    TProperties = TObjectArray<TPropertyValue>;
+    TProperties = class(TObjectArray<TPropertyValue>)
+    public
+      function Format: string;
 
+    end;
+
+    /// <summary>Parses the property-part of a block state.</summary>
+    /// <remarks>Context specific, on which properties are available for a certain block or a whole block tag.</remarks>
     TPropertiesParser = class(TRefParser<TProperties>)
-    public type
-
-      TBlockList = TRefArray<TBlockState>;
-
     private
-      FBlocks: TBlockList.TReader;
+      FBlockTypes: TBlockTypes.TReader;
 
     protected
       function Parse: Boolean; override;
 
     public
-      constructor Create(AInfo: TParseInfo; ABlocks: TBlockList.TReader; ARequired: Boolean);
+      constructor Create(AInfo: TParseInfo; ABlockTypes: TBlockTypes.TReader; ARequired: Boolean);
 
       class function GetResultName: string; override;
 
     end;
 
-    TPropertySuggestions = class(TParseSuggestions)
+    TPropertySuggestions = class(TParseSuggestionsGenerated)
     private
-      FProperties: TBlockProperties;
+      FBlockTypes: TBlockTypes.TReader;
+
+    protected
+      procedure Generate; override;
 
     public
-      constructor Create(AProperties: TBlockProperties);
+      constructor Create(ABlockTypes: TBlockTypes.TReader);
 
-      function GetTitle: string; override;      
-      function GetCount: Integer; override;
-      function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+      function GetTitle: string; override;
 
     end;
 
     TPropertyValueSuggestions = class(TParseSuggestions)
     private
-      FProperty: TBlockProperties.TProperty;
+      FProperty: TBlockType.TProperty;
 
     public
-      constructor Create(AProperty: TBlockProperties.TProperty);
+      constructor Create(AProperty: TBlockType.TProperty);
 
-      function GetTitle: string; override;      
+      function GetTitle: string; override;
       function GetCount: Integer; override;
       function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
 
@@ -245,7 +254,7 @@ implementation
 
 { TBlockState.TProperty }
 
-constructor TBlockProperties.TProperty.Create(AJSONPair: TJSONPair);
+constructor TBlockType.TProperty.Create(AJSONPair: TJSONPair);
 var
   JSONValue: TJSONValue;
 begin
@@ -255,13 +264,13 @@ begin
     FValues.Add((JSONValue as TJSONString).Value);
 end;
 
-destructor TBlockProperties.TProperty.Destroy;
+destructor TBlockType.TProperty.Destroy;
 begin
   FValues.Free;
   inherited;
 end;
 
-function TBlockProperties.TProperty.Exists(AValue: string): Boolean;
+function TBlockType.TProperty.Exists(AValue: string): Boolean;
 var
   Value: string;
 begin
@@ -271,37 +280,37 @@ begin
   Result := False;
 end;
 
-function TBlockProperties.TProperty.GetValues: TValues.TReader;
+function TBlockType.TProperty.GetValues: TValues.TReader;
 begin
   Result := FValues.Reader;
 end;
 
 { TBlockStates }
 
-constructor TBlocks.Create(AJSONObject: TJSONObject);
+constructor TBlockTypeCollection.Create(AJSONObject: TJSONObject);
 var
   JSONPair: TJSONPair;
-  BlockState: TBlockProperties;
+  BlockState: TBlockType;
 begin
   FMap := TMap.Create;
-  FOrder := TOrder.Create;
+  FOrder := TBlockTypes.Create;
 
   for JSONPair in AJSONObject do
   begin
-    BlockState := TBlockProperties.Create(JSONPair);
+    BlockState := TBlockType.Create(JSONPair);
     FMap[BlockState.NSPath] := BlockState;
     FOrder.Add(BlockState);
   end;
 
   FSorted := FOrder.Copy;
   FSorted.Sort(
-    function(A, B: TBlockProperties): Boolean
+    function(A, B: TBlockType): Boolean
     begin
       Result := A.NSPath < B.NSPath;
     end);
 end;
 
-destructor TBlocks.Destroy;
+destructor TBlockTypeCollection.Destroy;
 begin
   FMap.Free;
   FOrder.Free;
@@ -309,29 +318,29 @@ begin
   inherited;
 end;
 
-function TBlocks.Exists(ANSPath: TNSPath): Boolean;
+function TBlockTypeCollection.Exists(ANSPath: TNSPath): Boolean;
 begin
   Result := FMap.KeyExists(ANSPath);
 end;
 
-function TBlocks.Get(ANSPath: TNSPath; out ABlockProperties: TBlockProperties): Boolean;
+function TBlockTypeCollection.Get(ANSPath: TNSPath; out ABlockProperties: TBlockType): Boolean;
 begin
   Result := FMap.Get(ANSPath, ABlockProperties);
 end;
 
-function TBlocks.GetOrder: TOrder.TReader;
+function TBlockTypeCollection.GetOrder: TBlockTypes.TReader;
 begin
   Result := FOrder.Reader;
 end;
 
-function TBlocks.GetSorted: TOrder.TReader;
+function TBlockTypeCollection.GetSorted: TBlockTypes.TReader;
 begin
   Result := FSorted.Reader;
 end;
 
 { TBlockState }
 
-constructor TBlockProperties.Create(AJSONPair: TJSONPair);
+constructor TBlockType.Create(AJSONPair: TJSONPair);
 var
   JSONPair: TJSONPair;
   Prop: TProperty;
@@ -339,38 +348,38 @@ var
 begin
   FNSPath := AJSONPair.JsonString.Value;
   FMap := TMap.Create;
-  FOrder := TOrder.Create;
+  FProperties := TProperties.Create;
   if AJSONPair.JSONValue.TryGetValue<TJSONObject>('properties', JSONProperties) then
   begin
     for JSONPair in JSONProperties do
     begin
       Prop := TProperty.Create(JSONPair);
       FMap[Prop.Name] := Prop;
-      FOrder.Add(Prop);
+      FProperties.Add(Prop);
     end;
   end;
 end;
 
-destructor TBlockProperties.Destroy;
+destructor TBlockType.Destroy;
 begin
   FMap.Free;
-  FOrder.Free;
+  FProperties.Free;
   inherited;
 end;
 
-function TBlockProperties.Exists(AName: string): Boolean;
+function TBlockType.PropertyExists(AName: string): Boolean;
 begin
   Result := FMap.KeyExists(AName);
 end;
 
-function TBlockProperties.Get(AName: string; out AProperty: TProperty): Boolean;
+function TBlockType.GetProperty(AName: string; out AProperty: TProperty): Boolean;
 begin
   Result := FMap.Get(AName, AProperty);
 end;
 
-function TBlockProperties.GetOrder: TOrder.TReader;
+function TBlockType.GetOrder: TProperties.TReader;
 begin
-  Result := FOrder.Reader;
+  Result := FProperties.Reader;
 end;
 
 { TBlockState }
@@ -432,9 +441,9 @@ var
   Marker, PropertiesStart: TLogMarker;
   NSPathString: string;
   NSPath: TNSPath;
-  Properties: TBlockProperties;
+  Properties: TBlockType;
   PropertyName, PropertyValue: string;
-  Prop: TBlockProperties.TProperty;
+  Prop: TBlockType.TProperty;
   BlockExists: Boolean;
 begin
   Marker := GetMarker;
@@ -458,7 +467,6 @@ begin
 
   // Properties
   PropertiesStart := GetMarker;
-
 
   if ParseResult.NBT = nil then
     ParseResult.NBT := TNBTParserCompound.Optional(Info, omReturnNil);
@@ -511,7 +519,7 @@ begin
   else
     BlocksJSON := TJSONObject.Create;
   try
-    FBlocks := TBlocks.Create(BlocksJSON);
+    FBlocks := TBlockTypeCollection.Create(BlocksJSON);
   finally
     BlocksJSON.Free;
   end;
@@ -540,7 +548,7 @@ end;
 
 procedure TBlockState.TBlockSuggestions.Generate;
 var
-  Block: TBlockProperties;
+  Block: TBlockType;
 begin
   for Block in Settings.Blocks.Order do
     AddSuggestion(ParseSuggestion(Block.NSPath.Format(False), Block.NSPath.Format(False)));
@@ -550,19 +558,19 @@ end;
 
 { TBlockState.TPropertySuggestions }
 
-constructor TBlockState.TPropertySuggestions.Create(AProperties: TBlockProperties);
+constructor TBlockState.TPropertySuggestions.Create(ABlockTypes: TBlockTypes.TReader);
 begin
-  FProperties := AProperties;
+  FBlockTypes := ABlockTypes;
 end;
 
-function TBlockState.TPropertySuggestions.GetCount: Integer;
+procedure TBlockState.TPropertySuggestions.Generate;
+var
+  BlockType: TBlockType;
+  Prop: TBlockType.TProperty;
 begin
-  Result := FProperties.Order.Count;
-end;
-
-function TBlockState.TPropertySuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
-begin
-  Result := FProperties.Order[AIndex].Name;
+  for BlockType in FBlockTypes do
+    for Prop in BlockType.Properties do
+      AddSuggestion(Prop.Name);
 end;
 
 function TBlockState.TPropertySuggestions.GetTitle: string;
@@ -572,7 +580,7 @@ end;
 
 { TBlockState.TPropertyValueSuggestions }
 
-constructor TBlockState.TPropertyValueSuggestions.Create(AProperty: TBlockProperties.TProperty);
+constructor TBlockState.TPropertyValueSuggestions.Create(AProperty: TBlockType.TProperty);
 begin
   FProperty := AProperty;
 end;
@@ -594,9 +602,10 @@ end;
 
 { TBlockState.TPropertiesParser }
 
-constructor TBlockState.TPropertiesParser.Create(AInfo: TParseInfo; ABlocks: TBlockList.TReader; ARequired: Boolean);
+constructor TBlockState.TPropertiesParser.Create(AInfo: TParseInfo; ABlockTypes: TBlockTypes.TReader;
+ARequired: Boolean);
 begin
-  FBlocks := ABlocks;
+  FBlockTypes := ABlockTypes;
   inherited Create(AInfo, ARequired);
 end;
 
@@ -610,12 +619,15 @@ var
   PropertyName: string;
   PropertyValue: string;
   BlockExists: Boolean;
+  BlockType: TBlockType;
+  Prop: TBlockType.TProperty;
 begin
   if not StartsWith('[') then
     Exit(False);
 
-  if not FBlocks.Empty then
-    BeginSuggestions(TPropertySuggestions.Create(FBlocks));
+  if not FBlockTypes.Empty then
+    BeginSuggestions(TPropertySuggestions.Create(FBlockTypes));
+
   SkipWhitespace;
   if not StartsWith(']') then
   begin
@@ -624,11 +636,19 @@ begin
       PropertyName := ReadWhile(IdentChars);
       EndSuggestions;
 
-      Prop := nil;
       if PropertyName.IsEmpty then
-        Log(1, 'Expected block state property name.')
-      else if BlockExists and not Properties.Get(PropertyName, Prop) then
-        Log(-PropertyName.Length, '"%s" is not a valid property for "%s".', [PropertyName, NSPath.Format]);
+      begin
+        Log(1, 'Expected block state property name.');
+      end
+      else if BlockExists then
+      begin
+        Prop := nil;
+        for BlockType in FBlockTypes do
+          if BlockType.GetProperty(PropertyName, Prop) then
+            Break;
+        if Prop = nil then
+          Log(-PropertyName.Length, '"%s" is not a valid property.', [PropertyName]);
+      end;
 
       SkipWhitespace;
 
@@ -649,7 +669,7 @@ begin
       else if (Prop <> nil) and not Prop.Exists(PropertyValue) then
         Log(-PropertyValue.Length, '"%s" is not a valid value for "%s".', [PropertyValue, PropertyName]);
 
-      ParseResult.Properties.Add(TPropertyValue.Create(PropertyName, PropertyValue));
+      ParseObject.Add(TPropertyValue.Create(PropertyName, PropertyValue));
 
       SkipWhitespace;
 
@@ -659,11 +679,31 @@ begin
       if not StartsWith(',') then
         raise EParseError.Create('Expected "]" or ",".');
 
-      if BlockExists then
-        BeginSuggestions(TPropertySuggestions.Create(Properties));
+      if not FBlockTypes.Empty then
+        BeginSuggestions(TPropertySuggestions.Create(FBlockTypes));
 
       SkipWhitespace;
     end;
+  end;
+end;
+
+{ TBlockState.TProperties }
+
+function TBlockState.TProperties.Format: string;
+var
+  I: Integer;
+begin
+  with TStringBuilder.Create('[') do
+  begin
+    if not Empty then
+      Append(Items[0].Format);
+    for I := 1 to MaxIndex do
+    begin
+      Append(', ');
+      Append(Items[I].Format);
+    end;
+    Result := ToString;
+    Free;
   end;
 end;
 

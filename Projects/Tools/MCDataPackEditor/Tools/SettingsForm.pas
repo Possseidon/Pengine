@@ -18,7 +18,7 @@ type
 
   TMainSettings = class(TRootSettings)
   public
-    class function GetSubSettingClasses: System.TArray<Pengine.Settings.TSettingsClass>; override;
+    class function GetSettingsClasses: System.TArray<Pengine.Settings.TSettingsClass>; override;
 
   end;
 
@@ -39,13 +39,13 @@ implementation
 
 { TMainSettings }
 
-class function TMainSettings.GetSubSettingClasses: System.TArray<Pengine.Settings.TSettingsClass>;
+class function TMainSettings.GetSettingsClasses: System.TArray<Pengine.Settings.TSettingsClass>;
 begin
   Result := [
     TBrigadierSettings,
     TBlockSettings,
     TItemSettings,
-    TFormatSettings
+    TFormatNamespaceSettings
   ];
 end;
 

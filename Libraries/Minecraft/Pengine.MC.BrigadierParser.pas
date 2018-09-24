@@ -76,12 +76,6 @@ type
 
   end;
 
-  TFormatSettings = class(TSettings)
-  public
-    class function GetSubSettingClasses: System.TArray<TSettingsClass>; override;
-
-  end;
-
   /// <summary>A single boolean value.</summary>
   TBrigadierBool = class(TBrigadierArgumentParameter)
   private
@@ -1605,15 +1599,6 @@ begin
     FormattedScopes := FormattedScopes + [AScope]
   else
     FormattedScopes := FormattedScopes - [AScope];
-end;
-
-{ TFormatSettings }
-
-class function TFormatSettings.GetSubSettingClasses: System.TArray<TSettingsClass>;
-begin
-  Result := [
-    TFormatNamespaceSettings
-    ];
 end;
 
 { TBrigadierBlockState }
