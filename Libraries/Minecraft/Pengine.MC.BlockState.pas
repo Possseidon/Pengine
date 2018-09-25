@@ -445,6 +445,7 @@ var
   PropertyName, PropertyValue: string;
   Prop: TBlockType.TProperty;
   BlockExists: Boolean;
+  Blocks: TPropertiesParser.TBlockList;
 begin
   Marker := GetMarker;
   BeginSuggestions(TBlockSuggestions.Create(Settings));
@@ -465,8 +466,13 @@ begin
 
   ParseResult.NBT := TNBTParserCompound.Optional(Info, omReturnNil);
 
-  // Properties
-  PropertiesStart := GetMarker;
+  Blocks := TPropertiesParser.TBlockList.Create;
+  try
+    Blocks.Add();
+    TPropertiesParser.Create(Info, Blocks, False);
+  finally
+    Blocks.Free;
+  end;
 
   if ParseResult.NBT = nil then
     ParseResult.NBT := TNBTParserCompound.Optional(Info, omReturnNil);
@@ -510,14 +516,18 @@ var
   BlocksText: string;
   BlocksJSON: TJSONObject;
 begin
-  FBlocks.Free;
+  FreeAndNil(FBlocks);
+
   if TFile.Exists(Path) then
   begin
     BlocksText := TFile.ReadAllText(Path);
     BlocksJSON := TJSONObject.ParseJSONValue(BlocksText) as TJSONObject;
   end
   else
+  begin
     BlocksJSON := TJSONObject.Create;
+  end;
+
   try
     FBlocks := TBlockTypeCollection.Create(BlocksJSON);
   finally

@@ -10,6 +10,7 @@ uses
 
 type
 
+  /// <summary>A namespace path in the form <c>namespace:path</c>.</summary>
   TNSPath = record
   public const
 
