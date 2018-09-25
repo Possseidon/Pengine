@@ -3,7 +3,9 @@ unit Pengine.Utility;
 interface
 
 uses
-  System.SysUtils;
+  System.SysUtils,
+
+  Pengine.Interfaces;
 
 type
 
@@ -92,6 +94,30 @@ type
 
   end;
 
+  /// <summary>Wraps an optional owned object, which can be changed to a new instance publicly.</summary>
+  /// <remarks>Useful to replace expensive object assignments with simply recreating a new object.</remarks>
+  TOwned<T: class> = class
+  private
+    FValue: T;
+
+  public
+    /// <summary>Initialized the owned object with the given instance.</summary>
+    constructor Create(AValue: T); overload;
+    destructor Destroy; override;
+
+    /// <returns>True, if an object is currentrly owned.</returns>
+    function HasValue: Boolean;
+    /// <summary>The current object.</summary>
+    property Value: T read FValue;
+    /// <summary>Frees the current object and sets the reference to nil.</summary>
+    procedure Reset;
+    /// <returns>The current owned object and resets itself, without freeing said object.</returns>
+    function Own: T;
+    /// <summary>Sets a new instance and frees the old, if one existed.</summary>
+    procedure Put(AValue: T);
+
+  end;
+
 function GetBitCount(num: NativeUInt): Integer;
 
 function PrettyFloat(AValue: Single): string; overload;
@@ -104,10 +130,13 @@ implementation
 function GetBitCount(num: NativeUInt): Integer;
 asm
   {$IFDEF CPUX64}
+
   POPCNT    rax, num
   {$ELSE}
+
   POPCNT    eax, num
   {$ENDIF}
+
 end;
 
 function PrettyFloat(AValue: Single): string;
@@ -240,6 +269,41 @@ end;
 function TOpt<T>.TReader.GetValue: T;
 begin
   Result := TOpt<T>(Self).Value;
+end;
+
+{ TOwned<T> }
+
+constructor TOwned<T>.Create(AValue: T);
+begin
+  FValue := AValue;
+end;
+
+destructor TOwned<T>.Destroy;
+begin
+  FValue.Free;
+  inherited;
+end;
+
+function TOwned<T>.HasValue: Boolean;
+begin
+  Result := FValue <> nil;
+end;
+
+procedure TOwned<T>.Reset;
+begin
+  FreeAndNil(FValue);
+end;
+
+function TOwned<T>.Own: T;
+begin
+  Result := FValue;
+  FValue := nil;
+end;
+
+procedure TOwned<T>.Put(AValue: T);
+begin
+  FValue.Free;
+  FValue := AValue;
 end;
 
 end.

@@ -16,12 +16,6 @@ uses
 
 type
 
-  TMainSettings = class(TRootSettings)
-  public
-    class function GetSettingsClasses: System.TArray<Pengine.Settings.TSettingsClass>; override;
-
-  end;
-
   TfrmSettings = class(TForm)
   private
 
@@ -36,17 +30,5 @@ var
 implementation
 
 {$R *.dfm}
-
-{ TMainSettings }
-
-class function TMainSettings.GetSettingsClasses: System.TArray<Pengine.Settings.TSettingsClass>;
-begin
-  Result := [
-    TBrigadierSettings,
-    TBlockSettings,
-    TItemSettings,
-    TFormatNamespaceSettings
-  ];
-end;
 
 end.

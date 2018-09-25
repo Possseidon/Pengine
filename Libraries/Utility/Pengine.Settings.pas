@@ -25,8 +25,6 @@ type
     constructor Create(ARoot: TRootSettings); virtual;
 
   public
-    procedure AfterConstruction; override;
-
     class function GetTitle: string; virtual; abstract;
     class function GetDescription: string; virtual;
 
@@ -58,18 +56,12 @@ type
 
     class function GetTitle: string; override;
     class function GetDescription: string; override;
-    class function GetSettingsClasses: System.TArray<TSettingsClass>; virtual; abstract;
 
   end;
 
 implementation
 
 { TSettings }
-
-procedure TSettings.AfterConstruction;
-begin
-  SetDefaults;
-end;
 
 procedure TSettings.Assign(AFrom: TSettings);
 begin
@@ -107,25 +99,24 @@ end;
 function TSettings.Sub(ASettingsClass: TSettingsClass): TSettings;
 begin
   if not Root.FSubSettings.Get(ASettingsClass, Result) then
-    raise ESettings.CreateFmt('The setting "%s" is not available.', [ASettingsClass.GetTitle]);
+  begin
+    Result := ASettingsClass.Create(Root);
+    Root.FSubSettings[ASettingsClass] := Result;
+    Result.SetDefaults;
+  end;
 end;
 
 function TSettings.Sub<T>: T;
 begin
-  if not Root.FSubSettings.Get(T, TSettings(Result)) then
-    raise ESettings.CreateFmt('The setting "%s" is not available.', [T.GetTitle]);
+  Result := T(Sub(T));
 end;
 
 { TRootSettings }
 
 constructor TRootSettings.Create;
-var
-  SettingsClass: TSettingsClass;
 begin
   inherited Create(Self);
   FSubSettings := TSubSettings.Create;
-  for SettingsClass in GetSettingsClasses do
-    FSubSettings[SettingsClass] := SettingsClass.Create(Self);
 end;
 
 destructor TRootSettings.Destroy;

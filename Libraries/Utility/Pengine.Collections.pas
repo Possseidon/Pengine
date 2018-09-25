@@ -622,6 +622,14 @@ type
   end;
 
   TRefArray<T: class> = class(TBaseRefArray<T>)
+  public type
+
+    TReader = class(TFindableArray<T>.TReader)
+    public
+      function Copy: TRefArray<T>; reintroduce; inline;
+
+    end;
+
   private
     FOwnsObjects: Boolean;
 
@@ -645,6 +653,8 @@ type
     function Copy: TRefArray<T>; reintroduce; inline;
 
     property OwnsObjects: Boolean read GetOwnsObjects write SetOwnsObjects;
+
+    function Reader: TReader; reintroduce; inline;
 
   end;
 
@@ -1993,6 +2003,11 @@ begin
   Result := FOwnsObjects;
 end;
 
+function TRefArray<T>.Reader: TReader;
+begin
+  Result := TReader(Self);
+end;
+
 procedure TRefArray<T>.SetOwnsObjects(const Value: Boolean);
 begin
   FOwnsObjects := Value;
@@ -2867,6 +2882,13 @@ end;
 function TFindableArray<T>.TReader.Find(AItem: T): Integer;
 begin
   Result := TFindableArray<T>(Self).Find(AItem);
+end;
+
+{ TRefArray<T>.TReader }
+
+function TRefArray<T>.TReader.Copy: TRefArray<T>;
+begin
+  Result := TRefArray<T>(Self).Copy;
 end;
 
 end.

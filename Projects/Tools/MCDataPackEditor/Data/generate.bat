@@ -1,0 +1,1 @@
+java -cp server.jar net.minecraft.data.Main --all

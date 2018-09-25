@@ -12,6 +12,7 @@ uses
   Pengine.Hasher,
   Pengine.HashCollections,
   Pengine.Parser,
+  Pengine.Utility,
   Pengine.Settings,
 
   Pengine.MC.Namespace,
@@ -90,7 +91,7 @@ type
     destructor Destroy; override;
 
     function Exists(ANSPath: TNSPath): Boolean;
-    function Get(ANSPath: TNSPath; out ABlockProperties: TBlockType): Boolean;
+    function Get(ANSPath: TNSPath; out ABlockType: TBlockType): Boolean;
 
     /// <summary>All block types as found in the file.</summary>
     property Order: TBlockTypes.TReader read GetOrder;
@@ -185,9 +186,9 @@ type
 
     end;
 
-    /// <summary>Parses the property-part of a block state.</summary>
+    /// <summary>Parses the properties of a block state.</summary>
     /// <remarks>Context specific, on which properties are available for a certain block or a whole block tag.</remarks>
-    TPropertiesParser = class(TRefParser<TProperties>)
+    TPropertiesParser = class(TObjectParser<TProperties>)
     private
       FBlockTypes: TBlockTypes.TReader;
 
@@ -197,19 +198,22 @@ type
     public
       constructor Create(AInfo: TParseInfo; ABlockTypes: TBlockTypes.TReader; ARequired: Boolean);
 
+      class function Optional(AInfo: TParseInfo; ABlockTypes: TBlockTypes.TReader): TProperties; reintroduce;
+
       class function GetResultName: string; override;
 
     end;
 
     TPropertySuggestions = class(TParseSuggestionsGenerated)
     private
-      FBlockTypes: TBlockTypes.TReader;
+      FBlockTypes: TBlockTypes;
 
     protected
       procedure Generate; override;
 
     public
-      constructor Create(ABlockTypes: TBlockTypes.TReader);
+      constructor Create(ABlockTypes: TBlockTypes);
+      destructor Destroy; override;
 
       function GetTitle: string; override;
 
@@ -230,10 +234,8 @@ type
 
   private
     FNSPath: TNSPath;
-    FProperties: TProperties;
-    FNBT: TNBTCompound;
-
-    procedure SetNBT(const Value: TNBTCompound);
+    FProperties: TOwned<TProperties>;
+    FNBT: TOwned<TNBTCompound>;
 
   public
     constructor Create; overload;
@@ -241,8 +243,9 @@ type
     destructor Destroy; override;
 
     property NSPath: TNSPath read FNSPath write FNSPath;
-    property Properties: TProperties read FProperties;
-    property NBT: TNBTCompound read FNBT write SetNBT;
+
+    property Properties: TOwned<TProperties> read FProperties;
+    property NBT: TOwned<TNBTCompound> read FNBT;
 
     function Format(AShowDefaultNamespace: Boolean = True): string;
 
@@ -323,9 +326,9 @@ begin
   Result := FMap.KeyExists(ANSPath);
 end;
 
-function TBlockTypeCollection.Get(ANSPath: TNSPath; out ABlockProperties: TBlockType): Boolean;
+function TBlockTypeCollection.Get(ANSPath: TNSPath; out ABlockType: TBlockType): Boolean;
 begin
-  Result := FMap.Get(ANSPath, ABlockProperties);
+  Result := FMap.Get(ANSPath, ABlockType);
 end;
 
 function TBlockTypeCollection.GetOrder: TBlockTypes.TReader;
@@ -387,12 +390,13 @@ end;
 constructor TBlockState.Create(ANSPath: TNSPath);
 begin
   FNSPath := ANSPath;
-  FProperties := TProperties.Create;
+  Create;
 end;
 
 constructor TBlockState.Create;
 begin
-  FProperties := TProperties.Create;
+  FProperties := TOwned<TProperties>.Create;
+  FNBT := TOwned<TNBTCompound>.Create;
 end;
 
 destructor TBlockState.Destroy;
@@ -403,25 +407,12 @@ begin
 end;
 
 function TBlockState.Format(AShowDefaultNamespace: Boolean): string;
-var
-  I: Integer;
 begin
   Result := NSPath.Format(AShowDefaultNamespace);
-  if not Properties.Empty then
-  begin
-    Result := Result + '[' + Properties.First.Format;
-    for I := 1 to Properties.MaxIndex do
-      Result := Result + ', ' + Properties[I].Format;
-    Result := Result + ']';
-  end;
-  if (NBT <> nil) and not NBT.Empty then
-    Result := Result + NBT.Format;
-end;
-
-procedure TBlockState.SetNBT(const Value: TNBTCompound);
-begin
-  FNBT.Free;
-  FNBT := Value;
+  if Properties.HasValue and not Properties.Value.Empty then
+    Result := Result + Properties.Value.Format;
+  if NBT.HasValue and not NBT.Value.Empty then
+    Result := Result + NBT.Value.Format;
 end;
 
 { TBlockState.TParser }
@@ -438,14 +429,12 @@ end;
 
 function TBlockState.TParser.Parse: Boolean;
 var
-  Marker, PropertiesStart: TLogMarker;
+  Marker: TLogMarker;
   NSPathString: string;
   NSPath: TNSPath;
-  Properties: TBlockType;
-  PropertyName, PropertyValue: string;
-  Prop: TBlockType.TProperty;
+  BlockType: TBlockType;
   BlockExists: Boolean;
-  Blocks: TPropertiesParser.TBlockList;
+  Blocks: TBlockTypes;
 begin
   Marker := GetMarker;
   BeginSuggestions(TBlockSuggestions.Create(Settings));
@@ -458,24 +447,24 @@ begin
     Exit(False);
   NSPath := NSPathString;
 
-  BlockExists := Settings.Blocks.Get(NSPath, Properties);
+  BlockExists := Settings.Blocks.Get(NSPath, BlockType);
   if not BlockExists then
     Log(Marker, '"%s" is not a valid block.', [NSPath.Format]);
 
   SetParseResult(TBlockState.Create(NSPath));
 
-  ParseResult.NBT := TNBTParserCompound.Optional(Info, omReturnNil);
+  ParseResult.NBT.Put(TNBTParserCompound.Optional(Info, omReturnNil));
 
-  Blocks := TPropertiesParser.TBlockList.Create;
+  Blocks := TBlockTypes.Create;
   try
-    Blocks.Add();
-    TPropertiesParser.Create(Info, Blocks, False);
+    Blocks.Add(BlockType);
+    ParseResult.Properties.Put(TPropertiesParser.Optional(Info, Blocks.Reader));
   finally
     Blocks.Free;
   end;
 
-  if ParseResult.NBT = nil then
-    ParseResult.NBT := TNBTParserCompound.Optional(Info, omReturnNil);
+  if not ParseResult.NBT.HasValue then
+    ParseResult.NBT.Put(TNBTParserCompound.Optional(Info, omReturnNil));
 
   Result := True;
 end;
@@ -568,9 +557,15 @@ end;
 
 { TBlockState.TPropertySuggestions }
 
-constructor TBlockState.TPropertySuggestions.Create(ABlockTypes: TBlockTypes.TReader);
+constructor TBlockState.TPropertySuggestions.Create(ABlockTypes: TBlockTypes);
 begin
   FBlockTypes := ABlockTypes;
+end;
+
+destructor TBlockState.TPropertySuggestions.Destroy;
+begin
+  FBlockTypes.Free;
+  inherited;
 end;
 
 procedure TBlockState.TPropertySuggestions.Generate;
@@ -624,19 +619,25 @@ begin
   Result := 'Block-Properties';
 end;
 
+class function TBlockState.TPropertiesParser.Optional(AInfo: TParseInfo; ABlockTypes: TBlockTypes.TReader): TProperties;
+begin
+  Result := Create(AInfo, ABlockTypes, False).GetOptional;
+end;
+
 function TBlockState.TPropertiesParser.Parse: Boolean;
 var
   PropertyName: string;
   PropertyValue: string;
-  BlockExists: Boolean;
   BlockType: TBlockType;
   Prop: TBlockType.TProperty;
 begin
   if not StartsWith('[') then
     Exit(False);
 
+  SetParseResult(TProperties.Create);
+
   if not FBlockTypes.Empty then
-    BeginSuggestions(TPropertySuggestions.Create(FBlockTypes));
+    BeginSuggestions(TPropertySuggestions.Create(FBlockTypes.Copy));
 
   SkipWhitespace;
   if not StartsWith(']') then
@@ -648,9 +649,10 @@ begin
 
       if PropertyName.IsEmpty then
       begin
-        Log(1, 'Expected block state property name.');
+        Log(1, 'Expected block state property name.', elFatal);
+        Exit(True);
       end
-      else if BlockExists then
+      else if not FBlockTypes.Empty then
       begin
         Prop := nil;
         for BlockType in FBlockTypes do
@@ -679,7 +681,7 @@ begin
       else if (Prop <> nil) and not Prop.Exists(PropertyValue) then
         Log(-PropertyValue.Length, '"%s" is not a valid value for "%s".', [PropertyValue, PropertyName]);
 
-      ParseObject.Add(TPropertyValue.Create(PropertyName, PropertyValue));
+      ParseResult.Add(TPropertyValue.Create(PropertyName, PropertyValue));
 
       SkipWhitespace;
 
@@ -690,11 +692,13 @@ begin
         raise EParseError.Create('Expected "]" or ",".');
 
       if not FBlockTypes.Empty then
-        BeginSuggestions(TPropertySuggestions.Create(FBlockTypes));
+        BeginSuggestions(TPropertySuggestions.Create(FBlockTypes.Copy));
 
       SkipWhitespace;
     end;
   end;
+
+  Result := True;
 end;
 
 { TBlockState.TProperties }
@@ -712,6 +716,7 @@ begin
       Append(', ');
       Append(Items[I].Format);
     end;
+    Append(']');
     Result := ToString;
     Free;
   end;

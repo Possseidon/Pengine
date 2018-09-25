@@ -39,7 +39,8 @@ uses
   Pengine.MC.EntitySelector,
 
   DatapackView,
-  FunctionTheme, Pengine.MC.BrigadierParser;
+  FunctionTheme,
+  Pengine.MC.BrigadierParser;
 
 type
 
@@ -74,11 +75,11 @@ type
     procedure frmSynEditorsynEditorPaint(Sender: TObject; ACanvas: TCanvas);
     procedure lvErrorsDblClick(Sender: TObject);
     procedure synCompletionExecute(Kind: SynCompletionType; Sender: TObject; var CurrentInput: string;
-      var x, y: Integer; var CanExecute: Boolean);
+      var X, Y: Integer; var CanExecute: Boolean);
     procedure synEditorChange(Sender: TObject);
     procedure synEditorCommandProcessed(Sender: TObject; var Command: TSynEditorCommand; var AChar: Char;
       Data: Pointer);
-    procedure synEditorGutterPaint(Sender: TObject; ALine, x, y: Integer);
+    procedure synEditorGutterPaint(Sender: TObject; ALine, X, Y: Integer);
     procedure synEditorSpecialLineColors(Sender: TObject; ALine: Integer; var Special: Boolean; var FG, BG: TColor);
     procedure synEditorStatusChange(Sender: TObject; Changes: TSynStatusChanges);
   private
@@ -268,6 +269,8 @@ var
   LineHint: string;
   OldBrushStyle: TBrushStyle;
 begin
+  // TODO: Fix for windows XP, as cursor movement isn't invalidating the new line and therefore doesn't update command help
+
   OldPenStyle := ACanvas.Pen.Style;
   OldBrushStyle := ACanvas.Brush.Style;
   for I := 0 to FLines.MaxIndex do
@@ -300,13 +303,13 @@ begin
 
       DisplayPos := synEditor.BufferToDisplayPos(BufferCoord(Err.Position.LinePos, I + 1));
       P := synEditor.RowColumnToPixels(DisplayPos);
-      P.y := P.y - synEditor.Font.Height;
-      ACanvas.MoveTo(P.x, P.y);
+      P.Y := P.Y - synEditor.Font.Height;
+      ACanvas.MoveTo(P.X, P.Y);
 
       DisplayPos := synEditor.BufferToDisplayPos(BufferCoord(Err.Position.LinePos + Err.Length, I + 1));
       P := synEditor.RowColumnToPixels(DisplayPos);
-      P.y := P.y - synEditor.Font.Height;
-      ACanvas.LineTo(P.x, P.y);
+      P.Y := P.Y - synEditor.Font.Height;
+      ACanvas.LineTo(P.X, P.Y);
     end;
   end;
 
@@ -341,7 +344,7 @@ begin
           ACanvas.Brush.Style := bsSolid;
           ACanvas.Brush.Color := synEditor.ActiveLineColor;
           ACanvas.Font.Color := clGrayText;
-          ACanvas.TextOut(P.x, P.y, LineHint);
+          ACanvas.TextOut(P.X, P.Y, LineHint);
         end;
 
       end;
@@ -368,23 +371,23 @@ end;
 
 procedure TfrmEditorFunctions.ReplaceTabsWithSpaces;
 var
-  I, x, R: Integer;
+  I, X, R: Integer;
   Rep: string;
 begin
   for I := 0 to synEditor.Lines.Count - 1 do
   begin
-    x := 1;
-    while x <= synEditor.Lines[I].Length do
+    X := 1;
+    while X <= synEditor.Lines[I].Length do
     begin
-      if synEditor.Lines[I][x] = #9 then
+      if synEditor.Lines[I][X] = #9 then
       begin
         Rep := ' ';
-        for R := 2 to synEditor.TabWidth - (x - 1) mod synEditor.TabWidth do
+        for R := 2 to synEditor.TabWidth - (X - 1) mod synEditor.TabWidth do
           Rep := Rep + ' ';
-        synEditor.Lines[I] := StuffString(synEditor.Lines[I], x, 1, Rep);
-        Inc(x, Length(Rep));
+        synEditor.Lines[I] := StuffString(synEditor.Lines[I], X, 1, Rep);
+        Inc(X, Length(Rep));
       end;
-      Inc(x);
+      Inc(X);
     end;
   end;
   synEditorChange(nil);
@@ -392,7 +395,7 @@ end;
 
 procedure TfrmEditorFunctions.synCompletionExecute(Kind: SynCompletionType; Sender: TObject;
   var CurrentInput: string;
-  var x, y: Integer; var CanExecute: Boolean);
+  var X, Y: Integer; var CanExecute: Boolean);
 var
   Context: TParseInfo.TContext;
   Line, Pos, I: Integer;
@@ -477,7 +480,7 @@ begin
   end;
 end;
 
-procedure TfrmEditorFunctions.synEditorGutterPaint(Sender: TObject; ALine, x, y: Integer);
+procedure TfrmEditorFunctions.synEditorGutterPaint(Sender: TObject; ALine, X, Y: Integer);
 var
   Level: TParseError.TLevel;
 begin
@@ -486,7 +489,7 @@ begin
   begin
     Level := FLines[ALine].Context.HighestErrorLevel;
     if Level > elNone then
-      synEditor.Canvas.Draw(x, y, FErrorImages[Ord(Level) - 1]);
+      synEditor.Canvas.Draw(X, Y, FErrorImages[Ord(Level) - 1]);
   end;
 end;
 

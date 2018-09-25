@@ -102,27 +102,6 @@ begin
   end;
 end;
 
-{ TIdentifierParser }
-{
-class function TIdentifierParser.GetResultName: string;
-begin
-  Result := 'Identifier';
-end;
-
-function TIdentifierParser.Parse: Boolean;
-const
-  Alpha = ['a' .. 'z', 'A' .. 'Z', '_'];
-  AlphaNum = Alpha + ['0' .. '9'];
-begin
-  if not CharInSet(Info.First, Alpha) then
-    Exit(False);
-  SetParseResult(Info.First);
-  Info.Advance;
-  FParseResult := FParseResult + Info.ReadWhile(AlphaNum);
-  Result := True;
-end;
-}
-
 { TStringOrIdentParser }
 
 class function TStringOrIdentParser.GetResultName: string;

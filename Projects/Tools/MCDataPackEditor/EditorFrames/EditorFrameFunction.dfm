@@ -77,7 +77,7 @@ object frmEditorFunctions: TfrmEditorFunctions
     Left = 104
     Top = 48
     Bitmap = {
-      494C010103000500040010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C0101030005000C0010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -223,20 +223,20 @@ object frmEditorFunctions: TfrmEditorFunctions
     TriggerChars = '.'
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
-    Font.Height = -16
-    Font.Name = 'Consolas'
+    Font.Height = -15
+    Font.Name = 'Tahoma'
     Font.Style = []
     TitleFont.Charset = ANSI_CHARSET
-    TitleFont.Color = clBtnText
-    TitleFont.Height = -16
-    TitleFont.Name = 'Consolas'
+    TitleFont.Color = clCaptionText
+    TitleFont.Height = -15
+    TitleFont.Name = 'Tahoma'
     TitleFont.Style = [fsBold]
     Columns = <>
     OnExecute = synCompletionExecute
     ShortCut = 16416
     Editor = frmSynEditor.synEditor
     TimerInterval = 1
-    Left = 112
+    Left = 104
     Top = 104
   end
 end

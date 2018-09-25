@@ -468,6 +468,9 @@ type
 
   /// <summary>Creates a new object, that can be taken ownage of by using OwnParseResult.</summary>
   TObjectParser<T: class> = class(TParser<T>)
+  protected
+    function GetOptional: T;
+
   public
     destructor Destroy; override;
 
@@ -1023,16 +1026,18 @@ begin
   inherited;
 end;
 
+function TObjectParser<T>.GetOptional: T;
+begin
+  if Success then
+    Result := OwnParseResult
+  else
+    Result := nil;
+  Free;
+end;
+
 class function TObjectParser<T>.Optional(AInfo: TParseInfo): T;
 begin
-  with Self.Create(AInfo, False) do
-  begin
-    if Success then
-      Result := OwnParseResult
-    else
-      Result := nil;
-    Free;
-  end;
+  Result := Self.Create(AInfo, False).GetOptional;
 end;
 
 function TObjectParser<T>.OwnParseResult: T;

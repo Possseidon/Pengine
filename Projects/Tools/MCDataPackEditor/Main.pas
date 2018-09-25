@@ -34,6 +34,7 @@ uses
   Pengine.Hasher,
   Pengine.TimeManager,
   Pengine.Parser,
+  Pengine.Settings,
 
   Pengine.MC.BrigadierParser,
   Pengine.MC.Brigadier,
@@ -170,7 +171,7 @@ type
     procedure tvNamespacesMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure tvNamespacesMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
   private
-    FSettings: TMainSettings;
+    FSettings: TRootSettings;
     FDatapack: TDatapack;
     FDatapackTreeView: TDatapackTreeView;
     FDraggedPage: TTabSheet;
@@ -194,7 +195,7 @@ type
     procedure UpdateActions; override;
 
   public
-    property Settings: TMainSettings read FSettings;
+    property Settings: TRootSettings read FSettings;
     property FunctionTheme: TFunctionTheme read FFunctionTheme;
 
   end;
@@ -321,12 +322,16 @@ procedure TfrmMain.ExceptionLagFix;
 begin
   // The first time, this exception is raised, the raising takes a little longer with the debugger...
   // So let's do it at the start so it's not anoying while typing.
-  {$IFDEF DEBUG}
+
+{$IFDEF DEBUG}
+
   try
     raise EParseError.Create('');
   except
   end;
-  {$ENDIF}
+
+{$ENDIF}
+
 end;
 
 procedure TfrmMain.actEditExecute(Sender: TObject);
@@ -499,7 +504,7 @@ end;
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
   // SHAutoComplete(edtTestInput.Handle, SHACF_AUTOAPPEND_FORCE_OFF or SHACF_AUTOSUGGEST_FORCE_OFF);
-  FSettings := TMainSettings.Create;
+  FSettings := TRootSettings.Create;
   InitDataTypes;
   InitTheme;
   ExceptionLagFix;
