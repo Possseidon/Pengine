@@ -55,7 +55,7 @@ type
     FMap: TMap;
     FProperties: TProperties;
 
-    function GetOrder: TProperties.TReader;
+    function GetProperties: TProperties.TReader;
 
   public
     constructor Create(AJSONPair: TJSONPair);
@@ -66,7 +66,7 @@ type
     function PropertyExists(AName: string): Boolean;
     function GetProperty(AName: string; out AProperty: TProperty): Boolean;
 
-    property Properties: TProperties.TReader read GetOrder;
+    property Properties: TProperties.TReader read GetProperties;
 
   end;
 
@@ -247,15 +247,121 @@ type
     property Properties: TOwned<TProperties> read FProperties;
     property NBT: TOwned<TNBTCompound> read FNBT;
 
-    function Format(AShowDefaultNamespace: Boolean = True): string;
+    function Format(AShowDefaultNamespace: Boolean = True): string; virtual;
 
   end;
 
-  // TODO: Tags
+  TBlockTagCollection = class;
+
+  TBlockTag = class
+  private
+    FReplace: Boolean;
+    FNSPath: TNSPath;
+    FBlockTypes: TBlockTypes;
+    FSorted: TBlockTypes;
+
+    function GetBlockTypes: TBlockTypes.TReader;
+    function GetSorted: TBlockTypes.TReader;
+
+  public
+    constructor Create(ABlockTags: TBlockTagCollection; ANSPath: TNSPath; AJSONObject: TJSONObject);
+    destructor Destroy; override;
+
+    property BlockTypes: TBlockTypes.TReader read GetBlockTypes;
+    property Sorted: TBlockTypes.TReader read GetSorted;
+
+  end;
+
+  TBlockTags = TRefArray<TBlockTag>;
+
+  /// <summary>A collection of all block tags.</summary>
+  TBlockTagCollection = class
+  public type
+
+    TMap = TToObjectMap<TNSPath, TBlockType, TNSPathHasher>;
+
+  private
+    FBlockTypes: TBlockTypeCollection;
+    FPath: string;
+    FMap: TMap;
+    FTags: TBlockTags;
+
+    function GetTags: TBlockTags.TReader;
+
+    function Load(ANSPath: TNSPath);
+
+  public
+    constructor Create(ABlockTypes: TBlockTypeCollection; APath: string);
+    destructor Destroy; override;
+
+    property BlockTypes: TBlockTypeCollection read FBlockTypes;
+
+    function Exists(ANSPath: TNSPath): Boolean;
+    function Get(ANSPath: TNSPath; out ABlockTag: TBlockTag): Boolean;
+
+    /// <summary>All block tags sorted alphabetically.</summary>
+    property Tags: TBlockTags.TReader read GetTags;
+
+  end;
+
+  /// <summary>Loads available block tags from a directory.</summary>
+  TBlockTagSettings = class(TSettings)
+  public const
+
+    DefaultPath = 'Data\data\minecraft\tags\blocks';
+
+  private
+    FBlockTags: TBlockTagCollection;
+    FPath: string;
+
+    procedure SetPath(const Value: string);
+
+  public
+    destructor Destroy; override;
+
+    class function GetTitle: string; override;
+    class function GetDescription: string; override;
+
+    procedure SetDefaults; override;
+
+    property Path: string read FPath write SetPath;
+    property BlockTags: TBlockTagCollection read FBlockTags;
+
+    procedure Reload;
+
+  end;
+
+  /// <summary>
+  /// <p>A block tag defined by namespace identifier and optional Properties and NBT.</p>
+  /// <p>Example: <c>#minecraft:log[axis=x]{}</c></p>
+  /// </summary>
+  TBlockStateTag = class(TBlockState)
+  public type
+
+    /// <summary>Parses a whole block state.</summary>
+    TParser = class(TObjectParserWithSettings<TBlockStateTag>)
+    private
+      FSettings: TBlockTagSettings;
+
+    protected
+      function Parse: Boolean; override;
+      procedure InitSettings; override;
+
+      property Settings: TBlockTagSettings read FSettings;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
+  public
+    function Format(AShowDefaultNamespace: Boolean = True): string; override;
+
+  end;
 
 implementation
 
-{ TBlockState.TProperty }
+{ TBlockType.TProperty }
 
 constructor TBlockType.TProperty.Create(AJSONPair: TJSONPair);
 var
@@ -288,7 +394,7 @@ begin
   Result := FValues.Reader;
 end;
 
-{ TBlockStates }
+{ TBlockTypeCollection }
 
 constructor TBlockTypeCollection.Create(AJSONObject: TJSONObject);
 var
@@ -341,7 +447,7 @@ begin
   Result := FSorted.Reader;
 end;
 
-{ TBlockState }
+{ TBlockType }
 
 constructor TBlockType.Create(AJSONPair: TJSONPair);
 var
@@ -380,7 +486,7 @@ begin
   Result := FMap.Get(AName, AProperty);
 end;
 
-function TBlockType.GetOrder: TProperties.TReader;
+function TBlockType.GetProperties: TProperties.TReader;
 begin
   Result := FProperties.Reader;
 end;
@@ -457,7 +563,8 @@ begin
 
   Blocks := TBlockTypes.Create;
   try
-    Blocks.Add(BlockType);
+    if BlockExists then
+      Blocks.Add(BlockType);
     ParseResult.Properties.Put(TPropertiesParser.Optional(Info, Blocks.Reader));
   finally
     Blocks.Free;
@@ -651,10 +758,11 @@ begin
       begin
         Log(1, 'Expected block state property name.', elFatal);
         Exit(True);
-      end
-      else if not FBlockTypes.Empty then
+      end;
+
+      Prop := nil;
+      if not FBlockTypes.Empty then
       begin
-        Prop := nil;
         for BlockType in FBlockTypes do
           if BlockType.GetProperty(PropertyName, Prop) then
             Break;
@@ -720,6 +828,90 @@ begin
     Result := ToString;
     Free;
   end;
+end;
+
+{ TBlockStateTag }
+
+function TBlockStateTag.Format(AShowDefaultNamespace: Boolean): string;
+begin
+  Result := '#' + inherited;
+end;
+
+{ TBlockTag }
+
+constructor TBlockTag.Create(ABlockTags: TBlockTagCollection; ANSPath: TNSPath; AJSONObject: TJSONObject);
+var
+  ReplaceNode: TJSONBool;
+  ValuesNode: TJSONArray;
+  ValueNode: TJSONValue;
+  Value: string;
+  BlockType: TBlockType;
+  BlockTag: TBlockTag;
+begin
+  FNSPath := ANSPath;
+  FBlockTypes := TBlockTypes.Create;
+  if AJSONObject.TryGetValue<TJSONBool>('replace', ReplaceNode) then
+    FReplace := ReplaceNode.AsBoolean;
+  if AJSONObject.TryGetValue<TJSONArray>('values', ValuesNode) then
+  begin
+    for ValueNode in ValuesNode do
+    begin
+      if not(ValueNode is TJSONString) then
+        Continue;
+      Value := TJSONString(ValueNode).Value;
+      if Value.StartsWith('#') then
+      begin
+        Value := Value.Substring(1);
+        if ABlockTags.Get(Value, BlockTag) then
+          FBlockTypes.Add(BlockTag.BlockTypes);
+      end
+      else
+      begin
+        if ABlockTypes.Get(Value, BlockType) then
+          FBlockTypes.Add(BlockType);
+      end;
+    end;
+  end;
+end;
+
+destructor TBlockTag.Destroy;
+begin
+  FBlockTypes.Free;
+  inherited;
+end;
+
+function TBlockTag.GetBlockTypes: TBlockTypes.TReader;
+begin
+  Result := FBlockTypes.Reader;
+end;
+
+{ TBlockTagCollection }
+
+constructor TBlockTagCollection.Create(ABlockTypes: TBlockTypeCollection; AJSONObject: TJSONObject);
+begin
+  FBlockTypes := ABlockTypes;
+
+end;
+
+destructor TBlockTagCollection.Destroy;
+begin
+
+  inherited;
+end;
+
+function TBlockTagCollection.Exists(ANSPath: TNSPath): Boolean;
+begin
+
+end;
+
+function TBlockTagCollection.Get(ANSPath: TNSPath; out ABlockTag: TBlockTag): Boolean;
+begin
+
+end;
+
+function TBlockTagCollection.GetTags: TBlockTags.TReader;
+begin
+
 end;
 
 end.

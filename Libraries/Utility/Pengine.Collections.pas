@@ -420,6 +420,8 @@ type
     procedure Add(AItems: IIterable<T>); overload;
     // TODO: XmlDoc
     procedure Add(AItems: IEnumerable<T>); overload;
+    // TODO: XmlDoc
+    procedure Add(AItems: TReader); overload;
     
     // TODO: XmlDoc: Remarks: Insert can also add item at the end
     function Insert(AItem: T; AIndex: Integer): T; virtual;
@@ -1864,6 +1866,11 @@ procedure TArray<T>.Add(AItems: IIterator<T>);
 begin
   while AItems.MoveNext do
     Add(AItems.Current);
+end;
+
+procedure TArray<T>.Add(AItems: TReader);
+begin
+  Add(AItems.GetEnumerator);
 end;
 
 { TIntArrayHelper }
