@@ -288,8 +288,6 @@ type
 
     function GetTags: TBlockTags.TReader;
 
-    function Load(ANSPath: TNSPath);
-
   public
     constructor Create(ABlockTypes: TBlockTypeCollection; APath: string);
     destructor Destroy; override;
@@ -867,7 +865,7 @@ begin
       end
       else
       begin
-        if ABlockTypes.Get(Value, BlockType) then
+        if ABlockTags.BlockTypes.Get(Value, BlockType) then
           FBlockTypes.Add(BlockType);
       end;
     end;
@@ -887,7 +885,7 @@ end;
 
 { TBlockTagCollection }
 
-constructor TBlockTagCollection.Create(ABlockTypes: TBlockTypeCollection; AJSONObject: TJSONObject);
+constructor TBlockTagCollection.Create(ABlockTypes: TBlockTypeCollection; APath: string);
 begin
   FBlockTypes := ABlockTypes;
 
