@@ -7,6 +7,7 @@ uses
   System.JSON,
   System.IOUtils,
   System.Generics.Collections,
+  System.Types,
 
   Pengine.Collections,
   Pengine.Hasher,
@@ -267,6 +268,8 @@ type
     constructor Create(ABlockTags: TBlockTagCollection; ANSPath: TNSPath; AJSONObject: TJSONObject);
     destructor Destroy; override;
 
+    property NSPath: TNSPath read FNSPath;
+
     property BlockTypes: TBlockTypes.TReader read GetBlockTypes;
     property Sorted: TBlockTypes.TReader read GetSorted;
 
@@ -278,19 +281,24 @@ type
   TBlockTagCollection = class
   public type
 
-    TMap = TToObjectMap<TNSPath, TBlockType, TNSPathHasher>;
+    TMap = TToObjectMap<TNSPath, TBlockTag, TNSPathHasher>;
 
   private
     FBlockTypes: TBlockTypeCollection;
-    FPath: string;
     FMap: TMap;
     FTags: TBlockTags;
+    FPath: string;
 
     function GetTags: TBlockTags.TReader;
+
+    function Load(AFileName: TFileName): TBlockTag;
+    function LoadFromName(ANSPath: TNSPath): TBlockTag;
 
   public
     constructor Create(ABlockTypes: TBlockTypeCollection; APath: string);
     destructor Destroy; override;
+
+    property Path: string read FPath;
 
     property BlockTypes: TBlockTypeCollection read FBlockTypes;
 
@@ -349,6 +357,20 @@ type
 
     public
       class function GetResultName: string; override;
+
+    end;
+
+    TBlockTagSuggestions = class(TParseSuggestionsGenerated<TParser>)
+    private
+      FSettings: TBlockTagSettings;
+
+    protected
+      procedure Generate; override;
+
+    public
+      constructor Create(ASettings: TBlockTagSettings);
+
+      property Settings: TBlockTagSettings read FSettings;
 
     end;
 
@@ -541,6 +563,7 @@ var
   Blocks: TBlockTypes;
 begin
   Marker := GetMarker;
+
   BeginSuggestions(TBlockSuggestions.Create(Settings));
 
   NSPathString := ReadWhile(NamespacePathChars);
@@ -656,6 +679,7 @@ var
 begin
   for Block in Settings.Blocks.Order do
     AddSuggestion(ParseSuggestion(Block.NSPath.Format(False), Block.NSPath.Format(False)));
+  AddSuggestion(ParseSuggestion(TNSPath.Empty, TNSPath.Empty));
   for Block in Settings.Blocks.Order do
     AddSuggestion(ParseSuggestion(Block.NSPath, Block.NSPath));
 end;
@@ -680,7 +704,7 @@ var
 begin
   for BlockType in FBlockTypes do
     for Prop in BlockType.Properties do
-      AddSuggestion(Prop.Name);
+      AddUniqueSuggestion(Prop.Name);
 end;
 
 function TBlockState.TPropertySuggestions.GetTitle: string;
@@ -735,13 +759,15 @@ var
   PropertyValue: string;
   BlockType: TBlockType;
   Prop: TBlockType.TProperty;
+  HasBlockTypes: Boolean;
 begin
   if not StartsWith('[') then
     Exit(False);
 
   SetParseResult(TProperties.Create);
 
-  if not FBlockTypes.Empty then
+  HasBlockTypes := (FBlockTypes <> nil) and not FBlockTypes.Empty;
+  if HasBlockTypes then
     BeginSuggestions(TPropertySuggestions.Create(FBlockTypes.Copy));
 
   SkipWhitespace;
@@ -759,7 +785,7 @@ begin
       end;
 
       Prop := nil;
-      if not FBlockTypes.Empty then
+      if HasBlockTypes then
       begin
         for BlockType in FBlockTypes do
           if BlockType.GetProperty(PropertyName, Prop) then
@@ -797,7 +823,7 @@ begin
       if not StartsWith(',') then
         raise EParseError.Create('Expected "]" or ",".');
 
-      if not FBlockTypes.Empty then
+      if HasBlockTypes then
         BeginSuggestions(TPropertySuggestions.Create(FBlockTypes.Copy));
 
       SkipWhitespace;
@@ -844,7 +870,6 @@ var
   ValueNode: TJSONValue;
   Value: string;
   BlockType: TBlockType;
-  BlockTag: TBlockTag;
 begin
   FNSPath := ANSPath;
   FBlockTypes := TBlockTypes.Create;
@@ -860,8 +885,7 @@ begin
       if Value.StartsWith('#') then
       begin
         Value := Value.Substring(1);
-        if ABlockTags.Get(Value, BlockTag) then
-          FBlockTypes.Add(BlockTag.BlockTypes);
+        FBlockTypes.Add(ABlockTags.LoadFromName(Value).BlockTypes);
       end
       else
       begin
@@ -870,10 +894,18 @@ begin
       end;
     end;
   end;
+  FSorted := BlockTypes.Copy;
+  FSorted.Sort(
+    function(A, B: TBlockType): Boolean
+    begin
+      Result := A.NSPath < B.NSPath;
+    end
+    );
 end;
 
 destructor TBlockTag.Destroy;
 begin
+  FSorted.Free;
   FBlockTypes.Free;
   inherited;
 end;
@@ -883,33 +915,190 @@ begin
   Result := FBlockTypes.Reader;
 end;
 
+function TBlockTag.GetSorted: TBlockTypes.TReader;
+begin
+  Result := FSorted.Reader;
+end;
+
 { TBlockTagCollection }
 
 constructor TBlockTagCollection.Create(ABlockTypes: TBlockTypeCollection; APath: string);
+var
+  FileName: TFileName;
 begin
+  FPath := APath;
   FBlockTypes := ABlockTypes;
+  FMap := TMap.Create;
+  FTags := TBlockTags.Create;
 
+  for FileName in TDirectory.GetFiles(APath, '*.json') do
+    Load(FileName);
+
+  FTags.Sort(
+    function(A, B: TBlockTag): Boolean
+    begin
+      Result := A.NSPath < B.NSPath;
+    end);
 end;
 
 destructor TBlockTagCollection.Destroy;
 begin
-
+  FMap.Free;
+  FTags.Free;
   inherited;
 end;
 
 function TBlockTagCollection.Exists(ANSPath: TNSPath): Boolean;
 begin
-
+  Result := FMap.KeyExists(ANSPath);
 end;
 
 function TBlockTagCollection.Get(ANSPath: TNSPath; out ABlockTag: TBlockTag): Boolean;
 begin
-
+  Result := FMap.Get(ANSPath, ABlockTag);
 end;
 
 function TBlockTagCollection.GetTags: TBlockTags.TReader;
 begin
+  Result := FTags.Reader;
+end;
 
+function TBlockTagCollection.Load(AFileName: TFileName): TBlockTag;
+var
+  NSPath: TNSPath;
+  JSONObject: TJSONObject;
+begin
+  NSPath := ChangeFileExt(ExtractFileName(AFileName), '');
+  if Get(NSPath, Result) then
+    Exit;
+  JSONObject := TJSONObject.ParseJSONValue(TFile.ReadAllText(AFileName)) as TJSONObject;
+  try
+    Result := TBlockTag.Create(Self, NSPath, JSONObject);
+    FMap[NSPath] := Result;
+    FTags.Add(Result);
+  finally
+    JSONObject.Free;
+  end;
+end;
+
+function TBlockTagCollection.LoadFromName(ANSPath: TNSPath): TBlockTag;
+begin
+  Result := Load(TPath.Combine(Path, ANSPath.Format(False) + '.json'));
+end;
+
+{ TBlockTagSettings }
+
+destructor TBlockTagSettings.Destroy;
+begin
+  FBlockTags.Free;
+  inherited;
+end;
+
+class function TBlockTagSettings.GetDescription: string;
+begin
+  Result := 'Path configuration for block tags folder.';
+end;
+
+class function TBlockTagSettings.GetTitle: string;
+begin
+  Result := 'Block-Tags';
+end;
+
+procedure TBlockTagSettings.Reload;
+begin
+  FBlockTags.Free;
+  FBlockTags := TBlockTagCollection.Create(Sub<TBlockSettings>.Blocks, Path);
+end;
+
+procedure TBlockTagSettings.SetDefaults;
+begin
+  Path := DefaultPath;
+end;
+
+procedure TBlockTagSettings.SetPath(const Value: string);
+begin
+  if Path = Value then
+    Exit;
+  FPath := Value;
+  Reload;
+end;
+
+{ TBlockStateTag.TParser }
+
+class function TBlockStateTag.TParser.GetResultName: string;
+begin
+  Result := 'Block Tag';
+end;
+
+procedure TBlockStateTag.TParser.InitSettings;
+begin
+  FSettings := AllSettings.Sub<TBlockTagSettings>;
+end;
+
+function TBlockStateTag.TParser.Parse: Boolean;
+var
+  NSPathString: string;
+  NSPath: TNSPath;
+  Marker: TLogMarker;
+  TagExists: Boolean;
+  BlockTag: TBlockTag;
+  BlockTypes: TBlockTypes.TReader;
+begin
+  Marker := GetMarker;
+
+  if not StartsWith('#') then
+    Exit(False);
+
+  BeginSuggestions(TBlockTagSuggestions.Create(Settings));
+
+  NSPathString := ReadWhile(NamespacePathChars);
+
+  EndSuggestions;
+
+  if NSPathString.IsEmpty then
+  begin
+    Log(1, 'Expected block tag.');
+    Exit(True);
+  end;
+  NSPath := NSPathString;
+
+  SetParseResult(TBlockStateTag.Create(NSPath));
+  TagExists := Settings.BlockTags.Get(NSPath, BlockTag);
+  if not TagExists then
+    Log(Marker, '"%s" is not a valid block tag.', [NSPath.Format]);
+
+  ParseResult.NBT.Put(TNBTParserCompound.Optional(Info, omReturnNil));
+
+  if BlockTag <> nil then
+    BlockTypes := BlockTag.BlockTypes
+  else
+    BlockTypes := nil;
+
+  ParseResult.Properties.Put(TPropertiesParser.Optional(Info, BlockTypes));
+
+  if not ParseResult.NBT.HasValue then
+    ParseResult.NBT.Put(TNBTParserCompound.Optional(Info, omReturnNil));
+
+  Result := True;
+end;
+
+{ TBlockStateTag.TBlockTagSuggestions }
+
+constructor TBlockStateTag.TBlockTagSuggestions.Create(ASettings: TBlockTagSettings);
+begin
+  inherited Create;
+  FSettings := ASettings;
+end;
+
+procedure TBlockStateTag.TBlockTagSuggestions.Generate;
+var
+  Tag: TBlockTag;
+begin
+  for Tag in Settings.BlockTags.Tags do
+    AddSuggestion(ParseSuggestion(Tag.NSPath.Format(False), Tag.NSPath.Format(False)));
+  AddSuggestion(ParseSuggestion(TNSPath.Empty, TNSPath.Empty));
+  for Tag in Settings.BlockTags.Tags do
+    AddSuggestion(ParseSuggestion(Tag.NSPath, Tag.NSPath));
 end;
 
 end.

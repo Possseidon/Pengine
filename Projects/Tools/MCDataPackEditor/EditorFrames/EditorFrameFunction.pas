@@ -37,10 +37,10 @@ uses
 
   Pengine.MC.Brigadier,
   Pengine.MC.EntitySelector,
+  Pengine.MC.BrigadierParser,
 
   DatapackView,
-  FunctionTheme,
-  Pengine.MC.BrigadierParser;
+  FunctionTheme;
 
 type
 
@@ -478,6 +478,8 @@ begin
     ecPaste:
       ReplaceTabsWithSpaces;
   end;
+  // Win XP Fix
+  synEditor.Invalidate;
 end;
 
 procedure TfrmEditorFunctions.synEditorGutterPaint(Sender: TObject; ALine, X, Y: Integer);

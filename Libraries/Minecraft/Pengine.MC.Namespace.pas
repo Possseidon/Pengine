@@ -29,10 +29,12 @@ type
     constructor Create(APath: string); overload;
     constructor Create(ANamespace, APath: string); overload;
 
+    class function Empty: TNSPath; static;
+
     property Namespace: string read GetNamespace write SetNamespace;
     property Path: string read FPath write FPath;
 
-    function Empty: Boolean;
+    function IsEmpty: Boolean;
 
     function Format(AShowDefaultNamespace: Boolean = True): string;
 
@@ -89,9 +91,14 @@ begin
   Path := APath;
 end;
 
-function TNSPath.Empty: Boolean;
+function TNSPath.IsEmpty: Boolean;
 begin
   Result := Path.IsEmpty;
+end;
+
+class function TNSPath.Empty: TNSPath;
+begin
+  Result.Create('');
 end;
 
 class operator TNSPath.Equal(A, B: TNSPath): Boolean;

@@ -161,7 +161,11 @@ type
 
   protected
     procedure Generate; virtual; abstract;
+    /// <summary>Usually called in the <c>Generate</c> procedure to add suggestions.</summary>
+    /// <remarks>Use <c>AddUniqueSuggestion</c> to automatically prevent duplicates.</remarks>
     procedure AddSuggestion(ASuggestion: TParseSuggestion);
+    /// <summary>Same as <c>AddSuggestion</c>, but prevents duplicate display strings.</summary>
+    procedure AddUniqueSuggestion(ASuggestion: TParseSuggestion);
 
   public
     destructor Destroy; override;
@@ -1284,6 +1288,16 @@ end;
 procedure TParseSuggestionsGenerated.AddSuggestion(ASuggestion: TParseSuggestion);
 begin
   FSuggestions.Add(ASuggestion);
+end;
+
+procedure TParseSuggestionsGenerated.AddUniqueSuggestion(ASuggestion: TParseSuggestion);
+var
+  Suggestion: TParseSuggestion;
+begin
+  for Suggestion in FSuggestions do
+    if Suggestion.Display = ASuggestion.Display then
+      Exit;
+  AddSuggestion(ASuggestion);
 end;
 
 destructor TParseSuggestionsGenerated.Destroy;

@@ -37,11 +37,6 @@ type
     constructor Create;
   end;
 
-  EBriadierParserNotRegistered = class(Exception)
-  public
-    constructor Create(AParserString: string);
-  end;
-
   EBrigadierProperties = class(Exception);
 
   TBrigadierRoot = class;
@@ -781,13 +776,6 @@ end;
 function TBrigadierParser.ToString: string;
 begin
   Result := GetParserString;
-end;
-
-{ EBgriadierParserNotRegistered }
-
-constructor EBriadierParserNotRegistered.Create(AParserString: string);
-begin
-  inherited CreateFmt('The parser "%s" was not registered.', [AParserString]);
 end;
 
 { TBrigadierCommandParser }

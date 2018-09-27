@@ -2,6 +2,10 @@ unit Pengine.MC.Enchantment;
 
 interface
 
+uses
+  Pengine.Hasher,
+  Pengine.HashCollections;
+
 type
 
   TEnchantment = (
@@ -119,6 +123,37 @@ const
     'vanishing_curse'
     );
 
+function EnchantmentFromName(AName: string; out AEnchantment: TEnchantment): Boolean;
+
 implementation
+
+type
+
+  TEnchantmentMap = TMap<string, TEnchantment, TStringHasher>;
+
+var
+  EnchantmentMap: TEnchantmentMap;
+
+function EnchantmentFromName(AName: string; out AEnchantment: TEnchantment): Boolean;
+begin
+  Result := EnchantmentMap.Get(AName, AEnchantment);
+end;
+
+procedure InitEnchantmentMap;
+var
+  Enchantment: TEnchantment;
+begin
+  EnchantmentMap := TEnchantmentMap.Create;
+  for Enchantment := Low(TEnchantment) to High(TEnchantment) do
+    EnchantmentMap[EnchantmentNames[Enchantment]] := Enchantment;
+end;
+
+initialization
+
+InitEnchantmentMap;
+
+finalization
+
+EnchantmentMap.Free;
 
 end.

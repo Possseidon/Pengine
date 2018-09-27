@@ -22,9 +22,13 @@ uses
   Pengine.MC.General,
   Pengine.MC.NBT,
   Pengine.MC.Vector,
-  Pengine.MC.Namespace;
+  Pengine.MC.Namespace,
+  Pengine.MC.Entity,
+  Pengine.MC.Enchantment;
 
 type
+
+  // TODO: Replace min and max with intbounds, now that I can do that
 
   // TODO: Probably better to split this up and keep it in correct unit
   TFormatNamespaceSettings = class(TSettings)
@@ -677,6 +681,120 @@ type
 
   end;
 
+  /// <summary>A block predicate with properties and nbt.</summary>
+  /// <remarks>For the most part identical with block states, but can have tags.</remarks>
+  TBrigadierBlockPredicate = class(TBrigadierArgumentParameter)
+  private
+    FPredicate: TBlockState;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument); overload; override;
+    constructor Create(AArgument: TBrigadierArgument; APredicate: TBlockState); reintroduce; overload;
+    destructor Destroy; override;
+
+    /// <summary>Either a block state or a block tag.</summary>
+    property Predicate: TBlockState read FPredicate;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierBlockPredicateParser = class(TBrigadierParser<TBrigadierBlockPredicate>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetParserString: TNSPath; override;
+
+  end;
+
+  /// <summary>An entity used in the summon command.</summary>
+  TBrigadierEntitySummon = class(TBrigadierArgumentParameter)
+  private
+    FEntity: TEntity;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; AEntity: TEntity); reintroduce; overload;
+
+    property Entity: TEntity read FEntity;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierEntitySummonParser = class(TBrigadierParser<TBrigadierEntitySummon>)
+  public type
+
+    TSuggestions = class(TParseSuggestionsSimple<TBrigadierEntitySummonParser>)
+    public
+      class function GetCount: Integer; override;
+      class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+
+    end;
+
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetParserString: TNSPath; override;
+
+  end;
+
+  /// <summary>An entity used in the summon command.</summary>
+  TBrigadierItemEnchantment = class(TBrigadierArgumentParameter)
+  private
+    FEnchantment: TEnchantment;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; AEnchantment: TEnchantment); reintroduce; overload;
+
+    property Enchantment: TEnchantment read FEnchantment;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierItemEnchantmentParser = class(TBrigadierParser<TBrigadierItemEnchantment>)
+  public type
+
+    TSuggestions = class(TParseSuggestionsSimple<TBrigadierItemEnchantmentParser>)
+    public
+      class function GetCount: Integer; override;
+      class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+
+    end;
+
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetParserString: TNSPath; override;
+
+  end;
+
+  /// <summary>A name of an existing team.</summary>
+  TBrigadierTeam = class(TBrigadierArgumentParameter)
+  private
+    FName: string;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; AName: string); reintroduce; overload;
+
+    property Name: string read FName write FName;
+
+    function Format: string; override;
+    
+  end;
+
+  TBrigadierTeamParser = class(TBrigadierParser<TBrigadierTeam>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetParserString: TNSPath; override;
+
+  end;
+
 implementation
 
 { TBrigadierBoolParser }
@@ -783,7 +901,7 @@ end;
 
 class function TBrigadierEntityParser.GetParserString: TNSPath;
 begin
-  Result := NSPath('minecraft', 'entity');
+  Result := 'entity';
 end;
 
 function TBrigadierEntityParser.Parse: Boolean;
@@ -938,7 +1056,7 @@ end;
 
 class function TBrigadierNBTParser.GetParserString: TNSPath;
 begin
-  Result := NSPath('minecraft', 'nbt');
+  Result := 'nbt';
 end;
 
 function TBrigadierNBTParser.Parse: Boolean;
@@ -1353,7 +1471,7 @@ end;
 
 class function TBrigadierRotationParser.GetParserString: TNSPath;
 begin
-  Result := NSPath('minecraft', 'rotation');
+  Result := 'rotation';
 end;
 
 { TBrigadierSwizzle }
@@ -1385,7 +1503,7 @@ end;
 
 class function TBrigadierSwizzleParser.GetParserString: TNSPath;
 begin
-  Result := NSPath('minecraft', 'swizzle');
+  Result := 'swizzle';
 end;
 
 function TBrigadierSwizzleParser.Parse: Boolean;
@@ -1512,7 +1630,7 @@ end;
 
 class function TBrigadierMessageParser.GetParserString: TNSPath;
 begin
-  Result := NSPath('minecraft', 'message');
+  Result := 'message';
 end;
 
 class function TBrigadierMessageParser.KeepEndSuggestions: Boolean;
@@ -1630,7 +1748,7 @@ end;
 
 class function TBrigadierBlockStateParser.GetParserString: TNSPath;
 begin
-  Result := NSPath('minecraft', 'block_state');
+  Result := 'block_state';
 end;
 
 function TBrigadierBlockStateParser.Parse: Boolean;
@@ -1644,11 +1762,205 @@ begin
   Parser.Free;
 end;
 
+{ TBrigadierBlockPredicate }
+
+constructor TBrigadierBlockPredicate.Create(AArgument: TBrigadierArgument);
+begin
+  inherited;
+end;
+
+constructor TBrigadierBlockPredicate.Create(AArgument: TBrigadierArgument; APredicate: TBlockState);
+begin
+  inherited Create(AArgument);
+  FPredicate := APredicate;
+end;
+
+destructor TBrigadierBlockPredicate.Destroy;
+begin
+  FPredicate.Free;
+  inherited;
+end;
+
+function TBrigadierBlockPredicate.Format: string;
+begin
+  Result := Predicate.Format;
+end;
+
+{ TBrigadierBlockPredicateParser }
+
+class function TBrigadierBlockPredicateParser.GetParserString: TNSPath;
+begin
+  Result := 'block_predicate';
+end;
+
+function TBrigadierBlockPredicateParser.Parse: Boolean;
+var
+  BlockTagParser: TBlockStateTag.TParser;
+  BlockStateParser: TBlockState.TParser;
+begin
+  if StartsWith('#', False) then
+  begin
+    BlockTagParser := TBlockStateTag.TParser.Create(Info, Settings, False);
+    Result := BlockTagParser.Success;
+    if Result then
+      SetParseResult(TBrigadierBlockPredicate.Create(Argument, BlockTagParser.OwnParseResult));
+    BlockTagParser.Free;
+  end
+  else
+  begin
+    BlockStateParser := TBlockState.TParser.Create(Info, Settings, False);
+    Result := BlockStateParser.Success;
+    if Result then
+      SetParseResult(TBrigadierBlockPredicate.Create(Argument, BlockStateParser.OwnParseResult));
+    BlockStateParser.Free;
+  end;
+end;
+
+{ TBrigadierEntitySummon }
+
+constructor TBrigadierEntitySummon.Create(AArgument: TBrigadierArgument; AEntity: TEntity);
+begin
+  inherited Create(AArgument);
+  FEntity := AEntity;
+end;
+
+function TBrigadierEntitySummon.Format: string;
+begin
+  Result := EntityNames[Entity];
+end;
+
+{ TBrigadierEntitySummonParser }
+
+class function TBrigadierEntitySummonParser.GetParserString: TNSPath;
+begin
+  Result := 'minecraft:entity_summon';
+end;
+
+function TBrigadierEntitySummonParser.Parse: Boolean;
+var
+  Name: string;
+  Entity: TEntity;
+begin
+  BeginSuggestions(TSuggestions);
+  Name := ReadWhile(IdentChars);
+  EndSuggestions;
+
+  if Name.IsEmpty then
+    Exit(False);
+
+  if not EntityFromName(Name, Entity) then
+    Exit(False);
+
+  SetParseResult(TBrigadierEntitySummon.Create(Argument, Entity));
+
+  Result := True;
+end;
+
+{ TBrigadierEntitySummonParser.TSuggestions }
+
+class function TBrigadierEntitySummonParser.TSuggestions.GetCount: Integer;
+begin
+  // Ignore first entry (player)
+  Result := Length(EntityNames) - 1;
+end;
+
+class function TBrigadierEntitySummonParser.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
+begin
+  // Ignore first entry (player)
+  Inc(AIndex);
+  Result := ParseSuggestion(EntityDisplayNames[TEntity(AIndex)], EntityNames[TEntity(AIndex)]);
+end;
+
+{ TBrigadierItemEnchantment }
+
+constructor TBrigadierItemEnchantment.Create(AArgument: TBrigadierArgument; AEnchantment: TEnchantment);
+begin
+  inherited Create(AArgument);
+  FEnchantment := AEnchantment;
+end;
+
+function TBrigadierItemEnchantment.Format: string;
+begin
+  Result := EnchantmentNames[Enchantment];
+end;
+
+{ TBrigadierItemEnchantmentParser }
+
+class function TBrigadierItemEnchantmentParser.GetParserString: TNSPath;
+begin
+  Result := 'minecraft:item_enchantment';
+end;
+
+function TBrigadierItemEnchantmentParser.Parse: Boolean;
+var
+  Name: string;
+  Enchantment: TEnchantment;
+begin
+  BeginSuggestions(TSuggestions);
+  Name := ReadWhile(IdentChars);
+  EndSuggestions;
+
+  if Name.IsEmpty then
+    Exit(False);
+
+  if not EnchantmentFromName(Name, Enchantment) then
+    Exit(False);
+
+  SetParseResult(TBrigadierItemEnchantment.Create(Argument, Enchantment));
+
+  Result := True;
+end;
+
+{ TBrigadierItemEnchantmentParser.TSuggestions }
+
+class function TBrigadierItemEnchantmentParser.TSuggestions.GetCount: Integer;
+begin
+  Result := Length(EnchantmentNames);
+end;
+
+class function TBrigadierItemEnchantmentParser.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
+begin
+  Result := ParseSuggestion(EnchantmentDisplayNames[TEnchantment(AIndex)], EnchantmentNames[TEnchantment(AIndex)]);
+end;
+
+{ TBrigadierTeamParser }
+
+class function TBrigadierTeamParser.GetParserString: TNSPath;
+begin
+  Result := 'minecraft:team';
+end;
+
+function TBrigadierTeamParser.Parse: Boolean;
+var
+  Name: string;
+begin
+  Name := ReadWhile(IdentChars);
+  if Name.IsEmpty then
+    Exit(False);
+
+  SetParseResult(TBrigadierTeam.Create(Argument, Name));
+    
+  Result := True;
+end;
+
+{ TBrigadierTeam }
+
+constructor TBrigadierTeam.Create(AArgument: TBrigadierArgument; AName: string);
+begin
+  inherited Create(AArgument);
+  FName := AName;
+end;
+
+function TBrigadierTeam.Format: string;
+begin
+  Result := Name;
+end;
+
 initialization
 
-// Progress: 16 / 35
+// Progress: 20 / 35
 // /-----------------------------------\
-// [||||||||||||||||                   ]
+// [|||||||||||||||||||||              ]
 // \-----------------------------------/
 
 // - Basic Types -
@@ -1658,7 +1970,7 @@ TBrigadierIntegerParser.RegisterClass;
 TBrigadierFloatParser.RegisterClass;
 TBrigadierDoubleParser.RegisterClass;
 TBrigadierStringParser.RegisterClass;
-// TBrigadierRangeParser.RegisterClass;
+// TBrigadierRangeParser.RegisterClass; // TODO: brigadier:range -> minecraft:int_range
 
 // - Position related -
 
@@ -1667,6 +1979,8 @@ TBrigadierVec2Parser.RegisterClass;
 TBrigadierVec3Parser.RegisterClass;
 TBrigadierSwizzleParser.RegisterClass;
 TBrigadierBlockPosParser.RegisterClass;
+// TBrigadierDimensionParser.RegisterClass;
+// TBrigadierColumnPos.RegisterClass;
 
 // - Entity related -
 
@@ -1675,6 +1989,7 @@ TBrigadierEntityAnchorParser.RegisterClass;
 TBrigadierGameProfileParser.RegisterClass;
 TBrigadierMobEffectParser.RegisterClass;
 // TBrigadierParticleParser.RegisterClass;
+TBrigadierEntitySummonParser.RegisterClass;
 
 // - NBT related -
 
@@ -1696,19 +2011,19 @@ TBrigadierMessageParser.RegisterClass;
 
 // - Team related -
 
-// TBrigadierTeamParser.RegisterClass;
+TBrigadierTeamParser.RegisterClass;
 // TBrigadierColorParser.RegisterClass;
 
 // - Item related -
 
 // TBrigadierItemStackParser.RegisterClass; // big one
 // TBrigadierItemPredicateParser.RegisterClass; // and this
-// TBrigadierItemEnchantmentParser.RegisterClass;
+TBrigadierItemEnchantmentParser.RegisterClass;
 // TBrigadierItemSlotParser.RegisterClass;
 
 // - Block related -
 
-// TBrigadierBlockPredicateParser.RegisterClass; // big one
+TBrigadierBlockPredicateParser.RegisterClass;
 TBrigadierBlockStateParser.RegisterClass;
 
 // - Resource related -
