@@ -24,7 +24,8 @@ uses
   Pengine.MC.Vector,
   Pengine.MC.Namespace,
   Pengine.MC.Entity,
-  Pengine.MC.Enchantment;
+  Pengine.MC.Enchantment,
+  Pengine.MC.Dimension;
 
 type
 
@@ -321,6 +322,13 @@ type
 
   end;
 
+  /// <summary>The placeholder "*", that stands for all entries of the context specific objective.</summary>
+  TBrigadierEntityAllScoreHolders = class(TBrigadierEntity)
+  public
+    function Format: string; override;
+
+  end;
+
   TBrigadierEntityProperties = class(TBrigadierParserProperties)
   public type
 
@@ -359,6 +367,48 @@ type
   end;
 
   TBrigadierEntityParser = class(TBrigadierParser<TBrigadierEntity, TBrigadierEntityProperties>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetParserString: TNSPath; override;
+
+  end;
+
+  TBrigadierScoreHolderParser = class(TBrigadierParser<TBrigadierEntity>)
+  public type
+
+    TSuggestions = class(TParseSuggestionsSimple<TBrigadierScoreHolderParser>)
+    public
+      class function GetCount: Integer; override;
+      class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+
+    end;
+
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetParserString: TNSPath; override;
+    class function GetResultName: string; override;
+
+  end;
+
+  /// <summary>The name on an objective.</summary>
+  TBrigadierObjective = class(TBrigadierArgumentParameter)
+  private
+    FName: string;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; AName: string); reintroduce; overload;
+
+    property Name: string read FName write FName;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierObjectiveParser = class(TBrigadierParser<TBrigadierObjective>)
   protected
     function Parse: Boolean; override;
 
@@ -465,6 +515,16 @@ type
   end;
 
   TBrigadierVec3Parser = class(TBrigadierParser<TBrigadierVec3>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetParserString: TNSPath; override;
+
+  end;
+
+  /// <summary>A chunk pos must be integer if absolute.</summary>
+  TBrigadierColumnPosParser = class(TBrigadierParser<TBrigadierVec2>)
   protected
     function Parse: Boolean; override;
 
@@ -681,6 +741,31 @@ type
 
   end;
 
+  /// <summary>An item stack with nbt.</summary>
+  TBrigadierItemStack = class(TBrigadierArgumentParameter)
+  private
+    FItemStack: TItemStack;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument); overload; override;
+    constructor Create(AArgument: TBrigadierArgument; AItemStack: TItemStack); reintroduce; overload;
+    destructor Destroy; override;
+
+    property ItemStack: TItemStack read FItemStack;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierItemStackParser = class(TBrigadierParser<TBrigadierItemStack>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetParserString: TNSPath; override;
+
+  end;
+
   /// <summary>A block predicate with properties and nbt.</summary>
   /// <remarks>For the most part identical with block states, but can have tags.</remarks>
   TBrigadierBlockPredicate = class(TBrigadierArgumentParameter)
@@ -783,10 +868,42 @@ type
     property Name: string read FName write FName;
 
     function Format: string; override;
-    
+
   end;
 
   TBrigadierTeamParser = class(TBrigadierParser<TBrigadierTeam>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetParserString: TNSPath; override;
+
+  end;
+
+  /// <summary>A dimension.</summary>
+  TBrigadierDimension = class(TBrigadierArgumentParameter)
+  private
+    FDimension: TDimension;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; ADimension: TDimension); reintroduce; overload;
+
+    property Dimension: TDimension read FDimension;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierDimensionParser = class(TBrigadierParser<TBrigadierDimension>)
+  public type
+
+    TSuggestions = class(TParseSuggestionsSimple<TBrigadierDimensionParser>)
+    public
+      class function GetCount: Integer; override;
+      class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+
+    end;
+
   protected
     function Parse: Boolean; override;
 
@@ -1354,7 +1471,7 @@ var
   Marker: TLogMarker;
 begin
   Marker := GetMarker;
-  Parser := TMCVec2.TParser.Create(Info, False);
+  Parser := TMCVec2.TParser.Create(Info, False, False);
   Result := Parser.Success;
   if Result then
   begin
@@ -1868,7 +1985,7 @@ class function TBrigadierEntitySummonParser.TSuggestions.GetSuggestion(AIndex: I
 begin
   // Ignore first entry (player)
   Inc(AIndex);
-  Result := ParseSuggestion(EntityDisplayNames[TEntity(AIndex)], EntityNames[TEntity(AIndex)]);
+  Result.Create(EntityDisplayNames[TEntity(AIndex)], EntityNames[TEntity(AIndex)]);
 end;
 
 { TBrigadierItemEnchantment }
@@ -1900,10 +2017,7 @@ begin
   Name := ReadWhile(IdentChars);
   EndSuggestions;
 
-  if Name.IsEmpty then
-    Exit(False);
-
-  if not EnchantmentFromName(Name, Enchantment) then
+  if Name.IsEmpty or EnchantmentFromName(Name, Enchantment) then
     Exit(False);
 
   SetParseResult(TBrigadierItemEnchantment.Create(Argument, Enchantment));
@@ -1920,7 +2034,7 @@ end;
 
 class function TBrigadierItemEnchantmentParser.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
 begin
-  Result := ParseSuggestion(EnchantmentDisplayNames[TEnchantment(AIndex)], EnchantmentNames[TEnchantment(AIndex)]);
+  Result.Create(EnchantmentDisplayNames[TEnchantment(AIndex)], EnchantmentNames[TEnchantment(AIndex)]);
 end;
 
 { TBrigadierTeamParser }
@@ -1939,7 +2053,7 @@ begin
     Exit(False);
 
   SetParseResult(TBrigadierTeam.Create(Argument, Name));
-    
+
   Result := True;
 end;
 
@@ -1956,11 +2070,234 @@ begin
   Result := Name;
 end;
 
+{ TBrigadierDimension }
+
+constructor TBrigadierDimension.Create(AArgument: TBrigadierArgument; ADimension: TDimension);
+begin
+  inherited Create(AArgument);
+  FDimension := ADimension;
+end;
+
+function TBrigadierDimension.Format: string;
+begin
+  Result := DimensionNames[Dimension];
+end;
+
+{ TBrigadierDimensionParser }
+
+class function TBrigadierDimensionParser.GetParserString: TNSPath;
+begin
+  Result := 'minecraft:dimension';
+end;
+
+function TBrigadierDimensionParser.Parse: Boolean;
+var
+  Name: string;
+  Dimension: TDimension;
+begin
+  BeginSuggestions(TSuggestions);
+  Name := ReadWhile(IdentChars);
+  EndSuggestions;
+
+  if Name.IsEmpty or not DimensionFromName(Name, Dimension) then
+    Exit(False);
+
+  SetParseResult(TBrigadierDimension.Create(Argument, Dimension));
+
+  Result := True;
+end;
+
+{ TBrigadierDimensionParser.TSuggestions }
+
+class function TBrigadierDimensionParser.TSuggestions.GetCount: Integer;
+begin
+  Result := Length(DimensionNames);
+end;
+
+class function TBrigadierDimensionParser.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
+begin
+  Result.Create(DimensionDisplayNames[TDimension(AIndex)], DimensionNames[TDimension(AIndex)]);
+end;
+
+{ TBrigadierColumnPosParser }
+
+class function TBrigadierColumnPosParser.GetParserString: TNSPath;
+begin
+  Result := 'minecraft:column_pos';
+end;
+
+function TBrigadierColumnPosParser.Parse: Boolean;
+var
+  Marker: TLogMarker;
+  Parser: TMCVec2.TParser;
+  Axis: TCoordAxis2;
+begin
+  Marker := GetMarker;
+  Parser := TMCVec2.TParser.Create(Info, True, False);
+  Result := Parser.Success;
+  if Result then
+  begin
+    SetParseResult(TBrigadierVec2.Create(Argument, Parser.OwnParseResult));
+    for Axis := Low(TCoordAxis2) to High(TCoordAxis2) do
+      if ParseResult.Vector.Values[Axis].Mode <> vmAbsolute then
+      begin
+        Log(Marker, 'Chunk coordinates can only be absolute.');
+        Break;
+      end;
+  end;
+  Parser.Free;
+end;
+
+{ TBrigadierItemStack }
+
+constructor TBrigadierItemStack.Create(AArgument: TBrigadierArgument);
+begin
+  inherited;
+  FItemStack := TItemStack.Create;
+end;
+
+constructor TBrigadierItemStack.Create(AArgument: TBrigadierArgument; AItemStack: TItemStack);
+begin
+  inherited Create(AArgument);
+  FItemStack := AItemStack;
+end;
+
+destructor TBrigadierItemStack.Destroy;
+begin
+  FItemStack.Free;
+  inherited;
+end;
+
+function TBrigadierItemStack.Format: string;
+begin
+  Result := ItemStack.Format;
+end;
+
+{ TBrigadierItemStackParser }
+
+class function TBrigadierItemStackParser.GetParserString: TNSPath;
+begin
+  Result := 'minecraft:item_stack';
+end;
+
+function TBrigadierItemStackParser.Parse: Boolean;
+var
+  Parser: TItemStack.TParser;
+begin
+  Parser := TItemStack.TParser.Create(Info, Settings, False);
+  Result := Parser.Success;
+  if Result then
+    SetParseResult(TBrigadierItemStack.Create(Argument, Parser.OwnParseResult));
+  Parser.Free;
+end;
+
+{ TBrigadierEntityAllScoreboardHolders }
+
+function TBrigadierEntityAllScoreHolders.Format: string;
+begin
+  Result := '*';
+end;
+
+{ TBrigadierScoreHolderParser }
+
+class function TBrigadierScoreHolderParser.GetParserString: TNSPath;
+begin
+  Result := 'score_holder';
+end;
+
+class function TBrigadierScoreHolderParser.GetResultName: string;
+begin
+  Result := 'Score-Holder';
+end;
+
+function TBrigadierScoreHolderParser.Parse: Boolean;
+var
+  SelectorParser: TEntitySelector.TParser;
+  Name: string;
+  Marker: TLogMarker;
+  Selector: TEntitySelector;
+begin
+  BeginSuggestions(TSuggestions);
+
+  if StartsWith('*') then
+  begin
+    SetParseResult(TBrigadierEntityAllScoreHolders.Create(Argument));
+    Exit(True);
+  end;
+
+  if StartsWith(TEntitySelector.Prefix, False) then
+  begin
+    Marker := GetMarker;
+
+    SelectorParser := TEntitySelector.TParser.Create(Info, True);
+    Selector := SelectorParser.OwnParseResult;
+    SetParseResult(TBrigadierEntitySelector.Create(Argument, Selector));
+    SelectorParser.Free;
+
+  end
+  else
+  begin
+    Name := ReadWhile(IdentChars);
+    if Name.IsEmpty then
+      Exit(False);
+    if Name.Length > UsernameMaxLength then
+      Log(-Name.Length, 'Usernames can only be %d characters long.', [UsernameMaxLength]);
+
+    SetParseResult(TBrigadierEntityPlayer.Create(Argument, Name));
+  end;
+  Result := True;
+end;
+
+{ TBrigadierScoreHolderParser.TSuggestions }
+
+class function TBrigadierScoreHolderParser.TSuggestions.GetCount: Integer;
+begin
+  Result := Length(TEntitySelector.VariableChars) + 1;
+end;
+
+class function TBrigadierScoreHolderParser.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
+begin
+  if AIndex = 0 then
+    Result.Create('* (All Score-Holders)', '*')
+  else
+    Result := TEntitySelector.Prefix + TEntitySelector.VariableChars[TEntitySelector.TVariable(AIndex - 1)];
+end;
+
+{ TBrigadierObjective }
+
+constructor TBrigadierObjective.Create(AArgument: TBrigadierArgument; AName: string);
+begin
+  inherited Create(AArgument);
+end;
+
+function TBrigadierObjective.Format: string;
+begin
+  Result := Name;
+end;
+
+{ TBrigadierObjectiveParser }
+
+class function TBrigadierObjectiveParser.GetParserString: TNSPath;
+begin
+  Result := 'objective';
+end;
+
+function TBrigadierObjectiveParser.Parse: Boolean;
+var
+  Name: string;
+begin
+  Name := ReadWhile(IdentChars);
+  if Name.IsEmpty then
+    Exit(False);
+  SetParseResult(TBrigadierObjective.Create(Argument, Name));
+  Result := True;
+end;
+
 initialization
 
-// Progress: 20 / 35
+// Progress: 27 / 35
 // /-----------------------------------\
-// [|||||||||||||||||||||              ]
+// [|||||||||||||||||||||||||||        ]
 // \-----------------------------------/
 
 // - Basic Types -
@@ -1979,8 +2316,8 @@ TBrigadierVec2Parser.RegisterClass;
 TBrigadierVec3Parser.RegisterClass;
 TBrigadierSwizzleParser.RegisterClass;
 TBrigadierBlockPosParser.RegisterClass;
-// TBrigadierDimensionParser.RegisterClass;
-// TBrigadierColumnPos.RegisterClass;
+TBrigadierDimensionParser.RegisterClass;
+TBrigadierColumnPosParser.RegisterClass;
 
 // - Entity related -
 
@@ -2003,9 +2340,9 @@ TBrigadierMessageParser.RegisterClass;
 
 // - Scoreboard related -
 
-// TBrigadierObjectiveParser.RegisterClass;
+TBrigadierObjectiveParser.RegisterClass;
 // TBrigadierObjectiveCriteriaParser.RegisterClass; // kindof big, split it up, or huuuge suggestion list
-// TBrigadierScoreHolderParser.RegisterClass;
+TBrigadierScoreHolderParser.RegisterClass;
 // TBrigadierScoreboardSlotParser.RegisterClass;
 // TBrigadierOperationParser.RegisterClass;
 
@@ -2016,8 +2353,8 @@ TBrigadierTeamParser.RegisterClass;
 
 // - Item related -
 
-// TBrigadierItemStackParser.RegisterClass; // big one
-// TBrigadierItemPredicateParser.RegisterClass; // and this
+TBrigadierItemStackParser.RegisterClass;
+// TBrigadierItemPredicateParser.RegisterClass;
 TBrigadierItemEnchantmentParser.RegisterClass;
 // TBrigadierItemSlotParser.RegisterClass;
 

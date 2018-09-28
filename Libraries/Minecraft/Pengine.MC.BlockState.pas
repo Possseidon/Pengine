@@ -515,8 +515,8 @@ end;
 
 constructor TBlockState.Create(ANSPath: TNSPath);
 begin
-  FNSPath := ANSPath;
   Create;
+  FNSPath := ANSPath;
 end;
 
 constructor TBlockState.Create;

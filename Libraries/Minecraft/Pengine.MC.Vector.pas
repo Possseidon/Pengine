@@ -54,10 +54,15 @@ type
   public type
 
     TParser = class(TObjectParser<TMCVec2>)
+    private
+      FChunkPos: Boolean;
+
     protected
       function Parse: Boolean; override;
 
     public
+      constructor Create(AInfo: TParseInfo; AChunkPos, ARequired: Boolean);
+
       class function GetResultName: string; override;
 
     end;
@@ -318,6 +323,12 @@ end;
 
 { TMCVec2.TParser }
 
+constructor TMCVec2.TParser.Create(AInfo: TParseInfo; AChunkPos, ARequired: Boolean);
+begin
+  FChunkPos := AChunkPos;
+  inherited Create(AInfo, ARequired);
+end;
+
 class function TMCVec2.TParser.GetResultName: string;
 begin
   Result := '2-Component Vector';
@@ -325,14 +336,13 @@ end;
 
 function TMCVec2.TParser.Parse: Boolean;
 var
-  Axis: TCoordAxis2;
   Parser: TMCVecValue.TParser;
   Local: Boolean;
   Marker: TLogMarker;
 begin
   Marker := GetMarker;
   SetParseResult(TMCVec2.Create);
-  Parser := TMCVecValue.TParser.Create(ParseResult.X, Info, False, False);
+  Parser := TMCVecValue.TParser.Create(ParseResult.X, Info, FChunkPos, False);
   Local := ParseResult.X.Mode = vmLocal;
   if not Parser.Success then
   begin
@@ -340,16 +350,15 @@ begin
     Exit(False);
   end;
   Parser.Free;
-  for Axis := Succ(Low(TCoordAxis2)) to High(TCoordAxis2) do
-  begin
-    if not ReachedEnd and not First.IsWhitespace then
-      raise EParseError.Create('Expected whitespace.');
-    Advance;
-    SkipWhitespace;
-    TMCVecValue.TParser.Create(ParseResult[Axis], Info, False, True).Free;
-    if (ParseResult[Axis].Mode = vmLocal) <> Local then
-      Log(Marker, 'Local coordinates (^) cannot be mixed with non-local coordinates.');
-  end;
+
+  if not ReachedEnd and not First.IsWhitespace then
+    raise EParseError.Create('Expected whitespace.');
+  Advance;
+  SkipWhitespace;
+  TMCVecValue.TParser.Create(ParseResult.Y, Info, FChunkPos, True).Free;
+  if (ParseResult.Y.Mode = vmLocal) <> Local then
+    Log(Marker, 'Local coordinates (^) cannot be mixed with non-local coordinates.');
+
   Result := True;
 end;
 
