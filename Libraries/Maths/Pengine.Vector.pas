@@ -4274,6 +4274,7 @@ end;
 
 function TLocation3.GetRealPosition: TVector3;
 begin
+  // TODO: Fix this...
   Result := TVector3.Create(
     Matrix[3, 0],
     Matrix[3, 1],

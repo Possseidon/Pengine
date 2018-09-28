@@ -1,0 +1,90 @@
+# Blender MTL File: 'None'
+# Material Count: 8
+
+newmtl NX_part_BottomSaucer1Shape_material
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.775914 0.483395 0.673084
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd E:\\STNH\\STNH-Git\\gfx\\models\\ships\\federation_01\\IntrepidSaucerBottom.dds
+
+newmtl NX_part_Main_diffuse_a1Shape_material
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.702931 0.380989 0.516020
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd E:\\STNH\\STNH-Git\\gfx\\models\\ships\\federation_01\\Intrepid_Diffuse.dds
+
+newmtl NX_part_Main_diffuse_a2Shape_material
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.424225 0.432099 0.463107
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd E:\\STNH\\STNH-Git\\gfx\\models\\ships\\federation_01\\Intrepid_Diffuse.dds
+
+newmtl NX_part_Main_diffuse_b1Shape_material
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.030026 0.409547 0.374113
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd E:\\STNH\\STNH-Git\\gfx\\models\\ships\\federation_01\\Intrepid_Diffuse.dds
+
+newmtl NX_part_Main_diffuse_c1Shape_material
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.403681 0.221556 0.145239
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd E:\\STNH\\STNH-Git\\gfx\\models\\ships\\federation_01\\Intrepid_Diffuse.dds
+
+newmtl NX_part_Main_diffuse_c2Shape_material
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.736993 0.748802 0.151611
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd E:\\STNH\\STNH-Git\\gfx\\models\\ships\\federation_01\\Intrepid_Diffuse.dds
+
+newmtl NX_part_TopSaucer1Shape_material
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.227509 0.361705 0.186721
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd E:\\STNH\\STNH-Git\\gfx\\models\\ships\\federation_01\\IntrepidSaucerTop.dds
+
+newmtl NX_part_topbox1Shape_material
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.255806 0.099271 0.249998
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd E:\\STNH\\STNH-Git\\gfx\\models\\ships\\federation_01\\IntrepidSaucerTopBox.dds

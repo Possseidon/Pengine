@@ -59,11 +59,15 @@ type
 
     FTestBot: TBotCore;
 
+    FTestModel: TVAO;
+
     procedure InitCamera;
     procedure InitFloorVAO;
     procedure InitLightSystem;
     procedure InitSkyDome;
     procedure InitGame;
+
+    procedure InitTestModel;
 
     function GetFloorParams: TResFloorVAOParams;
 
@@ -96,13 +100,14 @@ begin
   FCubeVAO.Free;
   FCamera.Free;
   FLua.Free;
+  FTestModel.Free;
 end;
 
 procedure TfrmMain.Init;
 begin
   State.DebugOutput := False;
-  VSync := True;
-  FPSLimit := 300;
+  VSync := False;
+  //FPSLimit := 300;
 
   FLua := TLua.Create;
 
@@ -111,7 +116,9 @@ begin
   InitFloorVAO;
 
   InitLightSystem;
+  InitTestModel;
   InitGame;
+
 end;
 
 procedure TfrmMain.InitCamera;
@@ -147,7 +154,7 @@ begin
   FSun := TDirectionalLightShaded.Create(FLightSystem);
   FSun.Direction := Vec3(-1, -2, -1);
   FSun.Color := TColorRGB.Gray(0.9);
-  FSun.Size := Sqrt(Sqr(32) + Sqr(32));
+  FSun.Size := Sqrt(Sqr(64) + Sqr(64));
   FSun.AddOccluder(FFloorVAO);
   DebugWriteLine(' Done!');
 end;
@@ -166,7 +173,29 @@ begin
   DebugWriteLine(' Done!');
 end;
 
-procedure TfrmMain.RenderGL;
+procedure TfrmMain.InitTestModel;
+var
+  Model: TModelOBJ;
+begin
+  Model := TModelOBJ.Create;
+
+  StartTimer;
+  Model.LoadFromFile('Data/Galaxy.obj');
+  ShowMessage(StopTimerGetString(tfMilliseconds));
+
+  if Model.Log.Entries.Count > 0 then
+    ShowMessage(Model.Log.ToString);
+
+  FTestModel := TVAO.Create(TResModelShader.Data);
+  Model.GenerateVAO(FTestModel);
+
+  FCamera.AddRenderObject(FTestModel);
+  FSun.AddOccluder(FTestModel);
+
+  Model.Free;
+end;
+
+procedure TfrmMain.RenderFunc;
 begin
   FLightSystem.RenderShadows;
   FCamera.Render;
@@ -175,44 +204,55 @@ end;
 procedure TfrmMain.InitGame;
 var
   Code: TStrings;
+  I: Integer;
+  P: TVector3;
 begin
   DebugWrite('Initializing Game...');
   FGame := TGame.Create(FCamera);
 
-  FTestBot := TBotCore.Create(FLua);
+  P.Y := 0;
+  for I := 0 to 0 do
+  begin
+    FTestBot := TBotCore.Create;
 
-  FTestBot.Location.TurnAngle := 0;
-  FTestBot.Location.PitchAngle := 0;
-  FTestBot.Location.RollAngle := 0;
+    P.XZ := TVector2.RandomBox * 30;
+    FTestBot.Location.Pos := P;
 
-  FTestBot.AttachModule(bdUp, TWheelModule);
-  FTestBot.AttachModule(bdLeft, TWheelModule);
-  FTestBot.AttachModule(bdRight, TWheelModule);
-  FTestBot.AttachModule(bdFront, TWheelModule);
-  FTestBot.AttachModule(bdBack, TWheelModule);
-
-  try
-    Code := TStringList.Create;
+    FTestBot.Location.TurnAngle := 0;
+    FTestBot.Location.PitchAngle := 0;
+    FTestBot.Location.RollAngle := 0;
+    {
+    FTestBot.AttachModule(sdUp, TWheelModule);
+    FTestBot.AttachModule(sdLeft, TWheelModule);
+    FTestBot.AttachModule(sdRight, TWheelModule);
+    FTestBot.AttachModule(sdFront, TWheelModule);
+    FTestBot.AttachModule(sdBack, TWheelModule);
+    }
     try
-      Code.LoadFromFile('Data/TestCode.lua');
-      FTestBot.SetUpdateFunction(AnsiString(Code.Text));
-    finally
-      Code.Free;
+      Code := TStringList.Create;
+      try
+        Code.LoadFromFile('Data/TestCode.lua');
+        FTestBot.SetUpdateFunction(AnsiString(Code.Text));
+      finally
+        Code.Free;
+      end;
+    except
+      DebugWriteLine('Error while trying to load TestCode!');
     end;
-  except
-    DebugWriteLine('Error while trying to load TestCode!');
+
+    FGame.AddEntity(FTestBot);
+    FSun.AddOccluder(FTestBot);
   end;
 
-  FGame.AddEntity(FTestBot);
+  FTestBot.SourceVAO := FTestModel;
 
-  FSun.AddOccluder(FTestBot);
   DebugWriteLine(' Done!');
 end;
 
 function TfrmMain.GetFloorParams: TResFloorVAOParams;
 begin
   Result := TResFloorVAOParams.Create;
-  Result.Size := 32;
+  Result.Size := 64;
   Result.Texture := 'grass_top';
 end;
 
@@ -236,37 +276,37 @@ begin
 
 //  FTestBot.Location.FreeTranslate(-FTestBot.Location.Offset);
 
-//  if Input.KeyDown('A') then
-//    FTestBot.Location.FreeTranslate(Vec3(-DeltaTime * 2, 0, 0));
-//  if Input.KeyDown('D') then
-//    FTestBot.Location.FreeTranslate(Vec3(+DeltaTime * 2, 0, 0));
-//
-//  if Input.KeyDown('S') then
-//    FTestBot.Location.FreeTranslate(Vec3(0, 0, +DeltaTime * 2));
-//  if Input.KeyDown('W') then
-//    FTestBot.Location.FreeTranslate(Vec3(0, 0, -DeltaTime * 2));
-//
-//  if Input.KeyDown(VK_SHIFT) then
-//    FTestBot.Location.FreeTranslate(Vec3(0, -DeltaTime * 2, 0));
-//  if Input.KeyDown(VK_SPACE) then
-//    FTestBot.Location.FreeTranslate(Vec3(0, +DeltaTime * 2, 0));
-//
-//  if Input.KeyDown(VK_LEFT) then
-//    FTestBot.Location.FreeTurn(-DeltaTime * 90);
-//  if Input.KeyDown(VK_Right) then
-//    FTestBot.Location.FreeTurn(+DeltaTime * 90);
-//
-//  if Input.KeyDown(VK_DOWN) then
-//    FTestBot.Location.FreePitch(+DeltaTime * 90);
-//  if Input.KeyDown(VK_UP) then
-//    FTestBot.Location.FreePitch(-DeltaTime * 90);
-//
-//  if Input.KeyDown('Q') then
-//    FTestBot.Location.FreeRoll(-DeltaTime * 90);
-//  if Input.KeyDown('E') then
-//    FTestBot.Location.FreeRoll(+DeltaTime * 90);
+  if Input.KeyDown('A') then
+    FTestBot.Location.FreeTranslate(Vec3(-DeltaTime * 10, 0, 0));
+  if Input.KeyDown('D') then
+    FTestBot.Location.FreeTranslate(Vec3(+DeltaTime * 10, 0, 0));
 
-//  FTestBot.Location.FreeTranslate(FTestBot.Location.Offset);
+  if Input.KeyDown('S') then
+    FTestBot.Location.FreeTranslate(Vec3(0, 0, +DeltaTime * 10));
+  if Input.KeyDown('W') then
+    FTestBot.Location.FreeTranslate(Vec3(0, 0, -DeltaTime * 10));
+
+  if Input.KeyDown(VK_SHIFT) then
+    FTestBot.Location.FreeTranslate(Vec3(0, -DeltaTime * 10, 0));
+  if Input.KeyDown(VK_SPACE) then
+    FTestBot.Location.FreeTranslate(Vec3(0, +DeltaTime * 10, 0));
+
+  if Input.KeyDown(VK_LEFT) then
+    FTestBot.Location.FreeTurn(-DeltaTime * 90);
+  if Input.KeyDown(VK_Right) then
+    FTestBot.Location.FreeTurn(+DeltaTime * 90);
+
+  if Input.KeyDown(VK_DOWN) then
+    FTestBot.Location.FreePitch(+DeltaTime * 90);
+  if Input.KeyDown(VK_UP) then
+    FTestBot.Location.FreePitch(-DeltaTime * 90);
+
+  if Input.KeyDown('Q') then
+    FTestBot.Location.FreeRoll(-DeltaTime * 90);
+  if Input.KeyDown('E') then
+    FTestBot.Location.FreeRoll(+DeltaTime * 90);
+
+  FTestBot.Location.FreeTranslate(FTestBot.Location.Offset);
 
 end;
 
