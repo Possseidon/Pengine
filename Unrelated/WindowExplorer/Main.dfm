@@ -71,4 +71,13 @@ object frmMain: TfrmMain
     TabOrder = 4
     OnClick = cbHideTaskbarClick
   end
+  object Button1: TButton
+    Left = 8
+    Top = 125
+    Width = 137
+    Height = 25
+    Caption = 'GetWindowLong'
+    TabOrder = 5
+    OnClick = Button1Click
+  end
 end

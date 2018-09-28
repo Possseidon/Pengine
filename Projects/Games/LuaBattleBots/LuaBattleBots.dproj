@@ -155,6 +155,7 @@
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="3">
+                <DeployFile LocalName="Win32\Debug\LuaBattleBots.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win32\DebugConsole\LuaBattleBots.exe" Configuration="DebugConsole" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>LuaBattleBots.exe</RemoteName>
@@ -162,7 +163,6 @@
                     </Platform>
                 </DeployFile>
                 <DeployFile LocalName="Win64\Debug\LuaBattleBots.exe" Configuration="Debug" Class="ProjectOutput"/>
-                <DeployFile LocalName="Win32\Debug\LuaBattleBots.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployClass Name="AdditionalDebugSymbols">
                     <Platform Name="iOSSimulator">
                         <Operation>1</Operation>

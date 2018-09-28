@@ -1,4 +1,4 @@
-unit Main;
+﻿unit Main;
 
 interface
 
@@ -61,7 +61,7 @@ implementation
 
 procedure TfrmMain.actConnectExecute(Sender: TObject);
 begin
-   if ConnectionType = ctClient then
+  if ConnectionType = ctClient then
     ConnectionType := ctDisconnected
   else
     ConnectionType := ctClient;
@@ -78,8 +78,10 @@ end;
 
 procedure TfrmMain.actSendExecute(Sender: TObject);
 var
-  I: Integer;
+  I, J: Integer;
   Connection: TCustomWinSocket;
+  S: UTF8String;
+  Stream: TStringStream;
 begin
   case ConnectionType of
     ctServer:
@@ -164,6 +166,8 @@ begin
   try
     socServer.Active := FConnectionType = ctServer;
     socClient.Active := FConnectionType = ctClient;
+    if FConnectionType = ctDisconnected then
+      socClient.Close;
   except
     on E: ESocketError do
     begin
@@ -202,7 +206,7 @@ begin
     Connection := socServer.Socket.Connections[I];
     if Connection.ReceiveLength > 0 then
     begin
-      ServerSendAll(Format('Client %d: %s', [I, Connection.ReceiveText]));      
+      ServerSendAll(Format('Client %d: %s', [I, Connection.ReceiveText]));
     end;
   end;
 end;

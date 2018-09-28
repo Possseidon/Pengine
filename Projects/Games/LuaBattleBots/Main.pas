@@ -3,11 +3,40 @@ unit Main;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, OpenGLContext, Camera, Shaders, VAOManager, VectorGeometry, IntfBase,
-  Matrix, Lists, TextureManager, Lights, ControlledCamera, GLEnums, IntegerMaths, Color, SkyDome, LuaHeader,
-  Game, EntityDefine, DebugConsoleDefine, InputHandler, Resources, CustomModules, System.Win.ScktComp,
-  LuaDefine, LuaDefaultLibs;
+  Winapi.Windows,
+  Winapi.Messages,
+  System.SysUtils,
+  System.Variants,
+  System.Classes,
+  Vcl.Graphics,
+  Vcl.Controls,
+  Vcl.Forms,
+  Vcl.Dialogs,
+  Pengine.GLContext,
+  Pengine.Camera,
+  Pengine.Shader,
+  Pengine.VAO,
+  Pengine.Vector,
+  Pengine.Interfaces,
+  Pengine.Matrix,
+  Pengine.Collections,
+  Pengine.Texture,
+  Pengine.Light,
+  Pengine.ControlledCamera,
+  Pengine.GLEnums,
+  Pengine.IntMaths,
+  Pengine.Color,
+  Pengine.Skybox,
+  Pengine.LuaHeader,
+  Game,
+  EntityDefine,
+  Pengine.DebugConsole,
+  Pengine.InputHandler,
+  CustomModules,
+  System.Win.ScktComp,
+  Pengine.Lua,
+  Pengine.LuaDefaultLibs,
+  Resources;
 
 type
 
@@ -26,7 +55,7 @@ type
     FLightSystem: TLightSystem;
     FSun: TDirectionalLightShaded;
 
-    FSkyDome: TSkyDome;
+    FSkybox: TSkybox;
 
     FTestBot: TBotCore;
 
@@ -42,9 +71,9 @@ type
     procedure Init; override;
     procedure Finalize; override;
 
-    procedure ResizeFunc; override;
-    procedure UpdateFunc; override;
-    procedure RenderFunc; override;
+    procedure ResizeGL; override;
+    procedure UpdateGL; override;
+    procedure RenderGL; override;
 
   end;
 
@@ -60,7 +89,7 @@ implementation
 procedure TfrmMain.Finalize;
 begin
   FGame.Free;
-  FSkyDome.Free;
+  FSkybox.Free;
   FSun.Free;
   FLightSystem.Free;
   TResFloorVAO.Release(GetFloorParams);
@@ -93,10 +122,10 @@ begin
   FCamera.Location.PitchAngle := -20;
   FCamera.Location.TurnAngle := -30;
   FCamera.PitchUpperLimit := -4.2;
-  FCamera.PosLowerLimitY := 0.1;
+  FCamera.PosLowerBoundY := 0.1;
 
   FCamera.AddUniforms(TResModelShader.Data);
-  FCamera.AddUniforms(TResSkyDomeShader.Data);
+  FCamera.AddUniforms(TResSkyboxShader.Data);
   DebugWriteLine(' Done!');
 end;
 
@@ -104,7 +133,7 @@ procedure TfrmMain.InitFloorVAO;
 begin
   DebugWrite('Initializing Floor...');
   FFloorVAO := TResFloorVAO.Make(GetFloorParams);
-  FCamera.AddRenderObject(FFloorVAO);
+  FCamera.AddRenderable(FFloorVAO);
   DebugWriteLine(' Done!');
 end;
 
@@ -127,17 +156,17 @@ procedure TfrmMain.InitSkyDome;
 begin
   DebugWrite('Initializing SkyDome...');
 
-  FSkyDome := TSkyDome.Create(Self, FCamera, TResSkyDomeShader);
+  FSkybox := TSkybox.Create(Self, TResSkyboxShader);
 
-  FSkyDome.AddStripe(TColorRGB.Create(0.7, 1.0, 0.9), -90);
-  FSkyDome.AddStripe(TColorRGB.Create(0.4, 0.6, 0.9), 0);
-  FSkyDome.AddStripe(TColorRGB.Create(0.1, 0.2, 0.9), +90);
+  FSkybox.AddStripe(TColorRGB.Create(0.7, 1.0, 0.9), -90);
+  FSkybox.AddStripe(TColorRGB.Create(0.4, 0.6, 0.9), 0);
+  FSkybox.AddStripe(TColorRGB.Create(0.1, 0.2, 0.9), +90);
 
-  FCamera.AddRenderObject(FSkyDome);
+  FCamera.AddRenderable(FSkybox);
   DebugWriteLine(' Done!');
 end;
 
-procedure TfrmMain.RenderFunc;
+procedure TfrmMain.RenderGL;
 begin
   FLightSystem.RenderShadows;
   FCamera.Render;
@@ -187,12 +216,12 @@ begin
   Result.Texture := 'grass_top';
 end;
 
-procedure TfrmMain.ResizeFunc;
+procedure TfrmMain.ResizeGL;
 begin
   FCamera.Aspect := Aspect;
 end;
 
-procedure TfrmMain.UpdateFunc;
+procedure TfrmMain.UpdateGL;
 begin
   if MustUpdateFPS then
     Caption := Format('LuaBattleBots - FPS: %d', [FPSInt]);

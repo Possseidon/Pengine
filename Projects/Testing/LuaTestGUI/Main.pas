@@ -3,9 +3,35 @@ unit Main;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, SynEdit, LuaDefine, LuaHeader, Vcl.Samples.Spin,
-  TimeManager, LuaDefaultLibs, System.Actions, Vcl.ActnList;
+  Winapi.Windows,
+  Winapi.Messages,
+
+  System.SysUtils,
+  System.Variants,
+  System.Classes,
+  System.TypInfo,
+  System.Actions,
+  System.Math,
+
+  Vcl.Graphics,
+  Vcl.Controls,
+  Vcl.Forms,
+  Vcl.Dialogs,
+  Vcl.ExtCtrls,
+  Vcl.StdCtrls,
+  Vcl.Samples.Spin,
+  Vcl.ActnList,
+
+  SynEdit,
+
+  Pengine.Vector,
+  Pengine.Utility,
+  Pengine.Lua,
+  Pengine.LuaHeader,
+  Pengine.LuaWrapper,
+  Pengine.TimeManager,
+  Pengine.LuaDefaultLibs,
+  Pengine.Collections;
 
 type
 
@@ -16,6 +42,8 @@ type
   protected
     class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
   end;
+
+  TOperation = function(A, B: Integer): Integer of object;
 
   TfrmMain = class(TForm)
     pnlBottom: TPanel;
@@ -33,6 +61,13 @@ type
     procedure actRunExecute(Sender: TObject);
   private
     FLua: TLua;
+    FOnOperation: TOperation;
+
+  published
+    function Add(A, B: Integer): Integer;
+    function Sub(A, B: Integer): Integer;
+
+    property OnOperation: TOperation read FOnOperation write FOnOperation;
 
   end;
 
@@ -46,34 +81,37 @@ implementation
 procedure TfrmMain.actRunExecute(Sender: TObject);
 var
   Err: TLuaPCallError;
-  NoTimeout: Boolean;
 begin
   StartTimer;
+
+  TLuaWrapper.PushObject(FLua.L, Self);
+  FLua.L.SetGlobal('form');
+
+  TLuaWrapper.PushEnum<TAlign>(FLua.L);
+  FLua.L.SetGlobal('TAlign');
+
+  TLuaWrapper.PushObject(FLua.L, Mouse);
+  FLua.L.SetGlobal('Mouse');
+
+
   FLua.L.GetGlobal('code');
   if cbTimeout.Checked then
-    NoTimeout := FLua.CallTimeout(0, 0, seTimeout.Value / 1000, Err)
+    Err := FLua.CallTimeout(0, 0, seTimeout.Value / 1000)
   else
-  begin
-    NoTimeout := True;
     Err := FLua.L.PCall(0, 0, 0);
-  end;
-  if NoTimeout then
+
+  if Err <> lceOK then
   begin
-    if Err <> lceOK then
-    begin
-      ShowMessage(string(FLua.L.ToString));
-      FLua.L.Pop;
-    end
-    else
-    begin
-      ShowMessage(Format('Success! %s', [StopTimerGetString(tfMilliseconds)]));
-    end;
+    ShowMessage(string(FLua.L.ToString) + sLineBreak + StopTimerGetString);
+    FLua.L.Pop;
   end
   else
-  begin
-    ShowMessage(Format('Timeout! %s', [StopTimerGetString(tfMilliseconds)]));
-    seCodeChange(nil);
-  end;
+    ShowMessageFmt('Success! %s', [StopTimerGetString]);
+end;
+
+function TfrmMain.Add(A, B: Integer): Integer;
+begin
+  Result := A + B;
 end;
 
 procedure TfrmMain.cbTimeoutClick(Sender: TObject);
@@ -89,6 +127,7 @@ begin
   FLua.AddLib(TLuaLibTable);
   FLua.AddLib(TLuaLibMath);
   FLua.AddLib(TLuaLibCoroutine);
+  FLua.MemoryLimit := 0;
   seCodeChange(nil);
 end;
 
@@ -113,6 +152,11 @@ begin
     lbError.Font.Color := clRed;
     actRun.Enabled := False;
   end;
+end;
+
+function TfrmMain.Sub(A, B: Integer): Integer;
+begin
+  Result := A - B;
 end;
 
 { THelpLib }

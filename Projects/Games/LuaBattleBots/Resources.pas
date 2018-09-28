@@ -3,7 +3,16 @@ unit Resources;
 interface
 
 uses
-  ResourceManager, Shaders, TextureManager, VAOManager, VectorGeometry, GLEnums, SkyDome, Lists, IntegerMaths;
+  Pengine.ResourceManager,
+  Pengine.Shader,
+  Pengine.Texture,
+  Pengine.VAO,
+  Pengine.Vector,
+  Pengine.GLEnums,
+  Pengine.Skybox,
+  Pengine.Collections,
+  Pengine.IntMaths,
+  Pengine.Hasher;
 
 type
 
@@ -25,7 +34,7 @@ type
 
   protected
     class function GetShaderSource: string; override;
-    class function GetAttributeOrder: TShaderAttributeOrder; override;
+    class function GetAttributeOrder: TShader.TAttributeOrder; override;
 
   public
     class constructor Create;
@@ -34,7 +43,7 @@ type
 
   { TResSkyDomeShader }
 
-  TResSkyDomeShader = class abstract(TSkyDomeShaderBase)
+  TResSkyboxShader = class abstract(TSkyboxShaderBase)
   protected
     class function GetShaderSource: string; override;
 
@@ -65,8 +74,8 @@ type
     FTexture: string;
 
   protected
-    function GetHash(ARange: Cardinal): Cardinal; override;
-    function EqualTo(AOther: TResourceParameter): Boolean; override;
+    function GetHash: Cardinal; override;
+    function Equals(AOther: TResourceParameter): Boolean; override;
 
   public
     constructor Create; override;
@@ -90,8 +99,8 @@ type
     FTexture: string;
 
   protected
-    function GetHash(ARange: Cardinal): Cardinal; override;
-    function EqualTo(AOther: TResourceParameter): Boolean; override;
+    function GetHash: Cardinal; override;
+    function Equals(AOther: TResourceParameter): Boolean; override;
 
   public
     constructor Create; override;
@@ -116,9 +125,9 @@ begin
   Result := 'Data/model';
 end;
 
-class function TResModelShader.GetAttributeOrder: TShaderAttributeOrder;
+class function TResModelShader.GetAttributeOrder: TShader.TAttributeOrder;
 begin
-  Result := TShaderAttributeOrder.Create(
+  Result := [
     'vpos',
     'vtexcoord',
     'vnormal',
@@ -126,7 +135,7 @@ begin
     'vbitangent',
     'vborderlow',
     'vborderhigh'
-    );
+    ];
 end;
 
 class constructor TResModelShader.Create;
@@ -136,12 +145,12 @@ end;
 
 { TResSkyDomeShader }
 
-class function TResSkyDomeShader.GetShaderSource: string;
+class function TResSkyboxShader.GetShaderSource: string;
 begin
   Result := 'Data/skydome';
 end;
 
-class constructor TResSkyDomeShader.Create;
+class constructor TResSkyboxShader.Create;
 begin
   AddToResourceManager;
 end;
@@ -167,14 +176,12 @@ end;
 
 { TResCubeVAOParams }
 
-function TResCubeVAOParams.GetHash(ARange: Cardinal): Cardinal;
+function TResCubeVAOParams.GetHash: Cardinal;
 begin
-  Result :=
-    (Lists.GetHash(Size, High(Cardinal)) xor
-    Lists.GetHash(Texture, High(Cardinal))) mod ARange;
+  Result := HashOf(Size) xor HashOf(Texture);
 end;
 
-function TResCubeVAOParams.EqualTo(AOther: TResourceParameter): Boolean;
+function TResCubeVAOParams.Equals(AOther: TResourceParameter): Boolean;
 var
   Other: TResCubeVAOParams;
 begin
@@ -205,10 +212,10 @@ begin
   TexturePage := TResTexturePage.Data;
   for P in CubePlanes do
   begin
-    Data.Border := TexturePage.GetTexBounds(AParams.Texture, FRange2(0, 1));
+    Data.Border := TexturePage.GetTexBounds(AParams.Texture, Bounds2(0, 1));
     Data.Normal := P.Normal;
-    Data.Tangent := P.DVS;
-    Data.Bitangent := P.DVT;
+    Data.Tangent := P.D1;
+    Data.Bitangent := P.D2;
     for T in QuadTexCoords do
     begin
       Data.Pos := P[T] * AParams.Size;
@@ -223,15 +230,12 @@ end;
 
 { TResFloorVAOParams }
 
-function TResFloorVAOParams.GetHash(ARange: Cardinal): Cardinal;
+function TResFloorVAOParams.GetHash: Cardinal;
 begin
-  Result :=
-    (Lists.GetHash(FTileSize, High(Cardinal)) xor
-    (Lists.GetHash(FSize, High(Cardinal))) xor
-    (Lists.GetHash(Texture, High(Cardinal)))) mod ARange;
+  Result := HashOf(FTileSize) xor HashOf(FSize) xor HashOf(Texture);
 end;
 
-function TResFloorVAOParams.EqualTo(AOther: TResourceParameter): Boolean;
+function TResFloorVAOParams.Equals(AOther: TResourceParameter): Boolean;
 var
   Other: TResFloorVAOParams;
 begin
@@ -253,9 +257,9 @@ end;
 class procedure TResFloorVAO.CreateData(var AData: TVAO; AParams: TResFloorVAOParams);
 const
   Plane: TPlane3 = (
-    SV: (X: 0; Y: 0; Z: 0);
-    DVS: (X: 0; Y: 0; Z: 1);
-    DVT: (X: 1; Y: 0; Z: 0)
+    S: (X: 0; Y: 0; Z: 0);
+    D1: (X: 0; Y: 0; Z: 1);
+    D2: (X: 1; Y: 0; Z: 0)
     );
 var
   Data: TResModelShader.TData;
@@ -264,7 +268,7 @@ var
   Grid: TIntBounds2;
   Offset: TVector2;
 begin
-  Grid := Range2(AParams.Size);
+  Grid := IBounds2(AParams.Size);
 
   AData := TVAO.Create(TResModelShader.Data);
   AData.Generate(6 * Grid.Area, buStaticDraw);
@@ -274,9 +278,9 @@ begin
   Data.Normal := Vec3(0, 1, 0);
   Data.Tangent := Vec3(1, 0, 0);
   Data.Bitangent := Vec3(0, 0, 1);
-  Data.Border := TResTexturePage.Data.GetTexBounds(AParams.Texture, FRange2(0, 1));
+  Data.Border := TResTexturePage.Data.GetTexBounds(AParams.Texture, Bounds2(0, 1));
 
-  Offset := TVector2(Grid.Size) / 2;
+  Offset := TVector2(Grid.Size.XY) / 2;
   for GridPos in Grid do
   begin
     for T in QuadTexCoords do

@@ -3,7 +3,11 @@ unit CustomModules;
 interface
 
 uses
-  EntityDefine, VectorGeometry, VAOManager, Resources;
+  Pengine.Vector,
+  Pengine.VAO,
+
+  EntityDefine,
+  Resources;
 
 type
 
@@ -60,4 +64,3 @@ begin
 end;
 
 end.
-

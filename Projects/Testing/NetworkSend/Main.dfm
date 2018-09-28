@@ -30,7 +30,7 @@ object frmMain: TfrmMain
     Width = 74
     Height = 21
     TabOrder = 0
-    Text = 'localhost'
+    Text = 'mc.oninoni.de'
     OnExit = edtAddressExit
   end
   object memMessages: TMemo
@@ -79,17 +79,17 @@ object frmMain: TfrmMain
   end
   object socClient: TClientSocket
     Active = False
-    Address = 'localhost'
+    Address = 'mc.oninoni.de'
     ClientType = ctNonBlocking
-    Host = 'localhost'
-    Port = 42424
+    Host = 'mc.oninoni.de'
+    Port = 1337
     OnRead = socClientRead
     Left = 160
     Top = 72
   end
   object socServer: TServerSocket
     Active = False
-    Port = 42424
+    Port = 1337
     ServerType = stNonBlocking
     OnClientConnect = socServerClientConnect
     OnClientDisconnect = socServerClientDisconnect

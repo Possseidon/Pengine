@@ -1,2119 +1,1223 @@
-unit Pengine.Lists;
+unit Pengine.Collections;
 
 interface
 
 uses
-  Classes, SysUtils, IntegerMaths, Math, IntfBase;
+  System.Classes,
+  System.Math,
+  System.SysUtils,
+
+  Pengine.Interfaces,
+  Pengine.Sorting,
+  Pengine.Vector,
+  Pengine.IntMaths,
+  Pengine.CollectionInterfaces;
 
 type
 
-  { IIterator<T> }
-
-  IIterator<T> = interface
-  ['{01FA5E8D-FB71-4D60-B113-429284B8B8F7}']
-    function MoveNext: Boolean;
-    function GetCurrent: T;
-
-    property Current: T read GetCurrent;
-  end;
-
-  { TIterator<T> }
-
-  TIterator<T> = class(TInterfacedObject, IIterator<T>)
-  public
-    function MoveNext: Boolean; virtual; abstract;
-    function GetCurrent: T; virtual; abstract;
-
-    property Current: T read GetCurrent;
-  end;
-
-  { IIterable<T> }
-
-  IIterable<T> = interface
-  ['{86380564-F207-4B73-A40D-F10AD12B5B98}']
-    function GetEnumerator: IIterator<T>;
-
-    function Count: Integer;
-  end;
-
-  TRefCountedIterable<T> = class(TInterfacedObject, IIterable<T>)
-  public
-    function GetEnumerator: IIterator<T>; virtual; abstract;
-
-    /// <remarks>WARNING! This function should DEFINITLY be overwritten!</remarks>
-    function Count: Integer; virtual;
-  end;
-
-  EGenericArrayEmpty = class(Exception)
+  /// <summary>Raised, if an operation requires the array to have at least one item.</summary>
+  EArrayEmpty = class(Exception)
   public
     constructor Create;
   end;
 
-  EGenericArrayItemNotFound = class(Exception)
+  /// <summary>Raised, if an item could not be found in the array.</summary>
+  EArrayItemNotFound = class(Exception)
   public
     constructor Create;
   end;
 
-  EGenericArrayRangeError = class(Exception)
+  /// <summary>Raised, if an array-index was out of bounds.</summary>
+  EArrayRangeError = class(Exception)
   public
-    constructor Create(AIndex, ACount: Integer);
+    constructor Create;
   end;
 
-  { TFindFunctionClass }
-
-  TFindFunctionClass<T> = class abstract
-  protected
-    function Find(AElement: T): Boolean; virtual; abstract;
-  end;
-
-  TCompareFunction<T> = function(A, B: T): Boolean;
-  TCompareFunctionOfObject<T> = function(A, B: T): Boolean of object;
-
-  TFindFunctionStatic<T> = function(A: T): Boolean;
-  TFindFunctionOfObject<T> = function(A: T): Boolean of object;
-
-  { TPair }
-
-  TPair<TKey, TData> = record
-  private
-    FKey: TKey;
-    FData: TData;
+  /// <summary>Raised, if an array-item does not have a string-representative.</summary>
+  EArrayItemNoStringRepresentative = class(Exception)
   public
-    constructor Create(AKey: TKey; AData: TData);
-
-    property Key: TKey read FKey;
-    property Data: TData read FData;
+    constructor Create;
   end;
 
-  { TGenericArray<T> }
+  /// <summary>Raised, if a negative capacity is tried to assigned to an array.</summary>
+  EArrayNegativeCapacity = class(Exception)
+  public
+    constructor Create;
+  end;
 
-  TIntArray = class;
+  // TODO: XmlDoc
+  EArrayInvalidGrowAmount = class(Exception)
+  public
+    constructor Create;
+  end;
 
-  TGenericArray<T> = class(TInterfaceBase, IIterable<T>)
+  // TODO: XmlDoc
+  EArrayInvalidShrinkRetain = class(Exception)
+  public
+    constructor Create;
+  end;
+
+  /// <summary>A generic record, representing a read-only Key-Value-Pair.</summary>
+  TPair<K, V> = record
   private
-    FItems: array of T;
-    FSizeSteps: Integer;
-    FCount: Integer;
+    FKey: K;
+    FValue: V;
 
-    procedure SortLR(ACompareFunc: TCompareFunction<T>; ALeft, ARight: Integer); overload;
-    procedure SortLR(ACompareFunc: TCompareFunctionOfObject<T>; ALeft, ARight: Integer); overload;
+  public
+    constructor Create(AKey: K; AValue: V);
 
+    property Key: K read FKey;
+    property Value: V read FValue;
+
+  end;
+
+  // TODO: XmlDoc
+  TArray = class(TInterfaceBase)
   public type
 
-    { TIterator }
+    TReader = class
+    private
+      function GetCapacity: Integer; inline;
+      function GetGrowAmount: Integer; inline;
+      function GetShrinkRetain: Integer; inline;
 
+    public
+      property GrowAmount: Integer read GetGrowAmount;
+      property ShrinkRetain: Integer read GetShrinkRetain;
+
+      function Count: Integer; inline;
+      function CountOptimized: Boolean; inline;
+      function MaxIndex: Integer; inline;
+      function Empty: Boolean; inline;
+
+      property Capacity: Integer read GetCapacity;
+
+      procedure RangeCheckException(AIndex: Integer); inline;
+      function RangeCheck(AIndex: Integer): Boolean; inline;
+
+      function Copy: TArray; inline;
+
+    end;
+
+  public const
+
+    // TODO: XmlDoc
+    NeverShrink = Integer.MaxValue;
+
+  private
+    FGrowAmount: Integer;
+    FShrinkRetain: Integer;
+
+    procedure SetGrowAmount(const Value: Integer); virtual;
+    procedure SetShrinkRetain(const Value: Integer); virtual;
+
+  protected
+    FCount: Integer;
+
+    function CreateSame(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8): TArray;
+
+    // TODO: XmlDoc
+    function ShouldFreeItems: Boolean; virtual;
+    // TODO: XmlDoc
+    procedure ItemRemoved(AIndex: Integer); virtual;
+
+    // TODO: XmlDoc
+    function GetCapacity: Integer; virtual; abstract;
+    // TODO: XmlDoc
+    procedure SetCapacity(const Value: Integer); virtual; abstract;
+
+    procedure CopyTo(AArray: TArray); virtual; abstract;
+
+    function CreateCopy: TArray; virtual;
+
+    procedure BeforeSort; virtual;
+    procedure AfterSort; virtual;
+
+  public
+    // TODO: XmlDoc
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); virtual;
+    // TODO: XmlDoc
+    destructor Destroy; override;
+
+    // TODO: XmlDoc
+    property GrowAmount: Integer read FGrowAmount write SetGrowAmount;
+    // TODO: XmlDoc
+    property ShrinkRetain: Integer read FShrinkRetain write SetShrinkRetain;
+
+    // TODO: XmlDoc
+    function Count: Integer; inline;
+    // use this, when making changes over DataPointer, keep capacity in mind
+    procedure ForceCount(ACount: Integer); inline;
+    // TODO: XmlDoc
+    function CountOptimized: Boolean; inline;
+    // TODO: XmlDoc Remarks: returns -1 on empty arrays
+    function MaxIndex: Integer; inline;
+    // TODO: XmlDoc
+    function Empty: Boolean; inline;
+
+    // TODO: XmlDoc
+    procedure RemoveAt(AIndex: Integer); virtual; abstract;
+    // TODO: XmlDoc
+    procedure RemoveLast; inline;
+    // TODO: XmlDoc
+    procedure Clear(AZeroCapacity: Boolean = True); virtual;
+
+    // TODO: XmlDoc
+    property Capacity: Integer read GetCapacity write SetCapacity;
+
+    // TODO: XmlDoc
+    procedure RangeCheckException(AIndex: Integer); inline;
+    // TODO: XmlDoc
+    function RangeCheck(AIndex: Integer): Boolean; inline;
+
+    // TODO: XmlDoc
+    procedure Swap(A, B: Integer); virtual;
+    // TODO: XmlDoc
+    procedure SwapUnchecked(A, B: Integer); virtual; abstract;
+
+    procedure Shuffle;
+
+    // TODO: XmlDoc
+    function DataPointer: Pointer; virtual; abstract;
+
+    // TODO: XmlDoc
+    function Copy: TArray;
+
+    function Reader: TReader; inline;
+
+  end;
+
+  TArrayClass = class of TArray;
+
+  // TODO: XmlDoc
+  TArray<T> = class(TArray, IIterable<T>)
+  public type
+
+    TValue = T;
+
+    // TODO: XmlDoc
     TIterator = class(TIterator<T>)
     private
-      FList: TGenericArray<T>;
-
+      FList: TArray<T>;
       FCurrent: Integer;
       FReversed: Boolean;
-
       FRemoveFlag: Boolean;
 
     public
-      constructor Create(AList: TGenericArray<T>; AReversed: Boolean);
+      constructor Create(AList: TArray<T>; AReversed: Boolean = False);
 
+      // TODO: XmlDoc
       function MoveNext: Boolean; override;
+      // TODO: XmlDoc
       function GetCurrent: T; override;
 
+      // TODO: XmlDoc
       procedure RemoveCurrent; inline;
+
     end;
 
+    // TODO: XmlDoc
     TReverseWrapper = record
     private
-      FGenericArray: TGenericArray<T>;
+      FArray: TArray<T>;
+
     public
-      constructor Create(AGenericArray: TGenericArray<T>);
+      // TODO: XmlDoc
+      constructor Create(AArray: TArray<T>);
+
+      // TODO: XmlDoc
       function GetEnumerator(AAutoFree: Boolean = False): TIterator;
+
+      // TODO: XmlDoc
+      function Copy: TArray<T>;
+
     end;
 
-  protected
+    // TODO: XmlDoc
+    TSorterBase = class abstract(TQuickSorter)
+    private
+      FArray: TArray<T>;
+      FPivot: T;
+
+    protected
+      function Bounds: TIntBounds1; override;
+
+      procedure SavePivot(I: Integer); override;
+
+      procedure Swap(A: Integer; B: Integer); override;
+
+    public
+      // TODO: XmlDoc
+      constructor Create(AArray: TArray<T>);
+      destructor Destroy; override;
+
+    end;
+
+    // TODO: XmlDoc
+    TSorterStatic = class(TSorterBase)
+    private
+      FFunc: TCompareFuncStatic<T>;
+    protected
+      function BeforePivot(I: Integer): Boolean; override;
+      function AfterPivot(I: Integer): Boolean; override;
+    public
+      constructor Create(AArray: TArray<T>; AFunc: TCompareFuncStatic<T>);
+    end;
+
+    // TODO: XmlDoc
+    TSorterRef = class(TSorterBase)
+    private
+      FFunc: TCompareFuncRef<T>;
+    protected
+      function BeforePivot(I: Integer): Boolean; override;
+      function AfterPivot(I: Integer): Boolean; override;
+    public
+      constructor Create(AArray: TArray<T>; AFunc: TCompareFuncRef<T>);
+    end;
+
+    // TODO: XmlDoc
+    TSorter = class(TSorterBase)
+    private
+      FFunc: TCompareFunc<T>;
+    protected
+      function BeforePivot(I: Integer): Boolean; override;
+      function AfterPivot(I: Integer): Boolean; override;
+    public
+      constructor Create(AArray: TArray<T>; AFunc: TCompareFunc<T>);
+    end;
+
+    TReader = class(TArray.TReader)
+    private
+      function GetFirst: T;
+      function GetItem(I: Integer): T;
+      function GetLast: T;
+      procedure SetFirst(const Value: T);
+      procedure SetItem(I: Integer; const Value: T);
+      procedure SetLast(const Value: T);
+
+    public
+
+      {$REGION 'Find Functions'}
+
+      // TODO: XmlDoc
+      function FindFirstIndex(AFunc: TFindFuncStatic<T>): Integer; overload; inline;
+      // TODO: XmlDoc
+      function FindFirstIndex(AFunc: TFindFuncRef<T>): Integer; overload; inline;
+      // TODO: XmlDoc
+      function FindFirstIndex(AFunc: TFindFunc<T>): Integer; overload; inline;
+
+      // TODO: XmlDoc
+      function FindFirst(AFunc: TFindFuncStatic<T>): T; overload; inline;
+      // TODO: XmlDoc
+      function FindFirst(AFunc: TFindFuncRef<T>): T; overload; inline;
+      // TODO: XmlDoc
+      function FindFirst(AFunc: TFindFunc<T>): T; overload; inline;
+
+      // TODO: XmlDoc
+      function FindLastIndex(AFunc: TFindFuncStatic<T>): Integer; overload; inline;
+      // TODO: XmlDoc
+      function FindLastIndex(AFunc: TFindFuncRef<T>): Integer; overload; inline;
+      // TODO: XmlDoc
+      function FindLastIndex(AFunc: TFindFunc<T>): Integer; overload; inline;
+
+      // TODO: XmlDoc
+      function FindLast(AFunc: TFindFuncStatic<T>): T; overload;inline;
+      // TODO: XmlDoc
+      function FindLast(AFunc: TFindFuncRef<T>): T; overload; inline;
+      // TODO: XmlDoc
+      function FindLast(AFunc: TFindFunc<T>): T; overload; inline;
+
+      // TODO: XmlDoc
+      function FindIndexAsArray(AFunc: TFindFuncStatic<T>): TArray<Integer>; overload; inline;
+      // TODO: XmlDoc
+      function FindIndexAsArray(AFunc: TFindFuncRef<T>): TArray<Integer>; overload; inline;
+      // TODO: XmlDoc
+      function FindIndexAsArray(AFunc: TFindFunc<T>): TArray<Integer>; overload; inline;
+
+      // TODO: XmlDoc
+      function FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>; overload; inline;
+      // TODO: XmlDoc
+      function FindAsArray(AFunc: TFindFuncRef<T>): TArray<T>; overload; inline;
+      // TODO: XmlDoc
+      function FindAsArray(AFunc: TFindFunc<T>): TArray<T>; overload; inline;
+
+      {$ENDREGION} //
+
+      {$REGION 'Sorting'}
+
+      // TODO: XmlDoc
+      function Sorted(AFunc: TCompareFuncStatic<T>): Boolean; overload; inline;
+      // TODO: XmlDoc
+      function Sorted(AFunc: TCompareFuncRef<T>): Boolean; overload; inline;
+      // TODO: XmlDoc
+      function Sorted(AFunc: TCompareFunc<T>): Boolean; overload; inline;
+
+      {$ENDREGION}
+
+      procedure ForEach(AFunc: TForEachProcStatic<T>); overload;
+      procedure ForEach(AFunc: TForEachProcRef<T>); overload;
+      procedure ForEach(AFunc: TForEachProc<T>); overload;
+
+      function ForEach<R>(AFunc: TForEachFuncStatic<T, R>): TArray<R>; overload;
+      function ForEach<R>(AFunc: TForEachFuncRef<T, R>): TArray<R>; overload;
+      function ForEach<R>(AFunc: TForEachFunc<T, R>): TArray<R>; overload;
+
+      // TODO: XmlDoc
+      function BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer; overload; inline;
+      // TODO: XmlDoc
+      function BinarySearch(AItem: T; AFunc: TCompareFuncRef<T>): Integer; overload; inline;
+      // TODO: XmlDoc
+      function BinarySearch(AItem: T; AFunc: TCompareFunc<T>): Integer; overload; inline;
+
+      // TODO: XmlDoc
+      function Copy: TArray<T>; reintroduce; inline;
+
+      // TODO: XmlDoc
+      property Items[I: Integer]: T read GetItem write SetItem; default;
+
+      // TODO: XmlDoc
+      property First: T read GetFirst write SetFirst;
+      // TODO: XmlDoc
+      property Last: T read GetLast write SetLast;
+
+      // TODO: XmlDoc
+      function GetEnumerator: IIterator<T>; inline;
+      // TODO: XmlDoc
+      function InReverse: TReverseWrapper; inline;
+
+      // TODO: XmlDoc
+      function ToString: string; override;
+      // TODO: XmlDoc
+      class function ItemToString(AItem: T): string; inline;
+
+    end;
+
+  private
+    FItems: array of T;
+
     function GetItem(AIndex: Integer): T;
-    procedure SetItem(AIndex: Integer; AValue: T);
+
+    function GetFirst: T;
+    procedure SetFirst(const Value: T);
+
+    function GetLast: T;
+    procedure SetLast(const Value: T);
+    
+  protected
+    procedure SetItem(AIndex: Integer; AValue: T); virtual;
+
+    function GetCapacity: Integer; override;
+    procedure SetCapacity(const Value: Integer); override;
+
+    procedure CopyTo(AArray: TArray); override;
 
   public
-    constructor Create(ASizeSteps: Integer = 16);
-    destructor Destroy; override;
+    // TODO: XmlDoc
+    function Add(AItem: T): T; overload; virtual;
+    // TODO: XmlDoc
+    procedure Add(AItems: IIterator<T>); overload;
+    // TODO: XmlDoc
+    procedure Add(AItems: IIterable<T>); overload;
+    // TODO: XmlDoc
+    procedure Add(AItems: IEnumerable<T>); overload;
+    // TODO: XmlDoc
+    procedure Add(AItems: TReader); overload;
+    
+    // TODO: XmlDoc: Remarks: Insert can also add item at the end
+    function Insert(AItem: T; AIndex: Integer): T; virtual;
 
-    function Add(AElement: T): T;
-    function Insert(AElement: T; AIndex: Integer): T;
+    procedure SetIndex(ASource, ADestination: Integer); virtual;
 
-    procedure DelAt(AIndex: Integer); virtual;
-    procedure DelLast; inline;
-    procedure DelAll; virtual;
+    // TODO: XmlDoc
+    procedure RemoveAt(AIndex: Integer); override;
 
-    procedure Swap(A, B: Integer);
+    // TODO: XmlDoc
+    procedure SwapUnchecked(A, B: Integer); override;
 
     {$REGION 'Find Functions'}
 
-    function FindFirstIndex(AFunc: TFindFunctionStatic<T>): Integer; overload;
-    function FindFirstIndex(AFunc: TFindFunctionOfObject<T>): Integer; overload;
-    function FindFirstIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): Integer; overload;
+    // TODO: XmlDoc
+    function FindFirstIndex(AFunc: TFindFuncStatic<T>): Integer; overload;
+    // TODO: XmlDoc
+    function FindFirstIndex(AFunc: TFindFuncRef<T>): Integer; overload;
+    // TODO: XmlDoc
+    function FindFirstIndex(AFunc: TFindFunc<T>): Integer; overload;
 
-    function FindFirst(AFunc: TFindFunctionStatic<T>): T; overload;
-    function FindFirst(AFunc: TFindFunctionOfObject<T>): T; overload;
-    function FindFirst(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): T; overload;
+    // TODO: XmlDoc
+    function FindFirst(AFunc: TFindFuncStatic<T>): T; overload;
+    // TODO: XmlDoc
+    function FindFirst(AFunc: TFindFuncRef<T>): T; overload;
+    // TODO: XmlDoc
+    function FindFirst(AFunc: TFindFunc<T>): T; overload;
 
-    function FindLastIndex(AFunc: TFindFunctionStatic<T>): Integer; overload;
-    function FindLastIndex(AFunc: TFindFunctionOfObject<T>): Integer; overload;
-    function FindLastIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): Integer; overload;
+    // TODO: XmlDoc
+    function FindLastIndex(AFunc: TFindFuncStatic<T>): Integer; overload;
+    // TODO: XmlDoc
+    function FindLastIndex(AFunc: TFindFuncRef<T>): Integer; overload;
+    // TODO: XmlDoc
+    function FindLastIndex(AFunc: TFindFunc<T>): Integer; overload;
 
-    function FindLast(AFunc: TFindFunctionStatic<T>): T; overload;
-    function FindLast(AFunc: TFindFunctionOfObject<T>): T; overload;
-    function FindLast(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): T; overload;
+    // TODO: XmlDoc
+    function FindLast(AFunc: TFindFuncStatic<T>): T; overload;
+    // TODO: XmlDoc
+    function FindLast(AFunc: TFindFuncRef<T>): T; overload;
+    // TODO: XmlDoc
+    function FindLast(AFunc: TFindFunc<T>): T; overload;
 
-    function FindIndexAsArray(AFunc: TFindFunctionStatic<T>): TIntArray; overload;
-    function FindIndexAsArray(AFunc: TFindFunctionOfObject<T>): TIntArray; overload;
-    function FindIndexAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): TIntArray; overload;
+    // TODO: XmlDoc
+    function FindIndexAsArray(AFunc: TFindFuncStatic<T>): TArray<Integer>; overload;
+    // TODO: XmlDoc
+    function FindIndexAsArray(AFunc: TFindFuncRef<T>): TArray<Integer>; overload;
+    // TODO: XmlDoc
+    function FindIndexAsArray(AFunc: TFindFunc<T>): TArray<Integer>; overload;
 
-    function FindAsArray(AFunc: TFindFunctionStatic<T>): TGenericArray<T>; overload;
-    function FindAsArray(AFunc: TFindFunctionOfObject<T>): TGenericArray<T>; overload;
-    function FindAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): TGenericArray<T>; overload;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>; overload;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncRef<T>): TArray<T>; overload;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFunc<T>): TArray<T>; overload;
+
+    {$ENDREGION} //
+
+    {$REGION 'Sorting'}
+
+    // TODO: XmlDoc
+    procedure Sort(AFunc: TCompareFuncStatic<T>); overload; inline;
+    // TODO: XmlDoc
+    procedure Sort(AFunc: TCompareFuncRef<T>); overload; inline;
+    // TODO: XmlDoc
+    procedure Sort(AFunc: TCompareFunc<T>); overload; inline;
+
+    // TODO: XmlDoc
+    function TrySort(AFunc: TCompareFuncStatic<T>): Boolean; overload; inline;
+    // TODO: XmlDoc
+    function TrySort(AFunc: TCompareFuncRef<T>): Boolean; overload; inline;
+    // TODO: XmlDoc
+    function TrySort(AFunc: TCompareFunc<T>): Boolean; overload; inline;
+
+    // TODO: XmlDoc
+    function Sorted(AFunc: TCompareFuncStatic<T>): Boolean; overload;
+    // TODO: XmlDoc
+    function Sorted(AFunc: TCompareFuncRef<T>): Boolean; overload;
+    // TODO: XmlDoc
+    function Sorted(AFunc: TCompareFunc<T>): Boolean; overload;
 
     {$ENDREGION}
 
-    procedure Sort(AFunc: TCompareFunction<T>); overload;
-    procedure Sort(AFunc: TCompareFunctionOfObject<T>); overload;
+    procedure ForEach(AFunc: TForEachProcStatic<T>); overload;
+    procedure ForEach(AFunc: TForEachProcRef<T>); overload;
+    procedure ForEach(AFunc: TForEachProc<T>); overload;
 
-    function Copy: TGenericArray<T>; virtual;
+    function ForEach<R>(AFunc: TForEachFuncStatic<T, R>): TArray<R>; overload;
+    function ForEach<R>(AFunc: TForEachFuncRef<T, R>): TArray<R>; overload;
+    function ForEach<R>(AFunc: TForEachFunc<T, R>): TArray<R>; overload;
 
-    function Count: Integer;
-    function Empty: Boolean; inline;
+    // TODO: XmlDoc
+    function BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer; overload;
+    // TODO: XmlDoc
+    function BinarySearch(AItem: T; AFunc: TCompareFuncRef<T>): Integer; overload;
+    // TODO: XmlDoc
+    function BinarySearch(AItem: T; AFunc: TCompareFunc<T>): Integer; overload;
 
+    // TODO: XmlDoc
+    function Copy: TArray<T>; reintroduce; inline;
+
+    // TODO: XmlDoc
     property Items[I: Integer]: T read GetItem write SetItem; default;
 
-    function First: T; inline;
-    function Last: T; inline;
+    // TODO: XmlDoc
+    property First: T read GetFirst write SetFirst;
+    // TODO: XmlDoc
+    property Last: T read GetLast write SetLast;
 
-    function DataPointer: Pointer; inline;
+    // TODO: XmlDoc
+    function DataPointer: Pointer; override;
 
+    // TODO: XmlDoc
     function GetEnumerator: IIterator<T>;
-    function IterReversed: TReverseWrapper; inline;
+    // TODO: XmlDoc
+    function InReverse: TReverseWrapper; inline;
 
-    procedure RangeCheckException(AIndex: Integer); inline;
-    function RangeCheck(AIndex: Integer): Boolean; inline;
+    // TODO: XmlDoc
+    function ToString: string; override;
+    // TODO: XmlDoc
+    class function ItemToString(AItem: T): string; virtual;
 
-    procedure Append(AItems: IIterable<T>);
+    function Reader: TReader; reintroduce; inline;
 
   end;
 
-  { TIntArray }
-
-  TIntArray = class(TGenericArray<Integer>)
-  public
+  // TODO: XmlDoc
+  TIntArray = TArray<Integer>;
+  TIntArrayHelper = class helper for TIntArray
+    // TODO: XmlDoc
     function Sum: Integer;
-    function Difference: Integer;
+    // TODO: XmlDoc
+    function Difference: Integer; inline;
+    // TODO: XmlDoc
+    function Average: Single; inline;
+    // TODO: XmlDoc
     function Min: Integer;
+    // TODO: XmlDoc
     function Max: Integer;
+    // TODO: XmlDoc
     function Bounds: TIntBounds1;
-
-    function ToString: string; override;
   end;
 
-  { TRefArray<T> }
-
-  TRefArray<T: class> = class(TGenericArray<T>)
-  public
-    function FindAsRefArray(AFunc: TFindFunctionStatic<T>): TRefArray<T>; overload;
-    function FindAsRefArray(AFunc: TFindFunctionOfObject<T>): TRefArray<T>; overload;
-    function FindAsRefArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): TRefArray<T>; overload;
-
-    function Find(AData: T): Integer;
-    procedure Del(AData: T);
-
-    function Copy: TGenericArray<T>; override;
-    function CopyAsRefArray: TRefArray<T>;
-
-    function ToString: string; override;
+  TSingleArray = TArray<Single>;
+  TSingleArrayHelper = class helper for TSingleArray
+    // TODO: XmlDoc
+    function Sum: Single;
+    // TODO: XmlDoc
+    function Difference: Single; inline;
+    // TODO: XmlDoc
+    function Average: Single; inline;
+    // TODO: XmlDoc
+    function Min: Single;
+    // TODO: XmlDoc
+    function Max: Single;
+    // TODO: XmlDoc
+    function Bounds: TBounds1;
   end;
 
-  { TObjectArray<T> }
-
-  TObjectArray<T: class> = class(TRefArray<T>)
-  public
-    procedure DelAt(AIndex: Integer); override;
-    procedure DelAll; override;
-  end;
-
-  { TInterfaceArray<T> }
-
-  TInterfaceArray<T: IInterface> = class(TGenericArray<T>)
-  public
-    function Find(AData: T): Integer;
-    procedure Del(AData: T);
-
-    function Copy: TGenericArray<T>; override;
-    function CopyAsInterfaceArray: TInterfaceArray<T>;
-  end;
-
-  { TObjectStack<T> }
-
-  TObjectStack<T: class> = class
-  private
-    type
-
-      { TItem }
-
-    TItem = class
-    public
-      Prev: TItem;
-      Data: T;
-
-      constructor Create(AData: T; APrev: TItem);
-    end;
-
-  private
-    FTop: TItem;
-    FReferenceList: Boolean;
-
-  public
-    constructor Create(AReferenceList: Boolean = False);
-    destructor Destroy; override;
-
-    function Push(AElement: T): T;
-    function Pop: Boolean;
-    function Top: T;
-
-    function Copy: TObjectStack<T>;
-  end;
-
-  { THashBase }
-
-  THashBase<TKey> = class abstract
-  protected
-    FCount: Integer;
-    FInternalSize: Cardinal;
-
-    function GetKeyHash(AKey: TKey): Cardinal; virtual; abstract;
-    class function CantIndex({%H-}AKey: TKey): Boolean; virtual;
-    class function KeysEqual(AKey1, AKey2: TKey): Boolean; virtual; abstract;
-    class function CopyKey(AKey: TKey): TKey; virtual;
-
-  protected
-    property InternalSize: Cardinal read FInternalSize;
-
-  public
-    constructor Create(AInternalSize: Cardinal);
-  end;
-
-  { TMap }
-
-  TMap<TKey, TData> = class abstract(THashBase<TKey>)
-  private type
-
-    { THashEntry }
-
-    THashEntry = class
-    public
-      Key: TKey;
-      Data: TData;
-      Next: THashEntry;
-    end;
-
+  TFindableArray<T> = class abstract(TArray<T>)
   public type
 
-    { TPair }
+    TReader = class(TArray<T>.TReader)
+    public
+      function Find(AItem: T): Integer; reintroduce; inline;
+      function Contains(AItem: T): Boolean; reintroduce; inline;
 
-    TPair = TPair<TKey, TData>;
+    end;
 
-    { TIterator }
+  public
+    // TODO: XmlDoc
+    function Find(AItem: T): Integer; virtual; abstract;
+    function Contains(AItem: T): Boolean;
+    // TODO: XmlDoc
+    procedure Remove(AItem: T);
 
-    TIterator = class(TIterator<TPair>)
+    function Reader: TReader; reintroduce; inline;
+
+  end;
+
+  // TODO: XmlDoc
+  TBaseRefArray<T: class> = class abstract(TFindableArray<T>)
+  protected
+    function GetOwnsObjects: Boolean; virtual; abstract;
+
+    function ShouldFreeItems: Boolean; override;
+    procedure ItemRemoved(AIndex: Integer); override;
+
+  public
+    // TODO: XmlDoc
+    function Find(AItem: T): Integer; override;
+
+    // TODO: XmlDoc
+    class function ItemToString(AItem: T): string; override;
+
+    property OwnsObjects: Boolean read GetOwnsObjects;
+
+    function Equals(Obj: TObject): Boolean; override;
+
+  end;
+
+  TRefArray<T: class> = class(TBaseRefArray<T>)
+  public type
+
+    TReader = class(TFindableArray<T>.TReader)
+    public
+      function Copy: TRefArray<T>; reintroduce; inline;
+
+    end;
+
+  private
+    FOwnsObjects: Boolean;
+
+    procedure SetOwnsObjects(const Value: Boolean);
+
+  protected
+    function GetOwnsObjects: Boolean; override;
+
+  public
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+    constructor Create(AOwnsObjects: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce; overload;
+
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncStatic<T>): TRefArray<T>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncRef<T>): TRefArray<T>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFunc<T>): TRefArray<T>; overload; inline;
+
+    // TODO: XmlDoc
+    function Copy: TRefArray<T>; reintroduce; inline;
+
+    property OwnsObjects: Boolean read GetOwnsObjects write SetOwnsObjects;
+
+    function Reader: TReader; reintroduce; inline;
+
+  end;
+
+  /// <summary>The same as <see cref="TRefArray{T}"/> but the constructor defaults to owning the objects.</summary>
+  TObjectArray<T: class> = class(TRefArray<T>)
+  public
+    /// <summary>Creates a <see cref="TObjectArray{T}"/>, which will automatically free all objects on destruction.</summary>
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+
+  end;
+
+  // TODO: XmlDoc DO NOT COPY THIS, IT WON'T KEEP ITS LINK (probably)
+  TRefArrayOwnLinked<T: class> = class(TBaseRefArray<T>)
+  private
+    FOwnsObjectsLink: PBoolean;
+
+  protected
+    function GetOwnsObjects: Boolean; override;
+
+  public
+    constructor Create(AOwnsObjectsLink: PBoolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+
+  end;
+
+  // TODO: XmlDoc
+  TBaseRefPairArray<K: class; V> = class abstract(TArray<TPair<K, V>>)
+  protected
+    function GetOwnsKeys: Boolean; virtual; abstract;
+
+    function ShouldFreeItems: Boolean; override;
+    procedure ItemRemoved(AIndex: Integer); override;
+
+  public
+    property OwnsKeys: Boolean read GetOwnsKeys;
+
+  end;
+
+  TRefPairArray<K: class; V> = class(TBaseRefPairArray<K, V>)
+  private
+    FOwnsKeys: Boolean;
+
+    procedure SetOwnsKeys(const Value: Boolean);
+
+  protected
+    function GetOwnsKeys: Boolean; override;
+
+  public
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+    constructor Create(AOwnsKeys: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+      overload;
+
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefPairArray<K, V>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TRefPairArray<K, V>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TRefPairArray<K, V>; overload; inline;
+
+    // TODO: XmlDoc
+    function Copy: TRefPairArray<K, V>; reintroduce; inline;
+
+    property OwnsKeys: Boolean read GetOwnsKeys write SetOwnsKeys;
+
+  end;
+
+  // TODO: XmlDoc DO NOT COPY THIS, IT WON'T KEEP ITS LINK (probably)
+  TRefPairArrayOwnLinked<K: class; V> = class(TBaseRefPairArray<K, V>)
+  private
+    FOwnsKeysLink: PBoolean;
+
+  protected
+    function GetOwnsKeys: Boolean; override;
+
+  public
+    constructor Create(AOwnsKeysLink: PBoolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+
+  end;
+
+  // TODO: XmlDoc
+  TBaseToRefPairArray<K; V: class> = class abstract(TArray<TPair<K, V>>)
+  protected
+    function GetOwnsValues: Boolean; virtual; abstract;
+
+    function ShouldFreeItems: Boolean; override;
+    procedure ItemRemoved(AIndex: Integer); override;
+
+  public
+    property OwnsValues: Boolean read GetOwnsValues;
+
+  end;
+
+  TToRefPairArray<K; V: class> = class(TBaseToRefPairArray<K, V>)
+  private
+    FOwnsValues: Boolean;
+
+    procedure SetOwnsValues(const Value: Boolean);
+
+  protected
+    function GetOwnsValues: Boolean; override;
+
+  public
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+    constructor Create(AOwnsValues: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+      overload;
+
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TToRefPairArray<K, V>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TToRefPairArray<K, V>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TToRefPairArray<K, V>; overload; inline;
+
+    // TODO: XmlDoc
+    function Copy: TToRefPairArray<K, V>; reintroduce; inline;
+
+    property OwnsValues: Boolean read GetOwnsValues write SetOwnsValues;
+
+  end;
+
+  // TODO: XmlDoc DO NOT COPY THIS, IT WON'T KEEP ITS LINK (probably)
+  TToRefPairArrayOwnLinked<K; V: class> = class(TBaseToRefPairArray<K, V>)
+  private
+    FOwnsValuesLink: PBoolean;
+
+  protected
+    function GetOwnsValues: Boolean; override;
+
+  public
+    constructor Create(AOwnsValuesLink: PBoolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+
+  end;
+
+  // TODO: XmlDoc
+  TBaseRefRefPairArray<K, V: class> = class abstract(TArray<TPair<K, V>>)
+  protected
+    function GetOwnsKeys: Boolean; virtual; abstract;
+    function GetOwnsValues: Boolean; virtual; abstract;
+
+    function ShouldFreeItems: Boolean; override;
+    procedure ItemRemoved(AIndex: Integer); override;
+
+  public
+    // TODO: XmlDoc
+    class function ItemToString(AItem: TPair<K, V>): string; override;
+
+    property OwnsKeys: Boolean read GetOwnsKeys;
+    property OwnsValues: Boolean read GetOwnsValues;
+
+  end;
+
+  TRefRefPairArray<K, V: class> = class(TBaseRefRefPairArray<K, V>)
+  private
+    FOwnsKeys: Boolean;
+    FOwnsValues: Boolean;
+
+    procedure SetOwnsKeys(const Value: Boolean);
+    procedure SetOwnsValues(const Value: Boolean);
+
+  protected
+    function GetOwnsKeys: Boolean; override;
+    function GetOwnsValues: Boolean; override;
+
+  public
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+    constructor Create(AOwnsKeys, AOwnsValues: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce; overload;
+
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefRefPairArray<K, V>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TRefRefPairArray<K, V>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TRefRefPairArray<K, V>; overload; inline;
+
+    // TODO: XmlDoc
+    function Copy: TRefRefPairArray<K, V>; reintroduce; inline;
+
+    property OwnsKeys: Boolean read GetOwnsKeys write SetOwnsKeys;
+    property OwnsValues: Boolean read GetOwnsValues write SetOwnsValues;
+
+  end;
+
+  // TODO: XmlDoc DO NOT COPY THIS, IT WON'T KEEP ITS LINK (probably)
+  TRefRefPairArrayOwnLinked<K, V: class> = class(TBaseRefRefPairArray<K, V>)
+  private
+    FOwnsKeysLink: PBoolean;
+    FOwnsValuesLink: PBoolean;
+
+  protected
+    function GetOwnsKeys: Boolean; override;
+    function GetOwnsValues: Boolean; override;
+
+  public
+    constructor Create(AOwnsKeysLink, AOwnsValuesLink: PBoolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8);
+      reintroduce;
+
+  end;
+
+  // TODO: XmlDoc
+  TInterfaceArray<T: IInterface> = class(TArray<T>)
+  public
+    // TODO: XmlDoc
+    function FindAsInterfaceArray(AFunc: TFindFuncStatic<T>): TInterfaceArray<T>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsInterfaceArray(AFunc: TFindFuncRef<T>): TInterfaceArray<T>; overload; inline;
+    // TODO: XmlDoc
+    function FindAsInterfaceArray(AFunc: TFindFunc<T>): TInterfaceArray<T>; overload; inline;
+
+    // TODO: XmlDoc
+    function Copy: TInterfaceArray<T>; reintroduce; inline;
+
+    // TODO: XmlDoc
+    function Find(AItem: T): Integer; overload; inline;
+    // TODO: XmlDoc
+    function Find(AItem: TObject): Integer; overload; inline;
+    // TODO: XmlDoc
+    procedure Remove(AItem: T); overload;
+    // TODO: XmlDoc
+    procedure Remove(AItem: TObject); overload;
+
+    // TODO: XmlDoc
+    class function ItemToString(AItem: T): string; override;
+
+  end;
+
+  // Linked to a TArray<T> but is an iterable of the interface
+  TLinkedInterfaceArray<I: IInterface; T: I> = class(TIterable<I>)
+  public type
+
+    TIterator = class(TIterator<I>)
     private
-      FList: TMap<TKey, TData>;
+      FLinkedArray: TArray<T>;
       FIndex: Integer;
-      FEntry: THashEntry;
-
-      function GetCurrent: TPair; override;
 
     public
-      constructor Create(AList: TMap<TKey, TData>);
+      constructor Create(ALinkedArray: TArray<T>);
 
       function MoveNext: Boolean; override;
+      function GetCurrent: I; override;
 
     end;
 
   private
-    FData: array of THashEntry;
-
-  protected
-
-    function GetEntry(AKey: TKey): TData;
-    procedure SetEntry(AKey: TKey; AValue: TData); virtual;
-
-    procedure FreeKey(AKey: TKey); virtual;
-    procedure FreeData(AData: TData); virtual;
+    FLinkedArray: TArray<T>;
 
   public
-    constructor Create(AInternalSize: Cardinal = 193);
+    constructor Create(ALinkedArray: TArray<T>);
+
+    function Count: Integer; override;
+    function CountOptimized: Boolean; override;
+    function GetEnumerator: IIterator<I>; override;
+
+  end;
+
+  // TODO: XmlDoc
+  TStack = class
+  private
+    FArray: TArray;
+
+    function GetCapacity: Integer; inline;
+    procedure SetCapacity(const Value: Integer); inline;
+
+    function GetGrowAmount: Integer; inline;
+    procedure SetGrowAmount(const Value: Integer); inline;
+
+    function GetShrinkRetain: Integer; inline;
+    procedure SetShrinkRetain(const Value: Integer); inline;
+
+  protected
+    function CreateSame(AGrowAmount: Integer; AShrinkRetain: Integer): TStack;
+
+    // TODO: XmlDoc
+    function CreateArray(AGrowAmount: Integer; AShrinkRetain: Integer): TArray; virtual; abstract;
+
+    function CreateCopy: TStack; virtual;
+
+    constructor CreateNoArray; virtual;
+
+  public
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); virtual;
     destructor Destroy; override;
 
-    function Get(AKey: TKey; out AData: TData): Boolean;
-    function HasKey(AKey: TKey): Boolean;
-    procedure Del(AKey: TKey);
-
-    property Data[AKey: TKey]: TData read GetEntry write SetEntry; default;
-
-    function NextKeyCheck(AKey: TKey; out AOut: TKey): Boolean; overload;
-    function NextKeyCheck(var AKey: TKey): Boolean; overload;
-
-    function PrevKeyCheck(AKey: TKey; out AOut: TKey): Boolean; overload;
-    function PrevKeyCheck(var AKey: TKey): Boolean; overload;
-
-    function HasNextKey(AKey: TKey): Boolean;
-    function HasPrevKey(AKey: TKey): Boolean;
-
-    function NextKey(AKey: TKey): TKey;
-    function PrevKey(AKey: TKey): TKey;
-
-    function FirstKeyCheck(out AOut: TKey): Boolean;
-    function LastKeyCheck(out AOut: TKey): Boolean;
-
-    function FirstKey: TKey;
-    function LastKey: TKey;
-
-    function NextData(AKey: TKey): TData;
-    function PrevData(AKey: TKey): TData;
-
-    procedure DelAll;
-
-    function GetEnumerator: TIterator;
-    property Count: Integer read FCount;
-
-  end;
-
-  { TClassMap }
-
-  TClassMap<T> = class(TMap<TClass, T>)
-  protected
-    function GetKeyHash(AKey: TClass): Cardinal; override;
-    class function CantIndex(AKey: TClass): Boolean; override;
-    class function KeysEqual(AKey1, AKey2: TClass): Boolean; override;
-  end;
-
-  { TClassRefMap }
-
-  TClassRefMap<T: class> = class(TClassMap<T>)
-  public
-    function GetOrNil(AKey: TClass): T;
-  end;
-
-  { TClassObjectMap }
-
-  TClassObjectMap<T: class> = class(TClassRefMap<T>)
-  protected
-    procedure FreeData(AData: T); override;
-  end;
-
-  { TRefMap<TKey, TData> }
-
-  TRefMap<TKey: class; TData> = class(TMap<TKey, TData>)
-  protected
-    function GetKeyHash(AKey: TKey): Cardinal; override;
-    class function CantIndex(AKey: TKey): Boolean; override;
-    class function KeysEqual(AKey1, AKey2: TKey): Boolean; override;
-
-    function GetActualKey(AKey: TKey; out AActualKey: TKey): Boolean;
-    function ActualKey(AKey: TKey): TKey;
-  end;
-
-  { TRefRefMap<TKey, TData> }
-
-  TRefRefMap<TKey, TData: class> = class(TRefMap<TKey, TData>)
-  public
-    function GetOrNil(AKey: TKey): TData;
-  end;
-
-  { TRefObjectMap<TKey, TData> }
-
-  TRefObjectMap<TKey, TData: class> = class(TRefRefMap<TKey, TData>)
-  protected
-    procedure FreeData(AData: TData); override;
-  end;
-
-  { TObjectMap }
-
-  TObjectMap<TKey: class; TData> = class(TRefMap<TKey,TData>)
-  protected
-    procedure FreeKey(AKey: TKey); override;
-  end;
-
-  { TObjectRefMap }
-
-  TObjectRefMap<TKey, TData: class> = class(TObjectMap<TKey,TData>)
-  protected
-    function GetOrNil(AKey: TKey): TData;
-  end;
-
-  { TObjectObjectMap }
-
-  TObjectObjectMap<TKey, TData: class> = class(TObjectRefMap<TKey,TData>)
-  protected
-    procedure FreeData(AData: TData); override;
-  end;
-
-  { TStringMap<TData> }
-
-  TStringMap<TData> = class(TMap<string, TData>)
-  protected
-    function GetKeyHash(AKey: string): Cardinal; override;
-    class function CantIndex(AKey: string): Boolean; override;
-    class function KeysEqual(AKey1, AKey2: string): Boolean; override;
-  end;
-
-  { TAnsiStringMap<TData> }
-
-  TAnsiStringMap<TData> = class(TMap<AnsiString, TData>)
-  protected
-    function GetKeyHash(AKey: AnsiString): Cardinal; override;
-    class function CantIndex(AKey: AnsiString): Boolean; override;
-    class function KeysEqual(AKey1, AKey2: AnsiString): Boolean; override;
-  end;
-
-  { TStringObjectMap }
-
-  TStringObjectMap<TData: class> = class(TStringMap<TData>)
-  protected
-    procedure FreeData(AData: TData); override;
-  end;
-
-  { TAnsiStringObjectMap<TData> }
-
-  TAnsiStringObjectMap<TData: class> = class(TAnsiStringMap<TData>)
-  protected
-    procedure FreeData(AData: TData); override;
-  end;
-
-  { TSet<T> }
-
-  TSet<T> = class abstract(THashBase<T>)
-  private type
-
-    { TEntry }
-
-    TEntry = class
-    public
-      Data: T;
-      Next: TEntry;
-    end;
-
-    { TIterator }
-
-    TIterator = class
-    private
-      FList: TSet<T>;
-      FIndex: Integer;
-      FEntry: TEntry;
-      function GetCurrent: T;
-    public
-      constructor Create(AList: TSet<T>);
-
-      function MoveNext: Boolean;
-      property Current: T read GetCurrent;
-    end;
-
-  private
-    FTags: array of TEntry;
-    FCount: Integer;
-
-  protected
-    function GetElement(S: T): Boolean; virtual;
-    procedure SetElement(S: T; AValue: Boolean); virtual;
-
-    procedure FreeData(const {%H-}AData: T); virtual;
-
-  public
-    constructor Create(AInternalSize: Cardinal = 193);
-    destructor Destroy; override;
-
-    property Elements[S: T]: Boolean read GetElement write SetElement; default;
-    procedure Add(S: T);
-    procedure Del(S: T);
-
-    property Count: Integer read FCount;
-
-    procedure Clear;
-
-    procedure Assign(ATagList: TSet<T>);
-
-    function GetEnumerator: TIterator;
-  end;
-
-  { TRefSet }
-
-  TRefSet<T: class> = class(TSet<T>)
-  protected
-    function GetKeyHash(AKey: T): Cardinal; override;
-    class function CantIndex(AKey: T): Boolean; override;
-    class function KeysEqual(AKey1, AKey2: T): Boolean; override;
-  end;
-
-  { TObjectSet }
-
-  TObjectSet<T: class> = class(TRefSet<T>)
-  protected
-    procedure FreeData(const AData: T); override;
-  end;
-
-  { TTags }
-
-  TTags = class(TSet<string>)
-  protected
-    function GetKeyHash(AKey: string): Cardinal; override;
-    class function CantIndex(AKey: string): Boolean; override;
-    class function KeysEqual(AKey1, AKey2: string): Boolean; override;
-  end;
-
-  { TCardinalSet }
-
-  TCardinalSet = class(TSet<Cardinal>)
-  protected
-    function GetKeyHash(AKey: Cardinal): Cardinal; override;
-    class function CantIndex({%H-}AKey: Cardinal): Boolean; override;
-    class function KeysEqual(AKey1, AKey2: Cardinal): Boolean; override;
-  end;
-
-  // --- Reader Wrappers ---
-  // Prevent the modification of the List
-  // Of course, elements can still be accessed and changed if they aren't read only
-
-  { TGenericArrayReader<T> }
-
-  TGenericArrayReader<T> = class(TInterfaceBase, IIterable<T>)
-  private
-    function GetItem(I: Integer): T;
-
-  protected
-    FGenericArray: TGenericArray<T>;
-    
-  public
-    constructor Create(AGenericArray: TGenericArray<T>);
-
-    {$REGION 'Find Functions'}
-
-    function FindFirstIndex(AFunc: TFindFunctionStatic<T>): Integer; overload; inline;
-    function FindFirstIndex(AFunc: TFindFunctionOfObject<T>): Integer; overload; inline;
-    function FindFirstIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): Integer; overload; inline;
-
-    function FindFirst(AFunc: TFindFunctionStatic<T>): T; overload; inline;
-    function FindFirst(AFunc: TFindFunctionOfObject<T>): T; overload; inline;
-    function FindFirst(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): T; overload; inline;
-
-    function FindLastIndex(AFunc: TFindFunctionStatic<T>): Integer; overload; inline;
-    function FindLastIndex(AFunc: TFindFunctionOfObject<T>): Integer; overload; inline;
-    function FindLastIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): Integer; overload; inline;
-
-    function FindLast(AFunc: TFindFunctionStatic<T>): T; overload; inline;
-    function FindLast(AFunc: TFindFunctionOfObject<T>): T; overload; inline;
-    function FindLast(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): T; overload; inline;
-
-    function FindIndexAsArray(AFunc: TFindFunctionStatic<T>): TIntArray; overload; inline;
-    function FindIndexAsArray(AFunc: TFindFunctionOfObject<T>): TIntArray; overload; inline;
-    function FindIndexAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): TIntArray; overload; inline;
-
-    function FindAsArray(AFunc: TFindFunctionStatic<T>): TGenericArray<T>; overload; inline;
-    function FindAsArray(AFunc: TFindFunctionOfObject<T>): TGenericArray<T>; overload; inline;
-    function FindAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): TGenericArray<T>; overload; inline;
-
-    {$ENDREGION}
-
-    function Copy: TGenericArray<T>; inline;
-
+    // TODO: XmlDoc
+    procedure Clear; inline;
+
+    // TODO: XmlDoc
+    property Capacity: Integer read GetCapacity write SetCapacity;
+    // TODO: XmlDoc
     function Count: Integer;
+    // TODO: XmlDoc
+    property GrowAmount: Integer read GetGrowAmount write SetGrowAmount;
+    // TODO: XmlDoc
+    property ShrinkRetain: Integer read GetShrinkRetain write SetShrinkRetain;
+
+    // TODO: XmlDoc
+    function Copy: TStack;
+
+  end;
+
+  TStackClass = class of TStack;
+
+  // TODO: XmlDoc
+  TStack<T> = class(TStack)
+  private
+    function GetTop: T; inline;
+    procedure SetTop(const Value: T); inline;
+
+  protected
+    function CreateArray(AGrowAmount, AShrinkRetain: Integer): TArray; override;
+
+  public
+    // TODO: XmlDoc
+    property Top: T read GetTop write SetTop;
+    // TODO: XmlDoc
+    procedure Push(AItem: T); inline;
+    // TODO: XmlDoc
+    function Pop: T; inline;
+
+    function Count: Integer; inline;
     function Empty: Boolean; inline;
 
-    property Items[I: Integer]: T read GetItem; default;
-
-    function First: T; inline;
-    function Last: T; inline;
-
-    function GetEnumerator: IIterator<T>; inline;
-    function IterReversed: TGenericArray<T>.TReverseWrapper; inline;
-
-    procedure RangeCheckException(AIndex: Integer); inline;
-    function RangeCheck(AIndex: Integer): Boolean; inline;
-
-    function ToString: string; override;
+    // TODO: XmlDoc
+    function Copy: TStack<T>; reintroduce; inline;
 
   end;
 
-  { TIntArrayReader }
+  // TODO: TQueue<T> using a linked list
 
-  TIntArrayReader = class(TGenericArrayReader<Integer>)
+  // TODO: XmlDoc
+  TRefStack<T: class> = class(TStack<T>)
+  private
+    function GetOwnsObjects: Boolean;
+    procedure SetOwnsObjects(const Value: Boolean);
+  protected
+    // TODO: XmlDoc
+    function CreateArray(AGrowAmount, AShrinkRetain: Integer): TArray; override;
+
   public
-    constructor Create(AIntArray: TIntArray);
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+    constructor Create(AOwnsObjects: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce; overload;
 
-    function Sum: Integer; inline;
-    function Difference: Integer; inline;
-    function Min: Integer; inline;
-    function Max: Integer; inline;
-    function Bounds: TIntBounds1; inline;
+    // TODO: XmlDoc
+    function Copy: TRefStack<T>; reintroduce; inline;
+
+    property OwnsObjects: Boolean read GetOwnsObjects write SetOwnsObjects;
+
   end;
 
-  { TRefArrayReader<T> }
-
-  TRefArrayReader<T: class> = class(TGenericArrayReader<T>)
+  TObjectStack<T: class> = class(TRefStack<T>)
   public
-    constructor Create(ARefArray: TRefArray<T>);
-
-    function FindAsRefArray(AFunc: TFindFunctionStatic<T>): TRefArray<T>; overload; inline;
-    function FindAsRefArray(AFunc: TFindFunctionOfObject<T>): TRefArray<T>; overload; inline;
-    function FindAsRefArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): TRefArray<T>; overload; inline;
-
-    function Find(AData: T): Integer; inline;
-    
-    function CopyAsRefArray: TRefArray<T>; inline;
+    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); override;
   end;
 
-  { TInterfaceArrayReader<T> }
-
-  TInterfaceArrayReader<T: IInterface> = class(TGenericArrayReader<T>)
+  // TODO: XmlDoc
+  TValueHasher<K> = class abstract
   public
-    constructor Create(AInterfaceArray: TInterfaceArray<T>);
-
-    function Find(AData: T): Integer;
-    
-    function CopyAsInterfaceArray: TInterfaceArray<T>;
+    class function GetHash(AKey: K): Cardinal; virtual; abstract;
+    class function KeysEqual(AKey1, AKey2: K): Boolean; virtual; abstract;
+    class function CanIndex(AKey: K): Boolean; virtual;
   end;
-
-function GetHash(AObject: TObject; ARange: Cardinal): Cardinal; overload; inline;
-function GetHash(AString: WideString; ARange: Cardinal): Cardinal; overload; inline;
-function GetHash(AString: AnsiString; ARange: Cardinal): Cardinal; overload; inline;
-function GetHash(ASingle: Single; ARange: Cardinal): Cardinal; overload; inline;
-function GetHash(AInteger: Integer; ARange: Cardinal): Cardinal; overload; inline;
-function GetHash(AIntVector: TIntVector2; ARange: Cardinal): Cardinal; overload; inline;
-function GetHash(AIntVector: TIntVector3; ARange: Cardinal): Cardinal; overload; inline;
 
 implementation
 
-function GetHash(AObject: TObject; ARange: Cardinal): Cardinal;
-var
-  I: Cardinal;
+{ EEmptyGenericArray }
+
+constructor EArrayEmpty.Create;
 begin
-{$IFDEF CPUX64}
-  I := Cardinal(Pointer(AObject)) xor Cardinal(NativeUInt(Pointer(AObject)) shr 32);
-{$ELSE}
-  I := Cardinal(Pointer(AObject));
-{$ENDIF}
-  Result := (I xor Cardinal(I shl 3) xor (I shr 7)) mod ARange;
+  inherited Create('The operation requires the array to contain at least one item.');
 end;
 
-function GetHash(AString: WideString; ARange: Cardinal): Cardinal;
+{ EArrayItemNotFound }
+
+constructor EArrayItemNotFound.Create;
 begin
-  if AString = '' then
-    Exit(0);
-  Result := Cardinal(Length(AString) *
-    (Byte(AString[1]) or Byte(AString[(Length(AString) + 1) div 2]) shl 8 or Byte(AString[Length(AString)]) shl 16));
-  Result := Result mod ARange;
+  inherited Create('The item could not be found in the array.');
 end;
 
-function GetHash(AString: AnsiString; ARange: Cardinal): Cardinal;
+{ EArrayRangeError }
+
+constructor EArrayRangeError.Create;
 begin
-  if AString = '' then
-    Exit(0);
-  Result := Cardinal(Length(AString) *
-    (Byte(AString[1]) or Byte(AString[(Length(AString) + 1) div 2]) shl 8 or Byte(AString[Length(AString)]) shl 16));
-  Result := Result mod ARange;
+  inherited Create('The array index is out of bounds.');
 end;
 
-function GetHash(ASingle: Single; ARange: Cardinal): Cardinal;
+{ EArrayItemNoStringRepresentative }
+
+constructor EArrayItemNoStringRepresentative.Create;
 begin
-  Result := PCardinal(@ASingle)^ mod ARange;
+  inherited Create('The items in the array do not have a string representative.');
 end;
 
-function GetHash(AInteger: Integer; ARange: Cardinal): Cardinal; overload;
+{ EArrayNegativeCapacity }
+
+constructor EArrayNegativeCapacity.Create;
 begin
-  Result := Cardinal(AInteger - Low(Integer)) mod ARange;
+  inherited Create('The array capacity cannot be negative.');
 end;
 
-function GetHash(AIntVector: TIntVector2; ARange: Cardinal): Cardinal; overload; inline;
+{ EArrayInvalidGrowAmount }
+
+constructor EArrayInvalidGrowAmount.Create;
 begin
-  Result :=
-    (GetHash(AIntVector.X, High(Cardinal)) xor
-    GetHash(AIntVector.Y, High(Cardinal))) mod ARange;
+  inherited Create('The array grow amount must be greater than zero.');
 end;
 
-function GetHash(AIntVector: TIntVector3; ARange: Cardinal): Cardinal; overload; inline;
+{ EArrayInvalidShrinkRetain }
+
+constructor EArrayInvalidShrinkRetain.Create;
 begin
-  Result :=
-    (GetHash(AIntVector.X, High(Cardinal)) xor
-    GetHash(AIntVector.Y, High(Cardinal)) xor
-    GetHash(AIntVector.Z, High(Cardinal))) mod ARange;
+  inherited Create('The array shrink retain must be at least zero.');
 end;
 
-{ TRefCountedIterable<T> }
+{ TPair<K, V> }
 
-function TRefCountedIterable<T>.Count: Integer;
-var
-  Element: T;
-begin
-  Result := 0;
-  for Element in Self do
-    Inc(Result);
-end;
-
-{ TObjectStack<T>.TItem }
-
-constructor TObjectStack<T>.TItem.Create(AData: T; APrev: TItem);
-begin
-  Data := AData;
-  Prev := APrev;
-end;
-
-{ TPair<TKey, TData> }
-
-constructor TPair<TKey, TData>.Create(AKey: TKey; AData: TData);
+constructor TPair<K, V>.Create(AKey: K; AValue: V);
 begin
   FKey := AKey;
-  FData := AData;
+  FValue := AValue;
 end;
 
-{ THashTable<TKey, TData> }
+{ TArray }
 
-function TMap<TKey, TData>.GetEntry(AKey: TKey): TData;
+function TArray.CreateCopy: TArray;
 begin
-  if not Get(AKey, Result) then
-    raise Exception.Create('HashTable-Key missing');
+  Result := CreateSame(GrowAmount, ShrinkRetain);
+  CopyTo(Result);
 end;
 
-procedure TMap<TKey, TData>.SetEntry(AKey: TKey; AValue: TData);
-var
-  Entry: THashEntry;
-  Hash: Integer;
+function TArray.Copy: TArray;
 begin
-  if CantIndex(AKey) then
-    raise Exception.Create('Invalid HashTable-Index');
-
-  Hash := GetKeyHash(AKey);
-  if FData[Hash] = nil then
-  begin
-    // create new base entry
-    FData[Hash] := THashEntry.Create;
-    FData[Hash].Key := CopyKey(AKey);
-    FData[Hash].Data := AValue;
-    Inc(FCount);
-    Exit;
-  end;
-
-  Entry := FData[Hash];
-  // find key in list
-  while not KeysEqual(Entry.Key, AKey) do
-  begin
-    if Entry.Next = nil then // not found > add entry
-    begin
-      Entry.Next := THashEntry.Create;
-      Entry.Next.Key := CopyKey(AKey);
-      Entry.Next.Data := AValue;
-      Inc(FCount);
-      Exit;
-    end;
-    Entry := Entry.Next;
-  end;
-
-  // update Data
-  FreeData(Entry.Data);
-  Entry.Data := AValue;
-end;
-
-procedure TMap<TKey, TData>.FreeKey(AKey: TKey);
-begin
-  // nothing by default
-end;
-
-procedure TMap<TKey, TData>.FreeData(AData: TData);
-begin
-  // nothing by default
-end;
-
-constructor TMap<TKey, TData>.Create(AInternalSize: Cardinal);
-begin
-  inherited Create(AInternalSize);
-  SetLength(FData, FInternalSize);
-end;
-
-destructor TMap<TKey, TData>.Destroy;
-begin
-  DelAll;
-  inherited Destroy;
-end;
-
-function TMap<TKey, TData>.Get(AKey: TKey; out AData: TData): Boolean;
-var
-  Entry: THashEntry;
-  Hash: Integer;
-begin
-  if CantIndex(AKey) then
-    raise Exception.Create('Invalid HashTable-Index');
-
-  Hash := GetKeyHash(AKey);
-  if FData[Hash] = nil then // base entry doesn't exist > not found
-    Exit(False);
-
-  Entry := FData[Hash];
-  while not KeysEqual(Entry.Key, AKey) do
-  begin
-    if Entry.Next = nil then // end reached > not found
-      Exit(False);
-    Entry := Entry.Next;
-  end;
-  // found
-  AData := Entry.Data;
-  Result := True;
-end;
-
-function TMap<TKey, TData>.HasKey(AKey: TKey): Boolean;
-var
-  _: TData;
-begin
-  Result := Get(AKey, _);
-end;
-
-procedure TMap<TKey, TData>.Del(AKey: TKey);
-var
-  Hash: Cardinal;
-  Entry, PrevEntry: THashEntry;
-begin
-  Hash := GetKeyHash(AKey);
-  Entry := FData[Hash];
-  if Entry = nil then
-    Exit; // already nil
-
-  PrevEntry := nil;
-  // find key in list
-  while not KeysEqual(Entry.Key, AKey) do
-  begin
-    if Entry.Next = nil then // not found
-      Exit;
-    PrevEntry := Entry;
-    Entry := Entry.Next;
-  end;
-
-  FreeKey(Entry.Key);
-  FreeData(Entry.Data);
-
-  if PrevEntry <> nil then
-    PrevEntry.Next := Entry.Next
-  else
-    FData[Hash] := Entry.Next;
-
-  Entry.Free;
-  Dec(FCount);
-end;
-
-function TMap<TKey, TData>.NextKeyCheck(AKey: TKey; out AOut: TKey): Boolean;
-var
-  Hash: Cardinal;
-  Current: THashEntry;
-begin
-  Hash := GetKeyHash(AKey);
-  // Find Entry
-  Current := FData[Hash];
-  while not KeysEqual(Current.Key, AKey) do
-  begin
-    Current := Current.Next;
-    if Current = nil then
-      Exit(False);
-  end;
-
-  // Find Next
-  if Current.Next <> nil then
-  begin
-    AOut := Current.Next.Key;
-    Exit(True);
-  end;
-  repeat
-    Inc(Hash);
-  until (Hash = FInternalSize) or (FData[Hash] <> nil);
-  if Hash = FInternalSize then
-    Exit(False);
-  AOut := FData[Hash].Key;
-  Result := True;
-end;
-
-function TMap<TKey, TData>.PrevKeyCheck(AKey: TKey; out AOut: TKey): Boolean;
-var
-  Hash: Integer;
-  Current: THashEntry;
-begin
-  Hash := GetKeyHash(AKey);
-  // Find Entry
-  if FData[Hash] = nil then
-    Exit(False);
-  Current := FData[Hash];
-  while not KeysEqual(Current.Key, AKey) do
-  begin
-    if (Current.Next <> nil) and KeysEqual(Current.Next.Key, AKey) then
-    begin
-      AOut := Current.Key;
-      Exit(True)
-    end
-    else if Current.Next = nil then
-      Exit(False);
-    Current := Current.Next;
-  end;
-
-  // Find Prev
-  while Hash > 0 do
-  begin
-    Dec(Hash);
-    if FData[Hash] <> nil then
-    begin
-      Current := FData[Hash];
-      while Current.Next <> nil do
-        Current := Current.Next;
-      AOut := Current.Key;
-      Exit(True);
-    end;
-  end;
-  Result := False;
-end;
-
-function TMap<TKey, TData>.NextKeyCheck(var AKey: TKey): Boolean;
-var
-  Tmp: TKey;
-begin
-  Tmp := AKey;
-  Result := NextKeyCheck(Tmp, AKey);
-  if not Result then
-    AKey := Tmp;
-end;
-
-function TMap<TKey, TData>.PrevKeyCheck(var AKey: TKey): Boolean;
-var
-  Tmp: TKey;
-begin
-  Tmp := AKey;
-  Result := PrevKeyCheck(Tmp, AKey);
-  if not Result then
-    AKey := Tmp;
-end;
-
-function TMap<TKey, TData>.HasNextKey(AKey: TKey): Boolean;
-var
-  _: TKey;
-begin
-  Result := NextKeyCheck(AKey, _);
-end;
-
-function TMap<TKey, TData>.HasPrevKey(AKey: TKey): Boolean;
-var
-  _: TKey;
-begin
-  Result := PrevKeyCheck(AKey, _);
-end;
-
-function TMap<TKey, TData>.NextKey(AKey: TKey): TKey;
-begin
-  if not NextKeyCheck(AKey, Result) then
-    raise Exception.Create('No next Key!');
-end;
-
-function TMap<TKey, TData>.PrevKey(AKey: TKey): TKey;
-begin
-  if not NextKeyCheck(AKey, Result) then
-    raise Exception.Create('No previous Key!');
-end;
-
-function TMap<TKey, TData>.FirstKeyCheck(out AOut: TKey): Boolean;
-var
-  I: Integer;
-begin
-  if Count = 0 then
-    Exit(False);
-  Result := True;
-  for I := 0 to FInternalSize - 1 do
-    if FData[I] <> nil then
-    begin
-      AOut := FData[I].Key;
-      Exit;
-    end;
-end;
-
-function TMap<TKey, TData>.FirstKey: TKey;
-begin
-  if not FirstKeyCheck(Result) then
-    raise Exception.Create('No first Key!');
-end;
-
-function TMap<TKey, TData>.LastKey: TKey;
-begin
-  if not LastKeyCheck(Result) then
-    raise Exception.Create('No last Key!');
-end;
-
-function TMap<TKey, TData>.LastKeyCheck(out AOut: TKey): Boolean;
-var
-  I: Integer;
-  Current: THashEntry;
-begin
-  if Count = 0 then
-    Exit(False);
-  Result := True;
-  for I := FInternalSize - 1 downto 0 do
-  begin
-    Current := FData[I];
-    if Current <> nil then
-    begin
-      while Current.Next <> nil do
-        Current := Current.Next;
-      AOut := Current.Key;
-      Exit;
-    end;
-  end;
-end;
-
-function TMap<TKey, TData>.NextData(AKey: TKey): TData;
-begin
-  Result := Data[NextKey(AKey)];
-end;
-
-function TMap<TKey, TData>.PrevData(AKey: TKey): TData;
-begin
-  Result := Data[PrevKey(AKey)];
-end;
-
-procedure TMap<TKey, TData>.DelAll;
-var
-  Next: THashEntry;
-  I: Integer;
-begin
-  for I := 0 to FInternalSize - 1 do
-  begin
-    while FData[I] <> nil do
-    begin
-      Next := FData[I].Next;
-      FreeKey(FData[I].Key);
-      FreeData(FData[I].Data);
-      FData[I].Free;
-      FData[I] := Next;
-    end;
-  end;
-  FCount := 0;
-end;
-
-function TMap<TKey, TData>.GetEnumerator: TIterator;
-begin
-  Result := TIterator.Create(Self);
-end;
-
-{ THashTable<TKey, TData>.TIterator }
-
-function TMap<TKey, TData>.TIterator.GetCurrent: TPair;
-begin
-  Result := TPair.Create(FEntry.Key, FEntry.Data);
-end;
-
-constructor TMap<TKey, TData>.TIterator.Create(AList: TMap<TKey, TData>);
-begin
-  FList := AList;
-  FIndex := -1;
-  FEntry := nil;
-end;
-
-function TMap<TKey, TData>.TIterator.MoveNext: Boolean;
-begin
-  if (FIndex = -1) or (FEntry.Next = nil) then
-  begin
-    // Move to next list
-    repeat
-      Inc(FIndex);
-      if Cardinal(FIndex) = FList.FInternalSize then
-        Exit(False);
-      FEntry := FList.FData[FIndex];
-    until (FEntry <> nil);
-  end
-  else
-  begin
-    FEntry := FEntry.Next;
-  end;
-  Result := True;
-end;
-
-{ TStringHashTable<TData> }
-
-function TStringMap<TData>.GetKeyHash(AKey: string): Cardinal;
-begin
-  Result := GetHash(AKey, InternalSize);
-end;
-
-class function TStringMap<TData>.CantIndex(AKey: string): Boolean;
-begin
-  Result := AKey = '';
-end;
-
-class function TStringMap<TData>.KeysEqual(AKey1, AKey2: string): Boolean;
-begin
-  Result := AKey1 = AKey2;
-end;
-
-{ TStringObjectHashTable<TData> }
-
-procedure TStringObjectMap<TData>.FreeData(AData: TData);
-begin
-  AData.Free;
-end;
-
-{ THashBase<TKey> }
-
-constructor THashBase<TKey>.Create(AInternalSize: Cardinal);
-begin
-  if AInternalSize = 0 then
-    raise Exception.Create('Internal Size for HashTable must be at least 1');
-  FInternalSize := AInternalSize;
-end;
-
-class function THashBase<TKey>.CantIndex(AKey: TKey): Boolean;
-begin
-  Result := False;
-end;
-
-class function THashBase<TKey>.CopyKey(AKey: TKey): TKey;
-begin
-  Result := AKey;
-end;
-
-{ TRefMap<TKey, TData> }
-
-function TRefMap<TKey, TData>.GetActualKey(AKey: TKey; out AActualKey: TKey): Boolean;
-var
-  Entry: THashEntry;
-  Hash: Integer;
-begin
-  if CantIndex(AKey) then
-    raise Exception.Create('Invalid HashTable-Index');
-
-  Hash := GetKeyHash(AKey);
-  if FData[Hash] = nil then // base entry doesn't exist > not found
-    Exit(False);
-
-  Entry := FData[Hash];
-  while not KeysEqual(Entry.Key, AKey) do
-  begin
-    if Entry.Next = nil then // end reached > not found
-      Exit(False);
-    Entry := Entry.Next;
-  end;
-  // found
-  AActualKey := Entry.Key;
-  Result := True;
-end;
-
-function TRefMap<TKey, TData>.GetKeyHash(AKey: TKey): Cardinal;
-begin
-  Result := GetHash(TObject(AKey), FInternalSize);
-end;
-
-function TRefMap<TKey, TData>.ActualKey(AKey: TKey): TKey;
-begin
-  if not GetActualKey(AKey, Result) then
-    raise Exception.Create('HashTable-Key not found');
-end;
-
-class function TRefMap<TKey, TData>.CantIndex(AKey: TKey): Boolean;
-begin
-  Result := AKey = nil;
-end;
-
-class function TRefMap<TKey, TData>.KeysEqual(AKey1, AKey2: TKey): Boolean;
-begin
-  Result := AKey1 = AKey2;
-end;
-
-{ TRefRefMap<TKey, TData> }
-
-function TRefRefMap<TKey, TData>.GetOrNil(AKey: TKey): TData;
-begin
-  if not Get(AKey, Result) then
-    Result := nil;
-end;
-
-{ TRefSet<T> }
-
-function TRefSet<T>.GetKeyHash(AKey: T): Cardinal;
-begin
-  Result := GetHash(TObject(AKey), FInternalSize);
-end;
-
-class function TRefSet<T>.CantIndex(AKey: T): Boolean;
-begin
-  Result := AKey = nil;
-end;
-
-class function TRefSet<T>.KeysEqual(AKey1, AKey2: T): Boolean;
-begin
-  Result := Pointer(AKey1) = Pointer(AKey2);
-end;
-
-{ TObjectSet<T> }
-
-procedure TObjectSet<T>.FreeData(const AData: T);
-begin
-  AData.Free;
-end;
-
-{ TArrayList<T> }
-
-function TGenericArray<T>.GetItem(AIndex: Integer): T;
-begin
-  RangeCheckException(AIndex);
-  Result := FItems[AIndex];
-end;
-
-procedure TGenericArray<T>.SetItem(AIndex: Integer; AValue: T);
-begin
-  RangeCheckException(AIndex);
-  FItems[AIndex] := AValue;
-end;
-
-procedure TGenericArray<T>.Sort(AFunc: TCompareFunction<T>);
-begin
-  if Count > 1 then
-    SortLR(AFunc, 0, Count - 1);
-end;
-
-procedure TGenericArray<T>.Sort(AFunc: TCompareFunctionOfObject<T>);
-begin
-  if Count > 1 then
-    SortLR(AFunc, 0, Count - 1);
-end;
-
-procedure TGenericArray<T>.SortLR(ACompareFunc: TCompareFunctionOfObject<T>; ALeft, ARight: Integer);
-var
-  Pivot: T;
-  L, R: Integer;
-begin
-  Pivot := FItems[(ALeft + ARight) div 2];
-  L := ALeft;
-  R := ARight;
-  repeat
-    while ACompareFunc(Pivot, FItems[L]) do
-      Inc(L);
-    while ACompareFunc(FItems[R], Pivot) do
-      Dec(R);
-    if L <= R then
-    begin
-      Swap(L, R);
-      Inc(L);
-      Dec(R);
-    end;
-  until L > R;
-  if R > ALeft then
-    SortLR(ACompareFunc, ALeft, R);
-  if L < ARight then
-    SortLR(ACompareFunc, L, ARight);
-end;
-
-procedure TGenericArray<T>.SortLR(ACompareFunc: TCompareFunction<T>; ALeft, ARight: Integer);
-var
-  Pivot: T;
-  L, R: Integer;
-begin
-  Pivot := FItems[(ALeft + ARight) div 2];
-  L := ALeft;
-  R := ARight;
-  repeat
-    while ACompareFunc(Pivot, FItems[L]) do
-      Inc(L);
-    while ACompareFunc(FItems[R], Pivot) do
-      Dec(R);
-    if L <= R then
-    begin
-      Swap(L, R);
-      Inc(L);
-      Dec(R);
-    end;
-  until L > R;
-  if R > ALeft then
-    SortLR(ACompareFunc, ALeft, R);
-  if L < ARight then
-    SortLR(ACompareFunc, L, ARight);
-end;
-
-constructor TGenericArray<T>.Create(ASizeSteps: Integer);
-begin
-  FSizeSteps := ASizeSteps;
-end;
-
-function TGenericArray<T>.Add(AElement: T): T;
-begin
-  if Count + 1 > Length(FItems) then
-    SetLength(FItems, Length(FItems) + FSizeSteps);
-  FItems[FCount] := AElement;
-  Inc(FCount);
-  Result := AElement;
-end;
-
-function TGenericArray<T>.Insert(AElement: T; AIndex: Integer): T;
-begin
-  if Count + 1 > Length(FItems) then
-    SetLength(FItems, Length(FItems) + FSizeSteps);
-  Move(FItems[AIndex], FItems[AIndex + 1], SizeOf(T) * (Count - AIndex));
-  FItems[AIndex] := AElement;
-  Inc(FCount);
-  Result := AElement;
-end;
-
-procedure TGenericArray<T>.DelLast;
-begin
-  DelAt(Count - 1);
-end;
-
-destructor TGenericArray<T>.Destroy;
-begin
-  DelAll;
-  inherited;
-end;
-
-procedure TGenericArray<T>.DelAll;
-begin
-  FCount := 0;
-  SetLength(FItems, 0);
-end;
-
-procedure TGenericArray<T>.DelAt(AIndex: Integer);
-begin
-  RangeCheckException(AIndex);
-  if Count - AIndex > 1 then
-    Move(FItems[AIndex + 1], FItems[AIndex], SizeOf(T) * (Count - AIndex - 1));
-  Dec(FCount);
-  if Length(FItems) - FSizeSteps >= FCount then
-    SetLength(FItems, Length(FItems) - FSizeSteps);
-end;
-
-procedure TGenericArray<T>.Swap(A, B: Integer);
-var
-  Tmp: T;
-begin
-  RangeCheckException(A);
-  RangeCheckException(B);
-  Tmp := FItems[A];
-  FItems[A] := FItems[B];
-  FItems[B] := Tmp;
-end;
-
-function TGenericArray<T>.FindFirstIndex(AFunc: TFindFunctionStatic<T>): Integer;
-var
-  I: Integer;
-begin
-  for I := 0 to Count - 1 do
-    if AFunc(FItems[I]) then
-      Exit(I);
-  Result := -1;
-end;
-
-function TGenericArray<T>.FindFirstIndex(AFunc: TFindFunctionOfObject<T>): Integer;
-var
-  I: Integer;
-begin
-  for I := 0 to Count - 1 do
-    if AFunc(FItems[I]) then
-      Exit(I);
-  Result := -1;
-end;
-
-function TGenericArray<T>.FindFirstIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): Integer;
-var
-  I: Integer;
-begin
-  Result := -1;
-  for I := 0 to Count - 1 do
-    if AFunc.Find(FItems[I]) then
-      Result := I;
-  if ADoFree then
-    AFunc.Free;
-end;
-
-function TGenericArray<T>.FindFirst(AFunc: TFindFunctionStatic<T>): T;
-var
-  I: Integer;
-begin
-  I := FindFirstIndex(AFunc);
-  if I = -1 then
-    raise EGenericArrayItemNotFound.Create;
-  Result := FItems[I];
-end;
-
-function TGenericArray<T>.FindFirst(AFunc: TFindFunctionOfObject<T>): T;
-var
-  I: Integer;
-begin
-  I := FindFirstIndex(AFunc);
-  if I = -1 then
-    raise EGenericArrayItemNotFound.Create;
-  Result := FItems[I];
-end;
-
-function TGenericArray<T>.FindFirst(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): T;
-var
-  I: Integer;
-begin
-  I := FindFirstIndex(AFunc, ADoFree);
-  if I = -1 then
-    raise EGenericArrayItemNotFound.Create;
-  Result := FItems[I];
-end;
-
-function TGenericArray<T>.FindLastIndex(AFunc: TFindFunctionStatic<T>): Integer;
-var
-  I: Integer;
-begin
-  for I := Count - 1 downto 0 do
-    if AFunc(FItems[I]) then
-      Exit(I);
-  Result := -1;
-end;
-
-function TGenericArray<T>.FindLastIndex(AFunc: TFindFunctionOfObject<T>): Integer;
-var
-  I: Integer;
-begin
-  for I := Count - 1 downto 0 do
-    if AFunc(FItems[I]) then
-      Exit(I);
-  Result := -1;
-end;
-
-function TGenericArray<T>.FindLastIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): Integer;
-var
-  I: Integer;
-begin
-  for I := Count - 1 downto 0 do
-    if AFunc.Find(FItems[I]) then
-      Exit(I);
-  Result := -1;
-  if ADoFree then
-    AFunc.Free;
-end;
-
-function TGenericArray<T>.FindLast(AFunc: TFindFunctionStatic<T>): T;
-var
-  I: Integer;
-begin
-  I := FindLastIndex(AFunc);
-  if I = -1 then
-    raise EGenericArrayItemNotFound.Create;
-  Result := FItems[I];
-end;
-
-function TGenericArray<T>.FindLast(AFunc: TFindFunctionOfObject<T>): T;
-var
-  I: Integer;
-begin
-  I := FindLastIndex(AFunc);
-  if I = -1 then
-    raise EGenericArrayItemNotFound.Create;
-  Result := FItems[I];
-end;
-
-function TGenericArray<T>.FindLast(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): T;
-var
-  I: Integer;
-begin
-  I := FindLastIndex(AFunc, ADoFree);
-  if I = -1 then
-    raise EGenericArrayItemNotFound.Create;
-  Result := FItems[I];
-end;
-
-function TGenericArray<T>.FindIndexAsArray(AFunc: TFindFunctionStatic<T>): TIntArray;
-var
-  I: Integer;
-begin
-  Result := TIntArray.Create;
-  for I := 0 to Count - 1 do
-    if AFunc(FItems[I]) then
-      Result.Add(I);
-end;
-
-function TGenericArray<T>.FindIndexAsArray(AFunc: TFindFunctionOfObject<T>): TIntArray;
-var
-  I: Integer;
-begin
-  Result := TIntArray.Create;
-  for I := 0 to Count - 1 do
-    if AFunc(FItems[I]) then
-      Result.Add(I);
-end;
-
-function TGenericArray<T>.FindIndexAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): TIntArray;
-var
-  I: Integer;
-begin
-  Result := TIntArray.Create;
-  for I := 0 to Count - 1 do
-    if AFunc.Find(FItems[I]) then
-      Result.Add(I);
-  if ADoFree then
-    AFunc.Free;
-end;
-
-function TGenericArray<T>.FindAsArray(AFunc: TFindFunctionStatic<T>): TGenericArray<T>;
-var
-  I: Integer;
-begin
-  Result := TGenericArray<T>.Create;
-  for I := 0 to Count - 1 do
-    if AFunc(FItems[I]) then
-      Result.Add(FItems[I]);
-end;
-
-function TGenericArray<T>.FindAsArray(AFunc: TFindFunctionOfObject<T>): TGenericArray<T>;
-var
-  I: Integer;
-begin
-  Result := TGenericArray<T>.Create;
-  for I := 0 to Count - 1 do
-    if AFunc(FItems[I]) then
-      Result.Add(FItems[I]);
-end;
-
-function TGenericArray<T>.FindAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): TGenericArray<T>;
-var
-  I: Integer;
-begin
-  Result := TGenericArray<T>.Create;
-  for I := 0 to Count - 1 do
-    if AFunc.Find(FItems[I]) then
-      Result.Add(FItems[I]);
-  if ADoFree then
-    AFunc.Free;
-end;
-
-function TGenericArray<T>.Copy: TGenericArray<T>;
-var
-  I: Integer;
-begin
-  Result := TGenericArray<T>.Create(FSizeSteps);
-  for I := 0 to Count - 1 do
-    Result.Add(FItems[I]);
+  Result := CreateCopy;
 end;
 
-function TGenericArray<T>.Count: Integer;
+function TArray.Count: Integer;
 begin
   Result := FCount;
 end;
 
-function TGenericArray<T>.Empty: Boolean;
+function TArray.CountOptimized: Boolean;
+begin
+  Result := True;
+end;
+
+constructor TArray.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  GrowAmount := AGrowAmount;
+  ShrinkRetain := AShrinkRetain;
+end;
+
+function TArray.CreateSame(AGrowAmount, AShrinkRetain: Integer): TArray;
+begin
+  Result := TArrayClass(ClassType).Create(AGrowAmount, AShrinkRetain);
+end;
+
+destructor TArray.Destroy;
+begin
+  if ShouldFreeItems then
+    Clear;
+  inherited;
+end;
+
+function TArray.Empty: Boolean;
 begin
   Result := Count = 0;
 end;
 
-function TGenericArray<T>.First: T;
+procedure TArray.ForceCount(ACount: Integer);
 begin
-  if Count = 0 then
-    raise EGenericArrayEmpty.Create;
-  Result := FItems[0];
+  FCount := ACount;
 end;
 
-function TGenericArray<T>.Last: T;
+procedure TArray.RemoveLast;
 begin
-  if Count = 0 then
-    raise EGenericArrayEmpty.Create;
-  Result := FItems[Count - 1];
+  RemoveAt(MaxIndex);
 end;
 
-function TGenericArray<T>.DataPointer: Pointer;
+procedure TArray.AfterSort;
 begin
-  Result := FItems;
+  // nothing by default
 end;
 
-function TGenericArray<T>.GetEnumerator: IIterator<T>;
+procedure TArray.BeforeSort;
 begin
-  Result := TIterator.Create(Self, False);
+  // nothing by default
 end;
 
-function TGenericArray<T>.IterReversed: TReverseWrapper;
+procedure TArray.Clear(AZeroCapacity: Boolean);
+var
+  I: Integer;
 begin
-  Result := TReverseWrapper.Create(Self);
+  if ShouldFreeItems then
+    for I := 0 to MaxIndex do
+      ItemRemoved(I);
+  if AZeroCapacity then
+    Capacity := 0
+  else
+    FCount := 0;
 end;
 
-procedure TGenericArray<T>.RangeCheckException(AIndex: Integer);
+function TArray.MaxIndex: Integer;
+begin
+  Result := FCount - 1;
+end;
+
+function TArray.RangeCheck(AIndex: Integer): Boolean;
+begin
+  Result := AIndex in IBounds1(Count);
+end;
+
+procedure TArray.Swap(A, B: Integer);
+begin
+  RangeCheckException(A);
+  RangeCheckException(B);
+  SwapUnchecked(A, B);
+end;
+
+procedure TArray.RangeCheckException(AIndex: Integer);
 begin
   if not RangeCheck(AIndex) then
-    EGenericArrayRangeError.Create(AIndex, Count);
+    raise EArrayRangeError.Create;
 end;
 
-function TGenericArray<T>.RangeCheck(AIndex: Integer): Boolean;
+function TArray.Reader: TReader;
 begin
-  Result := (AIndex >= 0) and (AIndex < Count);
+  Result := TReader(Self);
 end;
 
-procedure TGenericArray<T>.Append(AItems: IIterable<T>);
-var
-  AddCount: Integer;
-  Item: T;
+procedure TArray.SetGrowAmount(const Value: Integer);
 begin
-  AddCount := AItems.Count;
-  if Count + AddCount > Length(FItems) then
-    SetLength(FItems, FSizeSteps * Ceil((Count + AddCount) / FSizeSteps));
-  for Item in AItems do
-  begin
-    FItems[FCount] := Item;
-    Inc(FCount);
-  end;
+  if Value < 0 then
+    raise EArrayInvalidGrowAmount.Create;
+  FGrowAmount := Value;
 end;
 
-{ TClassMap }
-
-function TClassMap<T>.GetKeyHash(AKey: TClass): Cardinal;
+procedure TArray.SetShrinkRetain(const Value: Integer);
 begin
-  Result := GetHash(TObject(AKey), FInternalSize);
+  if Value < 0 then
+    raise EArrayInvalidShrinkRetain.Create;
+  FShrinkRetain := Value;
 end;
 
-class function TClassMap<T>.CantIndex(AKey: TClass): Boolean;
-begin
-  Result := AKey = nil;
-end;
-
-class function TClassMap<T>.KeysEqual(AKey1, AKey2: TClass): Boolean;
-begin
-  Result := AKey1 = AKey2;
-end;
-
-{ TClassRefMap }
-
-function TClassRefMap<T>.GetOrNil(AKey: TClass): T;
-begin
-  if not Get(AKey, Result) then
-    Result := nil;
-end;
-
-{ TClassObjectMap }
-
-procedure TClassObjectMap<T>.FreeData(AData: T);
-begin
-  AData.Free;
-end;
-
-{ TCardinalSet }
-
-function TCardinalSet.GetKeyHash(AKey: Cardinal): Cardinal;
-begin
-  Result := AKey mod FInternalSize;
-end;
-
-class function TCardinalSet.CantIndex(AKey: Cardinal): Boolean;
+function TArray.ShouldFreeItems: Boolean;
 begin
   Result := False;
 end;
 
-class function TCardinalSet.KeysEqual(AKey1, AKey2: Cardinal): Boolean;
-begin
-  Result := AKey1 = AKey2;
-end;
-
-{ TIntArray }
-
-function TIntArray.Bounds: TIntBounds1;
-begin
-  Result := Range1(Min, Max);
-end;
-
-function TIntArray.Difference: Integer;
-begin
-  Result := Bounds.Length;
-end;
-
-function TIntArray.Max: Integer;
+procedure TArray.Shuffle;
 var
   I: Integer;
 begin
-  Result := Result.MinValue;
-  for I in Self do
-    Result := Math.Max(Result, I);
+  for I := MaxIndex downto 0 do
+    SwapUnchecked(Random(I + 1), I);
 end;
 
-function TIntArray.Min: Integer;
-var
-  I: Integer;
+procedure TArray.ItemRemoved(AIndex: Integer);
 begin
-  Result := Result.MaxValue;
-  for I in Self do
-    Result := Math.Min(Result, I);
+  // only called if ShouldFreeItems returns True
 end;
 
-function TIntArray.Sum: Integer;
-var
-  I: Integer;
-begin
-  Result := 0;
-  for I in Self do
-    Result := Result + I;
-end;
+{ TArray<T>.TIterator }
 
-function TIntArray.ToString: string;
-var
-  I: Integer;
-begin
-  if Count = 0 then
-    Exit('Empty');
-  Result := IntToStr(FItems[0]);
-  for I := 1 to Count - 1 do
-    Result := Result + ', ' + IntToStr(FItems[I]);
-end;
-
-{ TTags }
-
-function TTags.GetKeyHash(AKey: string): Cardinal;
-begin
-  Result := GetHash(AKey, FInternalSize);
-end;
-
-class function TTags.CantIndex(AKey: string): Boolean;
-begin
-  Result := AKey = '';
-end;
-
-class function TTags.KeysEqual(AKey1, AKey2: string): Boolean;
-begin
-  Result := AKey1 = AKey2;
-end;
-
-{ TSet<T>.TIterator }
-
-function TSet<T>.TIterator.GetCurrent: T;
-begin
-  Result := FEntry.Data;
-end;
-
-constructor TSet<T>.TIterator.Create(AList: TSet<T>);
-begin
-  FList := AList;
-  FIndex := -1;
-  FEntry := nil;
-end;
-
-function TSet<T>.TIterator.MoveNext: Boolean;
-begin
-  if (FIndex = -1) or (FEntry.Next = nil) then
-  begin
-    // Move to next list
-    repeat
-      Inc(FIndex);
-      if Cardinal(FIndex) = FList.FInternalSize then
-        Exit(False);
-      FEntry := FList.FTags[FIndex];
-    until (FEntry <> nil);
-  end
-  else
-  begin
-    FEntry := FEntry.Next;
-  end;
-  Result := True;
-end;
-
-{ TSet<T> }
-
-function TSet<T>.GetElement(S: T): Boolean;
-var
-  Entry: TEntry;
-begin
-  if CantIndex(S) then
-    raise Exception.Create('Invalid Set-Index');
-
-  Entry := FTags[GetKeyHash(S)];
-  while Entry <> nil do
-  begin
-    if KeysEqual(Entry.Data, S) then
-      Exit(True);
-    Entry := Entry.Next;
-  end;
-  Result := False;
-end;
-
-procedure TSet<T>.SetElement(S: T; AValue: Boolean);
-var
-  Hash: Integer;
-  Entry, EntryToDelete: TEntry;
-begin
-  if CantIndex(S) then
-    raise Exception.Create('Invalid Set-Index');
-
-  Hash := GetKeyHash(S);
-  if FTags[Hash] = nil then
-  begin
-    if AValue then
-    begin
-      // create new base entry
-      FTags[Hash] := TEntry.Create;
-      FTags[Hash].Data := S;
-      Inc(FCount);
-    end;
-    // else doesn't exist in the first place
-  end
-  else
-  begin
-    // first
-    if KeysEqual(FTags[Hash].Data, S) then
-    begin
-      if not AValue then
-      begin
-        // delete first
-        Entry := FTags[Hash].Next;
-        FreeData(FTags[Hash].Data);
-        FTags[Hash].Free;
-        FTags[Hash] := Entry;
-        Dec(FCount);
-      end;
-      Exit;
-    end;
-    // rest
-    Entry := FTags[Hash];
-    while Entry.Next <> nil do
-    begin
-      if KeysEqual(Entry.Next.Data, S) then
-      begin
-        if not AValue then
-        begin
-          // delete in rest
-          EntryToDelete := Entry.Next;
-          Entry.Next := Entry.Next.Next;
-          FreeData(EntryToDelete.Data);
-          EntryToDelete.Free;
-          Dec(FCount);
-        end;
-        // else exists already
-        Exit;
-      end;
-      Entry := Entry.Next;
-    end;
-    // not found
-    if AValue then
-    begin
-      // add
-      Entry.Next := TEntry.Create;
-      Entry.Next.Data := S;
-      Inc(FCount);
-    end;
-    // else doesn't exist in the first place
-  end;
-end;
-
-procedure TSet<T>.FreeData(const AData: T);
-begin
-  // might not do anything depending on generic Data Type
-end;
-
-constructor TSet<T>.Create(AInternalSize: Cardinal);
-begin
-  inherited Create(AInternalSize);
-  SetLength(FTags, FInternalSize);
-end;
-
-destructor TSet<T>.Destroy;
-begin
-  Clear;
-  inherited;
-end;
-
-procedure TSet<T>.Add(S: T);
-begin
-  SetElement(S, True);
-end;
-
-procedure TSet<T>.Del(S: T);
-begin
-  SetElement(S, False);
-end;
-
-procedure TSet<T>.Clear;
-var
-  I: Integer;
-  Next: TEntry;
-begin
-  for I := 0 to FInternalSize - 1 do
-  begin
-    if FCount = 0 then
-      Exit;
-    while FTags[I] <> nil do
-    begin
-      Next := FTags[I].Next;
-      FTags[I].Free;
-      FTags[I] := Next;
-      Dec(FCount);
-    end;
-  end;
-end;
-
-procedure TSet<T>.Assign(ATagList: TSet<T>);
-var
-  S: T;
-begin
-  Clear;
-  for S in ATagList do
-    Self[S] := True;
-end;
-
-function TSet<T>.GetEnumerator: TIterator;
-begin
-  Result := TIterator.Create(Self);
-end;
-
-{ TObjectStack }
-
-constructor TObjectStack<T>.Create(AReferenceList: Boolean);
-begin
-  FReferenceList := AReferenceList;
-end;
-
-destructor TObjectStack<T>.Destroy;
-begin
-  while Pop do;
-  inherited Destroy;
-end;
-
-function TObjectStack<T>.Push(AElement: T): T;
-begin
-  FTop := TItem.Create(AElement, FTop);
-  Result := FTop.Data;
-end;
-
-function TObjectStack<T>.Pop: Boolean;
-var
-  Old: TItem;
-begin
-  if FTop = nil then
-    raise Exception.Create('Cannot pop empty stack');
-  Old := FTop;
-  if not FReferenceList then
-    FTop.Data.Free;
-  FTop := FTop.Prev;
-  Result := FTop <> nil;
-  Old.Free;
-end;
-
-function TObjectStack<T>.Top: T;
-begin
-  Result := FTop.Data;
-end;
-
-function TObjectStack<T>.Copy: TObjectStack<T>;
-var
-  A, B: TItem;
-begin
-  Result := TObjectStack<T>.Create(True);
-  if FTop = nil then
-    Exit;
-  A := TItem.Create(FTop.Data, nil);
-  Result.FTop := A;
-  B := FTop;
-  while B.Prev <> nil do
-  begin
-    B := B.Prev;
-    A.Prev := TItem.Create(B.Data, nil);
-    A := A.Prev;
-  end;
-end;
-
-{ TObjectArray }
-
-function TRefArray<T>.CopyAsRefArray: TRefArray<T>;
-var
-  I: Integer;
-begin
-  Result := TRefArray<T>.Create;
-  for I := 0 to Count - 1 do
-    Result.Add(FItems[I]);
-end;
-
-function TRefArray<T>.FindAsRefArray(AFunc: TFindFunctionStatic<T>): TRefArray<T>;
-var
-  I: Integer;
-begin
-  Result := TRefArray<T>.Create;
-  for I := 0 to Count - 1 do
-    if AFunc(FItems[I]) then
-      Result.Add(FItems[I]);
-end;
-
-function TRefArray<T>.FindAsRefArray(AFunc: TFindFunctionOfObject<T>): TRefArray<T>;
-var
-  I: Integer;
-begin
-  Result := TRefArray<T>.Create;
-  for I := 0 to Count - 1 do
-    if AFunc(FItems[I]) then
-      Result.Add(FItems[I]);
-end;
-
-function TRefArray<T>.FindAsRefArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean = True): TRefArray<T>;
-var
-  I: Integer;
-begin
-  Result := TRefArray<T>.Create;
-  for I := 0 to Count - 1 do
-    if AFunc.Find(FItems[I]) then
-      Result.Add(FItems[I]);
-  if ADoFree then
-    AFunc.Free;
-end;
-
-function TRefArray<T>.Find(AData: T): Integer;
-var
-  I: Integer;
-begin
-  for I := 0 to Count - 1 do
-    if Pointer(AData) = Pointer(FItems[I]) then
-      Exit(I);
-  Result := -1;
-end;
-
-procedure TRefArray<T>.Del(AData: T);
-begin
-  DelAt(Find(AData));
-end;
-
-function TRefArray<T>.Copy: TGenericArray<T>;
-begin
-  Result := CopyAsRefArray;
-end;
-
-function TRefArray<T>.ToString: string;
-var
-  I: Integer;
-begin
-  if Count = 0 then
-    Exit('Empty');
-  Result := T(FItems[0]).ToString; // casts only necessary for delphi quick-syntaxcheck
-  for I := 1 to Count - 1 do
-    Result := Result + ', ' + T(FItems[I]).ToString;
-end;
-
-{ TAnsiStringObjectMap<TData> }
-
-procedure TAnsiStringObjectMap<TData>.FreeData(AData: TData);
-begin
-  AData.Free;
-end;
-
-{ TObjectMap<TKey, TData> }
-
-procedure TObjectMap<TKey, TData>.FreeKey(AKey: TKey);
-begin
-  AKey.Free;
-end;
-
-{ TAnsiStringMap<TData> }
-
-class function TAnsiStringMap<TData>.CantIndex(AKey: AnsiString): Boolean;
-begin
-  Result := AKey = '';
-end;
-
-function TAnsiStringMap<TData>.GetKeyHash(AKey: AnsiString): Cardinal;
-begin
-  Result := GetHash(AKey, FInternalSize);
-end;
-
-class function TAnsiStringMap<TData>.KeysEqual(AKey1, AKey2: AnsiString): Boolean;
-begin
-  Result := AKey1 = AKey2;
-end;
-
-{ TArrayList<T>.TIterator }
-
-constructor TGenericArray<T>.TIterator.Create(AList: TGenericArray<T>; AReversed: Boolean);
+constructor TArray<T>.TIterator.Create(AList: TArray<T>; AReversed: Boolean);
 begin
   FList := AList;
   FReversed := AReversed;
@@ -2123,16 +1227,16 @@ begin
     FCurrent := -1;
 end;
 
-function TGenericArray<T>.TIterator.GetCurrent: T;
+function TArray<T>.TIterator.GetCurrent: T;
 begin
   Result := FList[FCurrent];
 end;
 
-function TGenericArray<T>.TIterator.MoveNext: Boolean;
+function TArray<T>.TIterator.MoveNext: Boolean;
 begin
   if FRemoveFlag then
   begin
-    FList.DelAt(FCurrent);
+    FList.RemoveAt(FCurrent);
     FRemoveFlag := False;
   end
   else if not FReversed then
@@ -2147,345 +1251,1651 @@ begin
     Result := FCurrent <> FList.Count;
 end;
 
-procedure TGenericArray<T>.TIterator.RemoveCurrent;
+procedure TArray<T>.TIterator.RemoveCurrent;
 begin
   FRemoveFlag := True;
 end;
 
-{ EEmptyGenericArray }
+{ TArray<T>.TReverseWrapper }
 
-constructor EGenericArrayEmpty.Create;
-begin
-  inherited Create('The GenericArray does not have a first/last Element as it is empty');
-end;
-
-{ EGenericArrayRangeError }
-
-constructor EGenericArrayRangeError.Create(AIndex, ACount: Integer);
-begin
-  inherited CreateFmt('GenericArray Index %d out of bounds [0 - %d]', [AIndex, ACount - 1]);
-end;
-
-{ EGenericArrayItemNotFound }
-
-constructor EGenericArrayItemNotFound.Create;
-begin
-  inherited Create('Could not find the Element in the GenericArray');
-end;
-
-{ TGenericArray<T>.TReverseWrapper }
-
-constructor TGenericArray<T>.TReverseWrapper.Create(AGenericArray: TGenericArray<T>);
-begin
-  FGenericArray := AGenericArray;
-end;
-
-function TGenericArray<T>.TReverseWrapper.GetEnumerator(AAutoFree: Boolean): TIterator;
-begin
-  Result := TGenericArray<T>.TIterator.Create(FGenericArray, True);
-end;
-
-{ TObjectArray<T> }
-
-procedure TObjectArray<T>.DelAll;
+function TArray<T>.TReverseWrapper.Copy: TArray<T>;
 var
   Item: T;
 begin
-  for Item in Self do
-    Item.Free;
-  inherited;
-end;
-
-procedure TObjectArray<T>.DelAt(AIndex: Integer);
-begin
-  Items[AIndex].Free;
-  inherited;
-end;
-
-{ TInterfaceArray<T> }
-
-function TInterfaceArray<T>.Copy: TGenericArray<T>;
-begin
-  Result := CopyAsInterfaceArray;
-end;
-
-function TInterfaceArray<T>.CopyAsInterfaceArray: TInterfaceArray<T>;
-var
-  Item: T;
-begin
-  Result := TInterfaceArray<T>.Create;
+  Result := TArray<T>(FArray.CreateSame(FArray.GrowAmount, FArray.ShrinkRetain));
   for Item in Self do
     Result.Add(Item);
 end;
 
-procedure TInterfaceArray<T>.Del(AData: T);
+constructor TArray<T>.TReverseWrapper.Create(AArray: TArray<T>);
 begin
-  DelAt(Find(AData));
+  FArray := AArray;
 end;
 
-function TInterfaceArray<T>.Find(AData: T): Integer;
+function TArray<T>.TReverseWrapper.GetEnumerator(AAutoFree: Boolean): TIterator;
+begin
+  Result := TArray<T>.TIterator.Create(FArray, True);
+end;
+
+{ TArray<T>.TSorterBase }
+
+function TArray<T>.TSorterBase.Bounds: TIntBounds1;
+begin
+  Result := IBounds1(FArray.Count);
+end;
+
+procedure TArray<T>.TSorterBase.SavePivot(I: Integer);
+begin
+  FPivot := FArray[I];
+end;
+
+procedure TArray<T>.TSorterBase.Swap(A, B: Integer);
+begin
+  FArray.SwapUnchecked(A, B);
+end;
+
+constructor TArray<T>.TSorterBase.Create(AArray: TArray<T>);
+begin
+  FArray := AArray;
+  FArray.BeforeSort;
+end;
+
+destructor TArray<T>.TSorterBase.Destroy;
+begin
+  FArray.AfterSort;
+  inherited;
+end;
+
+{ TArray<T>.TSorterStatic }
+
+function TArray<T>.TSorterStatic.AfterPivot(I: Integer): Boolean;
+begin
+  Result := FFunc(FPivot, FArray[I]);
+end;
+
+function TArray<T>.TSorterStatic.BeforePivot(I: Integer): Boolean;
+begin
+  Result := FFunc(FArray[I], FPivot);
+end;
+
+constructor TArray<T>.TSorterStatic.Create(AArray: TArray<T>; AFunc: TCompareFuncStatic<T>);
+begin
+  inherited Create(AArray);
+  FFunc := AFunc;
+end;
+
+{ TArray<T>.TSorterRef }
+
+function TArray<T>.TSorterRef.AfterPivot(I: Integer): Boolean;
+begin
+  Result := FFunc(FPivot, FArray[I]);
+end;
+
+function TArray<T>.TSorterRef.BeforePivot(I: Integer): Boolean;
+begin
+  Result := FFunc(FArray[I], FPivot);
+end;
+
+constructor TArray<T>.TSorterRef.Create(AArray: TArray<T>; AFunc: TCompareFuncRef<T>);
+begin
+  inherited Create(AArray);
+  FFunc := AFunc;
+end;
+
+{ TArray<T>.TSorter }
+
+function TArray<T>.TSorter.AfterPivot(I: Integer): Boolean;
+begin
+  Result := FFunc(FPivot, FArray[I]);
+end;
+
+function TArray<T>.TSorter.BeforePivot(I: Integer): Boolean;
+begin
+  Result := FFunc(FArray[I], FPivot);
+end;
+
+constructor TArray<T>.TSorter.Create(AArray: TArray<T>; AFunc: TCompareFunc<T>);
+begin
+  inherited Create(AArray);
+  FFunc := AFunc;
+end;
+
+{ TArray<T> }
+
+function TArray<T>.GetCapacity: Integer;
+begin
+  Result := Length(FItems);
+end;
+
+procedure TArray<T>.SetCapacity(const Value: Integer);
+begin
+  if Value < 0 then
+    raise EArrayNegativeCapacity.Create;
+  SetLength(FItems, Value);
+  FCount := Min(Count, Capacity);
+end;
+
+function TArray<T>.GetItem(AIndex: Integer): T;
+begin
+  RangeCheckException(AIndex);
+  Result := FItems[AIndex];
+end;
+
+procedure TArray<T>.SetIndex(ASource, ADestination: Integer);
+var
+  Tmp: T;
+begin
+  RangeCheckException(ASource);
+  if ASource = ADestination then
+    Exit;
+  RangeCheckException(ADestination);
+  Tmp := Items[ASource];
+  if ASource < ADestination then
+    Move(FItems[ASource + SizeOf(T)], FItems[ASource], SizeOf(T) * (ADestination - ASource))
+  else
+    Move(FItems[ADestination], FItems[ADestination + SizeOf(T)], SizeOf(T) * (ASource - ADestination));
+  Items[ADestination] := Tmp;
+end;
+
+procedure TArray<T>.SetItem(AIndex: Integer; AValue: T);
+begin
+  RangeCheckException(AIndex);
+  if ShouldFreeItems then
+    ItemRemoved(AIndex);
+  FItems[AIndex] := AValue;
+end;
+
+function TArray<T>.GetFirst: T;
+begin
+  if Empty then
+    raise EArrayEmpty.Create;
+  Result := FItems[0];
+end;
+
+procedure TArray<T>.SetFirst(const Value: T);
+begin
+  if Empty then
+    raise EArrayEmpty.Create;
+  FItems[0] := Value;
+end;
+
+function TArray<T>.GetLast: T;
+begin
+  if Empty then
+    raise EArrayEmpty.Create;
+  Result := FItems[MaxIndex];
+end;
+
+procedure TArray<T>.SetLast(const Value: T);
+begin
+  if Empty then
+    raise EArrayEmpty.Create;
+  FItems[MaxIndex] := Value;
+end;
+
+function TArray<T>.Add(AItem: T): T;
+begin
+  if Count + 1 > Capacity then
+    Capacity := Capacity + FGrowAmount;
+  FItems[FCount] := AItem;
+  Inc(FCount);
+  Result := AItem;
+end;
+
+function TArray<T>.Insert(AItem: T; AIndex: Integer): T;
+begin
+  if AIndex = Count then
+  begin
+    Add(AItem);
+    Exit;
+  end;
+  RangeCheckException(AIndex);
+  if Count + 1 > Capacity then
+    Capacity := Capacity + FGrowAmount;
+  Finalize(FItems[Count]);
+  Move(FItems[AIndex], FItems[AIndex + 1], SizeOf(T) * (Count - AIndex));
+  Initialize(FItems[AIndex]);
+  FItems[AIndex] := AItem;
+  Inc(FCount);
+  Result := AItem;
+end;
+
+procedure TArray<T>.RemoveAt(AIndex: Integer);
+var
+  Tmp: T;
+begin
+  RangeCheckException(AIndex);
+  if ShouldFreeItems then
+    ItemRemoved(AIndex);
+  if Count - AIndex > 1 then
+  begin
+    // move the deleted element at the end, so that it will get cleaned up correctly (in other words DON'T TOUCH)
+    Tmp := FItems[AIndex];
+    Move(FItems[AIndex + 1], FItems[AIndex], SizeOf(T) * (Count - AIndex - 1));
+    Move(Tmp, FItems[MaxIndex], SizeOf(T));
+  end;
+  Dec(FCount);
+  if Count <= Capacity - FGrowAmount - ShrinkRetain then
+    Capacity := Capacity - FGrowAmount;
+end;
+
+procedure TArray<T>.Add(AItems: IEnumerable<T>);
+var
+  Item: T;
+begin
+  for Item in AItems do
+    Add(Item);
+end;
+
+procedure TArray<T>.SwapUnchecked(A, B: Integer);
+var
+  Tmp: T;
+begin
+  Tmp := FItems[A];
+  FItems[A] := FItems[B];
+  FItems[B] := Tmp;
+end;
+
+function TArray<T>.FindFirstIndex(AFunc: TFindFuncStatic<T>): Integer;
 var
   I: Integer;
 begin
-  for I := 0 to Count - 1 do
-    if IInterface(Items[I]) = IInterface(AData) then
+  for I := 0 to MaxIndex do
+    if AFunc(FItems[I]) then
       Exit(I);
   Result := -1;
 end;
 
-{ TGenericArrayReader<T> }
-
-function TGenericArrayReader<T>.Copy: TGenericArray<T>;
+function TArray<T>.FindFirstIndex(AFunc: TFindFuncRef<T>): Integer;
+var
+  I: Integer;
 begin
-  Result := FGenericArray.Copy;  
+  for I := 0 to MaxIndex do
+    if AFunc(FItems[I]) then
+      Exit(I);
+  Result := -1;
 end;
 
-constructor TGenericArrayReader<T>.Create(AGenericArray: TGenericArray<T>);
+function TArray<T>.FindFirstIndex(AFunc: TFindFunc<T>): Integer;
+var
+  I: Integer;
 begin
-  FGenericArray := AGenericArray;
+  for I := 0 to MaxIndex do
+    if AFunc(FItems[I]) then
+      Exit(I);
+  Result := -1;
 end;
 
-function TGenericArrayReader<T>.Empty: Boolean;
+function TArray<T>.FindFirst(AFunc: TFindFuncStatic<T>): T;
+var
+  I: Integer;
 begin
-  Result := FGenericArray.Empty;
+  I := FindFirstIndex(AFunc);
+  if I = -1 then
+    raise EArrayItemNotFound.Create;
+  Result := FItems[I];
 end;
 
-function TGenericArrayReader<T>.FindAsArray(AFunc: TFindFunctionStatic<T>): TGenericArray<T>;
+function TArray<T>.FindFirst(AFunc: TFindFuncRef<T>): T;
+var
+  I: Integer;
 begin
-  Result := FGenericArray.FindAsArray(AFunc);
+  I := FindFirstIndex(AFunc);
+  if I = -1 then
+    raise EArrayItemNotFound.Create;
+  Result := FItems[I];
 end;
 
-function TGenericArrayReader<T>.FindAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): TGenericArray<T>;
+function TArray<T>.FindFirst(AFunc: TFindFunc<T>): T;
+var
+  I: Integer;
 begin
-  Result := FGenericArray.FindAsArray(AFunc, ADoFree);
+  I := FindFirstIndex(AFunc);
+  if I = -1 then
+    raise EArrayItemNotFound.Create;
+  Result := FItems[I];
 end;
 
-function TGenericArrayReader<T>.FindAsArray(AFunc: TFindFunctionOfObject<T>): TGenericArray<T>;
+function TArray<T>.FindLastIndex(AFunc: TFindFuncStatic<T>): Integer;
+var
+  I: Integer;
 begin
-  Result := FGenericArray.FindAsArray(AFunc);
+  for I := MaxIndex downto 0 do
+    if AFunc(FItems[I]) then
+      Exit(I);
+  Result := -1;
 end;
 
-function TGenericArrayReader<T>.FindFirst(AFunc: TFindFunctionOfObject<T>): T;
-begin                                        
-  Result := FGenericArray.FindFirst(AFunc);
-end;
-
-function TGenericArrayReader<T>.FindFirst(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): T;
-begin                              
-  Result := FGenericArray.FindFirst(AFunc, ADoFree);
-end;
-
-function TGenericArrayReader<T>.FindFirst(AFunc: TFindFunctionStatic<T>): T;
-begin                               
-  Result := FGenericArray.FindFirst(AFunc);
-end;
-
-function TGenericArrayReader<T>.FindFirstIndex(AFunc: TFindFunctionOfObject<T>): Integer;
-begin                               
-  Result := FGenericArray.FindFirstIndex(AFunc);
-end;
-
-function TGenericArrayReader<T>.FindFirstIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): Integer;
-begin                                     
-  Result := FGenericArray.FindFirstIndex(AFunc, ADoFree);
-end;
-
-function TGenericArrayReader<T>.FindFirstIndex(AFunc: TFindFunctionStatic<T>): Integer;
+function TArray<T>.FindLastIndex(AFunc: TFindFuncRef<T>): Integer;
+var
+  I: Integer;
 begin
-  Result := FGenericArray.FindFirstIndex(AFunc);
+  for I := MaxIndex downto 0 do
+    if AFunc(FItems[I]) then
+      Exit(I);
+  Result := -1;
 end;
 
-function TGenericArrayReader<T>.FindIndexAsArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): TIntArray;
-begin                                           
-  Result := FGenericArray.FindIndexAsArray(AFunc, True);
-end;
-
-function TGenericArrayReader<T>.FindIndexAsArray(AFunc: TFindFunctionOfObject<T>): TIntArray;
-begin                                             
-  Result := FGenericArray.FindIndexAsArray(AFunc);
-end;
-
-function TGenericArrayReader<T>.FindIndexAsArray(AFunc: TFindFunctionStatic<T>): TIntArray;
-begin                                              
-  Result := FGenericArray.FindIndexAsArray(AFunc);
-end;
-
-function TGenericArrayReader<T>.FindLast(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): T;
-begin                                  
-  Result := FGenericArray.FindLast(AFunc, ADoFree);
-end;
-
-function TGenericArrayReader<T>.FindLast(AFunc: TFindFunctionOfObject<T>): T;
-begin                                         
-  Result := FGenericArray.FindLast(AFunc);
-end;
-
-function TGenericArrayReader<T>.FindLast(AFunc: TFindFunctionStatic<T>): T;
-begin                             
-  Result := FGenericArray.FindLast(AFunc);
-end;
-
-function TGenericArrayReader<T>.FindLastIndex(AFunc: TFindFunctionOfObject<T>): Integer;
-begin                                                
-  Result := FGenericArray.FindLastIndex(AFunc);
-end;
-
-function TGenericArrayReader<T>.FindLastIndex(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): Integer;
-begin                                                
-  Result := FGenericArray.FindLastIndex(AFunc, ADoFree);
-end;
-
-function TGenericArrayReader<T>.FindLastIndex(AFunc: TFindFunctionStatic<T>): Integer;
-begin                                                       
-  Result := FGenericArray.FindLastIndex(AFunc);
-end;
-
-function TGenericArrayReader<T>.First: T;
-begin                              
-  Result := FGenericArray.First;
-end;
-
-function TGenericArrayReader<T>.Count: Integer;
+function TArray<T>.FindLastIndex(AFunc: TFindFunc<T>): Integer;
+var
+  I: Integer;
 begin
-  Result := FGenericArray.Count;
+  for I := MaxIndex downto 0 do
+    if AFunc(FItems[I]) then
+      Exit(I);
+  Result := -1;
 end;
 
-function TGenericArrayReader<T>.GetItem(I: Integer): T;
+procedure TArray<T>.ForEach(AFunc: TForEachProcStatic<T>);
+var
+  AItem: T;
 begin
-  Result := FGenericArray.Items[I];
+  for AItem in Self do
+    AFunc(AItem);
 end;
 
-function TGenericArrayReader<T>.GetEnumerator: IIterator<T>;
+procedure TArray<T>.ForEach(AFunc: TForEachProcRef<T>);
+var
+  AItem: T;
 begin
-  Result := FGenericArray.GetEnumerator;
+  for AItem in Self do
+    AFunc(AItem);
 end;
 
-function TGenericArrayReader<T>.IterReversed: TGenericArray<T>.TReverseWrapper;
+procedure TArray<T>.ForEach(AFunc: TForEachProc<T>);
+var
+  AItem: T;
 begin
-  Result := FGenericArray.IterReversed;
+  for AItem in Self do
+    AFunc(AItem);
 end;
 
-function TGenericArrayReader<T>.Last: T;
+function TArray<T>.ForEach<R>(AFunc: TForEachFuncStatic<T, R>): TArray<R>;
+var
+  I: Integer;
 begin
-  Result := FGenericArray.Last;
+  Result := TArray<R>.Create;
+  Result.Capacity := Count;
+  Result.ForceCount(Count);
+  for I := 0 to MaxIndex do
+    Result[I] := AFunc(Self[I]);
 end;
 
-function TGenericArrayReader<T>.RangeCheck(AIndex: Integer): Boolean;
+function TArray<T>.ForEach<R>(AFunc: TForEachFuncRef<T, R>): TArray<R>;
+var
+  I: Integer;
 begin
-  Result := FGenericArray.RangeCheck(AIndex);
+  Result := TArray<R>.Create;
+  Result.Capacity := Count;
+  Result.ForceCount(Count);
+  for I := 0 to MaxIndex do
+    Result[I] := AFunc(Self[I]);
 end;
 
-procedure TGenericArrayReader<T>.RangeCheckException(AIndex: Integer);
-begin                                        
-  FGenericArray.RangeCheckException(AIndex);
-end;
-
-function TGenericArrayReader<T>.ToString: string;
+function TArray<T>.ForEach<R>(AFunc: TForEachFunc<T, R>): TArray<R>;
+var
+  I: Integer;
 begin
-  Result := FGenericArray.ToString;
+  Result := TArray<R>.Create;
+  Result.Capacity := Count;
+  Result.ForceCount(Count);
+  for I := 0 to MaxIndex do
+    Result[I] := AFunc(Self[I]);
 end;
 
-{ TIntArrayReader }
-
-function TIntArrayReader.Bounds: TIntBounds1;
+function TArray<T>.FindLast(AFunc: TFindFuncStatic<T>): T;
+var
+  I: Integer;
 begin
-  Result := TIntArray(FGenericArray).Bounds;
+  I := FindLastIndex(AFunc);
+  if I = -1 then
+    raise EArrayItemNotFound.Create;
+  Result := FItems[I];
 end;
 
-constructor TIntArrayReader.Create(AIntArray: TIntArray);
+function TArray<T>.FindLast(AFunc: TFindFuncRef<T>): T;
+var
+  I: Integer;
 begin
-  inherited Create(AIntArray);
+  I := FindLastIndex(AFunc);
+  if I = -1 then
+    raise EArrayItemNotFound.Create;
+  Result := FItems[I];
 end;
 
-function TIntArrayReader.Difference: Integer;
+function TArray<T>.FindLast(AFunc: TFindFunc<T>): T;
+var
+  I: Integer;
 begin
-  Result := TIntArray(FGenericArray).Difference;
+  I := FindLastIndex(AFunc);
+  if I = -1 then
+    raise EArrayItemNotFound.Create;
+  Result := FItems[I];
 end;
 
-function TIntArrayReader.Max: Integer;
-begin                                           
-  Result := TIntArray(FGenericArray).Max;
-end;
-
-function TIntArrayReader.Min: Integer;
-begin                                   
-  Result := TIntArray(FGenericArray).Min;
-end;
-
-function TIntArrayReader.Sum: Integer;
-begin                                   
-  Result := TIntArray(FGenericArray).Sum;
-end;
-
-{ TRefArrayReader<T> }
-
-function TRefArrayReader<T>.CopyAsRefArray: TRefArray<T>;
+function TArray<T>.FindIndexAsArray(AFunc: TFindFuncStatic<T>): TIntArray;
+var
+  I: Integer;
 begin
-  Result := TRefArray<T>(FGenericArray).CopyAsRefArray;
+  Result := TIntArray.Create;
+  for I := 0 to MaxIndex do
+    if AFunc(FItems[I]) then
+      Result.Add(I);
 end;
 
-constructor TRefArrayReader<T>.Create(ARefArray: TRefArray<T>);
+function TArray<T>.FindIndexAsArray(AFunc: TFindFuncRef<T>): TIntArray;
+var
+  I: Integer;
 begin
-  inherited Create(ARefArray);
+  Result := TIntArray.Create;
+  for I := 0 to MaxIndex do
+    if AFunc(FItems[I]) then
+      Result.Add(I);
 end;
 
-function TRefArrayReader<T>.Find(AData: T): Integer;
+function TArray<T>.FindIndexAsArray(AFunc: TFindFunc<T>): TIntArray;
+var
+  I: Integer;
 begin
-  Result := TRefArray<T>(FGenericArray).Find(AData);
+  Result := TIntArray.Create;
+  for I := 0 to MaxIndex do
+    if AFunc(FItems[I]) then
+      Result.Add(I);
 end;
 
-function TRefArrayReader<T>.FindAsRefArray(AFunc: TFindFunctionClass<T>; ADoFree: Boolean): TRefArray<T>;
-begin                                    
-  Result := TRefArray<T>(FGenericArray).FindAsRefArray(AFunc, ADoFree);
-end;
-
-function TRefArrayReader<T>.FindAsRefArray(AFunc: TFindFunctionOfObject<T>): TRefArray<T>;
-begin                                                                  
-  Result := TRefArray<T>(FGenericArray).FindAsRefArray(AFunc);
-end;
-
-function TRefArrayReader<T>.FindAsRefArray(AFunc: TFindFunctionStatic<T>): TRefArray<T>;
-begin                                                       
-  Result := TRefArray<T>(FGenericArray).FindAsRefArray(AFunc);
-end;
-
-{ TInterfaceArrayReader<T> }
-
-function TInterfaceArrayReader<T>.CopyAsInterfaceArray: TInterfaceArray<T>;
-begin                    
-  Result := TInterfaceArray<T>(FGenericArray).CopyAsInterfaceArray;
-end;
-
-constructor TInterfaceArrayReader<T>.Create(AInterfaceArray: TInterfaceArray<T>);
+function TArray<T>.FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>;
+var
+  Item: T;
 begin
-  inherited Create(AInterfaceArray);
+  Result := TArray<T>(CreateSame);
+  for Item in Self do
+    if AFunc(Item) then
+      Result.Add(Item);
 end;
 
-function TInterfaceArrayReader<T>.Find(AData: T): Integer;
-begin                                                                    
-  Result := TInterfaceArray<T>(FGenericArray).Find(AData);
-end;
-
-{ TRefObjectMap<TKey, TData> }
-
-procedure TRefObjectMap<TKey, TData>.FreeData(AData: TData);
+function TArray<T>.FindAsArray(AFunc: TFindFuncRef<T>): TArray<T>;
+var
+  Item: T;
 begin
-  AData.Free;
+  Result := TArray<T>(CreateSame);
+  for Item in Self do
+    if AFunc(Item) then
+      Result.Add(Item);
 end;
 
-{ TObjectRefMap<TKey, TData> }
-
-function TObjectRefMap<TKey, TData>.GetOrNil(AKey: TKey): TData;
+function TArray<T>.FindAsArray(AFunc: TFindFunc<T>): TArray<T>;
+var
+  Item: T;
 begin
-  if not Get(AKey, Result) then
-    Result := nil;
+  Result := TArray<T>(CreateSame);
+  for Item in Self do
+    if AFunc(Item) then
+      Result.Add(Item);
 end;
 
-{ TObjectObjectMap<TKey, TData> }
-
-procedure TObjectObjectMap<TKey, TData>.FreeData(AData: TData);
+procedure TArray<T>.Sort(AFunc: TCompareFuncStatic<T>);
 begin
-  AData.Free;
+  TSorterStatic.Create(Self, AFunc).Sort;
+end;
+
+procedure TArray<T>.Sort(AFunc: TCompareFuncRef<T>);
+begin
+  TSorterRef.Create(Self, AFunc).Sort;
+end;
+
+procedure TArray<T>.Sort(AFunc: TCompareFunc<T>);
+begin
+  TSorter.Create(Self, AFunc).Sort;
+end;
+
+function TArray<T>.TrySort(AFunc: TCompareFuncStatic<T>): Boolean;
+begin
+  Result := TSorterStatic.Create(Self, AFunc).TrySort;
+end;
+
+function TArray<T>.TrySort(AFunc: TCompareFuncRef<T>): Boolean;
+begin
+  Result := TSorterRef.Create(Self, AFunc).TrySort;
+end;
+
+function TArray<T>.TrySort(AFunc: TCompareFunc<T>): Boolean;
+begin
+  Result := TSorter.Create(Self, AFunc).TrySort;
+end;
+
+function TArray<T>.Sorted(AFunc: TCompareFuncStatic<T>): Boolean;
+var
+  I: Integer;
+begin
+  for I := 1 to MaxIndex do
+    if AFunc(Self[I], Self[I - 1]) then
+      Exit(False);
+  Result := True;
+end;
+
+function TArray<T>.Sorted(AFunc: TCompareFuncRef<T>): Boolean;
+var
+  I: Integer;
+begin
+  for I := 1 to MaxIndex do
+    if AFunc(Self[I], Self[I - 1]) then
+      Exit(False);
+  Result := True;
+end;
+
+function TArray<T>.Sorted(AFunc: TCompareFunc<T>): Boolean;
+var
+  I: Integer;
+begin
+  for I := 1 to MaxIndex do
+    if AFunc(Self[I], Self[I - 1]) then
+      Exit(False);
+  Result := True;
+end;
+
+function TArray<T>.Copy: TArray<T>;
+begin
+  Result := TArray<T>(CreateCopy);
+end;
+
+procedure TArray<T>.CopyTo(AArray: TArray);
+begin
+  AArray.Capacity := Count;
+  AArray.FCount := Count;
+  Move(FItems[0], TArray<T>(AArray).FItems[0], SizeOf(T) * Count);
+end;
+
+function TArray<T>.DataPointer: Pointer;
+begin
+  Result := FItems;
+end;
+
+function TArray<T>.GetEnumerator: IIterator<T>;
+begin
+  Result := TIterator.Create(Self, False);
+end;
+
+function TArray<T>.InReverse: TReverseWrapper;
+begin
+  Result := TReverseWrapper.Create(Self);
+end;
+
+procedure TArray<T>.Add(AItems: IIterable<T>);
+begin
+  Add(AItems.GetEnumerator);
+end;
+
+function TArray<T>.ToString: string;
+var
+  I: Integer;
+begin
+  Result := '[';
+  if not Empty then
+    Result := Result + ItemToString(Self[0]);
+  for I := 1 to MaxIndex do
+    Result := Result + ', ' + ItemToString(Self[I]);
+  Result := Result + ']';
+end;
+
+class function TArray<T>.ItemToString(AItem: T): string;
+begin
+  raise EArrayItemNoStringRepresentative.Create;
+end;
+
+function TArray<T>.Reader: TReader;
+begin
+  Result := TReader(Self);
+end;
+
+function TArray<T>.BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer;
+begin
+  raise ENotImplemented.Create('BinarySearch not implemented.');
+end;
+
+function TArray<T>.BinarySearch(AItem: T; AFunc: TCompareFunc<T>): Integer;
+begin
+  raise ENotImplemented.Create('BinarySearch not implemented.');
+end;
+
+function TArray<T>.BinarySearch(AItem: T; AFunc: TCompareFuncRef<T>): Integer;
+begin
+  raise ENotImplemented.Create('BinarySearch not implemented.');
+end;
+
+procedure TArray<T>.Add(AItems: IIterator<T>);
+begin
+  while AItems.MoveNext do
+    Add(AItems.Current);
+end;
+
+procedure TArray<T>.Add(AItems: TReader);
+begin
+  Add(AItems.GetEnumerator);
+end;
+
+{ TIntArrayHelper }
+
+function TIntArrayHelper.Sum: Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I in Self do
+    Result := Result + I;
+end;
+
+function TIntArrayHelper.Difference: Integer;
+begin
+  Result := Bounds.Length;
+end;
+
+function TIntArrayHelper.Average: Single;
+begin
+  Result := Sum / Count;
+end;
+
+function TIntArrayHelper.Min: Integer;
+var
+  I: Integer;
+begin
+  if Empty then
+    raise EArrayEmpty.Create;
+  Result := Self[0];
+  for I := 1 to MaxIndex do
+    Result := System.Math.Min(Result, Self[I]);
+end;
+
+function TIntArrayHelper.Max: Integer;
+var
+  I: Integer;
+begin
+  if Empty then
+    raise EArrayEmpty.Create;
+  Result := Self[0];
+  for I := 1 to MaxIndex do
+    Result := System.Math.Max(Result, Self[I]);
+end;
+
+function TIntArrayHelper.Bounds: TIntBounds1;
+var
+  I: Integer;
+begin
+  if Empty then
+    raise EArrayEmpty.Create;
+  Result := Self[0];
+  for I := 0 to MaxIndex do
+  begin
+    if Self[I] < Result.C1 then
+      Result.C1 := Self[I]
+    else if Self[I] > Result.C2 then
+      Result.C2 := Self[I];
+  end;
+end;
+
+{ TRefArray<T> }
+
+function TBaseRefArray<T>.Equals(Obj: TObject): Boolean;
+var
+  I: Integer;
+begin
+  if Obj.ClassType <> ClassType then
+    Exit(False);
+  if TBaseRefArray<T>(Obj).Count <> Count then
+    Exit(False);
+  for I := 0 to MaxIndex do
+    if not Self[I].Equals(TBaseRefArray<T>(Obj)[I]) then
+      Exit(False);
+  Result := True;
+end;
+
+function TBaseRefArray<T>.Find(AItem: T): Integer;
+begin
+  Result := FindFirstIndex(
+    function(ACurrent: T): Boolean
+    begin
+      Result := ACurrent = AItem;
+    end);
+end;
+
+procedure TBaseRefArray<T>.ItemRemoved(AIndex: Integer);
+begin
+  Self[AIndex].Free;
+end;
+
+class function TBaseRefArray<T>.ItemToString(AItem: T): string;
+begin
+  Result := AItem.ToString;
+end;
+
+function TBaseRefArray<T>.ShouldFreeItems: Boolean;
+begin
+  Result := OwnsObjects;
+end;
+
+{ TRefArray<T> }
+
+constructor TRefArray<T>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited;
+end;
+
+function TRefArray<T>.Copy: TRefArray<T>;
+begin
+  Result := TRefArray<T>(CreateCopy);
+end;
+
+constructor TRefArray<T>.Create(AOwnsObjects: Boolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  OwnsObjects := AOwnsObjects;
+end;
+
+function TRefArray<T>.FindAsArray(AFunc: TFindFuncStatic<T>): TRefArray<T>;
+begin
+
+end;
+
+function TRefArray<T>.FindAsArray(AFunc: TFindFunc<T>): TRefArray<T>;
+begin
+
+end;
+
+function TRefArray<T>.FindAsArray(AFunc: TFindFuncRef<T>): TRefArray<T>;
+begin
+
+end;
+
+function TRefArray<T>.GetOwnsObjects: Boolean;
+begin
+  Result := FOwnsObjects;
+end;
+
+function TRefArray<T>.Reader: TReader;
+begin
+  Result := TReader(Self);
+end;
+
+procedure TRefArray<T>.SetOwnsObjects(const Value: Boolean);
+begin
+  FOwnsObjects := Value;
+end;
+
+{ TInterfaceArray<T> }
+
+function TInterfaceArray<T>.FindAsInterfaceArray(AFunc: TFindFuncStatic<T>): TInterfaceArray<T>;
+begin
+  Result := TInterfaceArray<T>(FindAsArray(AFunc));
+end;
+
+function TInterfaceArray<T>.FindAsInterfaceArray(AFunc: TFindFuncRef<T>): TInterfaceArray<T>;
+begin
+  Result := TInterfaceArray<T>(FindAsArray(AFunc));
+end;
+
+function TInterfaceArray<T>.FindAsInterfaceArray(AFunc: TFindFunc<T>): TInterfaceArray<T>;
+begin
+  Result := TInterfaceArray<T>(FindAsArray(AFunc));
+end;
+
+function TInterfaceArray<T>.Copy: TInterfaceArray<T>;
+begin
+  Result := TInterfaceArray<T>(CreateCopy);
+end;
+
+function TInterfaceArray<T>.Find(AItem: T): Integer;
+begin
+  Result := FindFirstIndex(
+    function(ACurrent: T): Boolean
+    begin
+      Result := (ACurrent as TObject) = (AItem as TObject);
+    end);
+end;
+
+function TInterfaceArray<T>.Find(AItem: TObject): Integer;
+begin
+  Result := FindFirstIndex(
+    function(ACurrent: T): Boolean
+    begin
+      Result := (ACurrent as TObject) = AItem;
+    end);
+end;
+
+procedure TInterfaceArray<T>.Remove(AItem: T);
+var
+  I: Integer;
+begin
+  I := Find(AItem);
+  if I = -1 then
+    raise EArrayItemNotFound.Create;
+  RemoveAt(I);
+end;
+
+procedure TInterfaceArray<T>.Remove(AItem: TObject);
+var
+  I: Integer;
+begin
+  I := Find(AItem);
+  if I = -1 then
+    raise EArrayItemNotFound.Create;
+  RemoveAt(I);
+end;
+
+class function TInterfaceArray<T>.ItemToString(AItem: T): string;
+begin
+  Result := (AItem as TObject).ToString;
+end;
+
+{ TStack }
+
+function TStack.GetCapacity: Integer;
+begin
+  Result := FArray.Capacity;
+end;
+
+procedure TStack.SetCapacity(const Value: Integer);
+begin
+  FArray.Capacity := Value;
+end;
+
+function TStack.GetGrowAmount: Integer;
+begin
+  Result := FArray.GrowAmount;
+end;
+
+procedure TStack.SetGrowAmount(const Value: Integer);
+begin
+  FArray.GrowAmount := Value;
+end;
+
+function TStack.GetShrinkRetain: Integer;
+begin
+  Result := FArray.ShrinkRetain;
+end;
+
+procedure TStack.SetShrinkRetain(const Value: Integer);
+begin
+  FArray.ShrinkRetain := Value;
+end;
+
+function TStack.CreateSame(AGrowAmount, AShrinkRetain: Integer): TStack;
+begin
+  Result := TStackClass(ClassType).Create(AGrowAmount, AShrinkRetain);
+end;
+
+destructor TStack.Destroy;
+begin
+  FArray.Free;
+  inherited;
+end;
+
+constructor TStack.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  FArray := CreateArray(AGrowAmount, AShrinkRetain);
+end;
+
+function TStack.CreateCopy: TStack;
+begin
+  Result := TStackClass(ClassType).CreateNoArray;
+  Result.FArray := FArray.Copy;
+end;
+
+constructor TStack.CreateNoArray;
+begin
+  // do nothing
+end;
+
+procedure TStack.Clear;
+begin
+  FArray.Clear;
+end;
+
+function TStack.Count: Integer;
+begin
+  Result := FArray.Count;
+end;
+
+function TStack.Copy: TStack;
+begin
+  Result := CreateCopy;
+end;
+
+{ TStack<T> }
+
+function TStack<T>.GetTop: T;
+begin
+  Result := TArray<T>(FArray).Last;
+end;
+
+procedure TStack<T>.SetTop(const Value: T);
+begin
+  TArray<T>(FArray).Last := Value;
+end;
+
+function TStack<T>.CreateArray(AGrowAmount, AShrinkRetain: Integer): TArray;
+begin
+  Result := TArray<T>.Create(AGrowAmount, AShrinkRetain);
+end;
+
+procedure TStack<T>.Push(AItem: T);
+begin
+  TArray<T>(FArray).Add(AItem);
+end;
+
+function TStack<T>.Pop: T;
+begin
+  Result := Top;
+  FArray.RemoveLast;
+end;
+
+function TStack<T>.Count: Integer;
+begin
+  Result := FArray.Count;
+end;
+
+function TStack<T>.Empty: Boolean;
+begin
+  Result := FArray.Empty;
+end;
+
+function TStack<T>.Copy: TStack<T>;
+begin
+  Result := TStack<T>(CreateCopy);
+end;
+
+{ TValueHasher<K> }
+
+class function TValueHasher<K>.CanIndex(AKey: K): Boolean;
+begin
+  Result := True;
+end;
+
+{ TRefStack<T> }
+
+function TRefStack<T>.Copy: TRefStack<T>;
+begin
+  Result := TRefStack<T>(CreateCopy);
+end;
+
+constructor TRefStack<T>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited;
+end;
+
+constructor TRefStack<T>.Create(AOwnsObjects: Boolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  OwnsObjects := AOwnsObjects;
+end;
+
+function TRefStack<T>.CreateArray(AGrowAmount, AShrinkRetain: Integer): TArray;
+begin
+  Result := TRefArray<T>.Create(AGrowAmount, AShrinkRetain);
+end;
+
+function TRefStack<T>.GetOwnsObjects: Boolean;
+begin
+  Result := TRefArray<T>(FArray).OwnsObjects;
+end;
+
+procedure TRefStack<T>.SetOwnsObjects(const Value: Boolean);
+begin
+  TRefArray<T>(FArray).OwnsObjects := Value;
+end;
+
+{ TRefArrayOwnLinked<T> }
+
+constructor TRefArrayOwnLinked<T>.Create(AOwnsObjectsLink: PBoolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  FOwnsObjectsLink := AOwnsObjectsLink;
+end;
+
+function TRefArrayOwnLinked<T>.GetOwnsObjects: Boolean;
+begin
+  Result := FOwnsObjectsLink^;
+end;
+
+{ TFindableArray<T> }
+
+function TFindableArray<T>.Contains(AItem: T): Boolean;
+begin
+  Result := Find(AItem) <> -1;
+end;
+
+function TFindableArray<T>.Reader: TReader;
+begin
+  Result := TReader(Self);
+end;
+
+procedure TFindableArray<T>.Remove(AItem: T);
+var
+  I: Integer;
+begin
+  I := Find(AItem);
+  if I = -1 then
+    raise EArrayItemNotFound.Create;
+  RemoveAt(I);
+end;
+
+{ TBaseRefPairArray<K, V> }
+
+procedure TBaseRefPairArray<K, V>.ItemRemoved(AIndex: Integer);
+begin
+  Self[AIndex].Key.Free;
+end;
+
+function TBaseRefPairArray<K, V>.ShouldFreeItems: Boolean;
+begin
+  Result := OwnsKeys;
+end;
+
+{ TBaseToRefPairArray<K, V> }
+
+procedure TBaseToRefPairArray<K, V>.ItemRemoved(AIndex: Integer);
+begin
+  Self[AIndex].Value.Free;
+end;
+
+function TBaseToRefPairArray<K, V>.ShouldFreeItems: Boolean;
+begin
+  Result := OwnsValues;
+end;
+
+{ TRefPairArray<K, V> }
+
+constructor TRefPairArray<K, V>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited;
+end;
+
+function TRefPairArray<K, V>.Copy: TRefPairArray<K, V>;
+begin
+  Result := TRefPairArray<K, V>(CreateCopy);
+end;
+
+constructor TRefPairArray<K, V>.Create(AOwnsKeys: Boolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  OwnsKeys := AOwnsKeys;
+end;
+
+function TRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefPairArray<K, V>;
+begin
+  Result := TRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TRefPairArray<K, V>.FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TRefPairArray<K, V>;
+begin
+  Result := TRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TRefPairArray<K, V>;
+begin
+  Result := TRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TRefPairArray<K, V>.GetOwnsKeys: Boolean;
+begin
+  Result := FOwnsKeys;
+end;
+
+procedure TRefPairArray<K, V>.SetOwnsKeys(const Value: Boolean);
+begin
+  FOwnsKeys := Value;
+end;
+
+{ TRefPairArrayOwnLinked<K, V> }
+
+constructor TRefPairArrayOwnLinked<K, V>.Create(AOwnsKeysLink: PBoolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  FOwnsKeysLink := AOwnsKeysLink;
+end;
+
+function TRefPairArrayOwnLinked<K, V>.GetOwnsKeys: Boolean;
+begin
+  Result := FOwnsKeysLink^;
+end;
+
+{ TToRefPairArray<K, V> }
+
+constructor TToRefPairArray<K, V>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited;
+end;
+
+function TToRefPairArray<K, V>.Copy: TToRefPairArray<K, V>;
+begin
+  Result := TToRefPairArray<K, V>(CreateCopy);
+end;
+
+constructor TToRefPairArray<K, V>.Create(AOwnsValues: Boolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  OwnsValues := AOwnsValues;
+end;
+
+function TToRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TToRefPairArray<K, V>;
+begin
+  Result := TToRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TToRefPairArray<K, V>.FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TToRefPairArray<K, V>;
+begin
+  Result := TToRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TToRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TToRefPairArray<K, V>;
+begin
+  Result := TToRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TToRefPairArray<K, V>.GetOwnsValues: Boolean;
+begin
+  Result := FOwnsValues;
+end;
+
+procedure TToRefPairArray<K, V>.SetOwnsValues(const Value: Boolean);
+begin
+  FOwnsValues := Value;
+end;
+
+{ TToRefPairArrayOwnLinked<K, V> }
+
+constructor TToRefPairArrayOwnLinked<K, V>.Create(AOwnsValuesLink: PBoolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  FOwnsValuesLink := AOwnsValuesLink;
+end;
+
+function TToRefPairArrayOwnLinked<K, V>.GetOwnsValues: Boolean;
+begin
+  Result := FOwnsValuesLink^;
+end;
+
+{ TBaseRefRefPairArray<K, V> }
+
+procedure TBaseRefRefPairArray<K, V>.ItemRemoved(AIndex: Integer);
+begin
+  if OwnsKeys then
+    Self[AIndex].Key.Free;
+  if OwnsValues then
+    Self[AIndex].Value.Free;
+end;
+
+class function TBaseRefRefPairArray<K, V>.ItemToString(AItem: TPair<K, V>): string;
+begin
+  Result := AItem.Key.ToString + ' = ' + AItem.Value.ToString;
+end;
+
+function TBaseRefRefPairArray<K, V>.ShouldFreeItems: Boolean;
+begin
+  Result := OwnsKeys or OwnsValues;
+end;
+
+{ TRefRefPairArray<K, V> }
+
+constructor TRefRefPairArray<K, V>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited;
+end;
+
+function TRefRefPairArray<K, V>.Copy: TRefRefPairArray<K, V>;
+begin
+  Result := TRefRefPairArray<K, V>(CreateCopy);
+end;
+
+constructor TRefRefPairArray<K, V>.Create(AOwnsKeys, AOwnsValues: Boolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  OwnsKeys := AOwnsKeys;
+  OwnsValues := AOwnsValues;
+end;
+
+function TRefRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefRefPairArray<K, V>;
+begin
+  Result := TRefRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TRefRefPairArray<K, V>.FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TRefRefPairArray<K, V>;
+begin
+  Result := TRefRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TRefRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TRefRefPairArray<K, V>;
+begin
+  Result := TRefRefPairArray<K, V>(inherited FindAsArray(AFunc));
+end;
+
+function TRefRefPairArray<K, V>.GetOwnsKeys: Boolean;
+begin
+  Result := FOwnsKeys;
+end;
+
+function TRefRefPairArray<K, V>.GetOwnsValues: Boolean;
+begin
+  Result := FOwnsValues;
+end;
+
+procedure TRefRefPairArray<K, V>.SetOwnsKeys(const Value: Boolean);
+begin
+  FOwnsKeys := Value;
+end;
+
+procedure TRefRefPairArray<K, V>.SetOwnsValues(const Value: Boolean);
+begin
+  FOwnsValues := Value;
+end;
+
+{ TRefRefPairArrayOwnLinked<K, V> }
+
+constructor TRefRefPairArrayOwnLinked<K, V>.Create(AOwnsKeysLink, AOwnsValuesLink: PBoolean; AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(AGrowAmount, AShrinkRetain);
+  FOwnsKeysLink := AOwnsKeysLink;
+  FOwnsValuesLink := AOwnsValuesLink;
+end;
+
+function TRefRefPairArrayOwnLinked<K, V>.GetOwnsKeys: Boolean;
+begin
+  Result := FOwnsKeysLink^;
+end;
+
+function TRefRefPairArrayOwnLinked<K, V>.GetOwnsValues: Boolean;
+begin
+  Result := FOwnsValuesLink^;
+end;
+
+{ TLinkedInterfaceArray<I, T> }
+
+function TLinkedInterfaceArray<I, T>.Count: Integer;
+begin
+  Result := FLinkedArray.Count;
+end;
+
+function TLinkedInterfaceArray<I, T>.CountOptimized: Boolean;
+begin
+  Result := FLinkedArray.CountOptimized;
+end;
+
+constructor TLinkedInterfaceArray<I, T>.Create(ALinkedArray: TArray<T>);
+begin
+  FLinkedArray := ALinkedArray;
+end;
+
+function TLinkedInterfaceArray<I, T>.GetEnumerator: IIterator<I>;
+begin
+  Result := TIterator.Create(FLinkedArray);
+end;
+
+{ TLinkedInterfaceArray<I, T>.TIterator }
+
+constructor TLinkedInterfaceArray<I, T>.TIterator.Create(ALinkedArray: TArray<T>);
+begin
+  FLinkedArray := ALinkedArray;
+  FIndex := -1;
+end;
+
+function TLinkedInterfaceArray<I, T>.TIterator.GetCurrent: I;
+begin
+  Result := FLinkedArray[FIndex];
+end;
+
+function TLinkedInterfaceArray<I, T>.TIterator.MoveNext: Boolean;
+begin
+  Inc(FIndex);
+  Result := FIndex < FLinkedArray.Count;
+end;
+
+{ TObjectArray<T> }
+
+constructor TObjectArray<T>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(True, AGrowAmount, AShrinkRetain);
+end;
+
+{ TObjectStack<T> }
+
+constructor TObjectStack<T>.Create(AGrowAmount, AShrinkRetain: Integer);
+begin
+  inherited Create(True, AGrowAmount, AShrinkRetain);
+end;
+
+{ TArray.TReader }
+
+function TArray.TReader.GetCapacity: Integer;
+begin
+  Result := TArray(Self).Capacity;
+end;
+
+function TArray.TReader.GetGrowAmount: Integer;
+begin
+  Result := TArray(Self).GrowAmount;
+end;
+
+function TArray.TReader.GetShrinkRetain: Integer;
+begin
+  Result := TArray(Self).ShrinkRetain;
+end;
+
+function TArray.TReader.Count: Integer;
+begin
+  Result := TArray(Self).Count;
+end;
+
+function TArray.TReader.CountOptimized: Boolean;
+begin
+  Result := TArray(Self).CountOptimized;
+end;
+
+function TArray.TReader.MaxIndex: Integer;
+begin
+  Result := TArray(Self).MaxIndex;
+end;
+
+function TArray.TReader.Empty: Boolean;
+begin
+  Result := TArray(Self).Empty;
+end;
+
+procedure TArray.TReader.RangeCheckException(AIndex: Integer);
+begin
+  TArray(Self).RangeCheckException(AIndex);
+end;
+
+function TArray.TReader.RangeCheck(AIndex: Integer): Boolean;
+begin
+  Result := TArray(Self).RangeCheck(AIndex);
+end;
+
+function TArray.TReader.Copy: TArray;
+begin
+  Result := TArray(Self).Copy;
+end;
+
+{ TArray<T>.TReader }
+
+function TArray<T>.TReader.BinarySearch(AItem: T; AFunc: TCompareFunc<T>): Integer;
+begin
+  Result := TArray<T>(Self).BinarySearch(AItem, AFunc);
+end;
+
+function TArray<T>.TReader.BinarySearch(AItem: T; AFunc: TCompareFuncRef<T>): Integer;
+begin
+  Result := TArray<T>(Self).BinarySearch(AItem, AFunc);
+end;
+
+function TArray<T>.TReader.BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer;
+begin
+  Result := TArray<T>(Self).BinarySearch(AItem, AFunc);
+end;
+
+function TArray<T>.TReader.Copy: TArray<T>;
+begin
+  Result := TArray<T>(Self).Copy;
+end;
+
+function TArray<T>.TReader.FindAsArray(AFunc: TFindFuncRef<T>): TArray<T>;
+begin
+  Result := TArray<T>(Self).FindAsArray(AFunc);
+end;
+
+function TArray<T>.TReader.FindAsArray(AFunc: TFindFunc<T>): TArray<T>;
+begin
+  Result := TArray<T>(Self).FindAsArray(AFunc);
+end;
+
+function TArray<T>.TReader.FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>;
+begin
+  Result := TArray<T>(Self).FindAsArray(AFunc);
+end;
+
+function TArray<T>.TReader.FindFirst(AFunc: TFindFuncStatic<T>): T;
+begin
+  Result := TArray<T>(Self).FindFirst(AFunc);
+end;
+
+function TArray<T>.TReader.FindFirst(AFunc: TFindFuncRef<T>): T;
+begin
+  Result := TArray<T>(Self).FindFirst(AFunc);
+end;
+
+function TArray<T>.TReader.FindFirst(AFunc: TFindFunc<T>): T;
+begin
+  Result := TArray<T>(Self).FindFirst(AFunc);
+end;
+
+function TArray<T>.TReader.FindFirstIndex(AFunc: TFindFuncRef<T>): Integer;
+begin
+  Result := TArray<T>(Self).FindFirstIndex(AFunc);
+end;
+
+function TArray<T>.TReader.FindFirstIndex(AFunc: TFindFuncStatic<T>): Integer;
+begin
+  Result := TArray<T>(Self).FindFirstIndex(AFunc);
+end;
+
+function TArray<T>.TReader.FindFirstIndex(AFunc: TFindFunc<T>): Integer;
+begin
+  Result := TArray<T>(Self).FindFirstIndex(AFunc);
+end;
+
+function TArray<T>.TReader.FindIndexAsArray(AFunc: TFindFunc<T>): TIntArray;
+begin
+  Result := TArray<T>(Self).FindIndexAsArray(AFunc);
+end;
+
+function TArray<T>.TReader.FindIndexAsArray(AFunc: TFindFuncRef<T>): TIntArray;
+begin
+  Result := TArray<T>(Self).FindIndexAsArray(AFunc);
+end;
+
+function TArray<T>.TReader.FindIndexAsArray(AFunc: TFindFuncStatic<T>): TIntArray;
+begin
+  Result := TArray<T>(Self).FindIndexAsArray(AFunc);
+end;
+
+function TArray<T>.TReader.FindLast(AFunc: TFindFunc<T>): T;
+begin
+  Result := TArray<T>(Self).FindLast(AFunc);
+end;
+
+function TArray<T>.TReader.FindLast(AFunc: TFindFuncRef<T>): T;
+begin
+  Result := TArray<T>(Self).FindLast(AFunc);
+end;
+
+function TArray<T>.TReader.FindLast(AFunc: TFindFuncStatic<T>): T;
+begin
+  Result := TArray<T>(Self).FindLast(AFunc);
+end;
+
+function TArray<T>.TReader.FindLastIndex(AFunc: TFindFuncStatic<T>): Integer;
+begin
+  Result := TArray<T>(Self).FindLastIndex(AFunc);
+end;
+
+function TArray<T>.TReader.FindLastIndex(AFunc: TFindFunc<T>): Integer;
+begin
+  Result := TArray<T>(Self).FindLastIndex(AFunc);
+end;
+
+procedure TArray<T>.TReader.ForEach(AFunc: TForEachProcStatic<T>);
+begin
+  TArray<T>(Self).ForEach(AFunc);
+end;
+
+procedure TArray<T>.TReader.ForEach(AFunc: TForEachProcRef<T>);
+begin
+  TArray<T>(Self).ForEach(AFunc);
+end;
+
+procedure TArray<T>.TReader.ForEach(AFunc: TForEachProc<T>);
+begin
+  TArray<T>(Self).ForEach(AFunc);
+end;
+
+function TArray<T>.TReader.ForEach<R>(AFunc: TForEachFuncStatic<T, R>): TArray<R>;
+begin
+  Result := TArray<T>(Self).ForEach<R>(AFunc);
+end;
+
+function TArray<T>.TReader.ForEach<R>(AFunc: TForEachFuncRef<T, R>): TArray<R>;
+begin
+  Result := TArray<T>(Self).ForEach<R>(AFunc);
+end;
+
+function TArray<T>.TReader.ForEach<R>(AFunc: TForEachFunc<T, R>): TArray<R>;
+begin
+  Result := TArray<T>(Self).ForEach<R>(AFunc);
+end;
+
+function TArray<T>.TReader.FindLastIndex(AFunc: TFindFuncRef<T>): Integer;
+begin
+  Result := TArray<T>(Self).FindLastIndex(AFunc);
+end;
+
+function TArray<T>.TReader.GetEnumerator: IIterator<T>;
+begin
+  Result := TArray<T>(Self).GetEnumerator;
+end;
+
+function TArray<T>.TReader.GetFirst: T;
+begin
+  Result := TArray<T>(Self).First;
+end;
+
+function TArray<T>.TReader.GetItem(I: Integer): T;
+begin
+  Result := TArray<T>(Self)[I];
+end;
+
+function TArray<T>.TReader.GetLast: T;
+begin
+  Result := TArray<T>(Self).Last;
+end;
+
+function TArray<T>.TReader.InReverse: TReverseWrapper;
+begin
+  Result := TArray<T>(Self).InReverse;
+end;
+
+class function TArray<T>.TReader.ItemToString(AItem: T): string;
+begin
+  Result := TArray<T>(Self).ItemToString(AItem);
+end;
+
+procedure TArray<T>.TReader.SetFirst(const Value: T);
+begin
+  TArray<T>(Self).First := Value;
+end;
+
+procedure TArray<T>.TReader.SetItem(I: Integer; const Value: T);
+begin
+  TArray<T>(Self)[I] := Value;
+end;
+
+procedure TArray<T>.TReader.SetLast(const Value: T);
+begin
+  TArray<T>(Self).Last := Value;
+end;
+
+function TArray<T>.TReader.Sorted(AFunc: TCompareFunc<T>): Boolean;
+begin
+  Result := TArray<T>(Self).Sorted(AFunc);
+end;
+
+function TArray<T>.TReader.Sorted(AFunc: TCompareFuncRef<T>): Boolean;
+begin
+  Result := TArray<T>(Self).Sorted(AFunc);
+end;
+
+function TArray<T>.TReader.Sorted(AFunc: TCompareFuncStatic<T>): Boolean;
+begin
+  Result := TArray<T>(Self).Sorted(AFunc);
+end;
+
+function TArray<T>.TReader.ToString: string;
+begin
+  Result := TArray<T>(Self).ToString;
+end;
+
+{ TSingleArrayHelper }
+
+function TSingleArrayHelper.Sum: Single;
+var
+  I: Single;
+begin
+  Result := 0;
+  for I in Self do
+    Result := Result + I;
+end;
+
+function TSingleArrayHelper.Difference: Single;
+begin
+  Result := Bounds.Length;
+end;
+
+function TSingleArrayHelper.Average: Single;
+begin
+  Result := Sum / Count;
+end;
+
+function TSingleArrayHelper.Min: Single;
+var
+  I: Integer;
+begin
+  if Empty then
+    raise EArrayEmpty.Create;
+  Result := Self[0];
+  for I := 1 to MaxIndex do
+    Result := System.Math.Min(Result, Self[I]);
+end;
+
+function TSingleArrayHelper.Max: Single;
+var
+  I: Integer;
+begin
+  if Empty then
+    raise EArrayEmpty.Create;
+  Result := Self[0];
+  for I := 1 to MaxIndex do
+    Result := System.Math.Max(Result, Self[I]);
+end;
+
+function TSingleArrayHelper.Bounds: TBounds1;
+var
+  I: Integer;
+begin
+  if Empty then
+    raise EArrayEmpty.Create;
+  Result := Self[0];
+  for I := 0 to MaxIndex do
+  begin
+    if Self[I] < Result.Low then
+      Result.Low := Self[I]
+    else if Self[I] > Result.High then
+      Result.High := Self[I];
+  end;
+end;
+
+{ TFindableArray<T>.TReader }
+
+function TFindableArray<T>.TReader.Contains(AItem: T): Boolean;
+begin
+  Result := TFindableArray<T>(Self).Contains(AItem);
+end;
+
+function TFindableArray<T>.TReader.Find(AItem: T): Integer;
+begin
+  Result := TFindableArray<T>(Self).Find(AItem);
+end;
+
+{ TRefArray<T>.TReader }
+
+function TRefArray<T>.TReader.Copy: TRefArray<T>;
+begin
+  Result := TRefArray<T>(Self).Copy;
 end;
 
 end.

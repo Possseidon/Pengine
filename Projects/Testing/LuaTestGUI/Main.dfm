@@ -5,6 +5,7 @@ object frmMain: TfrmMain
   ClientHeight = 383
   ClientWidth = 504
   Color = clBtnFace
+  DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
@@ -30,14 +31,13 @@ object frmMain: TfrmMain
       AlignWithMargins = True
       Left = 4
       Top = 4
-      Width = 279
+      Width = 259
       Height = 31
       Align = alLeft
       Anchors = [akLeft, akTop, akRight, akBottom]
       AutoSize = False
       WordWrap = True
-      ExplicitWidth = 235
-      ExplicitHeight = 22
+      ExplicitTop = 12
     end
     object btnRun: TButton
       AlignWithMargins = True
@@ -59,7 +59,7 @@ object frmMain: TfrmMain
       MaxValue = 60000
       MinValue = 1
       TabOrder = 1
-      Value = 100
+      Value = 10
     end
     object cbTimeout: TCheckBox
       Left = 269
@@ -97,12 +97,9 @@ object frmMain: TfrmMain
     Gutter.Font.Style = []
     Gutter.ShowLineNumbers = True
     Lines.Strings = (
-      'x = {}'
-      'for i = 1, 999990 do'
-      '  x[i] = i'
-      'end'
+      'while true do'
       ''
-      'table.unpack(x)')
+      'end')
     Options = [eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabsToSpaces]
     TabWidth = 2
     WantTabs = True

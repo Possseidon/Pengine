@@ -1,0 +1,8 @@
+TEntityBase
+ - 
+ 
+TEntity(TEntityBase)
+ - 
+
+TStructure(TEntityBase)
+ -
