@@ -3,10 +3,9 @@ unit Pengine.MC.Entity;
 interface
 
 uses
-  System.SysUtils,
-  
   Pengine.HashCollections,
-  Pengine.Hasher;
+
+  Pengine.MC.Namespace;
 
 type
 
@@ -338,26 +337,26 @@ const
     'Lightning Bolt'
     );
 
-function EntityFromName(AName: string; out AEntity: TEntity): Boolean;
+function EntityFromName(ANSPath: TNSPath; out AEntity: TEntity): Boolean;
 
 implementation
 
 type
 
-  TEntityMap = TMap<string, TEntity, TStringHasher>;
+  TEntityMap = TMap<TNSPath, TEntity, TNSPathHasher>;
 
 var
   EntityMap: TEntityMap;
 
-function EntityFromName(AName: string; out AEntity: TEntity): Boolean;
+function EntityFromName(ANSPath: TNSPath; out AEntity: TEntity): Boolean;
 begin
-  Result := EntityMap.Get(AName, AEntity);
+  Result := EntityMap.Get(ANSPath, AEntity);
 end;
 
 procedure InitEntityMap;
 var
   Entity: TEntity;
-begin       
+begin
   EntityMap := TEntityMap.Create;
   for Entity := Low(TEntity) to High(TEntity) do
     EntityMap[EntityNames[Entity]] := Entity;

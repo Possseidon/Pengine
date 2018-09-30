@@ -3,8 +3,9 @@ unit Pengine.MC.Enchantment;
 interface
 
 uses
-  Pengine.Hasher,
-  Pengine.HashCollections;
+  Pengine.HashCollections,
+
+  Pengine.MC.Namespace;
 
 type
 
@@ -123,20 +124,20 @@ const
     'vanishing_curse'
     );
 
-function EnchantmentFromName(AName: string; out AEnchantment: TEnchantment): Boolean;
+function EnchantmentFromName(ANSPath: TNSPath; out AEnchantment: TEnchantment): Boolean;
 
 implementation
 
 type
 
-  TEnchantmentMap = TMap<string, TEnchantment, TStringHasher>;
+  TEnchantmentMap = TMap<TNSPath, TEnchantment, TNSPathHasher>;
 
 var
   EnchantmentMap: TEnchantmentMap;
 
-function EnchantmentFromName(AName: string; out AEnchantment: TEnchantment): Boolean;
+function EnchantmentFromName(ANSPath: TNSPath; out AEnchantment: TEnchantment): Boolean;
 begin
-  Result := EnchantmentMap.Get(AName, AEnchantment);
+  Result := EnchantmentMap.Get(ANSPath, AEnchantment);
 end;
 
 procedure InitEnchantmentMap;

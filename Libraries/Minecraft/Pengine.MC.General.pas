@@ -141,17 +141,66 @@ end;
 
 function TStringParser.Parse: Boolean;
 var
-  C: Char;
+  Builder: TStringBuilder;
+  Escaped: Char;
+begin
+  Token := TokenQuote;
+  if not StartsWith('"') then
+    Exit(False);
+
+  Builder := TStringBuilder.Create;
+  try
+    while not StartsWith('"') do
+    begin
+      if ReachedEnd then
+        raise EParseError.Create('Found unterminated string.');
+
+      Token := TokenBackslash;
+      if StartsWith('\') then
+      begin
+        Token := TokenEscaped;
+        Escaped := First;
+        Advance;
+        case Escaped of
+          '\', '"':
+            Builder.Append(Escaped);
+        else
+          Log(-2, 'Only \" and \\ are valid escape sequences.', elFatal);
+        end;
+      end
+      else
+      begin
+        Token := TokenContent;
+        Builder.Append(First);
+        Advance;
+      end;
+      Token := TokenQuote;
+    end;
+
+    SetParseResult(Builder.ToString);
+    Result := True;
+
+  finally
+    Builder.Free;
+
+  end;
+end;
+
+{
 begin
   Token := TokenQuote;
   if not StartsWith('"') then
     Exit(False);
   Token := TokenContent;
-  for C in Info do
+  while not StartsWith('"') do
   begin
+    if ReachedEnd then
+      raise EParseError.Create('Found unterminated string.');
+
     if Token = TokenEscaped then
       Token := TokenContent;
-    case C of
+
+    case First of
       '"':
         begin
           Token := TokenQuote;
@@ -171,5 +220,5 @@ begin
   end;
   raise EParseError.Create('Found unterminated string.');
 end;
-
+ }
 end.

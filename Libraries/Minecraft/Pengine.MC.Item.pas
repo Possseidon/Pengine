@@ -4,7 +4,6 @@ interface
 
 uses
   System.SysUtils,
-  System.JSON,
   System.IOUtils,
   System.Generics.Collections,
 
@@ -13,6 +12,7 @@ uses
   Pengine.Settings,
   Pengine.Parser,
   Pengine.Utility,
+  Pengine.JSON,
 
   Pengine.MC.Namespace,
   Pengine.MC.NBT,
@@ -38,7 +38,7 @@ type
   TItemTypeCollection = class
   public type
 
-    TMap = TMap<TNSPath, TItemType, TNSPathHasher>;
+    TMap = TToObjectMap<TNSPath, TItemType, TNSPathHasher>;
 
   private
     FMap: TMap;
@@ -49,7 +49,7 @@ type
     function GetSorted: TItemTypes.TReader;
 
   public
-    constructor Create(AJSONObject: TJSONObject);
+    constructor Create(AJObject: TJObject);
     destructor Destroy; override;
 
     function Exists(ANSPath: TNSPath): Boolean;
@@ -158,7 +158,7 @@ type
     function GetSorted: TItemTypes.TReader;
 
     public
-    constructor Create(AItemTags: TItemTagCollection; ANSPath: TNSPath; AJSONObject: TJSONObject);
+    constructor Create(AItemTags: TItemTagCollection; ANSPath: TNSPath; AJObject: TJObject);
     destructor Destroy; override;
 
     property NSPath: TNSPath read FNSPath;
@@ -270,17 +270,17 @@ implementation
 
 { TItemTypeCollection }
 
-constructor TItemTypeCollection.Create(AJSONObject: TJSONObject);
+constructor TItemTypeCollection.Create(AJObject: TJObject);
 var
-  JSONPair: TJSONPair;
+  JPair: TJPair;
   ItemState: TItemType;
 begin
   FMap := TMap.Create;
   FOrder := TItemTypes.Create;
 
-  for JSONPair in AJSONObject do
+  for JPair in AJObject do
   begin
-    ItemState := TItemType.Create(JSONPair.JsonString.Value);
+    ItemState := TItemType.Create(JPair.Key);
     FMap[ItemState.NSPath] := ItemState;
     FOrder.Add(ItemState);
   end;
@@ -342,22 +342,22 @@ end;
 procedure TItemSettings.Reload;
 var
   ItemsText: string;
-  ItemsJSON: TJSONObject;
+  JItems: TJObject;
 begin
   FreeAndNil(FItems);
 
   if TFile.Exists(Path) then
   begin
     ItemsText := TFile.ReadAllText(Path);
-    ItemsJSON := TJSONObject.ParseJSONValue(ItemsText) as TJSONObject;
+    JItems := TJObject.Parse(ItemsText);
   end
   else
-    ItemsJSON := TJSONObject.Create;
+    JItems := TJObject.Create;
 
   try
-    FItems := TItemTypeCollection.Create(ItemsJSON);
+    FItems := TItemTypeCollection.Create(JItems);
   finally
-    ItemsJSON.Free;
+    JItems.Free;
   end;
 end;
 
@@ -400,7 +400,6 @@ var
   NSPath: TNSPath;
   ItemType: TItemType;
   ItemExists: Boolean;
-  Items: TItemTypes;
 begin
   Marker := GetMarker;
 

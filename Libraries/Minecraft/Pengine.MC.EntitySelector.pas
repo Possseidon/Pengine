@@ -16,7 +16,7 @@ uses
   Pengine.MC.NBT,
   Pengine.MC.Gamemode,
   Pengine.MC.Entity,
-  Pengine.MC.General;
+  Pengine.MC.General, Pengine.MC.Namespace;
 
 type
 
@@ -618,10 +618,9 @@ type
 
       end;
 
-      TSuggestions = class(TParseSuggestionsSimple<TParser>)
-      public
-        class function GetCount: Integer; override;
-        class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+      TSuggestions = class(TParseSuggestionsGenerated<TParser>)
+      protected
+        procedure Generate; override;
 
       end;
 
@@ -1230,7 +1229,7 @@ end;
 
 function TEntitySelector.TOptionType.FormatData: string;
 begin
-  Result := inherited + EntityNames[Entity];
+  Result := inherited + NSPath(EntityNames[Entity]).Format;
 end;
 
 class function TEntitySelector.TOptionType.GetDataParserClass: TOption.TDataParserClass;
@@ -2167,18 +2166,20 @@ end;
 
 function TEntitySelector.TOptionType.TParser.Parse: Boolean;
 var
-  Name: string;
+  NSPath: TNSPath;
   Entity: TEntity;
+  Marker: TLogMarker;
 begin
-  BeginSuggestions(TSuggestions);
-  Name := ReadWhile(NamespaceChars);
-  Result := not Name.IsEmpty;
+  Marker := GetMarker;
+  BeginSuggestions(TSuggestions.Create);
+  NSPath := ReadWhile(NamespacePathChars);
+  Result := not NSPath.IsEmpty;
   if not Result then
     Exit;
-  if EntityFromName(Name, Entity) then
+  if EntityFromName(NSPath, Entity) then
     ParseObject.Entity := Entity
   else
-    Log(-Name.Length, '"%s" is not a valid entity type.', [Name], elFatal);
+    Log(Marker, '"%s" is not a valid entity type.', [NSPath.Format], elFatal);
 end;
 
 { TEntitySelector.TSuggesions }
@@ -2280,15 +2281,15 @@ end;
 
 { TEntitySelector.TOptionType.TSuggestions }
 
-class function TEntitySelector.TOptionType.TSuggestions.GetCount: Integer;
+procedure TEntitySelector.TOptionType.TSuggestions.Generate;
+var
+  Entity: TEntity;
 begin
-  Result := Length(EntityNames);
-end;
-
-class function TEntitySelector.TOptionType.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
-begin
-  Result.Display := EntityDisplayNames[TEntity(AIndex)];
-  Result.Insert := EntityNames[TEntity(AIndex)];
+  for Entity := Low(TEntity) to High(TEntity) do
+    AddSuggestion(EntityNames[Entity]);
+  AddSuggestion(TNSPath.Empty.Format);
+  for Entity := Low(TEntity) to High(TEntity) do
+    AddSuggestion(NSPath(EntityNames[Entity]).Format);
 end;
 
 { TEntitySelector.TOptionSort.TSuggestions }

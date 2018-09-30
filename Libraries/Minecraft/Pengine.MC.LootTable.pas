@@ -5,7 +5,6 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.JSON,
   System.Generics.Collections,
 
   Pengine.Collections,
@@ -15,7 +14,8 @@ uses
   Pengine.Vector,
   Pengine.Utility,
   Pengine.EventHandling,
-
+  System.JSON,
+  
   Pengine.MC.NBT,
   Pengine.MC.Enchantment,
   Pengine.MC.Attribute;
@@ -2393,7 +2393,7 @@ procedure TLootTable.TFunctionSetNBT.SetTagString(const Value: string);
 var
   Parser: TNBTParserCompound;
 begin
-  Parser := TNBTParserCompound.Create(Value);
+  Parser := TNBTParserCompound.Create(Value, False);
   if Parser.Success then
   begin
     FTag.Free;

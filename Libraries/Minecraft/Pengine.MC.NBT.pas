@@ -1165,6 +1165,7 @@ function TNBTParserListOrArray.Parse: Boolean;
 var
   DataParser: TNBTDataParser;
   FirstType: TNBTType;
+  Marker: TLogMarker;
 begin
   Token := TokenBracket;
 
@@ -1180,6 +1181,7 @@ begin
   FirstType := nbtEnd;
   while not StartsWith(']') do
   begin
+    Marker := GetMarker;
     DataParser := TNBTDataParser.Create(Info, True);
     try
       if FirstType = nbtEnd then
@@ -1199,19 +1201,21 @@ begin
 
       if DataParser.ParseResult.GetType <> FirstType then
       begin
-        raise EParseError.CreateFmt('Cannot add %s into list of type %s.',
-          [NBTNames[DataParser.ParseResult.GetType], NBTNames[FirstType]]);
-      end;
-
-      case FirstType of
-        nbtByte:
-          TNBTByteArray(ParseResult).Items.Add(TNBTByte(DataParser.ParseResult).Value);
-        nbtInt:
-          TNBTIntArray(ParseResult).Items.Add(TNBTInt(DataParser.ParseResult).Value);
-        nbtLongArray:
-          TNBTLongArray(ParseResult).Items.Add(TNBTLong(DataParser.ParseResult).Value);
+        Log(Marker, 'Cannot add %s into list of type %s.',
+          [NBTNames[DataParser.ParseResult.GetType], NBTNames[FirstType]], elFatal);
+      end
       else
-        TNBTList(ParseResult).Add(DataParser.OwnParseResult);
+      begin
+        case FirstType of
+          nbtByte:
+            TNBTByteArray(ParseResult).Items.Add(TNBTByte(DataParser.ParseResult).Value);
+          nbtInt:
+            TNBTIntArray(ParseResult).Items.Add(TNBTInt(DataParser.ParseResult).Value);
+          nbtLongArray:
+            TNBTLongArray(ParseResult).Items.Add(TNBTLong(DataParser.ParseResult).Value);
+        else
+          TNBTList(ParseResult).Add(DataParser.OwnParseResult);
+        end;
       end;
     finally
       DataParser.Free;

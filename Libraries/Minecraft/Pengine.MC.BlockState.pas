@@ -4,7 +4,6 @@ interface
 
 uses
   System.SysUtils,
-  System.JSON,
   System.IOUtils,
   System.Generics.Collections,
   System.Types,
@@ -15,6 +14,7 @@ uses
   Pengine.Parser,
   Pengine.Utility,
   Pengine.Settings,
+  Pengine.JSON,
 
   Pengine.MC.Namespace,
   Pengine.MC.NBT,
@@ -39,7 +39,7 @@ type
       function GetValues: TValues.TReader;
 
     public
-      constructor Create(AJSONPair: TJSONPair);
+      constructor Create(AJPair: TJPair);
       destructor Destroy; override;
 
       property Name: string read FName;
@@ -59,7 +59,7 @@ type
     function GetProperties: TProperties.TReader;
 
   public
-    constructor Create(AJSONPair: TJSONPair);
+    constructor Create(AJPair: TJPair);
     destructor Destroy; override;
 
     property NSPath: TNSPath read FNSPath;
@@ -88,7 +88,7 @@ type
     function GetSorted: TBlockTypes.TReader;
 
   public
-    constructor Create(AJSONObject: TJSONObject);
+    constructor Create(AJObject: TJObject);
     destructor Destroy; override;
 
     function Exists(ANSPath: TNSPath): Boolean;
@@ -265,7 +265,7 @@ type
     function GetSorted: TBlockTypes.TReader;
 
   public
-    constructor Create(ABlockTags: TBlockTagCollection; ANSPath: TNSPath; AJSONObject: TJSONObject);
+    constructor Create(ABlockTags: TBlockTagCollection; ANSPath: TNSPath; AJObject: TJObject);
     destructor Destroy; override;
 
     property NSPath: TNSPath read FNSPath;
@@ -383,14 +383,14 @@ implementation
 
 { TBlockType.TProperty }
 
-constructor TBlockType.TProperty.Create(AJSONPair: TJSONPair);
+constructor TBlockType.TProperty.Create(AJPair: TJPair);
 var
-  JSONValue: TJSONValue;
+  JValue: TJValue;
 begin
-  FName := AJSONPair.JsonString.Value;
+  FName := AJPair.Key;
   FValues := TValues.Create;
-  for JSONValue in AJSONPair.JSONValue as TJSONArray do
-    FValues.Add((JSONValue as TJSONString).Value);
+  for JValue in AJPair.AsArray do
+    FValues.Add(JValue.AsString);
 end;
 
 destructor TBlockType.TProperty.Destroy;
@@ -416,17 +416,17 @@ end;
 
 { TBlockTypeCollection }
 
-constructor TBlockTypeCollection.Create(AJSONObject: TJSONObject);
+constructor TBlockTypeCollection.Create(AJObject: TJObject);
 var
-  JSONPair: TJSONPair;
+  JPair: TJPair;
   BlockState: TBlockType;
 begin
   FMap := TMap.Create;
   FOrder := TBlockTypes.Create;
 
-  for JSONPair in AJSONObject do
+  for JPair in AJObject do
   begin
-    BlockState := TBlockType.Create(JSONPair);
+    BlockState := TBlockType.Create(JPair);
     FMap[BlockState.NSPath] := BlockState;
     FOrder.Add(BlockState);
   end;
@@ -469,20 +469,20 @@ end;
 
 { TBlockType }
 
-constructor TBlockType.Create(AJSONPair: TJSONPair);
+constructor TBlockType.Create(AJPair: TJPair);
 var
-  JSONPair: TJSONPair;
+  JPair: TJPair;
   Prop: TProperty;
-  JSONProperties: TJSONObject;
+  JProperties: TJObject;
 begin
-  FNSPath := AJSONPair.JsonString.Value;
+  FNSPath := AJPair.Key;
   FMap := TMap.Create;
   FProperties := TProperties.Create;
-  if AJSONPair.JSONValue.TryGetValue<TJSONObject>('properties', JSONProperties) then
+  if AJPair.AsObject.Get<TJObject>('properties', JProperties) then
   begin
-    for JSONPair in JSONProperties do
+    for JPair in JProperties do
     begin
-      Prop := TProperty.Create(JSONPair);
+      Prop := TProperty.Create(JPair);
       FMap[Prop.Name] := Prop;
       FProperties.Add(Prop);
     end;
@@ -631,24 +631,24 @@ end;
 procedure TBlockSettings.Reload;
 var
   BlocksText: string;
-  BlocksJSON: TJSONObject;
+  BlocksJ: TJObject;
 begin
   FreeAndNil(FBlocks);
 
   if TFile.Exists(Path) then
   begin
     BlocksText := TFile.ReadAllText(Path);
-    BlocksJSON := TJSONObject.ParseJSONValue(BlocksText) as TJSONObject;
+    BlocksJ := TJObject.Parse(BlocksText);
   end
   else
   begin
-    BlocksJSON := TJSONObject.Create;
+    BlocksJ := TJObject.Create;
   end;
 
   try
-    FBlocks := TBlockTypeCollection.Create(BlocksJSON);
+    FBlocks := TBlockTypeCollection.Create(BlocksJ);
   finally
-    BlocksJSON.Free;
+    BlocksJ.Free;
   end;
 end;
 
@@ -771,63 +771,67 @@ begin
     BeginSuggestions(TPropertySuggestions.Create(FBlockTypes.Copy));
 
   SkipWhitespace;
-  if not StartsWith(']') then
+  if StartsWith(']', False) then
   begin
-    while True do
+    EndSuggestions;
+    Advance;
+    Exit(True);
+  end;
+
+  while True do
+  begin
+    PropertyName := ReadWhile(IdentChars);
+    EndSuggestions;
+
+    if PropertyName.IsEmpty then
     begin
-      PropertyName := ReadWhile(IdentChars);
-      EndSuggestions;
-
-      if PropertyName.IsEmpty then
-      begin
-        Log(1, 'Expected block state property name.', elFatal);
-        Exit(True);
-      end;
-
-      Prop := nil;
-      if HasBlockTypes then
-      begin
-        for BlockType in FBlockTypes do
-          if BlockType.GetProperty(PropertyName, Prop) then
-            Break;
-        if Prop = nil then
-          Log(-PropertyName.Length, '"%s" is not a valid property.', [PropertyName]);
-      end;
-
-      SkipWhitespace;
-
-      if not StartsWith('=') then
-        raise EParseError.Create('Expected "=".');
-
-      if Prop <> nil then
-        BeginSuggestions(TPropertyValueSuggestions.Create(Prop));
-
-      SkipWhitespace;
-
-      PropertyValue := ReadWhile(IdentChars);
-
-      EndSuggestions;
-
-      if PropertyValue.IsEmpty then
-        Log(1, 'Expected value for property.')
-      else if (Prop <> nil) and not Prop.Exists(PropertyValue) then
-        Log(-PropertyValue.Length, '"%s" is not a valid value for "%s".', [PropertyValue, PropertyName]);
-
-      ParseResult.Add(TPropertyValue.Create(PropertyName, PropertyValue));
-
-      SkipWhitespace;
-
-      if StartsWith(']') then
-        Break;
-
-      if not StartsWith(',') then
-        raise EParseError.Create('Expected "]" or ",".');
-
-      if HasBlockTypes then
-        BeginSuggestions(TPropertySuggestions.Create(FBlockTypes.Copy));
-
-      SkipWhitespace;
+      Log(1, 'Expected block state property name.', elFatal);
+      Exit(True);
     end;
+
+    Prop := nil;
+    if HasBlockTypes then
+    begin
+      for BlockType in FBlockTypes do
+        if BlockType.GetProperty(PropertyName, Prop) then
+          Break;
+      if Prop = nil then
+        Log(-PropertyName.Length, '"%s" is not a valid property.', [PropertyName]);
+    end;
+
+    SkipWhitespace;
+
+    if not StartsWith('=') then
+      raise EParseError.Create('Expected "=".');
+
+    if Prop <> nil then
+      BeginSuggestions(TPropertyValueSuggestions.Create(Prop));
+
+    SkipWhitespace;
+
+    PropertyValue := ReadWhile(IdentChars);
+
+    EndSuggestions;
+
+    if PropertyValue.IsEmpty then
+      Log(1, 'Expected value for property.')
+    else if (Prop <> nil) and not Prop.Exists(PropertyValue) then
+      Log(-PropertyValue.Length, '"%s" is not a valid value for "%s".', [PropertyValue, PropertyName]);
+
+    ParseResult.Add(TPropertyValue.Create(PropertyName, PropertyValue));
+
+    SkipWhitespace;
+
+    if StartsWith(']') then
+      Break;
+
+    if not StartsWith(',') then
+      raise EParseError.Create('Expected "]" or ",".');
+
+    if HasBlockTypes then
+      BeginSuggestions(TPropertySuggestions.Create(FBlockTypes.Copy));
+
+    SkipWhitespace;
   end;
 
   Result := True;
@@ -863,35 +867,27 @@ end;
 
 { TBlockTag }
 
-constructor TBlockTag.Create(ABlockTags: TBlockTagCollection; ANSPath: TNSPath; AJSONObject: TJSONObject);
+constructor TBlockTag.Create(ABlockTags: TBlockTagCollection; ANSPath: TNSPath; AJObject: TJObject);
 var
-  ReplaceNode: TJSONBool;
-  ValuesNode: TJSONArray;
-  ValueNode: TJSONValue;
+  JValue: TJValue;
   Value: string;
   BlockType: TBlockType;
 begin
   FNSPath := ANSPath;
   FBlockTypes := TBlockTypes.Create;
-  if AJSONObject.TryGetValue<TJSONBool>('replace', ReplaceNode) then
-    FReplace := ReplaceNode.AsBoolean;
-  if AJSONObject.TryGetValue<TJSONArray>('values', ValuesNode) then
+  FReplace := AJObject['replace'].AsBool;
+  for JValue in AJObject['values'].AsArray do
   begin
-    for ValueNode in ValuesNode do
+    Value := JValue.AsString;
+    if Value.StartsWith('#') then
     begin
-      if not(ValueNode is TJSONString) then
-        Continue;
-      Value := TJSONString(ValueNode).Value;
-      if Value.StartsWith('#') then
-      begin
-        Value := Value.Substring(1);
-        FBlockTypes.Add(ABlockTags.LoadFromName(Value).BlockTypes);
-      end
-      else
-      begin
-        if ABlockTags.BlockTypes.Get(Value, BlockType) then
-          FBlockTypes.Add(BlockType);
-      end;
+      Value := Value.Substring(1);
+      FBlockTypes.Add(ABlockTags.LoadFromName(Value).BlockTypes.GetEnumerator);
+    end
+    else
+    begin
+      if ABlockTags.BlockTypes.Get(Value, BlockType) then
+        FBlockTypes.Add(BlockType);
     end;
   end;
   FSorted := BlockTypes.Copy;
@@ -966,18 +962,18 @@ end;
 function TBlockTagCollection.Load(AFileName: TFileName): TBlockTag;
 var
   NSPath: TNSPath;
-  JSONObject: TJSONObject;
+  JObject: TJObject;
 begin
   NSPath := ChangeFileExt(ExtractFileName(AFileName), '');
   if Get(NSPath, Result) then
     Exit;
-  JSONObject := TJSONObject.ParseJSONValue(TFile.ReadAllText(AFileName)) as TJSONObject;
+  JObject := TJObject.Parse(TFile.ReadAllText(AFileName));
   try
-    Result := TBlockTag.Create(Self, NSPath, JSONObject);
+    Result := TBlockTag.Create(Self, NSPath, JObject);
     FMap[NSPath] := Result;
     FTags.Add(Result);
   finally
-    JSONObject.Free;
+    JObject.Free;
   end;
 end;
 

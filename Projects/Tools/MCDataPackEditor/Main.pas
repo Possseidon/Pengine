@@ -9,8 +9,6 @@ uses
   Winapi.ShlObj,
 
   System.SysUtils,
-  System.JSON,
-  System.Classes,
   System.IOUtils,
   System.Actions,
   System.ImageList,
@@ -46,7 +44,8 @@ uses
   EditorFrameFunction,
   FunctionTheme,
   LightThemePreset,
-  SettingsForm;
+  SettingsForm,
+  System.Classes;
 
 type
 
@@ -323,14 +322,14 @@ begin
   // The first time, this exception is raised, the raising takes a little longer with the debugger...
   // So let's do it at the start so it's not anoying while typing.
 
-{$IFDEF DEBUG}
+  {$IFDEF DEBUG}
 
   try
     raise EParseError.Create('');
   except
   end;
 
-{$ENDIF}
+  {$ENDIF}
 
 end;
 
@@ -565,7 +564,7 @@ begin
   if Index <> -1 then
     FDraggedPage.PageIndex := Index
   else
-    FDraggedPage.PageIndex := pcTabs.PageCount;
+    FDraggedPage.PageIndex := pcTabs.PageCount - 1;
 end;
 
 procedure TfrmMain.pcTabsDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);

@@ -132,13 +132,15 @@ type
     class operator Implicit(A: TIntVector2): TPoint;
     class operator Implicit(A: TPoint): TIntVector2;
 
-{$REGION 'All versions of rearrangement TIntVector2'}
+    {$REGION 'All versions of rearrangement TIntVector2'}
+
     property XX: TIntVector2 read GetXX;
     property XY: TIntVector2 read GetXY write SetXY;
     property YX: TIntVector2 read GetYX write SetYX;
     property YY: TIntVector2 read GetYY;
 
-{$ENDREGION}
+    {$ENDREGION}
+
     class operator Add(const A, B: TIntVector2): TIntVector2;
     class operator Subtract(const A, B: TIntVector2): TIntVector2;
     class operator Multiply(const A, B: TIntVector2): TIntVector2;
@@ -252,7 +254,8 @@ type
 
     class operator Implicit(V: Integer): TIntVector3; inline;
 
-{$REGION 'All versions of rearrangement TIntVector2'}
+    {$REGION 'All versions of rearrangement TIntVector2'}
+
     property XX: TIntVector2 read GetXX;
     property XY: TIntVector2 read GetXY write SetXY;
     property XZ: TIntVector2 read GetXZ write SetXZ;
@@ -263,8 +266,9 @@ type
     property ZY: TIntVector2 read GetZY write SetZY;
     property ZZ: TIntVector2 read GetZZ;
 
-{$ENDREGION}
-{$REGION 'All versions of rearrangement TIntVector3'}
+    {$ENDREGION}
+    {$REGION 'All versions of rearrangement TIntVector3'}
+
     property XXX: TIntVector3 read GetXXX;
     property XXY: TIntVector3 read GetXXY;
     property XXZ: TIntVector3 read GetXXZ;
@@ -293,7 +297,8 @@ type
     property ZZY: TIntVector3 read GetZZY;
     property ZZZ: TIntVector3 read GetZZZ;
 
-{$ENDREGION}
+    {$ENDREGION}
+
     class operator Add(const A, B: TIntVector3): TIntVector3;
     class operator Subtract(const A, B: TIntVector3): TIntVector3;
     class operator Multiply(const A, B: TIntVector3): TIntVector3;
@@ -363,11 +368,9 @@ type
     /// <summary>The (usually) higher value of the bounds.</summary>
     C2: Integer;
 
-  private
+  public
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds1"/> with the specified range.</summary>
     constructor Create(AC1, AC2: Integer); overload;
-
-  public
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds1"/> with both bounds laying on the same, given value.</summary>
     constructor Create(A: Integer); overload;
 
@@ -468,11 +471,9 @@ type
     /// <summary>The (usually) higher value of the bounds.</summary>
     C2: TIntVector2;
 
-  private
+  public
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds2"/> with the specified range.</summary>
     constructor Create(AC1, AC2: TIntVector2); overload;
-
-  public
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds2"/> with both bounds laying on the same, given value.</summary>
     constructor Create(A: TIntVector2); overload;
 

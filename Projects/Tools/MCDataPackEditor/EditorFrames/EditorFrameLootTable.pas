@@ -10,12 +10,13 @@ uses
   System.Variants,
   System.Classes,
   System.IOUtils,
-  System.JSON,
 
   Vcl.Graphics,
   Vcl.Controls,
   Vcl.Forms,
   Vcl.Dialogs,
+
+  System.JSON,
 
   Pengine.MC.LootTable,
 

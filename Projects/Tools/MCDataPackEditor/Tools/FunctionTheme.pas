@@ -204,7 +204,7 @@ begin
   FreeAndNil(FCommand);
   FreeAndNil(FContext);
 
-  with TBrigadierCommandParser.Create(FSettings, Text) do
+  with TBrigadierCommandParser.Create(FSettings, Text, True) do
   begin
     if Success then
       FCommand := OwnParseResult;

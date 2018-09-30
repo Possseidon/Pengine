@@ -313,8 +313,10 @@ type
     procedure AddSuggestionToWhitespace;
     procedure AddSuggestionsToInfo(var AInfo: TContext.TCharInfoRec);
 
+    function EditInfoEnabled: Boolean; inline;
+
   public
-    constructor Create(AText: string);
+    constructor Create(AText: string; AGenerateEditInfo: Boolean);
     destructor Destroy; override;
 
     property Position: TParsePosition read FPosition;
@@ -337,6 +339,7 @@ type
     function ReadWhile(APredicate: TPredicate<Char>; AAdvance: Boolean = True): string; overload;
     /// <summary>A string, which gets read from the current position, as long as the char is in the given set.</summary>
     function ReadWhile(AChars: TSysCharSet; AAdvance: Boolean = True): string; overload;
+    function ReadWhile(AChars: TSysCharSet; AMax: Integer; AAdvance: Boolean = True): string; overload;
     function ReadUntil(AChars: TSysCharSet; AAdvance: Boolean = True): string; overload;
     /// <summary>Advances over any whitespace and raises EParseError if spaces are required.</summary>
     procedure SkipWhitespace;
@@ -407,6 +410,7 @@ type
     function StartsWith(AText: string; AAdvanceOnMatch: Boolean = True): Boolean; overload; inline;
     function ReadWhile(APredicate: TPredicate<Char>; AAdvance: Boolean = True): string; overload; inline;
     function ReadWhile(AChars: TSysCharSet; AAdvance: Boolean = True): string; overload; inline;
+    function ReadWhile(AChars: TSysCharSet; AMax: Integer; AAdvance: Boolean = True): string; overload; inline;
     function ReadUntil(AChars: TSysCharSet; AAdvance: Boolean = True): string; overload; inline;
     procedure SkipWhitespace;
 
@@ -433,7 +437,9 @@ type
 
   public
     /// <summary>Parses the given string using the Parse function.</summary>
-    constructor Create(AText: string); overload;
+    /// <param name="AText">The text to parse.</param>
+    /// <param name="ANoContext">Disable context if not required to speed up parsing.</param>
+    constructor Create(AText: string; AGenerateEditInfo: Boolean); overload;
     /// <summary>Parses using the given TParseInfo object.</summary>
     /// <exception><see cref="Pengine.Parser|EParseError"/> if no success and ARequired is True.</exception>
     constructor Create(AInfo: TParseInfo; ARequired: Boolean); overload; virtual;
@@ -495,7 +501,7 @@ type
     procedure InitSettings; virtual; abstract;
 
   public
-    constructor Create(AText: string; ASettings: TRootSettings); overload;
+    constructor Create(AText: string; ASettings: TRootSettings; AGenerateEditInfo: Boolean); overload;
     constructor Create(AInfo: TParseInfo; ASettings: TRootSettings; ARequired: Boolean); reintroduce; overload; virtual;
 
   end;
@@ -516,7 +522,7 @@ type
     FParseObject: T;
 
   public
-    constructor Create(AParseObject: T; AText: string); overload;
+    constructor Create(AParseObject: T; AText: string; AGenerateEditInfo: Boolean); overload;
     constructor Create(AParseObject: T; AInfo: TParseInfo; ARequired: Boolean = True); overload;
 
     property ParseObject: T read FParseObject;
@@ -683,6 +689,11 @@ begin
   Result := Info.ReadUntil(AChars, AAdvance);
 end;
 
+function TParser.ReadWhile(AChars: TSysCharSet; AMax: Integer; AAdvance: Boolean): string;
+begin
+  Result := Info.ReadWhile(AChars, AMax, AAdvance);
+end;
+
 function TParser.ReadWhile(AChars: TSysCharSet; AAdvance: Boolean): string;
 begin
   Result := Info.ReadWhile(AChars, AAdvance);
@@ -713,10 +724,10 @@ begin
   Result := Info.StartsWith(AText, AAdvanceOnMatch);
 end;
 
-constructor TParser.Create(AText: string);
+constructor TParser.Create(AText: string; AGenerateEditInfo: Boolean);
 begin
   try
-    Create(TParseInfo.Create(AText), True);
+    Create(TParseInfo.Create(AText, AGenerateEditInfo), True);
   except
     on E: EParseError do
       Log(-E.Length, E.Message);
@@ -724,7 +735,8 @@ begin
   if not Success and Info.FContext.Log.Empty then
     Log(1, 'Expected ' + GetResultName + '.', elFatal);
   FContext := Info.OwnContext;
-  Info.Free;
+
+  FInfo.Free;
 end;
 
 procedure TParser.Log(AMarker: TLogMarker; AMessage: string; const AFmt: array of const; ALevel: TParseError.TLevel);
@@ -746,21 +758,24 @@ var
 begin
   for I := 0 to AAmount - 1 do
   begin
-    Info.ParserStack := FParserStack.Copy;
-    Info.ParserStack.ForceCount(Info.ParserStack.Count);
+    if EditInfoEnabled then
+    begin
+      Info.ParserStack := FParserStack.Copy;
+      Info.ParserStack.ForceCount(Info.ParserStack.Count);
 
-    FContext.FMaxParserDepth := Max(FContext.FMaxParserDepth, Info.ParserStack.Count);
+      FContext.FMaxParserDepth := Max(FContext.FMaxParserDepth, Info.ParserStack.Count);
 
-    Info.Token := FToken;
+      Info.Token := FToken;
 
-    AddSuggestionsToInfo(Info);
+      AddSuggestionsToInfo(Info);
 
-    FContext.FCharInfo.Add(Info);
+      FContext.FCharInfo.Add(Info);
 
-    UpdateSuggestionsEnd;
+      UpdateSuggestionsEnd;
+    end;
 
     Inc(FPosition.LinePos);
-    if First = #13 then
+    if First = #10 then
     begin
       Inc(FPosition.Line);
       FPosition.LinePos := 1;
@@ -796,15 +811,23 @@ begin
   AddSuggestionToWhitespace;
 end;
 
-constructor TParseInfo.Create(AText: string);
+function TParseInfo.EditInfoEnabled: Boolean;
+begin
+  Result := FParserStack <> nil;
+end;
+
+constructor TParseInfo.Create(AText: string; AGenerateEditInfo: Boolean);
 begin
   FText := AText;
   FPosition.Pos := 1;
   FPosition.Line := 1;
   FPosition.LinePos := 1;
-  FParserStack := TParserStack.Create;
   FContext := TContext.Create;
-  FTokenStack := TTokenStack.Create;
+  if AGenerateEditInfo then
+  begin
+    FParserStack := TParserStack.Create;
+    FTokenStack := TTokenStack.Create;
+  end;
 end;
 
 destructor TParseInfo.Destroy;
@@ -903,15 +926,21 @@ end;
 
 procedure TParseInfo.PopParser;
 begin
-  FParserStack.RemoveLast;
-  FToken := FTokenStack.Pop;
+  if EditInfoEnabled then
+  begin
+    FParserStack.RemoveLast;
+    FToken := FTokenStack.Pop;
+  end;
 end;
 
 procedure TParseInfo.PushParser(AParserClass: TParserClass);
 begin
-  FParserStack.Add(AParserClass);
-  FTokenStack.Push(FToken);
-  FToken := 0;
+  if EditInfoEnabled then
+  begin
+    FParserStack.Add(AParserClass);
+    FTokenStack.Push(FToken);
+    FToken := 0;
+  end;
 end;
 
 function TParseInfo.ReachedEnd: Boolean;
@@ -925,6 +954,17 @@ begin
     function(C: Char): Boolean
     begin
       Result := not CharInSet(C, AChars);
+    end,
+    AAdvance);
+end;
+
+function TParseInfo.ReadWhile(AChars: TSysCharSet; AMax: Integer; AAdvance: Boolean): string;
+begin
+  Result := ReadWhile(
+    function(C: Char): Boolean
+    begin
+      Result := CharInSet(C, AChars) and (AMax <> 0);
+      Dec(AMax);
     end,
     AAdvance);
 end;
@@ -1199,10 +1239,10 @@ end;
 
 { TRefParser<T> }
 
-constructor TRefParser<T>.Create(AParseObject: T; AText: string);
+constructor TRefParser<T>.Create(AParseObject: T; AText: string; AGenerateEditInfo: Boolean);
 begin
   FParseObject := AParseObject;
-  inherited Create(AText);
+  inherited Create(AText, AGenerateEditInfo);
 end;
 
 constructor TRefParser<T>.Create(AParseObject: T; AInfo: TParseInfo; ARequired: Boolean);
@@ -1375,11 +1415,11 @@ begin
   inherited Create(AInfo, ARequired);
 end;
 
-constructor TParserWithSettings<T>.Create(AText: string; ASettings: TRootSettings);
+constructor TParserWithSettings<T>.Create(AText: string; ASettings: TRootSettings; AGenerateEditInfo: Boolean);
 begin
   FSettings := ASettings;
   InitSettings;
-  inherited Create(AText);
+  inherited Create(AText, AGenerateEditInfo);
 end;
 
 { TObjectParserWithSettings<T> }

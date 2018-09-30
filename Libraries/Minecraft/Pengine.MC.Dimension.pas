@@ -2,6 +2,9 @@ unit Pengine.MC.Dimension;
 
 interface
 
+uses
+  Pengine.MC.Namespace;
+
 type
 
   TDimension = (
@@ -14,7 +17,7 @@ const
 
   DimensionNames: array [TDimension] of string = (
     'overworld',
-    'nether',
+    'the_nether',
     'the_end'
     );
 
@@ -24,16 +27,16 @@ const
     'End'
     );
 
-function DimensionFromName(AName: string; out ADimension: TDimension): Boolean;
+function DimensionFromName(ANSPath: TNSPath; out ADimension: TDimension): Boolean;
 
 implementation
 
-function DimensionFromName(AName: string; out ADimension: TDimension): Boolean;
+function DimensionFromName(ANSPath: TNSPath; out ADimension: TDimension): Boolean;
 var
   Dimension: TDimension;
 begin
   for Dimension := Low(TDimension) to High(TDimension) do
-    if AName = DimensionNames[Dimension] then
+    if ANSPath = DimensionNames[Dimension] then
     begin
       ADimension := Dimension;
       Exit(True);

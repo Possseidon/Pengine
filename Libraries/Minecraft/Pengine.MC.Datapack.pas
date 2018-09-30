@@ -825,7 +825,8 @@ var
   CurrentNamespaces: TSet<string, TStringHasher>;
   NamespaceFullPath, NamespaceName: string;
 begin
-  CurrentNamespaces := FNamespaces.KeySet(hmManual); // don't rehash when empty
+  CurrentNamespaces := FNamespaces.KeySet;
+  CurrentNamespaces.HashMode := hmManual; // don't rehash when empty
 
   try
     for NamespaceFullPath in System.IOUtils.TDirectory.GetDirectories(DataPath) do

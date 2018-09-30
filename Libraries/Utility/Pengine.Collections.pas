@@ -101,8 +101,10 @@ type
 
   public const
 
-    // TODO: XmlDoc
     NeverShrink = Integer.MaxValue;
+
+    DefaultGrowAmount = 16;
+    DefaultShrinkRetain = 8;
 
   private
     FGrowAmount: Integer;
@@ -114,7 +116,7 @@ type
   protected
     FCount: Integer;
 
-    function CreateSame(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8): TArray;
+    function CreateSame: TArray;
 
     // TODO: XmlDoc
     function ShouldFreeItems: Boolean; virtual;
@@ -135,7 +137,7 @@ type
 
   public
     // TODO: XmlDoc
-    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); virtual;
+    constructor Create; virtual;
     // TODO: XmlDoc
     destructor Destroy; override;
 
@@ -143,6 +145,8 @@ type
     property GrowAmount: Integer read FGrowAmount write SetGrowAmount;
     // TODO: XmlDoc
     property ShrinkRetain: Integer read FShrinkRetain write SetShrinkRetain;
+
+    procedure SetGrowShrink(AGrowAmount, AShrinkRetain: Integer);
 
     // TODO: XmlDoc
     function Count: Integer; inline;
@@ -420,8 +424,6 @@ type
     procedure Add(AItems: IIterable<T>); overload;
     // TODO: XmlDoc
     procedure Add(AItems: IEnumerable<T>); overload;
-    // TODO: XmlDoc
-    procedure Add(AItems: TReader); overload;
     
     // TODO: XmlDoc: Remarks: Insert can also add item at the end
     function Insert(AItem: T; AIndex: Integer): T; virtual;
@@ -641,8 +643,7 @@ type
     function GetOwnsObjects: Boolean; override;
 
   public
-    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
-    constructor Create(AOwnsObjects: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce; overload;
+    constructor Create(AOwnsObjects: Boolean); reintroduce; overload;
 
     // TODO: XmlDoc
     function FindAsArray(AFunc: TFindFuncStatic<T>): TRefArray<T>; overload; inline;
@@ -664,7 +665,7 @@ type
   TObjectArray<T: class> = class(TRefArray<T>)
   public
     /// <summary>Creates a <see cref="TObjectArray{T}"/>, which will automatically free all objects on destruction.</summary>
-    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
+    constructor Create; overload; override;
 
   end;
 
@@ -677,7 +678,7 @@ type
     function GetOwnsObjects: Boolean; override;
 
   public
-    constructor Create(AOwnsObjectsLink: PBoolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+    constructor Create(AOwnsObjectsLink: PBoolean); reintroduce;
 
   end;
 
@@ -704,9 +705,7 @@ type
     function GetOwnsKeys: Boolean; override;
 
   public
-    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
-    constructor Create(AOwnsKeys: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
-      overload;
+    constructor Create(AOwnsKeys: Boolean); reintroduce; overload;
 
     // TODO: XmlDoc
     function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefPairArray<K, V>; overload; inline;
@@ -731,7 +730,7 @@ type
     function GetOwnsKeys: Boolean; override;
 
   public
-    constructor Create(AOwnsKeysLink: PBoolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+    constructor Create(AOwnsKeysLink: PBoolean); reintroduce;
 
   end;
 
@@ -758,9 +757,7 @@ type
     function GetOwnsValues: Boolean; override;
 
   public
-    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
-    constructor Create(AOwnsValues: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
-      overload;
+    constructor Create(AOwnsValues: Boolean); reintroduce; overload;
 
     // TODO: XmlDoc
     function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TToRefPairArray<K, V>; overload; inline;
@@ -776,6 +773,12 @@ type
 
   end;
 
+  TToObjectPairArray<K; V: class> = class(TToRefPairArray<K, V>)
+  public
+    constructor Create; overload; override;
+
+  end;
+
   // TODO: XmlDoc DO NOT COPY THIS, IT WON'T KEEP ITS LINK (probably)
   TToRefPairArrayOwnLinked<K; V: class> = class(TBaseToRefPairArray<K, V>)
   private
@@ -785,7 +788,7 @@ type
     function GetOwnsValues: Boolean; override;
 
   public
-    constructor Create(AOwnsValuesLink: PBoolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce;
+    constructor Create(AOwnsValuesLink: PBoolean); reintroduce;
 
   end;
 
@@ -820,8 +823,7 @@ type
     function GetOwnsValues: Boolean; override;
 
   public
-    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
-    constructor Create(AOwnsKeys, AOwnsValues: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce; overload;
+    constructor Create(AOwnsKeys, AOwnsValues: Boolean); reintroduce; overload;
 
     // TODO: XmlDoc
     function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefRefPairArray<K, V>; overload; inline;
@@ -849,7 +851,7 @@ type
     function GetOwnsValues: Boolean; override;
 
   public
-    constructor Create(AOwnsKeysLink, AOwnsValuesLink: PBoolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8);
+    constructor Create(AOwnsKeysLink, AOwnsValuesLink: PBoolean);
       reintroduce;
 
   end;
@@ -925,17 +927,15 @@ type
     procedure SetShrinkRetain(const Value: Integer); inline;
 
   protected
-    function CreateSame(AGrowAmount: Integer; AShrinkRetain: Integer): TStack;
+    function CreateSame: TStack;
 
     // TODO: XmlDoc
-    function CreateArray(AGrowAmount: Integer; AShrinkRetain: Integer): TArray; virtual; abstract;
+    function CreateArray: TArray; virtual; abstract;
 
     function CreateCopy: TStack; virtual;
 
-    constructor CreateNoArray; virtual;
-
   public
-    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); virtual;
+    constructor Create; virtual;
     destructor Destroy; override;
 
     // TODO: XmlDoc
@@ -964,7 +964,7 @@ type
     procedure SetTop(const Value: T); inline;
 
   protected
-    function CreateArray(AGrowAmount, AShrinkRetain: Integer): TArray; override;
+    function CreateArray: TArray; override;
 
   public
     // TODO: XmlDoc
@@ -991,11 +991,10 @@ type
     procedure SetOwnsObjects(const Value: Boolean);
   protected
     // TODO: XmlDoc
-    function CreateArray(AGrowAmount, AShrinkRetain: Integer): TArray; override;
+    function CreateArray: TArray; override;
 
   public
-    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); overload; override;
-    constructor Create(AOwnsObjects: Boolean; AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); reintroduce; overload;
+    constructor Create(AOwnsObjects: Boolean); reintroduce; overload;
 
     // TODO: XmlDoc
     function Copy: TRefStack<T>; reintroduce; inline;
@@ -1006,7 +1005,7 @@ type
 
   TObjectStack<T: class> = class(TRefStack<T>)
   public
-    constructor Create(AGrowAmount: Integer = 16; AShrinkRetain: Integer = 8); override;
+    constructor Create; overload; override;
   end;
 
   // TODO: XmlDoc
@@ -1080,7 +1079,7 @@ end;
 
 function TArray.CreateCopy: TArray;
 begin
-  Result := CreateSame(GrowAmount, ShrinkRetain);
+  Result := CreateSame;
   CopyTo(Result);
 end;
 
@@ -1099,15 +1098,15 @@ begin
   Result := True;
 end;
 
-constructor TArray.Create(AGrowAmount, AShrinkRetain: Integer);
+constructor TArray.Create;
 begin
-  GrowAmount := AGrowAmount;
-  ShrinkRetain := AShrinkRetain;
+  GrowAmount := DefaultGrowAmount;
+  ShrinkRetain := DefaultShrinkRetain;
 end;
 
-function TArray.CreateSame(AGrowAmount, AShrinkRetain: Integer): TArray;
+function TArray.CreateSame: TArray;
 begin
-  Result := TArrayClass(ClassType).Create(AGrowAmount, AShrinkRetain);
+  Result := TArrayClass(ClassType).Create;
 end;
 
 destructor TArray.Destroy;
@@ -1185,9 +1184,15 @@ end;
 
 procedure TArray.SetGrowAmount(const Value: Integer);
 begin
-  if Value < 0 then
+  if Value < 1 then
     raise EArrayInvalidGrowAmount.Create;
   FGrowAmount := Value;
+end;
+
+procedure TArray.SetGrowShrink(AGrowAmount, AShrinkRetain: Integer);
+begin
+  GrowAmount := AGrowAmount;
+  ShrinkRetain := AShrinkRetain;
 end;
 
 procedure TArray.SetShrinkRetain(const Value: Integer);
@@ -1262,7 +1267,7 @@ function TArray<T>.TReverseWrapper.Copy: TArray<T>;
 var
   Item: T;
 begin
-  Result := TArray<T>(FArray.CreateSame(FArray.GrowAmount, FArray.ShrinkRetain));
+  Result := TArray<T>(FArray.CreateSame);
   for Item in Self do
     Result.Add(Item);
 end;
@@ -1868,11 +1873,6 @@ begin
     Add(AItems.Current);
 end;
 
-procedure TArray<T>.Add(AItems: TReader);
-begin
-  Add(AItems.GetEnumerator);
-end;
-
 { TIntArrayHelper }
 
 function TIntArrayHelper.Sum: Integer;
@@ -1974,19 +1974,14 @@ end;
 
 { TRefArray<T> }
 
-constructor TRefArray<T>.Create(AGrowAmount, AShrinkRetain: Integer);
-begin
-  inherited;
-end;
-
 function TRefArray<T>.Copy: TRefArray<T>;
 begin
   Result := TRefArray<T>(CreateCopy);
 end;
 
-constructor TRefArray<T>.Create(AOwnsObjects: Boolean; AGrowAmount, AShrinkRetain: Integer);
+constructor TRefArray<T>.Create(AOwnsObjects: Boolean);
 begin
-  inherited Create(AGrowAmount, AShrinkRetain);
+  inherited Create;
   OwnsObjects := AOwnsObjects;
 end;
 
@@ -2117,9 +2112,9 @@ begin
   FArray.ShrinkRetain := Value;
 end;
 
-function TStack.CreateSame(AGrowAmount, AShrinkRetain: Integer): TStack;
+function TStack.CreateSame: TStack;
 begin
-  Result := TStackClass(ClassType).Create(AGrowAmount, AShrinkRetain);
+  Result := TStackClass(ClassType).Create;
 end;
 
 destructor TStack.Destroy;
@@ -2128,20 +2123,15 @@ begin
   inherited;
 end;
 
-constructor TStack.Create(AGrowAmount, AShrinkRetain: Integer);
+constructor TStack.Create;
 begin
-  FArray := CreateArray(AGrowAmount, AShrinkRetain);
+  FArray := CreateArray;
 end;
 
 function TStack.CreateCopy: TStack;
 begin
-  Result := TStackClass(ClassType).CreateNoArray;
-  Result.FArray := FArray.Copy;
-end;
-
-constructor TStack.CreateNoArray;
-begin
-  // do nothing
+  Result := TStackClass(ClassType).Create;
+  FArray.CopyTo(Result.FArray);
 end;
 
 procedure TStack.Clear;
@@ -2171,9 +2161,9 @@ begin
   TArray<T>(FArray).Last := Value;
 end;
 
-function TStack<T>.CreateArray(AGrowAmount, AShrinkRetain: Integer): TArray;
+function TStack<T>.CreateArray: TArray;
 begin
-  Result := TArray<T>.Create(AGrowAmount, AShrinkRetain);
+  Result := TArray<T>.Create;
 end;
 
 procedure TStack<T>.Push(AItem: T);
@@ -2216,20 +2206,15 @@ begin
   Result := TRefStack<T>(CreateCopy);
 end;
 
-constructor TRefStack<T>.Create(AGrowAmount, AShrinkRetain: Integer);
+constructor TRefStack<T>.Create(AOwnsObjects: Boolean);
 begin
-  inherited;
-end;
-
-constructor TRefStack<T>.Create(AOwnsObjects: Boolean; AGrowAmount, AShrinkRetain: Integer);
-begin
-  inherited Create(AGrowAmount, AShrinkRetain);
+  inherited Create;
   OwnsObjects := AOwnsObjects;
 end;
 
-function TRefStack<T>.CreateArray(AGrowAmount, AShrinkRetain: Integer): TArray;
+function TRefStack<T>.CreateArray: TArray;
 begin
-  Result := TRefArray<T>.Create(AGrowAmount, AShrinkRetain);
+  Result := TRefArray<T>.Create;
 end;
 
 function TRefStack<T>.GetOwnsObjects: Boolean;
@@ -2244,9 +2229,9 @@ end;
 
 { TRefArrayOwnLinked<T> }
 
-constructor TRefArrayOwnLinked<T>.Create(AOwnsObjectsLink: PBoolean; AGrowAmount, AShrinkRetain: Integer);
+constructor TRefArrayOwnLinked<T>.Create(AOwnsObjectsLink: PBoolean);
 begin
-  inherited Create(AGrowAmount, AShrinkRetain);
+  inherited Create;
   FOwnsObjectsLink := AOwnsObjectsLink;
 end;
 
@@ -2303,19 +2288,14 @@ end;
 
 { TRefPairArray<K, V> }
 
-constructor TRefPairArray<K, V>.Create(AGrowAmount, AShrinkRetain: Integer);
-begin
-  inherited;
-end;
-
 function TRefPairArray<K, V>.Copy: TRefPairArray<K, V>;
 begin
   Result := TRefPairArray<K, V>(CreateCopy);
 end;
 
-constructor TRefPairArray<K, V>.Create(AOwnsKeys: Boolean; AGrowAmount, AShrinkRetain: Integer);
+constructor TRefPairArray<K, V>.Create(AOwnsKeys: Boolean);
 begin
-  inherited Create(AGrowAmount, AShrinkRetain);
+  inherited Create;
   OwnsKeys := AOwnsKeys;
 end;
 
@@ -2346,9 +2326,9 @@ end;
 
 { TRefPairArrayOwnLinked<K, V> }
 
-constructor TRefPairArrayOwnLinked<K, V>.Create(AOwnsKeysLink: PBoolean; AGrowAmount, AShrinkRetain: Integer);
+constructor TRefPairArrayOwnLinked<K, V>.Create(AOwnsKeysLink: PBoolean);
 begin
-  inherited Create(AGrowAmount, AShrinkRetain);
+  inherited Create;
   FOwnsKeysLink := AOwnsKeysLink;
 end;
 
@@ -2359,19 +2339,14 @@ end;
 
 { TToRefPairArray<K, V> }
 
-constructor TToRefPairArray<K, V>.Create(AGrowAmount, AShrinkRetain: Integer);
-begin
-  inherited;
-end;
-
 function TToRefPairArray<K, V>.Copy: TToRefPairArray<K, V>;
 begin
   Result := TToRefPairArray<K, V>(CreateCopy);
 end;
 
-constructor TToRefPairArray<K, V>.Create(AOwnsValues: Boolean; AGrowAmount, AShrinkRetain: Integer);
+constructor TToRefPairArray<K, V>.Create(AOwnsValues: Boolean);
 begin
-  inherited Create(AGrowAmount, AShrinkRetain);
+  inherited Create;
   OwnsValues := AOwnsValues;
 end;
 
@@ -2402,9 +2377,9 @@ end;
 
 { TToRefPairArrayOwnLinked<K, V> }
 
-constructor TToRefPairArrayOwnLinked<K, V>.Create(AOwnsValuesLink: PBoolean; AGrowAmount, AShrinkRetain: Integer);
+constructor TToRefPairArrayOwnLinked<K, V>.Create(AOwnsValuesLink: PBoolean);
 begin
-  inherited Create(AGrowAmount, AShrinkRetain);
+  inherited Create;
   FOwnsValuesLink := AOwnsValuesLink;
 end;
 
@@ -2435,19 +2410,14 @@ end;
 
 { TRefRefPairArray<K, V> }
 
-constructor TRefRefPairArray<K, V>.Create(AGrowAmount, AShrinkRetain: Integer);
-begin
-  inherited;
-end;
-
 function TRefRefPairArray<K, V>.Copy: TRefRefPairArray<K, V>;
 begin
   Result := TRefRefPairArray<K, V>(CreateCopy);
 end;
 
-constructor TRefRefPairArray<K, V>.Create(AOwnsKeys, AOwnsValues: Boolean; AGrowAmount, AShrinkRetain: Integer);
+constructor TRefRefPairArray<K, V>.Create(AOwnsKeys, AOwnsValues: Boolean);
 begin
-  inherited Create(AGrowAmount, AShrinkRetain);
+  inherited Create;
   OwnsKeys := AOwnsKeys;
   OwnsValues := AOwnsValues;
 end;
@@ -2489,9 +2459,9 @@ end;
 
 { TRefRefPairArrayOwnLinked<K, V> }
 
-constructor TRefRefPairArrayOwnLinked<K, V>.Create(AOwnsKeysLink, AOwnsValuesLink: PBoolean; AGrowAmount, AShrinkRetain: Integer);
+constructor TRefRefPairArrayOwnLinked<K, V>.Create(AOwnsKeysLink, AOwnsValuesLink: PBoolean);
 begin
-  inherited Create(AGrowAmount, AShrinkRetain);
+  inherited Create;
   FOwnsKeysLink := AOwnsKeysLink;
   FOwnsValuesLink := AOwnsValuesLink;
 end;
@@ -2549,16 +2519,16 @@ end;
 
 { TObjectArray<T> }
 
-constructor TObjectArray<T>.Create(AGrowAmount, AShrinkRetain: Integer);
+constructor TObjectArray<T>.Create;
 begin
-  inherited Create(True, AGrowAmount, AShrinkRetain);
+  inherited Create(True);
 end;
 
 { TObjectStack<T> }
 
-constructor TObjectStack<T>.Create(AGrowAmount, AShrinkRetain: Integer);
+constructor TObjectStack<T>.Create;
 begin
-  inherited Create(True, AGrowAmount, AShrinkRetain);
+  inherited Create(True);
 end;
 
 { TArray.TReader }
@@ -2896,6 +2866,13 @@ end;
 function TRefArray<T>.TReader.Copy: TRefArray<T>;
 begin
   Result := TRefArray<T>(Self).Copy;
+end;
+
+{ TToObjectPairArray<K, V> }
+
+constructor TToObjectPairArray<K, V>.Create;
+begin
+  inherited Create(True);
 end;
 
 end.

@@ -5,7 +5,6 @@ interface
 uses
   System.SysUtils,
   System.Math,
-  System.JSON,
   System.Generics.Collections,
   System.Character,
   System.IOUtils,
@@ -16,7 +15,8 @@ uses
   Pengine.Hasher,
   Pengine.Parser,
   Pengine.Settings,
-
+  Pengine.JSON,
+  
   Pengine.MC.General,
   Pengine.MC.Namespace;
 
@@ -78,7 +78,7 @@ type
 
   TBrigadierParserProperties = class abstract
   public
-    constructor Create(AProperties: TJSONObject); virtual;
+    constructor Create(AProperties: TJObject); virtual;
   end;
 
   TBrigadierParser = class abstract(TObjectParserWithSettings<TBrigadierArgumentParameter>)
@@ -153,9 +153,9 @@ type
     FRedirection: TRedirection;
     FRedirectedChild: TBrigadierChild;
 
-    procedure LoadExecutable(AJSONObject: TJSONObject);
-    procedure LoadChildren(AJSONObject: TJSONObject);
-    procedure LoadRedirect(AJSONObject: TJSONObject);
+    procedure LoadExecutable(AJObject: TJObject);
+    procedure LoadChildren(AJObject: TJObject);
+    procedure LoadRedirect(AJObject: TJObject);
 
     function GetArguments: TArguments.TReader;
     function GetLiterals: TLiterals.TReader;
@@ -166,10 +166,10 @@ type
     function GetSettings: TRootSettings;
 
   public
-    constructor Create(ARoot: TBrigadierRoot; AJSONObject: TJSONObject);
+    constructor Create(ARoot: TBrigadierRoot; AJObject: TJObject);
     destructor Destroy; override;
 
-    class function CreateTyped(ARoot: TBrigadierRoot; AJSONPair: TJSONPair): TBrigadierChild;
+    class function CreateTyped(ARoot: TBrigadierRoot; AJPair: TJPair): TBrigadierChild;
 
     class function GetTypeString: string; virtual; abstract;
 
@@ -194,7 +194,7 @@ type
     FLiteral: string;
 
   public
-    constructor Create(ARoot: TBrigadierRoot; AJSONPair: TJSONPair);
+    constructor Create(ARoot: TBrigadierRoot; AJPair: TJPair);
 
     class function GetTypeString: string; override;
 
@@ -211,7 +211,7 @@ type
     FParserProperties: TBrigadierParserProperties;
 
   public
-    constructor Create(ARoot: TBrigadierRoot; AJSONPair: TJSONPair);
+    constructor Create(ARoot: TBrigadierRoot; AJPair: TJPair);
     destructor Destroy; override;
 
     class function GetTypeString: string; override;
@@ -389,7 +389,7 @@ type
     property Settings: TBrigadierCommandParser.TSettings read FSettings;
 
   public
-    constructor Create(ASettings: TBrigadierCommandParser.TSettings; AText: string);
+    constructor Create(ASettings: TBrigadierCommandParser.TSettings; AText: string; AGenerateEditInfo: Boolean);
 
     class function GetTokenCount: Integer; override;
     class function GetTokenName(AIndex: Integer): string; override;
@@ -407,7 +407,7 @@ uses
 constructor TBrigadierRoot.Create(ASettings: TRootSettings);
 var
   BrigadierText: string;
-  BrigadierJSON: TJSONObject;
+  BrigadierJ: TJObject;
 begin
   FSettings := ASettings;
   FBrigadierSettings := Settings.Sub<TBrigadierSettings>;
@@ -415,19 +415,19 @@ begin
   if TFile.Exists(BrigadierSettings.Path) then
   begin
     BrigadierText := TFile.ReadAllText(BrigadierSettings.Path);
-    BrigadierJSON := TJSONObject.ParseJSONValue(BrigadierText) as TJSONObject;
+    BrigadierJ := TJObject.Parse(BrigadierText);
   end
   else
   begin
-    BrigadierJSON := TJSONObject.Create;
-    BrigadierJSON.AddPair('type', 'root');
-    BrigadierJSON.AddPair('children', TJSONObject.Create);
+    BrigadierJ := TJObject.Create;
+    BrigadierJ.Add('type', 'root');
+    BrigadierJ.AddObject('children');
   end;
 
   try
-    inherited Create(Self, BrigadierJSON);
+    inherited Create(Self, BrigadierJ);
   finally
-    BrigadierJSON.Free;
+    BrigadierJ.Free;
   end;
 
   TeleportFix;
@@ -446,16 +446,18 @@ begin
   Teleport.FArguments.Remove(Teleport['destination'] as TBrigadierArgument);
   with Teleport['targets'] as TBrigadierArgument do
   begin
+    // Swap entity and vec3, to check vec3 first, as entity matches any vec3 and vec3 is never tried to parse
+    FArguments.Swap(0, 1);
     FExecutable := True;
   end;
 end;
 
 { TBrigadierSystem.TLiteral }
 
-constructor TBrigadierLiteral.Create(ARoot: TBrigadierRoot; AJSONPair: TJSONPair);
+constructor TBrigadierLiteral.Create(ARoot: TBrigadierRoot; AJPair: TJPair);
 begin
-  inherited Create(ARoot, AJSONPair.JsonValue as TJSONObject);
-  FLiteral := AJSONPair.JsonString.Value;
+  inherited Create(ARoot, AJPair.AsObject);
+  FLiteral := AJPair.Key;
 end;
 
 class function TBrigadierLiteral.GetTypeString: string;
@@ -470,21 +472,18 @@ end;
 
 { TBrigadierArgument }
 
-constructor TBrigadierArgument.Create(ARoot: TBrigadierRoot; AJSONPair: TJSONPair);
+constructor TBrigadierArgument.Create(ARoot: TBrigadierRoot; AJPair: TJPair);
 var
   ParserName: string;
-  PropertiesNode: TJSONObject;
 begin
-  inherited Create(ARoot, AJSONPair.JsonValue as TJSONObject);
-  FName := AJSONPair.JsonString.Value;
-  ParserName := AJSONPair.JsonValue.GetValue<TJSONString>('parser').Value;
+  inherited Create(ARoot, AJPair.AsObject);
+  FName := AJPair.Key;
+  ParserName := AJPair.AsObject['parser'].AsString;
   FParserClass := TBrigadierParser.GetParserClass(ParserName);
   if ParserClass <> nil then
   begin
-    if not AJSONPair.JsonValue.TryGetValue<TJSONObject>('properties', PropertiesNode) then
-      PropertiesNode := nil;
     if ParserClass.GetPropertiesClass <> nil then
-      FParserProperties := ParserClass.GetPropertiesClass.Create(PropertiesNode);
+      FParserProperties := ParserClass.GetPropertiesClass.Create(AJPair.AsObject['properties'].ObjectOrNil);
   end
   else
   begin
@@ -521,23 +520,23 @@ end;
 
 { TBrigadierChild }
 
-constructor TBrigadierChild.Create(ARoot: TBrigadierRoot; AJSONObject: TJSONObject);
+constructor TBrigadierChild.Create(ARoot: TBrigadierRoot; AJObject: TJObject);
 begin
   FRoot := ARoot;
-  LoadExecutable(AJSONObject);
-  LoadChildren(AJSONObject);
-  LoadRedirect(AJSONObject);
+  LoadExecutable(AJObject);
+  LoadChildren(AJObject);
+  LoadRedirect(AJObject);
 end;
 
-class function TBrigadierChild.CreateTyped(ARoot: TBrigadierRoot; AJSONPair: TJSONPair): TBrigadierChild;
+class function TBrigadierChild.CreateTyped(ARoot: TBrigadierRoot; AJPair: TJPair): TBrigadierChild;
 var
   ChildType: string;
 begin
-  ChildType := AJSONPair.JsonValue.GetValue<TJSONString>('type').Value;
+  ChildType := AJPair.AsObject['type'].AsString;
   if ChildType = TBrigadierLiteral.GetTypeString then
-    Result := TBrigadierLiteral.Create(ARoot, AJSONPair)
+    Result := TBrigadierLiteral.Create(ARoot, AJPair)
   else if ChildType = TBrigadierArgument.GetTypeString then
-    Result := TBrigadierArgument.Create(ARoot, AJSONPair)
+    Result := TBrigadierArgument.Create(ARoot, AJPair)
   else if ChildType = TBrigadierRoot.GetTypeString then
     raise EBrigadierMultipleRoots.Create
   else
@@ -630,19 +629,20 @@ begin
   Result := (AChild = Self) or (AChild = RedirectedChild);
 end;
 
-procedure TBrigadierChild.LoadChildren(AJSONObject: TJSONObject);
+procedure TBrigadierChild.LoadChildren(AJObject: TJObject);
 var
-  ChildrenNode: TJSONObject;
-  ChildNode: TJSONPair;
+  JChildren: TJObject;
+  JChild: TJPair;
   Child: TBrigadierChild;
 begin
   FLiterals := TLiterals.Create;
   FArguments := TArguments.Create;
-  if AJSONObject.TryGetValue<TJSONObject>('children', ChildrenNode) then
+  JChildren := AJObject['children'].ObjectOrNil;
+  if JChildren.Exists then
   begin
-    for ChildNode in ChildrenNode do
+    for JChild in JChildren do
     begin
-      Child := TBrigadierChild.CreateTyped(Root, ChildNode);
+      Child := TBrigadierChild.CreateTyped(Root, JChild);
       if Child is TBrigadierLiteral then
         FLiterals.Add(TBrigadierLiteral(Child))
       else if Child is TBrigadierArgument then
@@ -653,23 +653,20 @@ begin
   end;
 end;
 
-procedure TBrigadierChild.LoadExecutable(AJSONObject: TJSONObject);
-var
-  ExecutableNode: TJSONBool;
+procedure TBrigadierChild.LoadExecutable(AJObject: TJObject);
 begin
-  if AJSONObject.TryGetValue<TJSONBool>('executable', ExecutableNode) then
-    FExecutable := ExecutableNode.AsBoolean;
+  FExecutable := AJObject['executable'].BoolOrDefault;
 end;
 
-procedure TBrigadierChild.LoadRedirect(AJSONObject: TJSONObject);
+procedure TBrigadierChild.LoadRedirect(AJObject: TJObject);
 var
-  RedirectNode: TJSONArray;
-  Redirection: TJSONValue;
+  JRedirects: TJArray;
+  JRedirect: TJValue;
 begin
   FRedirection := TRedirection.Create;
-  if AJSONObject.TryGetValue<TJSONArray>('redirect', RedirectNode) then
-    for Redirection in RedirectNode do
-      FRedirection.Add(Redirection.GetValue<TJSONString>.Value);
+  JRedirects := AJObject['redirect'].ArrayOrNil;
+  for JRedirect in JRedirects do
+    FRedirection.Add(JRedirect.AsString);
 end;
 
 { EBrigadierUnknownChildType }
@@ -780,10 +777,10 @@ end;
 
 { TBrigadierCommandParser }
 
-constructor TBrigadierCommandParser.Create(ASettings: TSettings; AText: string);
+constructor TBrigadierCommandParser.Create(ASettings: TSettings; AText: string; AGenerateEditInfo: Boolean);
 begin
   FSettings := ASettings;
-  inherited Create(AText);
+  inherited Create(AText, AGenerateEditInfo);
 end;
 
 procedure TBrigadierCommandParser.RaiseExpectedError(AChild: TBrigadierChild);
@@ -979,7 +976,7 @@ end;
 
 { TBrigadierParserSettings }
 
-constructor TBrigadierParserProperties.Create(AProperties: TJSONObject);
+constructor TBrigadierParserProperties.Create(AProperties: TJObject);
 begin
   // nothing by default
 end;

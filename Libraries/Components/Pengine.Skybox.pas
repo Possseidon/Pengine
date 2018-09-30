@@ -11,6 +11,7 @@ uses
   Pengine.GLProgram,
   Pengine.GLEnums,
   Pengine.Vector,
+  Pengine.IntMaths,
   Pengine.UBO,
   Pengine.Camera,
   Pengine.GLState,
@@ -25,14 +26,16 @@ type
     Pitch: Single;
   end;
 
+  TStripeDataAll = array [0 .. 15] of TStripeData;
+
   TStripe = class
   private
     FIndex: Integer;
     FColor: TColorRGB;
     FAngle: Single;
-    FUBO: TUBO;
+    FUBO: TUBO<TStripeDataAll>;
   public
-    constructor Create(AColor: TColorRGB; AAngle: Single; AIndex: Integer; AUBO: TUBO);
+    constructor Create(AColor: TColorRGB; AAngle: Single; AIndex: Integer; AUBO: TUBO<TStripeData>);
 
     procedure SendAll;
 
@@ -70,7 +73,7 @@ type
 
   private
     FVAO: TSkyboxVAO;
-    FUBO: TUBO;
+    FUBO: TUBO<TStripeData>;
     FStripes: TRefArray<TStripe>;
 
     procedure BuildVAO;
@@ -95,7 +98,7 @@ implementation
 
 { TStripe }
 
-constructor TStripe.Create(AColor: TColorRGB; AAngle: Single; AIndex: Integer; AUBO: TUBO);
+constructor TStripe.Create(AColor: TColorRGB; AAngle: Single; AIndex: Integer; AUBO: TUBO<TStripeData>);
 begin
   FColor := AColor;
   FAngle := AAngle;
@@ -189,9 +192,8 @@ begin
   FVAO := TSkyboxVAO.Create(ASkyboxGLProgram);
   FVAO.GLLabel := 'Skybox';
 
-  FUBO := TUBO.Create(FVAO.GLState);
+  FUBO := TUBO<TStripeData>.Create(FVAO.GLState, buStaticDraw);
   FUBO.GLLabel := 'Skybox Stripe-Data';
-  FUBO.Generate(UBOSize, buStaticDraw);
   FUBO.SubData(SizeOf(TStripeData) * MaxStripes, SizeOf(Integer), Zero);
   FUBO.BindToGLProgram(FVAO.GLProgram, 'stripedata');
 
@@ -251,4 +253,3 @@ begin
 end;
 
 end.
-

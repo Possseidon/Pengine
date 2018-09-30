@@ -521,7 +521,7 @@ end;
 constructor TGLState.Create;
 begin
   InitStates;
-  FChangeStack := TChangeStack.Create(True);
+  FChangeStack := TChangeStack.Create;
   FGLObjectBindings := TGLObjectBindings.Create;
 end;
 

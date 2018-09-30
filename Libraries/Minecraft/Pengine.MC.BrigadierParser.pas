@@ -5,7 +5,6 @@ interface
 uses
   System.SysUtils,
   System.IOUtils,
-  System.JSON,
   System.Math,
 
   Pengine.IntMaths,
@@ -14,6 +13,7 @@ uses
   Pengine.Utility,
   Pengine.Collections,
   Pengine.Settings,
+  Pengine.JSON,
 
   Pengine.MC.Brigadier,
   Pengine.MC.BlockState,
@@ -25,11 +25,13 @@ uses
   Pengine.MC.Namespace,
   Pengine.MC.Entity,
   Pengine.MC.Enchantment,
-  Pengine.MC.Dimension;
+  Pengine.MC.Dimension,
+  Pengine.MC.Particle,
+  Pengine.MC.TextComponent,
+  Pengine.MC.MobEffect,
+  Pengine.MC.Scoreboard;
 
 type
-
-  // TODO: Replace min and max with intbounds, now that I can do that
 
   // TODO: Probably better to split this up and keep it in correct unit
   TFormatNamespaceSettings = class(TSettings)
@@ -133,14 +135,14 @@ type
 
   TBrigadierIntegerProperties = class(TBrigadierParserProperties)
   private
-    FMin: Integer;
-    FMax: Integer;
+    FBounds: TIntBounds1;
 
   public
-    constructor Create(AProperties: TJSONObject); override;
+    constructor Create(AProperties: TJObject); override;
 
-    property Min: Integer read FMin write FMin;
-    property Max: Integer read FMax write FMax;
+    property Bounds: TIntBounds1 read FBounds write FBounds;
+    property Min: Integer read FBounds.C1 write FBounds.C1;
+    property Max: Integer read FBounds.C2 write FBounds.C2;
 
   end;
 
@@ -153,6 +155,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -173,14 +176,14 @@ type
 
   TBrigadierFloatProperties = class(TBrigadierParserProperties)
   private
-    FMin: Single;
-    FMax: Single;
+    FBounds: TBounds1;
 
   public
-    constructor Create(AProperties: TJSONObject); override;
+    constructor Create(AProperties: TJObject); override;
 
-    property Min: Single read FMin write FMin;
-    property Max: Single read FMax write FMax;
+    property Bounds: TBounds1 read FBounds write FBounds;
+    property Min: Single read FBounds.C1 write FBounds.C1;
+    property Max: Single read FBounds.C2 write FBounds.C2;
 
   end;
 
@@ -193,6 +196,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -217,7 +221,7 @@ type
     FMax: Double;
 
   public
-    constructor Create(AProperties: TJSONObject); override;
+    constructor Create(AProperties: TJObject); override;
 
     property Min: Double read FMin write FMin;
     property Max: Double read FMax write FMax;
@@ -233,6 +237,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -274,7 +279,7 @@ type
     FMode: TBrigadierString.TMode;
 
   public
-    constructor Create(AProperties: TJSONObject); override;
+    constructor Create(AProperties: TJObject); override;
 
     property Mode: TBrigadierString.TMode read FMode write FMode;
 
@@ -285,6 +290,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -359,7 +365,7 @@ type
     FType: TType;
 
   public
-    constructor Create(AProperties: TJSONObject); override;
+    constructor Create(AProperties: TJObject); override;
 
     property Amount: TAmount read FAmount write FAmount;
     property EntityType: TType read FType write FType;
@@ -371,6 +377,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -389,8 +396,8 @@ type
     function Parse: Boolean; override;
 
   public
-    class function GetParserString: TNSPath; override;
     class function GetResultName: string; override;
+    class function GetParserString: TNSPath; override;
 
   end;
 
@@ -413,6 +420,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -438,6 +446,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -463,6 +472,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -488,12 +498,14 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
 
   TBrigadierRotationParser = class(TBrigadierVec2Parser)
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -519,6 +531,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -529,6 +542,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -539,6 +553,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -611,6 +626,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -634,6 +650,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -698,20 +715,39 @@ type
     class function KeepEndSuggestions: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
 
   /// <summary>A single potion effect.</summary>
   TBrigadierMobEffect = class(TBrigadierArgumentParameter)
+  private
+    FEffect: TMobEffect;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; AEffect: TMobEffect); reintroduce; overload;
+
+    property Effect: TMobEffect read FEffect write FEffect;
+
+    function Format: string; override;
 
   end;
 
   TBrigadierMobEffectParser = class(TBrigadierParser<TBrigadierMobEffect>)
+  public type
+
+    TSuggestions = class(TParseSuggestionsGenerated<TBrigadierMobEffectParser>)
+    protected
+      procedure Generate; override;
+
+    end;
+
   protected
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -737,6 +773,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -762,6 +799,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -789,6 +827,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -810,10 +849,9 @@ type
   TBrigadierEntitySummonParser = class(TBrigadierParser<TBrigadierEntitySummon>)
   public type
 
-    TSuggestions = class(TParseSuggestionsSimple<TBrigadierEntitySummonParser>)
-    public
-      class function GetCount: Integer; override;
-      class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+    TSuggestions = class(TParseSuggestionsGenerated<TBrigadierEntitySummonParser>)
+    protected
+      procedure Generate; override;
 
     end;
 
@@ -821,6 +859,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -842,10 +881,9 @@ type
   TBrigadierItemEnchantmentParser = class(TBrigadierParser<TBrigadierItemEnchantment>)
   public type
 
-    TSuggestions = class(TParseSuggestionsSimple<TBrigadierItemEnchantmentParser>)
-    public
-      class function GetCount: Integer; override;
-      class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+    TSuggestions = class(TParseSuggestionsGenerated<TBrigadierItemEnchantmentParser>)
+    protected
+      procedure Generate; override;
 
     end;
 
@@ -853,6 +891,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -876,6 +915,7 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
@@ -897,7 +937,134 @@ type
   TBrigadierDimensionParser = class(TBrigadierParser<TBrigadierDimension>)
   public type
 
-    TSuggestions = class(TParseSuggestionsSimple<TBrigadierDimensionParser>)
+    TSuggestions = class(TParseSuggestionsGenerated<TBrigadierDimensionParser>)
+    protected
+      procedure Generate; override;
+
+    end;
+
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
+    class function GetParserString: TNSPath; override;
+
+  end;
+
+  /// <summary>A json text component used in commands like tellraw and such.</summary>
+  TBrigadierComponent = class(TBrigadierArgumentParameter)
+  private
+    FJSON: TJValue;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument); overload; override;
+    constructor Create(AArgument: TBrigadierArgument; AJSON: TJValue); reintroduce; overload;
+    destructor Destroy; override;
+
+    property JSON: TJValue read FJSON;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierComponentParser = class(TBrigadierParser<TBrigadierComponent>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
+    class function GetParserString: TNSPath; override;
+
+  end;
+
+  /// <summary>Basically a namespace path, used in various commands.</summary>
+  TBrigadierResourceLocation = class(TBrigadierArgumentParameter)
+  private
+    FNSPath: TNSPath;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; ANSPath: TNSPath); reintroduce; overload;
+
+    property NSPath: TNSPath read FNSPath write FNSPath;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierResourceLocationParser = class(TBrigadierParser<TBrigadierResourceLocation>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
+    class function GetParserString: TNSPath; override;
+
+  end;
+
+  /// <summary>A namespace path to an mcfunction.</summary>
+  TBrigadierFunction = class(TBrigadierResourceLocation);
+
+  TBrigadierFunctionParser = class(TBrigadierParser<TBrigadierFunction>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
+    class function GetParserString: TNSPath; override;
+
+  end;
+
+  /// <summary>A particle type used in the particle command.</summary>
+  TBrigadierParticle = class(TBrigadierArgumentParameter)
+  private
+    FParticle: TParticle;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; AParticle: TParticle); reintroduce; overload;
+
+    property Particle: TParticle read FParticle write FParticle;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierParticleParser = class(TBrigadierParser<TBrigadierParticle>)
+  public type
+
+    TSuggestions = class(TParseSuggestionsGenerated<TBrigadierParticleParser>)
+    protected
+      procedure Generate; override;
+
+    end;
+
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
+    class function GetParserString: TNSPath; override;
+
+  end;
+
+  /// <summary>A color used for teams, bossbars, in text-components and such.</summary>
+  TBrigadierColor = class(TBrigadierArgumentParameter)
+  private
+    FColor: TMCColor;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; AColor: TMCColor); reintroduce; overload;
+
+    property Color: TMCColor read FColor write FColor;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierColorParser = class(TBrigadierParser<TBrigadierColor>)
+  public type
+
+    TSuggestions = class(TParseSuggestionsSimple<TBrigadierColorParser>)
     public
       class function GetCount: Integer; override;
       class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
@@ -908,9 +1075,36 @@ type
     function Parse: Boolean; override;
 
   public
+    class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
 
   end;
+
+  /// <summary>A slot, to display a scoreboard objective.</summary>
+  TBrigadierScoreboardSlot = class(TBrigadierArgumentParameter)
+  private
+    FScoreboardSlot: TScoreboardSlot;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; AScoreboardSlot: TScoreboardSlot); reintroduce; overload;
+    destructor Destroy; override;
+
+    property ScoreboardSlot: TScoreboardSlot read FScoreboardSlot;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierScoreboardSlotParser = class(TBrigadierParser<TBrigadierScoreboardSlot>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
+    class function GetParserString: TNSPath; override;
+
+  end;
+
 
 implementation
 
@@ -972,19 +1166,11 @@ end;
 
 { TBrigadierIntegerProperties }
 
-constructor TBrigadierIntegerProperties.Create(AProperties: TJSONObject);
-var
-  Node: TJSONNumber;
+constructor TBrigadierIntegerProperties.Create(AProperties: TJObject);
 begin
   inherited;
-  if (AProperties <> nil) and AProperties.TryGetValue<TJSONNumber>('min', Node) then
-    FMin := Node.AsInt
-  else
-    FMin := Integer.MinValue;
-  if (AProperties <> nil) and AProperties.TryGetValue<TJSONNumber>('max', Node) then
-    FMax := Node.AsInt
-  else
-    FMax := Integer.MaxValue;
+  Min := AProperties['min'].IntOrDefault(Integer.MinValue);
+  Max := AProperties['max'].IntOrDefault(Integer.MaxValue);
 end;
 
 { TBrigadierIntegerParser }
@@ -992,6 +1178,11 @@ end;
 class function TBrigadierIntegerParser.GetParserString: TNSPath;
 begin
   Result := NSPath('brigadier', 'integer');
+end;
+
+class function TBrigadierIntegerParser.GetResultName: string;
+begin
+  Result := 'Integer';
 end;
 
 function TBrigadierIntegerParser.Parse: Boolean;
@@ -1019,6 +1210,11 @@ end;
 class function TBrigadierEntityParser.GetParserString: TNSPath;
 begin
   Result := 'entity';
+end;
+
+class function TBrigadierEntityParser.GetResultName: string;
+begin
+  Result := 'Entity';
 end;
 
 function TBrigadierEntityParser.Parse: Boolean;
@@ -1059,7 +1255,7 @@ end;
 
 { TBrigadierEntityProperties }
 
-constructor TBrigadierEntityProperties.Create(AProperties: TJSONObject);
+constructor TBrigadierEntityProperties.Create(AProperties: TJObject);
 
   function AmountFromString(AName: string): TAmount;
   begin
@@ -1079,19 +1275,10 @@ constructor TBrigadierEntityProperties.Create(AProperties: TJSONObject);
       [TBrigadierEntityParser.GetParserString.Format, AName]);
   end;
 
-var
-  Node: TJSONString;
 begin
   inherited;
-  if not AProperties.TryGetValue<TJSONString>('amount', Node) then
-    raise EBrigadierProperties.CreateFmt('%s properties requires amount node.',
-      [TBrigadierEntityParser.GetParserString.Format]);
-  FAmount := AmountFromString(Node.Value);
-
-  if not AProperties.TryGetValue<TJSONString>('type', Node) then
-    raise EBrigadierProperties.CreateFmt('%s properties requires type node.',
-      [TBrigadierEntityParser.GetParserString.Format]);
-  FType := TypeFromString(Node.Value);
+  FAmount := AmountFromString(AProperties['amount'].AsString);
+  FType := TypeFromString(AProperties['type'].AsString);
 end;
 
 { TBrigadierEntitySelector }
@@ -1176,6 +1363,11 @@ begin
   Result := 'nbt';
 end;
 
+class function TBrigadierNBTParser.GetResultName: string;
+begin
+  Result := 'NBT-Compound';
+end;
+
 function TBrigadierNBTParser.Parse: Boolean;
 var
   Parser: TNBTParserCompound;
@@ -1202,19 +1394,11 @@ end;
 
 { TBrigadierFloatProperties }
 
-constructor TBrigadierFloatProperties.Create(AProperties: TJSONObject);
-var
-  Node: TJSONNumber;
+constructor TBrigadierFloatProperties.Create(AProperties: TJObject);
 begin
   inherited;
-  if (AProperties <> nil) and AProperties.TryGetValue<TJSONNumber>('min', Node) then
-    FMin := Node.AsDouble
-  else
-    FMin := -Infinity;
-  if (AProperties <> nil) and AProperties.TryGetValue<TJSONNumber>('max', Node) then
-    FMax := Node.AsDouble
-  else
-    FMax := Infinity;
+  Min := AProperties['min'].FloatOrDefault(-Infinity);
+  Max := AProperties['max'].FloatOrDefault(+Infinity);
 end;
 
 { TBrigadierFloatParser }
@@ -1222,6 +1406,11 @@ end;
 class function TBrigadierFloatParser.GetParserString: TNSPath;
 begin
   Result := NSPath('brigadier', 'float');
+end;
+
+class function TBrigadierFloatParser.GetResultName: string;
+begin
+  Result := 'Float';
 end;
 
 function TBrigadierFloatParser.Parse: Boolean;
@@ -1259,19 +1448,11 @@ end;
 
 { TBrigadierDoubleProperties }
 
-constructor TBrigadierDoubleProperties.Create(AProperties: TJSONObject);
-var
-  Node: TJSONNumber;
+constructor TBrigadierDoubleProperties.Create(AProperties: TJObject);
 begin
   inherited;
-  if (AProperties <> nil) and AProperties.TryGetValue<TJSONNumber>('min', Node) then
-    FMin := Node.AsDouble
-  else
-    FMin := -Infinity;
-  if (AProperties <> nil) and AProperties.TryGetValue<TJSONNumber>('max', Node) then
-    FMax := Node.AsDouble
-  else
-    FMax := Infinity;
+  Min := AProperties['min'].FloatOrDefault(-Infinity);
+  Max := AProperties['max'].FloatOrDefault(+Infinity);
 end;
 
 { TBrigadierDoubleParser }
@@ -1279,6 +1460,11 @@ end;
 class function TBrigadierDoubleParser.GetParserString: TNSPath;
 begin
   Result := NSPath('brigadier', 'double');
+end;
+
+class function TBrigadierDoubleParser.GetResultName: string;
+begin
+  Result := 'Double';
 end;
 
 function TBrigadierDoubleParser.Parse: Boolean;
@@ -1325,26 +1511,20 @@ end;
 
 { TBrigadierStringProperties }
 
-constructor TBrigadierStringProperties.Create(AProperties: TJSONObject);
-var
-  Node: TJSONString;
-  Mode: TBrigadierString.TMode;
+constructor TBrigadierStringProperties.Create(AProperties: TJObject);
+
+  function ModeFromString(AMode: string): TBrigadierString.TMode;
+  begin
+    for Result := Low(TBrigadierString.TMode) to High(TBrigadierString.TMode) do
+      if AMode = TBrigadierString.ModeNames[Result] then
+        Exit;
+    raise EBrigadierProperties.CreateFmt('%s properties got an unknown mode "%s".',
+      [TBrigadierEntityParser.GetParserString.Format, AMode]);
+  end;
+
 begin
   inherited;
-  if AProperties = nil then
-    raise EBrigadierProperties.CreateFmt('Missing properties for %s.', [TBrigadierStringParser.GetParserString.Format]);
-  if not AProperties.TryGetValue<TJSONString>('type', Node) then
-    raise EBrigadierProperties.CreateFmt('Missing type node for %s.', [TBrigadierStringParser.GetParserString.Format]);
-
-  for Mode := Low(TBrigadierString.TMode) to High(TBrigadierString.TMode) do
-    if Node.Value = TBrigadierString.ModeNames[Mode] then
-    begin
-      FMode := Mode;
-      Exit;
-    end;
-
-  raise EBrigadierProperties.CreateFmt('Unknown value as type for %s.',
-    [TBrigadierStringParser.GetParserString.Format]);
+  FMode := ModeFromString(AProperties['type'].AsString);
 end;
 
 { TBrigadierStringParser }
@@ -1352,6 +1532,11 @@ end;
 class function TBrigadierStringParser.GetParserString: TNSPath;
 begin
   Result := NSPath('brigadier', 'string');
+end;
+
+class function TBrigadierStringParser.GetResultName: string;
+begin
+  Result := 'String';
 end;
 
 function TBrigadierStringParser.Parse: Boolean;
@@ -1418,7 +1603,12 @@ end;
 
 class function TBrigadierNBTPathParser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:nbt_path';
+  Result := 'nbt_path';
+end;
+
+class function TBrigadierNBTPathParser.GetResultName: string;
+begin
+  Result := 'NBT-Path';
 end;
 
 function TBrigadierNBTPathParser.Parse: Boolean;
@@ -1461,7 +1651,12 @@ end;
 
 class function TBrigadierVec2Parser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:vec2';
+  Result := 'vec2';
+end;
+
+class function TBrigadierVec2Parser.GetResultName: string;
+begin
+  Result := 'Vec2';
 end;
 
 function TBrigadierVec2Parser.Parse: Boolean;
@@ -1515,7 +1710,12 @@ end;
 
 class function TBrigadierVec3Parser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:vec3';
+  Result := 'vec3';
+end;
+
+class function TBrigadierVec3Parser.GetResultName: string;
+begin
+  Result := 'Vec3';
 end;
 
 function TBrigadierVec3Parser.Parse: Boolean;
@@ -1558,7 +1758,7 @@ end;
 
 class function TBrigadierEntityAnchorParser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:entity_anchor';
+  Result := 'entity_anchor';
 end;
 
 class function TBrigadierEntityAnchorParser.GetResultName: string;
@@ -1589,6 +1789,11 @@ end;
 class function TBrigadierRotationParser.GetParserString: TNSPath;
 begin
   Result := 'rotation';
+end;
+
+class function TBrigadierRotationParser.GetResultName: string;
+begin
+  Result := 'Rotation';
 end;
 
 { TBrigadierSwizzle }
@@ -1623,6 +1828,11 @@ begin
   Result := 'swizzle';
 end;
 
+class function TBrigadierSwizzleParser.GetResultName: string;
+begin
+  Result := 'Coordinate-Swizzle';
+end;
+
 function TBrigadierSwizzleParser.Parse: Boolean;
 var
   Parser: TMCSwizzle.TParser;
@@ -1638,7 +1848,12 @@ end;
 
 class function TBrigadierBlockPosParser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:block_pos';
+  Result := 'block_pos';
+end;
+
+class function TBrigadierBlockPosParser.GetResultName: string;
+begin
+  Result := 'Block-Pos';
 end;
 
 function TBrigadierBlockPosParser.Parse: Boolean;
@@ -1669,7 +1884,12 @@ end;
 
 class function TBrigadierGameProfileParser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:game_profile';
+  Result := 'game_profile';
+end;
+
+class function TBrigadierGameProfileParser.GetResultName: string;
+begin
+  Result := 'Game-Profile';
 end;
 
 function TBrigadierGameProfileParser.Parse: Boolean;
@@ -1750,6 +1970,11 @@ begin
   Result := 'message';
 end;
 
+class function TBrigadierMessageParser.GetResultName: string;
+begin
+  Result := 'Message';
+end;
+
 class function TBrigadierMessageParser.KeepEndSuggestions: Boolean;
 begin
   Result := True;
@@ -1789,12 +2014,29 @@ end;
 
 class function TBrigadierMobEffectParser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:mob_effect';
+  Result := 'mob_effect';
+end;
+
+class function TBrigadierMobEffectParser.GetResultName: string;
+begin
+  Result := 'Mob-Effect';
 end;
 
 function TBrigadierMobEffectParser.Parse: Boolean;
+var
+  NSPath: TNSPath;
+  Effect: TMobEffect;
 begin
-  Result := False;
+  BeginSuggestions(TSuggestions.Create);
+  NSPath := ReadWhile(NamespacePathChars);
+  EndSuggestions;
+
+  if NSPath.IsEmpty or not MobEffectFromName(NSPath, Effect) then
+    Exit(False);
+
+  SetParseResult(TBrigadierMobEffect.Create(Argument, Effect));
+
+  Result := True;
 end;
 
 { TFormatNamespaceSettings }
@@ -1868,6 +2110,11 @@ begin
   Result := 'block_state';
 end;
 
+class function TBrigadierBlockStateParser.GetResultName: string;
+begin
+  Result := 'Block-State';
+end;
+
 function TBrigadierBlockStateParser.Parse: Boolean;
 var
   Parser: TBlockState.TParser;
@@ -1910,6 +2157,11 @@ begin
   Result := 'block_predicate';
 end;
 
+class function TBrigadierBlockPredicateParser.GetResultName: string;
+begin
+  Result := 'Block-Predicate';
+end;
+
 function TBrigadierBlockPredicateParser.Parse: Boolean;
 var
   BlockTagParser: TBlockStateTag.TParser;
@@ -1943,49 +2195,36 @@ end;
 
 function TBrigadierEntitySummon.Format: string;
 begin
-  Result := EntityNames[Entity];
+  Result := NSPath(EntityNames[Entity]).Format;
 end;
 
 { TBrigadierEntitySummonParser }
 
 class function TBrigadierEntitySummonParser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:entity_summon';
+  Result := 'entity_summon';
+end;
+
+class function TBrigadierEntitySummonParser.GetResultName: string;
+begin
+  Result := 'Entity-Type';
 end;
 
 function TBrigadierEntitySummonParser.Parse: Boolean;
 var
-  Name: string;
+  NSPath: TNSPath;
   Entity: TEntity;
 begin
-  BeginSuggestions(TSuggestions);
-  Name := ReadWhile(IdentChars);
+  BeginSuggestions(TSuggestions.Create);
+  NSPath := ReadWhile(NamespacePathChars);
   EndSuggestions;
 
-  if Name.IsEmpty then
-    Exit(False);
-
-  if not EntityFromName(Name, Entity) then
+  if NSPath.IsEmpty or not EntityFromName(NSPath, Entity) then
     Exit(False);
 
   SetParseResult(TBrigadierEntitySummon.Create(Argument, Entity));
 
   Result := True;
-end;
-
-{ TBrigadierEntitySummonParser.TSuggestions }
-
-class function TBrigadierEntitySummonParser.TSuggestions.GetCount: Integer;
-begin
-  // Ignore first entry (player)
-  Result := Length(EntityNames) - 1;
-end;
-
-class function TBrigadierEntitySummonParser.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
-begin
-  // Ignore first entry (player)
-  Inc(AIndex);
-  Result.Create(EntityDisplayNames[TEntity(AIndex)], EntityNames[TEntity(AIndex)]);
 end;
 
 { TBrigadierItemEnchantment }
@@ -1998,26 +2237,31 @@ end;
 
 function TBrigadierItemEnchantment.Format: string;
 begin
-  Result := EnchantmentNames[Enchantment];
+  Result := NSPath(EnchantmentNames[Enchantment]).Format;
 end;
 
 { TBrigadierItemEnchantmentParser }
 
 class function TBrigadierItemEnchantmentParser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:item_enchantment';
+  Result := 'item_enchantment';
+end;
+
+class function TBrigadierItemEnchantmentParser.GetResultName: string;
+begin
+  Result := 'Item-Enchantment';
 end;
 
 function TBrigadierItemEnchantmentParser.Parse: Boolean;
 var
-  Name: string;
+  NSPath: TNSPath;
   Enchantment: TEnchantment;
 begin
-  BeginSuggestions(TSuggestions);
-  Name := ReadWhile(IdentChars);
+  BeginSuggestions(TSuggestions.Create);
+  NSPath := ReadWhile(NamespacePathChars);
   EndSuggestions;
 
-  if Name.IsEmpty or EnchantmentFromName(Name, Enchantment) then
+  if NSPath.IsEmpty or not EnchantmentFromName(NSPath, Enchantment) then
     Exit(False);
 
   SetParseResult(TBrigadierItemEnchantment.Create(Argument, Enchantment));
@@ -2027,21 +2271,27 @@ end;
 
 { TBrigadierItemEnchantmentParser.TSuggestions }
 
-class function TBrigadierItemEnchantmentParser.TSuggestions.GetCount: Integer;
+procedure TBrigadierItemEnchantmentParser.TSuggestions.Generate;
+var
+  Enchantment: TEnchantment;
 begin
-  Result := Length(EnchantmentNames);
-end;
-
-class function TBrigadierItemEnchantmentParser.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
-begin
-  Result.Create(EnchantmentDisplayNames[TEnchantment(AIndex)], EnchantmentNames[TEnchantment(AIndex)]);
+  for Enchantment := Low(TEnchantment) to High(TEnchantment) do
+    AddSuggestion(EnchantmentNames[Enchantment]);
+  AddSuggestion(TNSPath.Empty.Format);
+  for Enchantment := Low(TEnchantment) to High(TEnchantment) do
+    AddSuggestion(NSPath(EnchantmentNames[Enchantment]).Format);
 end;
 
 { TBrigadierTeamParser }
 
 class function TBrigadierTeamParser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:team';
+  Result := 'team';
+end;
+
+class function TBrigadierTeamParser.GetResultName: string;
+begin
+  Result := 'Team';
 end;
 
 function TBrigadierTeamParser.Parse: Boolean;
@@ -2080,26 +2330,31 @@ end;
 
 function TBrigadierDimension.Format: string;
 begin
-  Result := DimensionNames[Dimension];
+  Result := NSPath(DimensionNames[Dimension]).Format;
 end;
 
 { TBrigadierDimensionParser }
 
 class function TBrigadierDimensionParser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:dimension';
+  Result := 'dimension';
+end;
+
+class function TBrigadierDimensionParser.GetResultName: string;
+begin
+  Result := 'Dimension';
 end;
 
 function TBrigadierDimensionParser.Parse: Boolean;
 var
-  Name: string;
+  NSPath: TNSPath;
   Dimension: TDimension;
 begin
-  BeginSuggestions(TSuggestions);
-  Name := ReadWhile(IdentChars);
+  BeginSuggestions(TSuggestions.Create);
+  NSPath := ReadWhile(NamespacePathChars);
   EndSuggestions;
 
-  if Name.IsEmpty or not DimensionFromName(Name, Dimension) then
+  if NSPath.IsEmpty or not DimensionFromName(NSPath, Dimension) then
     Exit(False);
 
   SetParseResult(TBrigadierDimension.Create(Argument, Dimension));
@@ -2107,23 +2362,16 @@ begin
   Result := True;
 end;
 
-{ TBrigadierDimensionParser.TSuggestions }
-
-class function TBrigadierDimensionParser.TSuggestions.GetCount: Integer;
-begin
-  Result := Length(DimensionNames);
-end;
-
-class function TBrigadierDimensionParser.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
-begin
-  Result.Create(DimensionDisplayNames[TDimension(AIndex)], DimensionNames[TDimension(AIndex)]);
-end;
-
 { TBrigadierColumnPosParser }
 
 class function TBrigadierColumnPosParser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:column_pos';
+  Result := 'column_pos';
+end;
+
+class function TBrigadierColumnPosParser.GetResultName: string;
+begin
+  Result := 'Column-Pos';
 end;
 
 function TBrigadierColumnPosParser.Parse: Boolean;
@@ -2177,7 +2425,12 @@ end;
 
 class function TBrigadierItemStackParser.GetParserString: TNSPath;
 begin
-  Result := 'minecraft:item_stack';
+  Result := 'item_stack';
+end;
+
+class function TBrigadierItemStackParser.GetResultName: string;
+begin
+  Result := 'Item-Stack';
 end;
 
 function TBrigadierItemStackParser.Parse: Boolean;
@@ -2282,6 +2535,11 @@ begin
   Result := 'objective';
 end;
 
+class function TBrigadierObjectiveParser.GetResultName: string;
+begin
+  Result := 'Objective';
+end;
+
 function TBrigadierObjectiveParser.Parse: Boolean;
 var
   Name: string;
@@ -2293,12 +2551,323 @@ begin
   Result := True;
 end;
 
+{ TBrigadierComponent }
+
+constructor TBrigadierComponent.Create(AArgument: TBrigadierArgument);
+begin
+  inherited;
+  FJSON := TJObject.Create;
+end;
+
+constructor TBrigadierComponent.Create(AArgument: TBrigadierArgument; AJSON: TJValue);
+begin
+  inherited Create(AArgument);
+  FJSON := AJSON;
+end;
+
+destructor TBrigadierComponent.Destroy;
+begin
+  FJSON.Free;
+  inherited;
+end;
+
+function TBrigadierComponent.Format: string;
+begin
+  Result := JSON.Format;
+end;
+
+{ TBrigadierComponentParser }
+
+class function TBrigadierComponentParser.GetParserString: TNSPath;
+begin
+  Result := 'component';
+end;
+
+class function TBrigadierComponentParser.GetResultName: string;
+begin
+  Result := 'Text-Component';
+end;
+
+function TBrigadierComponentParser.Parse: Boolean;
+var
+  Parser: TJValue.TParser;
+begin
+  Parser := TJValue.TParser.Create(Info, False);
+  Result := Parser.Success;
+  if Result then
+    SetParseResult(TBrigadierComponent.Create(Argument, Parser.OwnParseResult));
+  Parser.Free;
+end;
+
+{ TBrigadierDimensionParser.TSuggestions }
+
+procedure TBrigadierDimensionParser.TSuggestions.Generate;
+var
+  Dimension: TDimension;
+begin
+  for Dimension := Low(TDimension) to High(TDimension) do
+    AddSuggestion(DimensionNames[Dimension]);
+  AddSuggestion(TNSPath.Empty.Format);
+  for Dimension := Low(TDimension) to High(TDimension) do
+    AddSuggestion(NSPath(DimensionNames[Dimension]).Format);
+end;
+
+{ TBrigadierResourceLocationParser }
+
+class function TBrigadierResourceLocationParser.GetParserString: TNSPath;
+begin
+  Result := 'resource_location';
+end;
+
+class function TBrigadierResourceLocationParser.GetResultName: string;
+begin
+  Result := 'Resource-Location';
+end;
+
+function TBrigadierResourceLocationParser.Parse: Boolean;
+var
+  Name: string;
+begin
+  Name := ReadWhile(NamespacePathChars);
+  if Name.IsEmpty then
+    Exit(False);
+  SetParseResult(TBrigadierResourceLocation.Create(Argument, Name));
+  Result := True;
+end;
+
+{ TBrigadierFunctionParser }
+
+class function TBrigadierFunctionParser.GetParserString: TNSPath;
+begin
+  Result := 'function';
+end;
+
+class function TBrigadierFunctionParser.GetResultName: string;
+begin
+  Result := 'Function';
+end;
+
+function TBrigadierFunctionParser.Parse: Boolean;
+var
+  Name: string;
+begin
+  Name := ReadWhile(NamespacePathChars);
+  if Name.IsEmpty then
+    Exit(False);
+  SetParseResult(TBrigadierFunction.Create(Argument, Name));
+  Result := True;
+end;
+
+{ TBrigadierResourceLocation }
+
+constructor TBrigadierResourceLocation.Create(AArgument: TBrigadierArgument; ANSPath: TNSPath);
+begin
+  inherited Create(AArgument);
+  FNSPath := ANSPath;
+end;
+
+function TBrigadierResourceLocation.Format: string;
+begin
+  Result := NSPath.Format;
+end;
+
+{ TBrigadierParticleParser }
+
+class function TBrigadierParticleParser.GetParserString: TNSPath;
+begin
+  Result := 'particle';
+end;
+
+class function TBrigadierParticleParser.GetResultName: string;
+begin
+  Result := 'Particle';
+end;
+
+function TBrigadierParticleParser.Parse: Boolean;
+var
+  NSPath: TNSPath;
+  Particle: TParticle;
+begin
+  BeginSuggestions(TSuggestions.Create);
+  NSPath := ReadWhile(NamespacePathChars);
+  EndSuggestions;
+
+  if NSPath.IsEmpty or not ParticleFromName(NSPath, Particle) then
+    Exit(False);
+
+  SetParseResult(TBrigadierParticle.Create(Argument, Particle));
+
+  Result := True;
+end;
+
+{ TBrigadierParticle }
+
+constructor TBrigadierParticle.Create(AArgument: TBrigadierArgument; AParticle: TParticle);
+begin
+  inherited Create(AArgument);
+  FParticle := AParticle;
+end;
+
+function TBrigadierParticle.Format: string;
+begin
+  Result := NSPath(ParticleNames[Particle]).Format;
+end;
+
+{ TBrigadierParticleParser.TSuggestions }
+
+procedure TBrigadierParticleParser.TSuggestions.Generate;
+var
+  Particle: TParticle;
+begin
+  for Particle := Low(TParticle) to High(TParticle) do
+    AddSuggestion(ParticleNames[Particle]);
+  AddSuggestion(TNSPath.Empty.Format);
+  for Particle := Low(TParticle) to High(TParticle) do
+    AddSuggestion(NSPath(ParticleNames[Particle]).Format);
+end;
+
+{ TBrigadierColor }
+
+constructor TBrigadierColor.Create(AArgument: TBrigadierArgument; AColor: TMCColor);
+begin
+  inherited Create(AArgument);
+  FColor := AColor;
+end;
+
+function TBrigadierColor.Format: string;
+begin
+  Result := MCColorNames[Color];
+end;
+
+{ TBrigadierColorParser }
+
+class function TBrigadierColorParser.GetParserString: TNSPath;
+begin
+  Result := 'color';
+end;
+
+class function TBrigadierColorParser.GetResultName: string;
+begin
+  Result := 'Color';
+end;
+
+function TBrigadierColorParser.Parse: Boolean;
+var
+  Name: string;
+  Color: TMCColor;
+begin
+  BeginSuggestions(TSuggestions);
+  Name := ReadWhile(IdentChars);
+  EndSuggestions;
+
+  if Name.IsEmpty or not MCColorFromName(Name, Color) then
+    Exit(False);
+
+  SetParseResult(TBrigadierColor.Create(Argument, Color));
+
+  Result := True;
+end;
+
+{ TBrigadierColorParser.TSuggestions }
+
+class function TBrigadierColorParser.TSuggestions.GetCount: Integer;
+begin
+  Result := Length(MCColorNames);
+end;
+
+class function TBrigadierColorParser.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
+begin
+  Result.Create(MCColorDisplayNames[TMCColor(AIndex)], MCColorNames[TMCColor(AIndex)]);
+end;
+
+{ TBrigadierMobEffect }
+
+constructor TBrigadierMobEffect.Create(AArgument: TBrigadierArgument; AEffect: TMobEffect);
+begin
+  inherited Create(AArgument);
+  FEffect := AEffect;
+end;
+
+function TBrigadierMobEffect.Format: string;
+begin
+  Result := NSPath(MobEffectNames[Effect]).Format;
+end;
+
+{ TBrigadierMobEffectParser.TSuggestions }
+
+procedure TBrigadierMobEffectParser.TSuggestions.Generate;
+var
+  Effect: TMobEffect;
+begin
+  for Effect := Low(TMobEffect) to High(TMobEffect) do
+    AddSuggestion(MobEffectNames[Effect]);
+  AddSuggestion(TNSPath.Empty.Format);
+  for Effect := Low(TMobEffect) to High(TMobEffect) do
+    AddSuggestion(NSPath(MobEffectNames[Effect]).Format);
+end;
+
+{ TBrigadierEntitySummonParser.TSuggestions }
+
+procedure TBrigadierEntitySummonParser.TSuggestions.Generate;
+var
+  Entity: TEntity;
+begin
+  // skip first, being player
+  for Entity := Succ(Low(TEntity)) to High(TEntity) do
+    AddSuggestion(EntityNames[Entity]);
+  AddSuggestion(TNSPath.Empty.Format);
+  for Entity := Succ(Low(TEntity)) to High(TEntity) do
+    AddSuggestion(NSPath(EntityNames[Entity]).Format);
+end;
+
+{ TBrigadierScoreboardSlot }
+
+constructor TBrigadierScoreboardSlot.Create(AArgument: TBrigadierArgument; AScoreboardSlot: TScoreboardSlot);
+begin
+  inherited Create(AArgument);
+  FScoreboardSlot := AScoreboardSlot;
+end;
+
+destructor TBrigadierScoreboardSlot.Destroy;
+begin
+  FScoreboardSlot.Free;
+  inherited;
+end;
+
+function TBrigadierScoreboardSlot.Format: string;
+begin
+  Result := ScoreboardSlot.GetName;
+end;
+
+{ TBrigadierScoreboardSlotParser }
+
+class function TBrigadierScoreboardSlotParser.GetParserString: TNSPath;
+begin
+  Result := 'scoreboard_slot';
+end;
+
+class function TBrigadierScoreboardSlotParser.GetResultName: string;
+begin
+  Result := 'Scoreboard-Slot';
+end;
+
+function TBrigadierScoreboardSlotParser.Parse: Boolean;
+var
+  Parser: TScoreboardSlot.TParser;
+begin
+  Parser := TScoreboardSlot.TParser.Create(Info, False);
+  Result := Parser.Success;
+  if Result then
+    SetParseResult(TBrigadierScoreboardSlot.Create(Argument, Parser.OwnParseResult));
+  Parser.Free;
+end;
+
 initialization
 
-// Progress: 27 / 35
-// /-----------------------------------\
-// [|||||||||||||||||||||||||||        ]
-// \-----------------------------------/
+// Progress: 32 / 38
+// /--------------------------------------\
+// [||||||||||||||||||||||||||||||||      ]
+// \--------------------------------------/
 
 // - Basic Types -
 
@@ -2325,7 +2894,7 @@ TBrigadierEntityParser.RegisterClass;
 TBrigadierEntityAnchorParser.RegisterClass;
 TBrigadierGameProfileParser.RegisterClass;
 TBrigadierMobEffectParser.RegisterClass;
-// TBrigadierParticleParser.RegisterClass;
+TBrigadierParticleParser.RegisterClass;
 TBrigadierEntitySummonParser.RegisterClass;
 
 // - NBT related -
@@ -2335,21 +2904,18 @@ TBrigadierNBTPathParser.RegisterClass;
 
 // - Text related -
 
-// TBrigadierComponentParser.RegisterClass; // big guy (json)
+TBrigadierComponentParser.RegisterClass;
 TBrigadierMessageParser.RegisterClass;
+TBrigadierColorParser.RegisterClass;
 
 // - Scoreboard related -
 
 TBrigadierObjectiveParser.RegisterClass;
 // TBrigadierObjectiveCriteriaParser.RegisterClass; // kindof big, split it up, or huuuge suggestion list
 TBrigadierScoreHolderParser.RegisterClass;
-// TBrigadierScoreboardSlotParser.RegisterClass;
+TBrigadierScoreboardSlotParser.RegisterClass;
 // TBrigadierOperationParser.RegisterClass;
-
-// - Team related -
-
 TBrigadierTeamParser.RegisterClass;
-// TBrigadierColorParser.RegisterClass;
 
 // - Item related -
 
@@ -2365,7 +2931,7 @@ TBrigadierBlockStateParser.RegisterClass;
 
 // - Resource related -
 
-// TBrigadierResourceLocationParser.RegisterClass;
-// TBrigadierFunctionParser.RegisterClass;
+TBrigadierResourceLocationParser.RegisterClass;
+TBrigadierFunctionParser.RegisterClass;
 
 end.
