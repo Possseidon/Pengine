@@ -80,8 +80,224 @@ type
     function GetName: string; override;
 
   end;
+        {
+  TScoreboardCriteria = class
+
+  public
+    function Format: string; virtual; abstract;
+
+  end;
+
+  TScoreboardCriteriaSimple = class
+  public type
+
+    TType = (
+      ctDummy,
+      ctTrigger,
+      ctDeathCount,
+      ctPlayerKillCount,
+      ctTotalKillCount,
+      ctHealth,
+      ctXP,
+      ctLevel,
+      ctFood,
+      ctAir,
+      ctArmor
+      );
+
+  public const
+
+    Names: array [TType] of string = (
+      'dummy',
+      'trigger',
+      'deathCount',
+      'playerKillCount',
+      'totalKillCount',
+      'health',
+      'xp',
+      'level',
+      'food',
+      'air',
+      'armor'
+      );
+
+  private
+    FCriteriaType: TType;
+
+  public
+    property CriteriaType: TType read FCriteriaType write FCriteriaType;
+
+    // function Format: string; override;
+
+  end;
+
+  TScoreboardCriteriaComplex = class(TScoreboardCriteria)
+  public type
+
+    TType = (
+      ctCustom,
+      ctCrafted,
+      ctUsed,
+      ctBroken,
+      ctMined,
+      ctKilled,
+      ctPickedUp,
+      ctDropped,
+      ctKilledBy,
+      ctTeamKill,
+      ctKilledByTeam
+      );
+
+  public const
+
+    Names: array [TType] of string = (
+      'minecraft.custom:minecraft',
+      'minecraft.crafted:minecraft',
+      'minecraft.used:minecraft',
+      'minecraft.broken:minecraft',
+      'minecraft.mined:minecraft',
+      'minecraft.killed:minecraft',
+      'minecraft.picked_up:minecraft',
+      'minecraft.dropped:minecraft',
+      'minecraft.killed_by:minecraft',
+      'teamkill',
+      'killedByTeam'
+      );
+
+  public
+    class function GetType: TType; virtual; abstract;
+    class function GetName: string; virtual;
+    class function GetSubTypeCount: Integer;
+    class function GetSubTypeName();
+
+  end;
+
+  TScoreboardCriteriaStatistic = class(TScoreboardCriteriaComplex)
+
+  end;
+
+  TScoreboardCriteriaCustom = class(TScoreboardCriteriaStatistic)
+  public
+    class function GetType: TType; override;
+
+  end;
+
+  TScoreboardCriteriaCrafted = class(TScoreboardCriteriaStatistic)
+  public
+    class function GetType: TType; override;
+
+  end;
+
+  TScoreboardCriteriaUsed = class(TScoreboardCriteriaStatistic)
+  public
+    class function GetType: TType; override;
+
+  end;
+
+  TScoreboardCriteriaBroken = class(TScoreboardCriteriaStatistic)
+  public
+    class function GetType: TType; override;
+
+  end;
+
+  TScoreboardCriteriaMined = class(TScoreboardCriteriaStatistic)
+  public
+    class function GetType: TType; override;
+
+  end;
+
+  TScoreboardCriteriaKilled = class(TScoreboardCriteriaStatistic)
+  public
+    class function GetType: TType; override;
+
+  end;
+
+  TScoreboardCriteriaPickedUp = class(TScoreboardCriteriaStatistic)
+  public
+    class function GetType: TType; override;
+
+  end;
+
+  TScoreboardCriteriaDropped = class(TScoreboardCriteriaStatistic)
+  public
+    class function GetType: TType; override;
+
+  end;
+
+  TScoreboardCriteriaKilledBy = class(TScoreboardCriteriaStatistic)
+  public
+    class function GetType: TType; override;
+
+  end;
+
+  TScoreboardCriteriaTeamKill = class(TScoreboardCriteriaComplex)
+  public
+    class function GetType: TType; override;
+
+  end;
+
+  TScoreboardCriteriaKilledByTeam = class(TScoreboardCriteriaComplex)
+  public
+    class function GetType: TType; override;
+
+  end;
+           }
+  TScoreboardOperation = (
+    soAssign,
+    soAdd,
+    soSubtract,
+    soMultiply,
+    soDivide,
+    soModulus,
+    soEnsureLess,
+    soEnsureGreater,
+    soSwap
+    );
+
+const
+
+  ScoreboardOperationChars = ['=', '+', '-', '*', '/', '%', '<', '>'];
+
+  ScoreboardOperationNames: array [TScoreboardOperation] of string = (
+    '=',
+    '+=',
+    '-=',
+    '*=',
+    '/=',
+    '%=',
+    '<',
+    '>',
+    '><'
+    );
+
+  ScoreboardOperationDisplayNames: array [TScoreboardOperation] of string = (
+    'Assign',
+    'Add',
+    'Subtract',
+    'Multiply',
+    'Divide',
+    'Modulus',
+    'Ensure Less',
+    'Ensure Greater',
+    'Swap'
+    );
+
+function ScoreboardOperationFromName(AName: string; out AOperation: TScoreboardOperation): Boolean;
 
 implementation
+
+function ScoreboardOperationFromName(AName: string; out AOperation: TScoreboardOperation): Boolean;
+var
+  Operation: TScoreboardOperation;
+begin
+  for Operation := Low(TScoreboardOperation) to High(TScoreboardOperation) do
+    if AName = ScoreboardOperationNames[Operation] then
+    begin
+      AOperation := Operation;
+      Exit(True);
+    end;
+  Result := False;
+end;
 
 { TScoreboardSlot.TParser }
 
@@ -172,4 +388,18 @@ begin
     AddSuggestion(TScoreboardSlotSidebarTeam.NamePrefix + MCColorNames[Color]);
 end;
 
+{ TScoreboardCriteriaSimple }
+                             {
+function TScoreboardCriteriaSimple.Format: string;
+begin
+  Result := Names[CriteriaType];
+end;
+
+{ TScoreboardCriteriaComplex }
+                    {
+class function TScoreboardCriteriaComplex.GetName: string;
+begin
+  Result := Names[GetType];
+end;
+                     }
 end.

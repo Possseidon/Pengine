@@ -295,6 +295,29 @@ type
 
   end;
 
+  TBrigadierIntRange = class(TBrigadierArgumentParameter)
+  private
+    FBounds: TIntBounds1;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; ABounds: TIntBounds1); reintroduce; overload;
+
+    property Bounds: TIntBounds1 read FBounds write FBounds;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierRangeParser = class(TBrigadierParser<TBrigadierIntRange>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
+    class function GetParserString: TNSPath; override;
+
+  end;
+
   /// <summary>Either a player name, an entity selector or a UUID.</summary>
   TBrigadierEntity = class(TBrigadierArgumentParameter);
 
@@ -804,11 +827,39 @@ type
 
   end;
 
+  /// <summary>An item predicate with nbt.</summary>
+  /// <remarks>For the most part identical with item stacks, but can have tags.</remarks>
+  TBrigadierItemPredicate = class(TBrigadierArgumentParameter)
+  private
+    FPredicate: TOwned<TItemStack>;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument); overload; override;
+    constructor Create(AArgument: TBrigadierArgument; APredicate: TItemStack); reintroduce; overload;
+    destructor Destroy; override;
+
+    /// <summary>Either an item stack or an item tag.</summary>
+    property Predicate: TOwned<TItemStack> read FPredicate;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierItemPredicateParser = class(TBrigadierParser<TBrigadierItemPredicate>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
+    class function GetParserString: TNSPath; override;
+
+  end;
+
   /// <summary>A block predicate with properties and nbt.</summary>
   /// <remarks>For the most part identical with block states, but can have tags.</remarks>
   TBrigadierBlockPredicate = class(TBrigadierArgumentParameter)
   private
-    FPredicate: TBlockState;
+    FPredicate: TOwned<TBlockState>;
 
   public
     constructor Create(AArgument: TBrigadierArgument); overload; override;
@@ -816,7 +867,7 @@ type
     destructor Destroy; override;
 
     /// <summary>Either a block state or a block tag.</summary>
-    property Predicate: TBlockState read FPredicate;
+    property Predicate: TOwned<TBlockState> read FPredicate;
 
     function Format: string; override;
 
@@ -955,14 +1006,14 @@ type
   /// <summary>A json text component used in commands like tellraw and such.</summary>
   TBrigadierComponent = class(TBrigadierArgumentParameter)
   private
-    FJSON: TJValue;
+    FJSON: TOwned<TJValue>;
 
   public
     constructor Create(AArgument: TBrigadierArgument); overload; override;
     constructor Create(AArgument: TBrigadierArgument; AJSON: TJValue); reintroduce; overload;
     destructor Destroy; override;
 
-    property JSON: TJValue read FJSON;
+    property JSON: TOwned<TJValue> read FJSON;
 
     function Format: string; override;
 
@@ -1105,7 +1156,90 @@ type
 
   end;
 
+  TBrigadierOperation = class(TBrigadierArgumentParameter)
+  private
+    FOperation: TScoreboardOperation;
 
+  public
+    constructor Create(AArgument: TBrigadierArgument; AOperation: TScoreboardOperation); reintroduce; overload;
+
+    property Operation: TScoreboardOperation read FOperation write FOperation;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierOperationParser = class(TBrigadierParser<TBrigadierOperation>)
+  public type
+
+    TSuggestions = class(TParseSuggestionsSimple<TBrigadierOperationParser>)
+    public
+      class function GetCount: Integer; override;
+      class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+
+    end;
+
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
+    class function GetParserString: TNSPath; override;
+
+  end;
+
+  /// <summary>A slot in the form "<c>container.42</c>" with optional number or string index.</summary>
+  TBrigadierItemSlot = class(TBrigadierArgumentParameter)
+  private
+    FSlot: TOwned<TItemSlot>;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument); overload; override;
+    constructor Create(AArgument: TBrigadierArgument; ASlot: TItemSlot); reintroduce; overload;
+    destructor Destroy; override;
+
+    property Slot: TOwned<TItemSlot> read FSlot;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierItemSlotParser = class(TBrigadierParser<TBrigadierItemSlot>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
+    class function GetParserString: TNSPath; override;
+
+  end;
+          {
+  /// <summary>A criteria for a scoreboard objective.</summary>
+  TBrigadierObjectiveCriteria = class(TBrigadierArgumentParameter)
+  private
+    FCriteria: TOwned<TScoreboardCriteria>;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument); overload; override;
+    constructor Create(AArgument: TBrigadierArgument; ACriteria: TScoreboardCriteria); reintroduce; overload;
+    destructor Destroy; override;
+
+    property Criteria: TOwned<TScoreboardCriteria> read FCriteria;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierObjectiveCriteriaParser = class(TBrigadierParser<TBrigadierObjectiveCriteria>)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
+    class function GetParserString: TNSPath; override;
+
+  end;
+          }
 implementation
 
 { TBrigadierBoolParser }
@@ -2128,15 +2262,16 @@ end;
 
 { TBrigadierBlockPredicate }
 
-constructor TBrigadierBlockPredicate.Create(AArgument: TBrigadierArgument);
-begin
-  inherited;
-end;
-
 constructor TBrigadierBlockPredicate.Create(AArgument: TBrigadierArgument; APredicate: TBlockState);
 begin
   inherited Create(AArgument);
-  FPredicate := APredicate;
+  FPredicate := TOwned<TBlockState>.Create(APredicate);
+end;
+
+constructor TBrigadierBlockPredicate.Create(AArgument: TBrigadierArgument);
+begin
+  inherited;
+  FPredicate := TOwned<TBlockState>.Create;
 end;
 
 destructor TBrigadierBlockPredicate.Destroy;
@@ -2147,7 +2282,7 @@ end;
 
 function TBrigadierBlockPredicate.Format: string;
 begin
-  Result := Predicate.Format;
+  Result := Predicate.Value.Format;
 end;
 
 { TBrigadierBlockPredicateParser }
@@ -2521,6 +2656,7 @@ end;
 constructor TBrigadierObjective.Create(AArgument: TBrigadierArgument; AName: string);
 begin
   inherited Create(AArgument);
+  FName := AName;
 end;
 
 function TBrigadierObjective.Format: string;
@@ -2556,13 +2692,13 @@ end;
 constructor TBrigadierComponent.Create(AArgument: TBrigadierArgument);
 begin
   inherited;
-  FJSON := TJObject.Create;
+  FJSON := TOwned<TJValue>.Create(TJObject.Create);
 end;
 
 constructor TBrigadierComponent.Create(AArgument: TBrigadierArgument; AJSON: TJValue);
 begin
   inherited Create(AArgument);
-  FJSON := AJSON;
+  FJSON := TOwned<TJValue>.Create(AJSON);
 end;
 
 destructor TBrigadierComponent.Destroy;
@@ -2573,7 +2709,7 @@ end;
 
 function TBrigadierComponent.Format: string;
 begin
-  Result := JSON.Format;
+  Result := JSON.Value.Format;
 end;
 
 { TBrigadierComponentParser }
@@ -2862,11 +2998,212 @@ begin
   Parser.Free;
 end;
 
+{ TBrigadierRange }
+
+constructor TBrigadierIntRange.Create(AArgument: TBrigadierArgument; ABounds: TIntBounds1);
+begin
+  inherited Create(AArgument);
+  FBounds := ABounds;
+end;
+
+function TBrigadierIntRange.Format: string;
+begin
+  Result := TEntitySelector.TIntRangeParser.Format(Bounds);
+end;
+
+{ TBrigadierRangeParser }
+
+class function TBrigadierRangeParser.GetParserString: TNSPath;
+begin
+  Result := 'int_range';
+end;
+
+class function TBrigadierRangeParser.GetResultName: string;
+begin
+  Result := 'Integer-Range';
+end;
+
+function TBrigadierRangeParser.Parse: Boolean;
+var
+  Parser: TEntitySelector.TIntRangeParser;
+begin
+  Parser := TEntitySelector.TIntRangeParser.Create(Info, False);
+  Result := Parser.Success;
+  if Result then
+    SetParseResult(TBrigadierIntRange.Create(Argument, Parser.ParseResult));
+  Parser.Free;
+end;
+
+{ TBrigadierOperation }
+
+constructor TBrigadierOperation.Create(AArgument: TBrigadierArgument; AOperation: TScoreboardOperation);
+begin
+  inherited Create(AArgument);
+  FOperation := AOperation;
+end;
+
+function TBrigadierOperation.Format: string;
+begin
+  Result := ScoreboardOperationNames[Operation];
+end;
+
+{ TBrigadierOperationParser }
+
+class function TBrigadierOperationParser.GetParserString: TNSPath;
+begin
+  Result := 'operation';
+end;
+
+class function TBrigadierOperationParser.GetResultName: string;
+begin
+  Result := 'Scoreboard-Operation';
+end;
+
+function TBrigadierOperationParser.Parse: Boolean;
+var
+  Name: string;
+  Operation: TScoreboardOperation;
+begin
+  BeginSuggestions(TSuggestions);
+  Name := ReadWhile(ScoreboardOperationChars);
+  EndSuggestions;
+
+  if Name.IsEmpty or not ScoreboardOperationFromName(Name, Operation) then
+    Exit(False);
+
+  SetParseResult(TBrigadierOperation.Create(Argument, Operation));
+
+  Result := True;
+end;
+
+{ TBrigadierOperationParser.TSuggestions }
+
+class function TBrigadierOperationParser.TSuggestions.GetCount: Integer;
+begin
+  Result := Length(ScoreboardOperationNames);
+end;
+
+class function TBrigadierOperationParser.TSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
+begin
+  Result.Insert := ScoreboardOperationNames[TScoreboardOperation(AIndex)];
+  Result.Display := ScoreboardOperationDisplayNames[TScoreboardOperation(AIndex)];
+  Result.Display := Result.Insert + ' (' + Result.Display + ')';
+end;
+
+{ TBrigadierItemPredicate }
+
+constructor TBrigadierItemPredicate.Create(AArgument: TBrigadierArgument);
+begin
+  inherited;
+  FPredicate := TOwned<TItemStack>.Create(TItemStack.Create);
+end;
+
+constructor TBrigadierItemPredicate.Create(AArgument: TBrigadierArgument; APredicate: TItemStack);
+begin
+  inherited Create(AArgument);
+  FPredicate := TOwned<TItemStack>.Create(APredicate);
+end;
+
+destructor TBrigadierItemPredicate.Destroy;
+begin
+  FPredicate.Free;
+  inherited;
+end;
+
+function TBrigadierItemPredicate.Format: string;
+begin
+  Result := Predicate.Value.Format;
+end;
+
+{ TBrigadierItemPredicateParser }
+
+class function TBrigadierItemPredicateParser.GetParserString: TNSPath;
+begin
+  Result := 'item_predicate';
+end;
+
+class function TBrigadierItemPredicateParser.GetResultName: string;
+begin
+  Result := 'Item-Predicate';
+end;
+
+function TBrigadierItemPredicateParser.Parse: Boolean;
+var
+  ItemTagParser: TItemStackTag.TParser;
+  ItemStackParser: TItemStack.TParser;
+begin
+  if StartsWith('#', False) then
+  begin
+    ItemTagParser := TItemStackTag.TParser.Create(Info, Settings, False);
+    Result := ItemTagParser.Success;
+    if Result then
+      SetParseResult(TBrigadierItemPredicate.Create(Argument, ItemTagParser.OwnParseResult));
+    ItemTagParser.Free;
+  end
+  else
+  begin
+    ItemStackParser := TItemStack.TParser.Create(Info, Settings, False);
+    Result := ItemStackParser.Success;
+    if Result then
+      SetParseResult(TBrigadierItemPredicate.Create(Argument, ItemStackParser.OwnParseResult));
+    ItemStackParser.Free;
+  end;
+end;
+
+{ TBrigadierItemSlot }
+
+constructor TBrigadierItemSlot.Create(AArgument: TBrigadierArgument);
+begin
+  inherited;
+  FSlot := TOwned<TItemSlot>.Create(TItemSlotContainer.Create);
+  FSlot.Value.SetIndex(0);
+end;
+
+constructor TBrigadierItemSlot.Create(AArgument: TBrigadierArgument; ASlot: TItemSlot);
+begin
+  inherited Create(AArgument);
+  FSlot := TOwned<TItemSlot>.Create(ASlot);
+end;
+
+destructor TBrigadierItemSlot.Destroy;
+begin
+  FSlot.Free;
+  inherited;
+end;
+
+function TBrigadierItemSlot.Format: string;
+begin
+  Result := FSlot.Value.Format;
+end;
+
+{ TBrigadierItemSlotParser }
+
+class function TBrigadierItemSlotParser.GetParserString: TNSPath;
+begin
+  Result := 'item_slot';
+end;
+
+class function TBrigadierItemSlotParser.GetResultName: string;
+begin
+  Result := 'Item-Slot';
+end;
+
+function TBrigadierItemSlotParser.Parse: Boolean;
+var
+  Parser: TItemSlot.TParser;
+begin
+  Parser := TItemSlot.TParser.Create(Info, False);
+  Result := Parser.Success;
+  if Result then
+    SetParseResult(TBrigadierItemSlot.Create(Argument, Parser.OwnParseResult));
+  Parser.Free;
+end;
+
 initialization
 
-// Progress: 32 / 38
+// Progress: 37 / 38
 // /--------------------------------------\
-// [||||||||||||||||||||||||||||||||      ]
+// [||||||||||||||||||||||||||||||||||||| ]
 // \--------------------------------------/
 
 // - Basic Types -
@@ -2876,7 +3213,7 @@ TBrigadierIntegerParser.RegisterClass;
 TBrigadierFloatParser.RegisterClass;
 TBrigadierDoubleParser.RegisterClass;
 TBrigadierStringParser.RegisterClass;
-// TBrigadierRangeParser.RegisterClass; // TODO: brigadier:range -> minecraft:int_range
+TBrigadierRangeParser.RegisterClass;
 
 // - Position related -
 
@@ -2914,15 +3251,15 @@ TBrigadierObjectiveParser.RegisterClass;
 // TBrigadierObjectiveCriteriaParser.RegisterClass; // kindof big, split it up, or huuuge suggestion list
 TBrigadierScoreHolderParser.RegisterClass;
 TBrigadierScoreboardSlotParser.RegisterClass;
-// TBrigadierOperationParser.RegisterClass;
+TBrigadierOperationParser.RegisterClass;
 TBrigadierTeamParser.RegisterClass;
 
 // - Item related -
 
 TBrigadierItemStackParser.RegisterClass;
-// TBrigadierItemPredicateParser.RegisterClass;
+TBrigadierItemPredicateParser.RegisterClass;
 TBrigadierItemEnchantmentParser.RegisterClass;
-// TBrigadierItemSlotParser.RegisterClass;
+TBrigadierItemSlotParser.RegisterClass;
 
 // - Block related -
 

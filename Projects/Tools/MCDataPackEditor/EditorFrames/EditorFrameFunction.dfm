@@ -77,7 +77,7 @@ object frmEditorFunctions: TfrmEditorFunctions
     Left = 104
     Top = 48
     Bitmap = {
-      494C0101030005000C0010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010103000500140010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -219,7 +219,7 @@ object frmEditorFunctions: TfrmEditorFunctions
   object synCompletion: TSynCompletionProposal
     Options = [scoLimitToMatchedText, scoUseInsertList, scoCompleteWithTab, scoCompleteWithEnter]
     Width = 420
-    EndOfTokenChr = ' ()[]=,{}!<>|#'
+    EndOfTokenChr = ' ()[]=,{}!|#.'
     TriggerChars = '.'
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText

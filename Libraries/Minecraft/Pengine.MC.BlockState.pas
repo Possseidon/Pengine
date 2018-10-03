@@ -22,6 +22,8 @@ uses
 
 type
 
+  // TODO: Some really horrible code duplicate with item (and fluid) tags
+
   /// <summary>A block type with all its possible properties and their respective values.</summary>
   TBlockType = class
   public type
@@ -254,6 +256,7 @@ type
 
   TBlockTagCollection = class;
 
+  /// <summary>A block tag, which maps to various blocks or other block tags.</summary>
   TBlockTag = class
   private
     FReplace: Boolean;
@@ -1013,8 +1016,6 @@ end;
 
 procedure TBlockTagSettings.SetPath(const Value: string);
 begin
-  if Path = Value then
-    Exit;
   FPath := Value;
   Reload;
 end;

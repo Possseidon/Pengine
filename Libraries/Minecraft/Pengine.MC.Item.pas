@@ -6,6 +6,7 @@ uses
   System.SysUtils,
   System.IOUtils,
   System.Generics.Collections,
+  System.Types,
 
   Pengine.Collections,
   Pengine.HashCollections,
@@ -16,9 +17,12 @@ uses
 
   Pengine.MC.Namespace,
   Pengine.MC.NBT,
-  Pengine.MC.General;
+  Pengine.MC.General,
+  Pengine.IntMaths;
 
 type
+
+  // TODO: Some really horrible code duplicate with block (and fluid) tags
 
   /// <summary>An item type.</summary>
   TItemType = class
@@ -144,11 +148,11 @@ type
 
   end;
 
-  {
-    TItemTagCollection = class;
+  TItemTagCollection = class;
 
-    TItemTag = class
-    private
+  /// <summary>An item tag, which maps to various items or other item tags.</summary>
+  TItemTag = class
+  private
     FReplace: Boolean;
     FNSPath: TNSPath;
     FItemTypes: TItemTypes;
@@ -157,7 +161,7 @@ type
     function GetItemTypes: TItemTypes.TReader;
     function GetSorted: TItemTypes.TReader;
 
-    public
+  public
     constructor Create(AItemTags: TItemTagCollection; ANSPath: TNSPath; AJObject: TJObject);
     destructor Destroy; override;
 
@@ -166,16 +170,17 @@ type
     property ItemTypes: TItemTypes.TReader read GetItemTypes;
     property Sorted: TItemTypes.TReader read GetSorted;
 
-    end;
+  end;
 
-    TItemTags = TRefArray<TItemTag>;
+  TItemTags = TRefArray<TItemTag>;
 
-    TItemTagCollection = class
-    public type
+  /// <summary>A collection of all item tags.</summary>
+  TItemTagCollection = class
+  public type
 
     TMap = TToObjectMap<TNSPath, TItemTag, TNSPathHasher>;
 
-    private
+  private
     FItemTypes: TItemTypeCollection;
     FMap: TMap;
     FTags: TItemTags;
@@ -186,7 +191,7 @@ type
     function Load(AFileName: TFileName): TItemTag;
     function LoadFromName(ANSPath: TNSPath): TItemTag;
 
-    public
+  public
     constructor Create(AItemTypes: TItemTypeCollection; APath: string);
     destructor Destroy; override;
 
@@ -200,20 +205,21 @@ type
     /// <summary>All item tags sorted alphabetically.</summary>
     property Tags: TItemTags.TReader read GetTags;
 
-    end;
+  end;
 
-    TItemTagSettings = class
-    public const
+  /// <summary>Loads available item tags from a directory.</summary>
+  TItemTagSettings = class(TSettings)
+  public const
 
     DefaultPath = 'Data\data\minecraft\tags\items';
 
-    private
+  private
     FItemTags: TItemTagCollection;
     FPath: string;
 
     procedure SetPath(const Value: string);
 
-    public
+  public
     destructor Destroy; override;
 
     class function GetTitle: string; override;
@@ -226,46 +232,230 @@ type
 
     procedure Reload;
 
-    end;
+  end;
 
-    TItemStackTag = class
-    public type
+  /// <summary>
+  /// <p>An item tag defined by namespace identifier and optional NBT.</p>
+  /// <p>Example: <c>#minecraft:banners{Patterns:[]}</c></p>
+  /// </summary>
+  TItemStackTag = class(TItemStack)
+  public type
 
     /// <summary>Parses a whole item state.</summary>
     TParser = class(TObjectParserWithSettings<TItemStackTag>)
     private
-    FSettings: TItemTagSettings;
+      FSettings: TItemTagSettings;
 
     protected
-    function Parse: Boolean; override;
-    procedure InitSettings; override;
+      function Parse: Boolean; override;
+      procedure InitSettings; override;
 
-    property Settings: TItemTagSettings read FSettings;
+      property Settings: TItemTagSettings read FSettings;
 
     public
-    class function GetResultName: string; override;
+      class function GetResultName: string; override;
 
     end;
 
     TItemTagSuggestions = class(TParseSuggestionsGenerated<TParser>)
     private
-    FSettings: TItemTagSettings;
+      FSettings: TItemTagSettings;
 
     protected
-    procedure Generate; override;
+      procedure Generate; override;
 
     public
-    constructor Create(ASettings: TItemTagSettings);
+      constructor Create(ASettings: TItemTagSettings);
 
-    property Settings: TItemTagSettings read FSettings;
+      property Settings: TItemTagSettings read FSettings;
 
     end;
 
-    public
+  public
     function Format(AShowDefaultNamespace: Boolean = True): string; override;
 
+  end;
+
+  TItemSlotClass = class of TItemSlot;
+
+  TItemSlot = class
+  public type
+
+    TType = (
+      stArmor,
+      stContainer,
+      stEnderchest,
+      stHorse,
+      stHotbar,
+      stInventory,
+      stVillager,
+      stWeapon
+      );
+
+    TParser = class(TObjectParser<TItemSlot>)
+    public type
+
+      TNameSuggestions = class(TParseSuggestionsSimple<TParser>)
+      public
+        class function GetCount: Integer; override;
+        class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+
+      end;
+
+      TSubNameSuggestions = class(TParseSuggestionsGenerated<TParser>)
+      private
+        FSlotClass: TItemSlotClass;
+        
+      protected
+        procedure Generate; override;
+
+      public
+        constructor Create(ASlotClass: TItemSlotClass);
+
+      end;
+
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
     end;
-  }
+
+  private
+    FHasIndex: Boolean;
+    FIndex: Integer;
+    FUseNameIndex: Boolean;
+
+  public
+    constructor Create;
+
+    class function GetType: TType; virtual; abstract;
+    class function GetName: string;
+    class function GetTypeFromName(AName: string; out AType: TType): Boolean;
+    class function GetIndexCount: Integer; virtual;
+    class function GetSubNameCount: Integer; virtual;
+    class function GetSubName(AIndex: Integer): string; virtual;
+    class function GetIndexFromSubName(AName: string): Integer;
+    class function IndexRequired: Boolean; virtual;
+
+    procedure ResetIndex;
+    procedure SetIndex(AIndex: Integer);
+    procedure SetNameIndex(AIndex: Integer);
+
+    function Format: string;
+
+  end;
+
+  TItemSlotArmor = class(TItemSlot)
+  public const
+
+    SubNames: array [0 .. 3] of string = (
+      'head',
+      'chest',
+      'legs',
+      'feet'
+      );
+
+  public
+    class function GetType: TItemSlot.TType; override;
+    class function GetSubNameCount: Integer; override;
+    class function GetSubName(AIndex: Integer): string; override;
+
+  end;
+
+  TItemSlotContainer = class(TItemSlot)
+  public
+    class function GetType: TItemSlot.TType; override;
+    class function GetIndexCount: Integer; override;
+
+  end;
+
+  TItemSlotEnderchest = class(TItemSlot)
+  public
+    class function GetType: TItemSlot.TType; override;
+    class function GetIndexCount: Integer; override;
+
+  end;
+
+  TItemSlotHorse = class(TItemSlot)
+  public const
+
+    SubNames: array [0 .. 2] of string = (
+      'armor',
+      'chest',
+      'saddle'
+      );
+
+  public
+    class function GetType: TItemSlot.TType; override;
+    class function GetIndexCount: Integer; override;
+    class function GetSubNameCount: Integer; override;
+    class function GetSubName(AIndex: Integer): string; override;
+
+  end;
+
+  TItemSlotHotbar = class(TItemSlot)
+  public
+    class function GetType: TItemSlot.TType; override;
+    class function GetIndexCount: Integer; override;
+
+  end;
+
+  TItemSlotInventory = class(TItemSlot)
+  public
+    class function GetType: TItemSlot.TType; override;
+    class function GetIndexCount: Integer; override;
+
+  end;
+
+  TItemSlotVillager = class(TItemSlot)
+  public
+    class function GetType: TItemSlot.TType; override;
+    class function GetIndexCount: Integer; override;
+
+  end;
+
+  TItemSlotWeapon = class(TItemSlot)
+  public const
+
+    SubNames: array [0 .. 1] of string = (
+      'mainhand',
+      'offhand'
+      );
+
+  public
+    class function GetType: TItemSlot.TType; override;
+    class function GetSubNameCount: Integer; override;
+    class function GetSubName(AIndex: Integer): string; override;
+    class function IndexRequired: Boolean; override;
+
+  end;
+
+const
+
+  ItemSlotClasses: array [TItemSlot.TType] of TItemSlotClass = (
+    TItemSlotArmor,
+    TItemSlotContainer,
+    TItemSlotEnderchest,
+    TItemSlotHorse,
+    TItemSlotHotbar,
+    TItemSlotInventory,
+    TItemSlotVillager,
+    TItemSlotWeapon
+    );
+
+  ItemSlotNames: array [TItemSlot.TType] of string = (
+    'armor',
+    'container',
+    'enderchest',
+    'horse',
+    'hotbar',
+    'inventory',
+    'villager',
+    'weapon'
+    );
+
 implementation
 
 { TItemTypeCollection }
@@ -466,6 +656,526 @@ begin
   Result := NSPath.Format(AShowDefaultNamespace);
   if NBT.HasValue and not NBT.Value.Empty then
     Result := Result + NBT.Value.Format;
+end;
+
+{ TItemTag }
+
+constructor TItemTag.Create(AItemTags: TItemTagCollection; ANSPath: TNSPath; AJObject: TJObject);
+var
+  JValue: TJValue;
+  Value: string;
+  ItemType: TItemType;
+begin
+  FNSPath := ANSPath;
+  FItemTypes := TItemTypes.Create;
+  FReplace := AJObject['replace'].AsBool;
+  for JValue in AJObject['values'].AsArray do
+  begin
+    Value := JValue.AsString;
+    if Value.StartsWith('#') then
+    begin
+      Value := Value.Substring(1);
+      FItemTypes.Add(AItemTags.LoadFromName(Value).ItemTypes.GetEnumerator);
+    end
+    else
+    begin
+      if AItemTags.ItemTypes.Get(Value, ItemType) then
+        FItemTypes.Add(ItemType);
+    end;
+  end;
+  FSorted := ItemTypes.Copy;
+  FSorted.Sort(
+    function(A, B: TItemType): Boolean
+    begin
+      Result := A.NSPath < B.NSPath;
+    end
+    );
+end;
+
+destructor TItemTag.Destroy;
+begin
+  FSorted.Free;
+  FItemTypes.Free;
+  inherited;
+end;
+
+function TItemTag.GetItemTypes: TItemTypes.TReader;
+begin
+  Result := FItemTypes.Reader;
+end;
+
+function TItemTag.GetSorted: TItemTypes.TReader;
+begin
+  Result := FSorted.Reader;
+end;
+
+{ TItemTagCollection }
+
+constructor TItemTagCollection.Create(AItemTypes: TItemTypeCollection; APath: string);
+var
+  FileName: TFileName;
+begin
+  FPath := APath;
+  FItemTypes := AItemTypes;
+  FMap := TMap.Create;
+  FTags := TItemTags.Create;
+
+  for FileName in TDirectory.GetFiles(APath, '*.json') do
+    Load(FileName);
+
+  FTags.Sort(
+    function(A, B: TItemTag): Boolean
+    begin
+      Result := A.NSPath < B.NSPath;
+    end);
+end;
+
+destructor TItemTagCollection.Destroy;
+begin
+  FMap.Free;
+  FTags.Free;
+  inherited;
+end;
+
+function TItemTagCollection.Exists(ANSPath: TNSPath): Boolean;
+begin
+  Result := FMap.KeyExists(ANSPath);
+end;
+
+function TItemTagCollection.Get(ANSPath: TNSPath; out AItemTag: TItemTag): Boolean;
+begin
+  Result := FMap.Get(ANSPath, AItemTag);
+end;
+
+function TItemTagCollection.GetTags: TItemTags.TReader;
+begin
+  Result := FTags.Reader;
+end;
+
+function TItemTagCollection.Load(AFileName: TFileName): TItemTag;
+var
+  NSPath: TNSPath;
+  JObject: TJObject;
+begin
+  NSPath := ChangeFileExt(ExtractFileName(AFileName), '');
+  if Get(NSPath, Result) then
+    Exit;
+  JObject := TJObject.Parse(TFile.ReadAllText(AFileName));
+  try
+    Result := TItemTag.Create(Self, NSPath, JObject);
+    FMap[NSPath] := Result;
+    FTags.Add(Result);
+  finally
+    JObject.Free;
+  end;
+end;
+
+function TItemTagCollection.LoadFromName(ANSPath: TNSPath): TItemTag;
+begin
+  Result := Load(TPath.Combine(Path, ANSPath.Format(False) + '.json'));
+end;
+
+{ TItemTagSettings }
+
+destructor TItemTagSettings.Destroy;
+begin
+  FItemTags.Free;
+  inherited;
+end;
+
+class function TItemTagSettings.GetDescription: string;
+begin
+  Result := 'Path configuration for item tags folder.';
+end;
+
+class function TItemTagSettings.GetTitle: string;
+begin
+  Result := 'Item-Tags';
+end;
+
+procedure TItemTagSettings.Reload;
+begin
+  FItemTags.Free;
+  FItemTags := TItemTagCollection.Create(Sub<TItemSettings>.Items, Path);
+end;
+
+procedure TItemTagSettings.SetDefaults;
+begin
+  Path := DefaultPath;
+end;
+
+procedure TItemTagSettings.SetPath(const Value: string);
+begin
+  FPath := Value;
+  Reload;
+end;
+
+{ TItemStackTag }
+
+function TItemStackTag.Format(AShowDefaultNamespace: Boolean): string;
+begin
+  Result := '#' + inherited;
+end;
+
+{ TItemStackTag.TParser }
+
+class function TItemStackTag.TParser.GetResultName: string;
+begin
+  Result := 'Item-Tag';
+end;
+
+procedure TItemStackTag.TParser.InitSettings;
+begin
+  FSettings := AllSettings.Sub<TItemTagSettings>;
+end;
+
+function TItemStackTag.TParser.Parse: Boolean;
+var
+  NSPathString: string;
+  NSPath: TNSPath;
+  Marker: TLogMarker;
+  TagExists: Boolean;
+  ItemTag: TItemTag;
+begin
+  Marker := GetMarker;
+
+  if not StartsWith('#') then
+    Exit(False);
+
+  BeginSuggestions(TItemTagSuggestions.Create(Settings));
+
+  NSPathString := ReadWhile(NamespacePathChars);
+
+  EndSuggestions;
+
+  if NSPathString.IsEmpty then
+  begin
+    Log(1, 'Expected item tag.');
+    Exit(True);
+  end;
+  NSPath := NSPathString;
+
+  SetParseResult(TItemStackTag.Create(NSPath));
+  TagExists := Settings.ItemTags.Get(NSPath, ItemTag);
+  if not TagExists then
+    Log(Marker, '"%s" is not a valid item tag.', [NSPath.Format]);
+
+  ParseResult.NBT.Put(TNBTParserCompound.Optional(Info, omReturnNil));
+
+  Result := True;
+end;
+
+{ TItemStackTag.TItemTagSuggestions }
+
+constructor TItemStackTag.TItemTagSuggestions.Create(ASettings: TItemTagSettings);
+begin
+  inherited Create;
+  FSettings := ASettings;
+end;
+
+procedure TItemStackTag.TItemTagSuggestions.Generate;
+var
+  Tag: TItemTag;
+begin
+  for Tag in Settings.ItemTags.Tags do
+    AddSuggestion(ParseSuggestion(Tag.NSPath.Format(False), Tag.NSPath.Format(False)));
+  AddSuggestion(ParseSuggestion(TNSPath.Empty, TNSPath.Empty));
+  for Tag in Settings.ItemTags.Tags do
+    AddSuggestion(ParseSuggestion(Tag.NSPath, Tag.NSPath));
+end;
+
+{ TItemSlot }
+
+constructor TItemSlot.Create;
+begin
+  ResetIndex;
+end;
+
+function TItemSlot.Format: string;
+begin
+  if not FHasIndex then
+    Exit(GetName);
+  if FUseNameIndex then
+    Result := GetName + '.' + GetSubName(FIndex)
+  else
+    Result := GetName + '.' + FIndex.ToString;
+end;
+
+class function TItemSlot.GetIndexCount: Integer;
+begin
+  Result := 0;
+end;
+
+class function TItemSlot.GetIndexFromSubName(AName: string): Integer;
+var
+  I: Integer;
+begin
+  for I := 0 to GetSubNameCount - 1 do
+    if AName = GetSubName(I) then
+      Exit(I);
+  Result := -1;
+end;
+
+class function TItemSlot.GetName: string;
+begin
+  Result := ItemSlotNames[GetType];
+end;
+
+class function TItemSlot.GetSubName(AIndex: Integer): string;
+begin
+  Assert(False, 'No Slot-SubNames specified.');
+end;
+
+class function TItemSlot.GetSubNameCount: Integer;
+begin
+  Result := 0;
+end;
+
+class function TItemSlot.GetTypeFromName(AName: string; out AType: TType): Boolean;
+var
+  SlotType: TType;
+begin
+  for SlotType := Low(TType) to High(TType) do
+    if AName = ItemSlotNames[SlotType] then
+    begin
+      AType := SlotType;
+      Exit(True);
+    end;
+  Result := False;
+end;
+
+class function TItemSlot.IndexRequired: Boolean;
+begin
+  Result := True;
+end;
+
+procedure TItemSlot.ResetIndex;
+begin
+  FHasIndex := False;
+end;
+
+procedure TItemSlot.SetIndex(AIndex: Integer);
+begin
+  FHasIndex := True;
+  FUseNameIndex := False;
+  FIndex := AIndex;
+end;
+
+procedure TItemSlot.SetNameIndex(AIndex: Integer);
+begin
+  FHasIndex := True;
+  FUseNameIndex := True;
+  FIndex := AIndex;
+end;
+
+{ TItemSlotArmor }
+
+class function TItemSlotArmor.GetSubName(AIndex: Integer): string;
+begin
+  Result := SubNames[AIndex];
+end;
+
+class function TItemSlotArmor.GetSubNameCount: Integer;
+begin
+  Result := Length(SubNames);
+end;
+
+class function TItemSlotArmor.GetType: TItemSlot.TType;
+begin
+  Result := stArmor;
+end;
+
+{ TItemSlotContainer }
+
+class function TItemSlotContainer.GetIndexCount: Integer;
+begin
+  Result := 54;
+end;
+
+class function TItemSlotContainer.GetType: TItemSlot.TType;
+begin
+  Result := stContainer;
+end;
+
+{ TItemSlotEnderchest }
+
+class function TItemSlotEnderchest.GetIndexCount: Integer;
+begin
+  Result := 27;
+end;
+
+class function TItemSlotEnderchest.GetType: TItemSlot.TType;
+begin
+  Result := stEnderchest;
+end;
+
+{ TItemSlotHorse }
+
+class function TItemSlotHorse.GetIndexCount: Integer;
+begin
+  Result := 15;
+end;
+
+class function TItemSlotHorse.GetSubName(AIndex: Integer): string;
+begin
+  Result := SubNames[AIndex];
+end;
+
+class function TItemSlotHorse.GetSubNameCount: Integer;
+begin
+  Result := Length(SubNames);
+end;
+
+class function TItemSlotHorse.GetType: TItemSlot.TType;
+begin
+  Result := stHorse;
+end;
+
+{ TItemSlotHotbar }
+
+class function TItemSlotHotbar.GetIndexCount: Integer;
+begin
+  Result := 9;
+end;
+
+class function TItemSlotHotbar.GetType: TItemSlot.TType;
+begin
+  Result := stHotbar;
+end;
+
+{ TItemSlotInventory }
+
+class function TItemSlotInventory.GetIndexCount: Integer;
+begin
+  Result := 27;
+end;
+
+class function TItemSlotInventory.GetType: TItemSlot.TType;
+begin
+  Result := stInventory;
+end;
+
+{ TItemSlotVillager }
+
+class function TItemSlotVillager.GetIndexCount: Integer;
+begin
+  Result := 8;
+end;
+
+class function TItemSlotVillager.GetType: TItemSlot.TType;
+begin
+  Result := stVillager;
+end;
+
+{ TItemSlotWeapon }
+
+class function TItemSlotWeapon.GetSubName(AIndex: Integer): string;
+begin
+  Result := SubNames[AIndex];
+end;
+
+class function TItemSlotWeapon.GetSubNameCount: Integer;
+begin
+  Result := Length(SubNames);
+end;
+
+class function TItemSlotWeapon.GetType: TItemSlot.TType;
+begin
+  Result := stWeapon;
+end;
+
+class function TItemSlotWeapon.IndexRequired: Boolean;
+begin
+  Result := False;
+end;
+
+{ TItemSlot.TParser }
+
+class function TItemSlot.TParser.GetResultName: string;
+begin
+  Result := 'Item-Slot';
+end;
+
+function TItemSlot.TParser.Parse: Boolean;
+var
+  Name: string;
+  SlotType: TItemSlot.TType;
+  SlotClass: TItemSlotClass;
+  Marker, SubNameMarker: TLogMarker;
+  Index: Integer;
+begin
+  Marker := GetMarker;
+  BeginSuggestions(TNameSuggestions);
+  Name := ReadWhile(IdentChars - ['.']);
+  EndSuggestions;
+  
+  if not TItemSlot.GetTypeFromName(Name, SlotType) then
+    Exit(False);
+  SlotClass := ItemSlotClasses[SlotType];
+
+  SetParseResult(SlotClass.Create);
+  if not StartsWith('.') then
+  begin
+    if SlotClass.IndexRequired then
+      Log(Marker, 'Slot requires index.');
+    Exit(True);
+  end;
+
+  SubNameMarker := GetMarker;
+  BeginSuggestions(TSubNameSuggestions.Create(SlotClass));
+  Name := ReadWhile(IdentChars);                   
+  EndSuggestions;
+
+  if Name.IsEmpty then
+    Log(Marker, 'Slot index expected.', elFatal);
+
+  if TryStrToInt(Name, Index) then
+  begin
+    if SlotClass.GetIndexCount = 0 then
+      Log(Marker, 'Slot-Type "%s" does not have any numerical indices.', [SlotClass.GetName], elFatal)
+    else if not(Index in IBounds1(SlotClass.GetIndexCount)) then
+      Log(Marker, 'Index must be in range %s.', [IBounds1(SlotClass.GetIndexCount).ToString]);
+    ParseResult.SetIndex(Index);
+    Exit(True);
+  end;
+
+  Index := SlotClass.GetIndexFromSubName(Name);
+  if Index <> -1 then
+    ParseResult.SetNameIndex(Index)
+  else
+    Log(Marker, 'Invalid slot index.', elFatal);
+
+  Result := True;
+end;
+
+{ TItemSlot.TParser.TNameSuggestions }
+
+class function TItemSlot.TParser.TNameSuggestions.GetCount: Integer;
+begin
+  Result := Length(ItemSlotNames);
+end;
+
+class function TItemSlot.TParser.TNameSuggestions.GetSuggestion(AIndex: Integer): TParseSuggestion;
+begin
+  Result := ItemSlotNames[TType(AIndex)];
+end;
+
+{ TItemSlot.TParser.TSubNameSuggestions }
+
+constructor TItemSlot.TParser.TSubNameSuggestions.Create(ASlotClass: TItemSlotClass);
+begin
+  inherited Create;
+  FSlotClass := ASlotClass;
+end;
+
+procedure TItemSlot.TParser.TSubNameSuggestions.Generate;
+var
+  Index: Integer;
+begin                             
+  for Index := 0 to FSlotClass.GetSubNameCount - 1 do
+    AddSuggestion(FSlotClass.GetSubName(Index));
+  for Index := 0 to FSlotClass.GetIndexCount - 1 do
+    AddSuggestion(Index.ToString);
 end;
 
 end.
