@@ -21,6 +21,8 @@ uses
 
 type
 
+  // TODO: Format NBT with TStringBuilder
+
   ENBTListItemWrongType = class(Exception)
   public
     constructor Create;
@@ -101,6 +103,7 @@ type
   public
     class function GetType: TNBTType; override;
     function Format: string; override;
+
   end;
 
   /// <summary>A tag for a signed number with 2 bytes of storage.</summary>
@@ -108,6 +111,7 @@ type
   public
     class function GetType: TNBTType; override;
     function Format: string; override;
+
   end;
 
   /// <summary>A tag for a signed number with 4 bytes of storage.</summary>
@@ -115,6 +119,7 @@ type
   public
     class function GetType: TNBTType; override;
     function Format: string; override;
+
   end;
 
   /// <summary>A tag for a signed number with 8 bytes of storage.</summary>
@@ -122,6 +127,7 @@ type
   public
     class function GetType: TNBTType; override;
     function Format: string; override;
+
   end;
 
   /// <summary>A tag for a floating point number with 4 bytes of storage.</summary>
@@ -129,6 +135,7 @@ type
   public
     class function GetType: TNBTType; override;
     function Format: string; override;
+
   end;
 
   /// <summary>A tag for a floating point number with 8 bytes of storage.</summary>
@@ -136,6 +143,7 @@ type
   public
     class function GetType: TNBTType; override;
     function Format: string; override;
+
   end;
 
   /// <summary>A generic base class for number array types.</summary>
@@ -155,6 +163,8 @@ type
     constructor Create(AStream: TStream); overload; override;
     destructor Destroy; override;
 
+    class function GetNumberType: TNBTType; virtual; abstract;
+
     property Items: TItems read FItems;
 
     function Format: string; override;
@@ -170,9 +180,11 @@ type
 
   public
     class function GetType: TNBTType; override;
+    class function GetNumberType: TNBTType; override;
+
   end;
 
-  /// <summary>A tag foTNBTTypearray of strings.</summary>
+  /// <summary>A tag for an array of strings.</summary>
   TNBTString = class(TNBTTag)
   private
     FText: string;
@@ -185,6 +197,9 @@ type
     property Text: string read FText write FText;
 
     function Format: string; override;
+
+    class function EscapeRequired(AText: string): Boolean;
+    class function Escape(AText: string): string;
 
     function Equals(Obj: TObject): Boolean; override;
 
@@ -229,16 +244,22 @@ type
   TNBTIntArray = class(TNBTArray<Integer>)
   protected
     class function FormatItem(AItem: Integer): string; override;
+
   public
     class function GetType: TNBTType; override;
+    class function GetNumberType: TNBTType; override;
+
   end;
 
   /// <summary>A tag for an array of signed 8 byte numbers.</summary>
   TNBTLongArray = class(TNBTArray<Int64>)
   protected
     class function FormatItem(AItem: Int64): string; override;
+
   public
     class function GetType: TNBTType; override;
+    class function GetNumberType: TNBTType; override;
+
   end;
 
   /// <summary>A tag containing more named tags.</summary>
@@ -335,10 +356,14 @@ type
 
     TokenBracket = 1;
     TokenComma = 2;
+    TokenArrayType = 3;
+    TokenArraySeperator = 4;
 
-    TokenNames: array [TokenBracket .. TokenComma] of string = (
+    TokenNames: array [TokenBracket .. TokenArraySeperator] of string = (
       'Brackets',
-      'Comma'
+      'Comma',         
+      'Array-Type',
+      'Array-Seperator'
       );
 
   protected
@@ -463,29 +488,31 @@ const
     );
 
   NBTNames: array [TNBTType] of string = (
-    'end',
-    'byte',
-    'short',
-    'int',
-    'long',
-    'float',
-    'double',
-    'byte_array',
-    'string',
-    'list',
-    'compound',
-    'int_array',
-    'long_array'
+    'End',
+    'Byte',
+    'Short',
+    'Int',
+    'Long',
+    'Float',
+    'Double',
+    'Byte-Array',
+    'String',
+    'List',
+    'Compound',
+    'Int-Array',
+    'Long-Array'
     );
 
   NBTNumberSuffixes: array [TNBTNumberType] of Char = (
     'b',
     's',
-    #0,
+    'i',
     'l',
     'f',
     'd'
     );
+
+  NBTArrayable = [nbtByte, nbtInt, nbtLong];
 
 implementation
 
@@ -617,7 +644,7 @@ function TNBTArray<T>.Format: string;
 var
   I: Integer;
 begin
-  Result := '[';
+  Result := '[' + NBTNumberSuffixes[GetNumberType].ToUpper + '; ';
   for I := 0 to FItems.MaxIndex do
   begin
     Result := Result + FormatItem(Items[I]);
@@ -703,7 +730,12 @@ end;
 
 class function TNBTByteArray.FormatItem(AItem: ShortInt): string;
 begin
-  Result := IntToStr(AItem);
+  Result := IntToStr(AItem) + NBTNumberSuffixes[GetNumberType];
+end;
+
+class function TNBTByteArray.GetNumberType: TNBTType;
+begin
+  Result := nbtByte;
 end;
 
 class function TNBTByteArray.GetType: TNBTType;
@@ -724,9 +756,24 @@ begin
   Result := inherited and (TNBTString(Obj).Text = Text);
 end;
 
+class function TNBTString.Escape(AText: string): string;
+begin
+  Result := '"' + AText.Replace('\', '\\').Replace('"', '\"') + '"';
+end;
+
+class function TNBTString.EscapeRequired(AText: string): Boolean;
+var
+  C: Char;
+begin
+  for C in AText do
+    if not CharInSet(C, IdentChars) then
+      Exit(True);
+  Result := False;
+end;
+
 function TNBTString.Format: string;
 begin
-  Result := '"' + Text.Replace('\', '\\').Replace('"', '\"') + '"';
+  Result := Escape(Text);
 end;
 
 class function TNBTString.GetType: TNBTType;
@@ -836,6 +883,11 @@ begin
   Result := IntToStr(AItem);
 end;
 
+class function TNBTIntArray.GetNumberType: TNBTType;
+begin
+  Result := nbtInt;
+end;
+
 class function TNBTIntArray.GetType: TNBTType;
 begin
   Result := nbtIntArray;
@@ -845,7 +897,12 @@ end;
 
 class function TNBTLongArray.FormatItem(AItem: Int64): string;
 begin
-  Result := IntToStr(AItem);
+  Result := IntToStr(AItem) + NBTNumberSuffixes[GetNumberType];
+end;
+
+class function TNBTLongArray.GetNumberType: TNBTType;
+begin
+  Result := nbtLong;
 end;
 
 class function TNBTLongArray.GetType: TNBTType;
@@ -940,7 +997,11 @@ begin
         Result := Result + ', '
       else
         First := False;
-      Result := Result + Pair.Key + ':' + Pair.Value.Format;
+      if TNBTString.EscapeRequired(Pair.Key) then
+        Result := Result + TNBTString.Escape(Pair.Key)
+      else
+        Result := Result + Pair.Key;
+      Result := Result + ': ' + Pair.Value.Format;
     end;
   end;
   Result := Result + '}';
@@ -1022,7 +1083,7 @@ end;
 
 class function TNBTParserCompound.GetTokenCount: Integer;
 begin
-  Result := High(TokenNames);
+  Result := Length(TokenNames);
 end;
 
 class function TNBTParserCompound.GetTokenName(AIndex: Integer): string;
@@ -1057,12 +1118,9 @@ begin
 end;
 
 function TNBTParserCompound.Parse: Boolean;
-const
-  TagNameChars = ['a' .. 'z', 'A' .. 'Z', '0' .. '9', '_'];
 var
   TagName: string;
   DataParser: TNBTDataParser;
-  C: Char;
 begin
   Token := TokenBracket;
 
@@ -1081,13 +1139,7 @@ begin
   begin
     Token := TokenTag;
 
-    TagName := '';
-    for C in Info do
-    begin
-      if not CharInSet(C, TagNameChars) then
-        Break;
-      TagName := TagName + C;
-    end;
+    TagName := TStringOrIdentParser.Require(Info);
     if TagName = '' then
       raise EParseError.Create('Expected tag name.');
 
@@ -1153,7 +1205,7 @@ end;
 
 class function TNBTParserListOrArray.GetTokenCount: Integer;
 begin
-  Result := High(TokenNames);
+  Result := Length(TokenNames);
 end;
 
 class function TNBTParserListOrArray.GetTokenName(AIndex: Integer): string;
@@ -1164,7 +1216,8 @@ end;
 function TNBTParserListOrArray.Parse: Boolean;
 var
   DataParser: TNBTDataParser;
-  FirstType: TNBTType;
+  IsArrayType: Boolean;
+  FirstType, ArrayType: TNBTType;
   Marker: TLogMarker;
 begin
   Token := TokenBracket;
@@ -1172,13 +1225,38 @@ begin
   if not StartsWith('[') then
     Exit(False);
 
+  FirstType := nbtEnd;
+  IsArrayType := False;
+
+  for ArrayType in NBTArrayable do
+  begin
+    if StartsWith(NBTNumberSuffixes[ArrayType].ToUpper + ';', False) then
+    begin
+      FirstType := ArrayType;
+      Token := TokenArrayType;
+      Advance;
+      Token := TokenArraySeperator;
+      Advance;
+      case FirstType of
+        nbtByte:
+          SetParseResult(TNBTByteArray.Create);
+        nbtInt:
+          SetParseResult(TNBTIntArray.Create);
+        nbtLong:
+          SetParseResult(TNBTLongArray.Create);
+      else
+        Assert(False);
+      end;
+      IsArrayType := True;
+    end;
+  end;
+
   ResetToken;
 
   SkipWhitespace;
 
   Token := TokenBracket;
 
-  FirstType := nbtEnd;
   while not StartsWith(']') do
   begin
     Marker := GetMarker;
@@ -1187,16 +1265,7 @@ begin
       if FirstType = nbtEnd then
       begin
         FirstType := DataParser.ParseResult.GetType;
-        case FirstType of
-          nbtByte:
-            SetParseResult(TNBTByteArray.Create);
-          nbtInt:
-            SetParseResult(TNBTIntArray.Create);
-          nbtLongArray:
-            SetParseResult(TNBTLongArray.Create);
-        else
-          SetParseResult(TNBTList.Create);
-        end;
+        SetParseResult(TNBTList.Create);
       end;
 
       if DataParser.ParseResult.GetType <> FirstType then
@@ -1206,17 +1275,21 @@ begin
       end
       else
       begin
-        case FirstType of
-          nbtByte:
-            TNBTByteArray(ParseResult).Items.Add(TNBTByte(DataParser.ParseResult).Value);
-          nbtInt:
-            TNBTIntArray(ParseResult).Items.Add(TNBTInt(DataParser.ParseResult).Value);
-          nbtLongArray:
-            TNBTLongArray(ParseResult).Items.Add(TNBTLong(DataParser.ParseResult).Value);
+        if IsArrayType then
+        begin
+          case FirstType of
+            nbtByte:
+              TNBTByteArray(ParseResult).Items.Add(TNBTByte(DataParser.ParseResult).Value);
+            nbtInt:
+              TNBTIntArray(ParseResult).Items.Add(TNBTInt(DataParser.ParseResult).Value);
+            nbtLong:
+              TNBTLongArray(ParseResult).Items.Add(TNBTLong(DataParser.ParseResult).Value);
+          end;
+        end
         else
           TNBTList(ParseResult).Add(DataParser.OwnParseResult);
-        end;
       end;
+
     finally
       DataParser.Free;
     end;
@@ -1316,15 +1389,13 @@ var
   Parser: TStringOrIdentParser;
 begin
   Parser := TStringOrIdentParser.Create(Info, True);
-  try
-    if Parser.IsIdent and Parser.ParseResult.IsEmpty then
-      Exit(False);
+  Result := not Parser.IsIdent or not Parser.ParseResult.IsEmpty;
+  if Result then
+  begin
     SetParseResult(TNBTString.Create);
     ParseResult.Text := Parser.ParseResult;
-    Result := True;
-  finally
-    Parser.Free;
   end;
+  Parser.Free;
 end;
 
 function TNBTParserString.ParseResult: TNBTString;
@@ -1378,9 +1449,9 @@ begin
   FoundType := False;
   for NumberType := Low(TNBTNumberType) to High(TNBTNumberType) do
   begin
-    if NBTNumberSuffixes[NumberType] = #0 then
+    if NumberType = nbtInt then
       Continue;
-    if First = NBTNumberSuffixes[NumberType] then
+    if First.ToLower = NBTNumberSuffixes[NumberType] then
     begin
       FoundType := True;
       if IsFloat and (NumberType <= High(TNBTIntegerType)) then

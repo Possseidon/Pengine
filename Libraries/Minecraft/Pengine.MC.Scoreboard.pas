@@ -4,11 +4,20 @@ interface
 
 uses
   System.SysUtils,
+  System.Classes,
+  System.IOUtils,
 
   Pengine.Parser,
+  Pengine.HashCollections,
+  Pengine.Hasher,
+  Pengine.Collections,
+  Pengine.Settings,
 
   Pengine.MC.TextComponent,
-  Pengine.MC.General;
+  Pengine.MC.General,
+  Pengine.MC.Item,
+  Pengine.MC.Namespace,
+  Pengine.MC.Entity;
 
 type
 
@@ -70,25 +79,46 @@ type
     NamePrefix = 'sidebar.team.';
 
   private
-    FTeamColor: TMCColor;
+    FTeamColor: TMCColorNoReset;
 
   public
-    constructor Create(ATeamColor: TMCColor); overload;
+    constructor Create(ATeamColor: TMCColorNoReset); overload;
 
-    property TeamColor: TMCColor read FTeamColor write FTeamColor;
+    property TeamColor: TMCColorNoReset read FTeamColor write FTeamColor;
 
     function GetName: string; override;
 
   end;
-        {
+
   TScoreboardCriteria = class
+  public type
+
+    TParser = class(TObjectParser<TScoreboardCriteria>)
+    public type
+
+      TSuggestions = class(TParseSuggestionsGenerated<TParser>)
+      protected
+        procedure Generate; override;
+
+      public
+        function GetBreakChars: TSysCharSet; override;
+
+      end;
+
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
 
   public
     function Format: string; virtual; abstract;
 
   end;
 
-  TScoreboardCriteriaSimple = class
+  TScoreboardCriteriaSimple = class(TScoreboardCriteria)
   public type
 
     TType = (
@@ -125,9 +155,11 @@ type
     FCriteriaType: TType;
 
   public
+    constructor Create(AType: TType); overload;
+
     property CriteriaType: TType read FCriteriaType write FCriteriaType;
 
-    // function Format: string; override;
+    function Format: string; override;
 
   end;
 
@@ -148,100 +180,233 @@ type
       ctKilledByTeam
       );
 
+    TSubTypeSuggestion = class(TParseSuggestionsGenerated)
+    private
+      FType: TScoreboardCriteriaComplex.TType;
+
+    protected
+      procedure Generate; override;
+
+    public
+      constructor Create(AType: TScoreboardCriteriaComplex.TType);
+
+      function GetTitle: string; override;
+      function GetBreakChars: TSysCharSet; override;
+
+    end;
+
   public const
 
+    NamespacedTypes = [ctCustom .. ctKilledBy];
+
+    NamespacePrefix = 'minecraft.';
+
     Names: array [TType] of string = (
-      'minecraft.custom:minecraft',
-      'minecraft.crafted:minecraft',
-      'minecraft.used:minecraft',
-      'minecraft.broken:minecraft',
-      'minecraft.mined:minecraft',
-      'minecraft.killed:minecraft',
-      'minecraft.picked_up:minecraft',
-      'minecraft.dropped:minecraft',
-      'minecraft.killed_by:minecraft',
+      'custom',
+      'crafted',
+      'used',
+      'broken',
+      'mined',
+      'killed',
+      'picked_up',
+      'dropped',
+      'killed_by',
       'teamkill',
       'killedByTeam'
       );
 
+  private
+    FSubType: Integer;
+
   public
+    constructor Create(ASubType: Integer); overload; virtual;
+
     class function GetType: TType; virtual; abstract;
-    class function GetName: string; virtual;
-    class function GetSubTypeCount: Integer;
-    class function GetSubTypeName();
+    class function GetName: string;
+    class function GetSubTypeCount: Integer; virtual; abstract;
+    class function GetSubTypeName(ASubType: Integer): string; virtual; abstract;
+    class function GetSubTypeFromName(AName: string; out ASubType: Integer): Boolean; virtual;
+    class function IsNamespaceType: Boolean;
+
+    property SubType: Integer read FSubType write FSubType;
+
+    function Format: string; override;
 
   end;
 
-  TScoreboardCriteriaStatistic = class(TScoreboardCriteriaComplex)
+  TScoreboardCriteriaComplexClass = class of TScoreboardCriteriaComplex;
 
-  end;
+  TScoreboardCriteriaFileSettings = class(TSettings)
+  public const
 
-  TScoreboardCriteriaCustom = class(TScoreboardCriteriaStatistic)
+    DefaultPath = 'Data\scoreboard_criterias';
+
+  public type
+
+    TCriteriaType = class
+    public type
+
+      TSubTypes = TArray<string>;
+      TLookup = TMap<string, Integer, TStringHasher>;
+
+    private
+      FSubTypes: TSubTypes;
+      FLookup: TLookup;
+
+      function GetLookup: TLookup.TReader;
+      function GetSubTypes: TSubTypes.TReader;
+
+    public
+      constructor Create(AFileName: string);
+      destructor Destroy; override;
+
+      property SubTypes: TSubTypes.TReader read GetSubTypes;
+      property Lookup: TLookup.TReader read GetLookup;
+
+    end;
+
+    TCriteriaTypes = TToObjectMap<string, TCriteriaType, TStringHasher>;
+
+  private
+    FPath: string;
+    FCriteriaTypes: TCriteriaTypes;
+
+    function GetCriteriaType(AName: string): TCriteriaType;
+    procedure SetPath(const Value: string);
+
+  protected
+    constructor Create(ARoot: TRootSettings); override;
+
   public
-    class function GetType: TType; override;
+    destructor Destroy; override;
+
+    procedure SetDefaults; override;
+
+    property Path: string read FPath write SetPath;
+    property CriteriaType[AName: string]: TCriteriaType read GetCriteriaType;
 
   end;
 
-  TScoreboardCriteriaCrafted = class(TScoreboardCriteriaStatistic)
+  TScoreboardCriteriaFromFile = class(TScoreboardCriteriaComplex)
+  private
+    FSubTypes: TScoreboardCriteriaFileSettings.TCriteriaType;
+
   public
-    class function GetType: TType; override;
+    constructor Create; overload;
+    constructor Create(ASubType: Integer); overload; override;
+
+    class function GetSubTypes: TScoreboardCriteriaFileSettings.TCriteriaType;
+    class function GetSubTypeCount: Integer; override;
+    class function GetSubTypeName(AIndex: Integer): string; override;
+    class function GetSubTypeFromName(AName: string; out AIndex: Integer): Boolean; override;
+    class function GetFileName: string; virtual; abstract;
 
   end;
 
-  TScoreboardCriteriaUsed = class(TScoreboardCriteriaStatistic)
+  TScoreboardCriteriaEntity = class(TScoreboardCriteriaComplex)
   public
-    class function GetType: TType; override;
+    class function GetSubTypeCount: Integer; override;
+    class function GetSubTypeFromName(AName: string; out ASubType: Integer): Boolean; override;
+    class function GetSubTypeName(ASubType: Integer): string; override;
 
   end;
 
-  TScoreboardCriteriaBroken = class(TScoreboardCriteriaStatistic)
+  /// <summary>One of the many statistics on the stats page.</summary>
+  TScoreboardCriteriaCustom = class(TScoreboardCriteriaFromFile)
   public
-    class function GetType: TType; override;
+    class function GetType: TScoreboardCriteriaComplex.TType; override;
+    class function GetFileName: string; override;
 
   end;
 
-  TScoreboardCriteriaMined = class(TScoreboardCriteriaStatistic)
+  TScoreboardCriteriaCrafted = class(TScoreboardCriteriaFromFile)
   public
-    class function GetType: TType; override;
+    class function GetType: TScoreboardCriteriaComplex.TType; override;
+    class function GetFileName: string; override;
 
   end;
 
-  TScoreboardCriteriaKilled = class(TScoreboardCriteriaStatistic)
+  TScoreboardCriteriaUsed = class(TScoreboardCriteriaFromFile)
   public
-    class function GetType: TType; override;
+    class function GetType: TScoreboardCriteriaComplex.TType; override;
+    class function GetFileName: string; override;
 
   end;
 
-  TScoreboardCriteriaPickedUp = class(TScoreboardCriteriaStatistic)
+  TScoreboardCriteriaBroken = class(TScoreboardCriteriaFromFile)
   public
-    class function GetType: TType; override;
+    class function GetType: TScoreboardCriteriaComplex.TType; override;
+    class function GetFileName: string; override;
 
   end;
 
-  TScoreboardCriteriaDropped = class(TScoreboardCriteriaStatistic)
+  TScoreboardCriteriaMined = class(TScoreboardCriteriaFromFile)
   public
-    class function GetType: TType; override;
+    class function GetType: TScoreboardCriteriaComplex.TType; override;
+    class function GetFileName: string; override;
 
   end;
 
-  TScoreboardCriteriaKilledBy = class(TScoreboardCriteriaStatistic)
+  TScoreboardCriteriaKilled = class(TScoreboardCriteriaEntity)
   public
-    class function GetType: TType; override;
+    class function GetType: TScoreboardCriteriaComplex.TType; override;
 
   end;
 
-  TScoreboardCriteriaTeamKill = class(TScoreboardCriteriaComplex)
+  TScoreboardCriteriaItem = class(TScoreboardCriteriaComplex)
+  private
+    FItems: TItemTypeCollection;
+
   public
-    class function GetType: TType; override;
+    constructor Create;
+
+    class function GetSubTypeCount: Integer; override;
+    class function GetSubTypeName(ASubType: Integer): string; override;
 
   end;
 
-  TScoreboardCriteriaKilledByTeam = class(TScoreboardCriteriaComplex)
+  TScoreboardCriteriaPickedUp = class(TScoreboardCriteriaItem)
   public
-    class function GetType: TType; override;
+    class function GetType: TScoreboardCriteriaComplex.TType; override;
 
   end;
-           }
+
+  TScoreboardCriteriaDropped = class(TScoreboardCriteriaItem)
+  public
+    class function GetType: TScoreboardCriteriaComplex.TType; override;
+
+  end;
+
+  TScoreboardCriteriaKilledBy = class(TScoreboardCriteriaEntity)
+  public
+    class function GetType: TScoreboardCriteriaComplex.TType; override;
+
+  end;
+
+  TScoreboardCriteriaColored = class(TScoreboardCriteriaComplex)
+  private
+    FColor: TMCColorNoReset;
+
+  public
+    class function GetSubTypeCount: Integer; override;
+    class function GetSubTypeName(AIndex: Integer): string; override;
+
+    property Color: TMCColorNoReset read FColor write FColor;
+
+  end;
+
+  TScoreboardCriteriaTeamKill = class(TScoreboardCriteriaColored)
+  public
+    class function GetType: TScoreboardCriteriaComplex.TType; override;
+
+  end;
+
+  TScoreboardCriteriaKilledByTeam = class(TScoreboardCriteriaColored)
+  public
+    class function GetType: TScoreboardCriteriaComplex.TType; override;
+
+  end;
+
   TScoreboardOperation = (
     soAssign,
     soAdd,
@@ -255,6 +420,20 @@ type
     );
 
 const
+
+  ScoreboardCriteriaComplexClasses: array [TScoreboardCriteriaComplex.TType] of TScoreboardCriteriaComplexClass = (
+    TScoreboardCriteriaCustom,
+    TScoreboardCriteriaCrafted,
+    TScoreboardCriteriaUsed,
+    TScoreboardCriteriaBroken,
+    TScoreboardCriteriaMined,
+    TScoreboardCriteriaKilled,
+    TScoreboardCriteriaPickedUp,
+    TScoreboardCriteriaDropped,
+    TScoreboardCriteriaKilledBy,
+    TScoreboardCriteriaTeamKill,
+    TScoreboardCriteriaKilledByTeam
+    );
 
   ScoreboardOperationChars = ['=', '+', '-', '*', '/', '%', '<', '>'];
 
@@ -343,7 +522,7 @@ end;
 
 { TScoreboardSlotSidebarTeam }
 
-constructor TScoreboardSlotSidebarTeam.Create(ATeamColor: TMCColor);
+constructor TScoreboardSlotSidebarTeam.Create(ATeamColor: TMCColorNoReset);
 begin
   FTeamColor := ATeamColor;
 end;
@@ -389,17 +568,451 @@ begin
 end;
 
 { TScoreboardCriteriaSimple }
-                             {
+
+constructor TScoreboardCriteriaSimple.Create(AType: TType);
+begin
+  inherited Create;
+  FCriteriaType := AType;
+end;
+
 function TScoreboardCriteriaSimple.Format: string;
 begin
   Result := Names[CriteriaType];
 end;
 
 { TScoreboardCriteriaComplex }
-                    {
+
+constructor TScoreboardCriteriaComplex.Create(ASubType: Integer);
+begin
+  inherited Create;
+  FSubType := ASubType;
+end;
+
+function TScoreboardCriteriaComplex.Format: string;
+begin
+  if IsNamespaceType then
+  begin
+    // TODO: prefix minecraft. in front of each type
+    Result := GetName + ':' + GetSubTypeName(SubType);
+  end
+  else
+    Result := GetName + '.' + GetSubTypeName(SubType);
+end;
+
 class function TScoreboardCriteriaComplex.GetName: string;
 begin
   Result := Names[GetType];
 end;
-                     }
+
+class function TScoreboardCriteriaComplex.GetSubTypeFromName(AName: string; out ASubType: Integer): Boolean;
+var
+  I: Integer;
+begin
+  for I := 0 to GetSubTypeCount - 1 do
+    if AName = GetSubTypeName(I) then
+    begin
+      ASubType := I;
+      Exit(True);
+    end;
+  Result := False;
+end;
+
+class function TScoreboardCriteriaComplex.IsNamespaceType: Boolean;
+begin
+  Result := GetType in NamespacedTypes;
+end;
+
+{ TScoreboardCriteriaColored }
+
+class function TScoreboardCriteriaColored.GetSubTypeCount: Integer;
+begin
+  // no reset
+  Result := Length(MCColorNames) - 1;
+end;
+
+class function TScoreboardCriteriaColored.GetSubTypeName(AIndex: Integer): string;
+begin
+  Result := MCColorNames[TMCColor(AIndex)];
+end;
+
+{ TScoreboardCriteriaTeamKill }
+
+class function TScoreboardCriteriaTeamKill.GetType: TScoreboardCriteriaComplex.TType;
+begin
+  Result := ctTeamKill;
+end;
+
+{ TScoreboardCriteriaKilledByTeam }
+
+class function TScoreboardCriteriaKilledByTeam.GetType: TScoreboardCriteriaComplex.TType;
+begin
+  Result := ctKilledByTeam;
+end;
+
+{ TScoreboardCriteriaItem }
+
+constructor TScoreboardCriteriaItem.Create;
+begin
+  inherited;
+  FItems := RootSettings.Get<TItemSettings>.Items;
+end;
+
+class function TScoreboardCriteriaItem.GetSubTypeCount: Integer;
+begin
+  Result := RootSettings.Get<TItemSettings>.Items.Order.Count;
+end;
+
+class function TScoreboardCriteriaItem.GetSubTypeName(ASubType: Integer): string;
+begin
+  Result := RootSettings.Get<TItemSettings>.Items.Order[ASubType].NSPath.Path;
+end;
+
+{ TScoreboardCriteriaFileSettings.TCriteriaType }
+
+constructor TScoreboardCriteriaFileSettings.TCriteriaType.Create(AFileName: string);
+var
+  Line: string;
+  I: Integer;
+begin
+  FSubTypes := TSubTypes.Create;
+  FLookup := TLookup.Create;
+  I := 0;
+  for Line in TFile.ReadAllLines(AFileName) do
+  begin
+    FSubTypes.Add(Line);
+    FLookup[Line] := I;
+    Inc(I);
+  end;
+end;
+
+destructor TScoreboardCriteriaFileSettings.TCriteriaType.Destroy;
+begin
+  FSubTypes.Free;
+  FLookup.Free;
+  inherited;
+end;
+
+function TScoreboardCriteriaFileSettings.TCriteriaType.GetLookup: TLookup.TReader;
+begin
+  Result := FLookup.Reader;
+end;
+
+function TScoreboardCriteriaFileSettings.TCriteriaType.GetSubTypes: TSubTypes.TReader;
+begin
+  Result := FSubTypes.Reader;
+end;
+
+{ TScoreboardCriteriaFileSettings }
+
+constructor TScoreboardCriteriaFileSettings.Create(ARoot: TRootSettings);
+begin
+  inherited;
+  FCriteriaTypes := TCriteriaTypes.Create;
+end;
+
+destructor TScoreboardCriteriaFileSettings.Destroy;
+begin
+  FCriteriaTypes.Free;
+  inherited;
+end;
+
+function TScoreboardCriteriaFileSettings.GetCriteriaType(AName: string): TCriteriaType;
+begin
+  if not FCriteriaTypes.Get(AName, Result) then
+  begin
+    Result := TCriteriaType.Create(TPath.Combine(Path, AName + '.scl'));
+    FCriteriaTypes[AName] := Result;
+  end;
+end;
+
+procedure TScoreboardCriteriaFileSettings.SetDefaults;
+begin
+  inherited;
+  Path := DefaultPath;
+end;
+
+procedure TScoreboardCriteriaFileSettings.SetPath(const Value: string);
+begin
+  FPath := Value;
+  FCriteriaTypes.Clear;
+end;
+
+{ TScoreboardCriteriaFromFile }
+
+constructor TScoreboardCriteriaFromFile.Create(ASubType: Integer);
+begin
+  inherited;
+  FSubTypes := GetSubTypes;
+end;
+
+constructor TScoreboardCriteriaFromFile.Create;
+begin
+  inherited;
+  FSubTypes := GetSubTypes;
+end;
+
+class function TScoreboardCriteriaFromFile.GetSubTypeCount: Integer;
+begin
+  Result := GetSubTypes.SubTypes.Count;
+end;
+
+class function TScoreboardCriteriaFromFile.GetSubTypeFromName(AName: string; out AIndex: Integer): Boolean;
+begin
+  Result := GetSubTypes.Lookup.Get(AName, AIndex);
+end;
+
+class function TScoreboardCriteriaFromFile.GetSubTypeName(AIndex: Integer): string;
+begin
+  Result := GetSubTypes.SubTypes[AIndex];
+end;
+
+class function TScoreboardCriteriaFromFile.GetSubTypes: TScoreboardCriteriaFileSettings.TCriteriaType;
+begin
+  Result := RootSettings.Get<TScoreboardCriteriaFileSettings>.CriteriaType[GetFileName];
+end;
+
+{ TScoreboardCriteriaCustom }
+
+class function TScoreboardCriteriaCustom.GetFileName: string;
+begin
+  Result := 'custom';
+end;
+
+class function TScoreboardCriteriaCustom.GetType: TScoreboardCriteriaComplex.TType;
+begin
+  Result := ctCustom;
+end;
+
+{ TScoreboardCriteriaCrafted }
+
+class function TScoreboardCriteriaCrafted.GetFileName: string;
+begin
+  Result := 'crafted';
+end;
+
+class function TScoreboardCriteriaCrafted.GetType: TScoreboardCriteriaComplex.TType;
+begin
+  Result := ctCrafted;
+end;
+
+{ TScoreboardCriteriaUsed }
+
+class function TScoreboardCriteriaUsed.GetFileName: string;
+begin
+  Result := 'used';
+end;
+
+class function TScoreboardCriteriaUsed.GetType: TScoreboardCriteriaComplex.TType;
+begin
+  Result := ctUsed;
+end;
+
+{ TScoreboardCriteriaBroken }
+
+class function TScoreboardCriteriaBroken.GetFileName: string;
+begin
+  Result := 'broken';
+end;
+
+class function TScoreboardCriteriaBroken.GetType: TScoreboardCriteriaComplex.TType;
+begin
+  Result := ctBroken;
+end;
+
+{ TScoreboardCriteriaMined }
+
+class function TScoreboardCriteriaMined.GetFileName: string;
+begin
+  Result := 'mined';
+end;
+
+class function TScoreboardCriteriaMined.GetType: TScoreboardCriteriaComplex.TType;
+begin
+  Result := ctMined;
+end;
+
+{ TScoreboardCriteriaKilled }
+
+class function TScoreboardCriteriaKilled.GetType: TScoreboardCriteriaComplex.TType;
+begin
+  Result := ctKilled;
+end;
+
+{ TScoreboardCriteriaPickedUp }
+
+class function TScoreboardCriteriaPickedUp.GetType: TScoreboardCriteriaComplex.TType;
+begin
+  Result := ctPickedUp;
+end;
+
+{ TScoreboardCriteriaDropped }
+
+class function TScoreboardCriteriaDropped.GetType: TScoreboardCriteriaComplex.TType;
+begin
+  Result := ctDropped;
+end;
+
+{ TScoreboardCriteriaKilledBy }
+
+class function TScoreboardCriteriaKilledBy.GetType: TScoreboardCriteriaComplex.TType;
+begin
+  Result := ctKilledBy;
+end;
+
+{ TScoreboardCriteria.TParser }
+
+class function TScoreboardCriteria.TParser.GetResultName: string;
+begin
+  Result := 'Objective-Criteria';
+end;
+
+function TScoreboardCriteria.TParser.Parse: Boolean;
+var
+  Name, NameNoDot: string;
+  CriteriaType: TScoreboardCriteriaSimple.TType;
+  ComplexType: TScoreboardCriteriaComplex.TType;
+  ComplexClass: TScoreboardCriteriaComplexClass;
+  SubType: Integer;
+  Marker: TLogMarker;
+  SplitChar: Char;
+begin
+  Marker := GetMarker;
+
+  BeginSuggestions(TSuggestions.Create);
+
+  Name := ReadWhile(NamespaceChars, False);
+  NameNoDot := ReadWhile(NamespaceChars - ['.']);
+
+  EndSuggestions;
+
+  if Name.IsEmpty then
+    Exit(False);
+
+  if Name.StartsWith(TScoreboardCriteriaComplex.NamespacePrefix) then
+    Name := Name.Substring(TScoreboardCriteriaComplex.NamespacePrefix.Length);
+
+  for ComplexType := Low(ComplexType) to High(ComplexType) do
+  begin
+    if (NameNoDot = TScoreboardCriteriaComplex.Names[ComplexType]) or
+      (Name = TScoreboardCriteriaComplex.Names[ComplexType]) then
+    begin
+      if ComplexType in TScoreboardCriteriaComplex.NamespacedTypes then
+        SplitChar := ':'
+      else
+        SplitChar := '.';
+
+      if ComplexType in TScoreboardCriteriaComplex.NamespacedTypes then
+        ReadWhile(NamespaceChars);
+
+      if not StartsWith(SplitChar) then
+      begin
+        Log(1, 'Expected "%s" followed by Criteria Sub-Type.', [SplitChar], elFatal);
+        Exit(True);
+      end;
+
+      ComplexClass := ScoreboardCriteriaComplexClasses[ComplexType];
+
+      BeginSuggestions(TScoreboardCriteriaComplex.TSubTypeSuggestion.Create(ComplexType));
+      Name := ReadWhile(NamespaceChars);
+      if (ComplexType in TScoreboardCriteriaComplex.NamespacedTypes) and
+        Name.StartsWith(TScoreboardCriteriaComplex.NamespacePrefix) then
+        Name := Name.Substring(TScoreboardCriteriaComplex.NamespacePrefix.Length);
+
+      EndSuggestions;
+      if not ComplexClass.GetSubTypeFromName(Name, SubType) then
+      begin
+        Log(Marker, 'Invalid Criteria Sub-Type.', elFatal);
+        Exit(True);
+      end;
+
+      SetParseResult(ComplexClass.Create(SubType));
+      Exit(True);
+    end;
+  end;
+
+  for CriteriaType := Low(CriteriaType) to High(CriteriaType) do
+  begin
+    if Name = TScoreboardCriteriaSimple.Names[CriteriaType] then
+    begin
+      SetParseResult(TScoreboardCriteriaSimple.Create(CriteriaType));
+      Exit(True);
+    end;
+  end;
+
+  Exit(False);
+
+end;
+
+{ TScoreboardCriteria.TParser.TSuggestions }
+
+procedure TScoreboardCriteria.TParser.TSuggestions.Generate;
+var
+  Name: string;
+  ComplexType: TScoreboardCriteriaComplex.TType;
+begin
+  for Name in TScoreboardCriteriaSimple.Names do
+    AddSuggestion(Name);
+  for Name in TScoreboardCriteriaComplex.Names do
+    AddSuggestion(Name);
+  for ComplexType in TScoreboardCriteriaComplex.NamespacedTypes do
+    AddSuggestion(TScoreboardCriteriaComplex.NamespacePrefix + TScoreboardCriteriaComplex.Names[ComplexType]);
+end;
+
+function TScoreboardCriteria.TParser.TSuggestions.GetBreakChars: TSysCharSet;
+begin
+  Result := inherited + [':'] - ['.'];
+end;
+
+{ TScoreboardCriteriaComplex.TSubTypeSuggestion }
+
+constructor TScoreboardCriteriaComplex.TSubTypeSuggestion.Create(AType: TScoreboardCriteriaComplex.TType);
+begin
+  FType := AType;
+end;
+
+procedure TScoreboardCriteriaComplex.TSubTypeSuggestion.Generate;
+var
+  ComplexClass: TScoreboardCriteriaComplexClass;
+  I: Integer;
+begin
+  ComplexClass := ScoreboardCriteriaComplexClasses[FType];
+  for I := 0 to ComplexClass.GetSubTypeCount - 1 do
+    AddSuggestion(ComplexClass.GetSubTypeName(I));
+  for I := 0 to ComplexClass.GetSubTypeCount - 1 do
+    AddSuggestion(TScoreboardCriteriaComplex.NamespacePrefix + ComplexClass.GetSubTypeName(I));
+end;
+
+function TScoreboardCriteriaComplex.TSubTypeSuggestion.GetBreakChars: TSysCharSet;
+begin
+  if FType in TScoreboardCriteriaComplex.NamespacedTypes then
+    Result := inherited + [':'] - ['.']
+  else
+    Result := inherited;
+end;
+
+function TScoreboardCriteriaComplex.TSubTypeSuggestion.GetTitle: string;
+begin
+  Result := 'Criteria Sub-Type';
+end;
+
+{ TScoreboardCriteriaEntity }
+
+class function TScoreboardCriteriaEntity.GetSubTypeCount: Integer;
+begin
+  Result := Length(EntityNames);
+end;
+
+class function TScoreboardCriteriaEntity.GetSubTypeFromName(AName: string; out ASubType: Integer): Boolean;
+var
+  Entity: TEntity;
+begin
+  Result := EntityFromName(AName, Entity);
+  ASubType := Ord(Entity);
+end;
+
+class function TScoreboardCriteriaEntity.GetSubTypeName(ASubType: Integer): string;
+begin
+  Result := EntityNames[TEntity(ASubType)];
+end;
+
 end.

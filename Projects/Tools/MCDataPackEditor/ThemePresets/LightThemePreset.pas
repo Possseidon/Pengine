@@ -99,6 +99,8 @@ begin
 
     SetParser(TNBTParserListOrArray, TNBTParserListOrArray.TokenBracket, $3FDF3F);
     SetParser(TNBTParserListOrArray, TNBTParserListOrArray.TokenComma, $3FDF3F);
+    SetParser(TNBTParserListOrArray, TNBTParserListOrArray.TokenArrayType, $1F9F9F);
+    SetParser(TNBTParserListOrArray, TNBTParserListOrArray.TokenArraySeperator, $3FDF3F);
 
     SetParser(TNBTParserNumber, TNBTParserNumber.TokenNumber, $004FDF);
     SetParser(TNBTParserNumber, TNBTParserNumber.TokenSuffix, $0000DF, [fsBold]);

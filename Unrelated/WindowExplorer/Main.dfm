@@ -80,4 +80,13 @@ object frmMain: TfrmMain
     TabOrder = 5
     OnClick = Button1Click
   end
+  object btnDoStuff: TButton
+    Left = 8
+    Top = 156
+    Width = 137
+    Height = 25
+    Caption = 'Do Stuff'
+    TabOrder = 6
+    OnClick = btnDoStuffClick
+  end
 end

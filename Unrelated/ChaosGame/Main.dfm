@@ -14,6 +14,7 @@ object Form1: TForm1
   OldCreateOrder = False
   Position = poDesktopCenter
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   OnPaint = FormPaint
   OnResize = FormResize
   PixelsPerInch = 96

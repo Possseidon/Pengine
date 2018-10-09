@@ -170,7 +170,6 @@
         </DCCReference>
         <DCCReference Include="Tools\ToolFunctionPreferences.pas">
             <Form>frmFunctionPreferences</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="Tools\HelperFrames\TextAttributeFrame.pas">
             <Form>frmHighlighterAttributes</Form>

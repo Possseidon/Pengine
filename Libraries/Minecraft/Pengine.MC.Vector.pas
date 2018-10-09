@@ -258,7 +258,16 @@ begin
       raise EParseError.Create('Expected whitespace.');
     Advance;
     SkipWhitespace;
-    TMCVecValue.TParser.Create(ParseResult[Axis], Info, FBlockPos, True).Free;
+    Parser := TMCVecValue.TParser.Create(ParseResult[Axis], Info, FBlockPos, False);
+    try
+      if not Parser.Success then
+      begin
+        Log(1, 'Expected %s-Coordinate.', [CoordAxisNames[Axis]], elFatal);
+        Break;
+      end;
+    finally
+      Parser.Free;
+    end;
   end;
   for Axis := Succ(Low(TCoordAxis3)) to High(TCoordAxis3) do
   begin
@@ -344,18 +353,20 @@ begin
   SetParseResult(TMCVec2.Create);
   Parser := TMCVecValue.TParser.Create(ParseResult.X, Info, FChunkPos, False);
   Local := ParseResult.X.Mode = vmLocal;
-  if not Parser.Success then
-  begin
-    Parser.Free;
-    Exit(False);
-  end;
+  Result := Parser.Success;
   Parser.Free;
+  if not Result then
+    Exit;
 
   if not ReachedEnd and not First.IsWhitespace then
     raise EParseError.Create('Expected whitespace.');
   Advance;
   SkipWhitespace;
-  TMCVecValue.TParser.Create(ParseResult.Y, Info, FChunkPos, True).Free;
+  Parser := TMCVecValue.TParser.Create(ParseResult.Y, Info, FChunkPos, False);
+  if not Parser.Success then
+    Log(1, 'Expected %s-Coordinate.', [CoordAxisNames[caY]], elFatal);
+  Parser.Free;
+
   if (ParseResult.Y.Mode = vmLocal) <> Local then
     Log(Marker, 'Local coordinates (^) cannot be mixed with non-local coordinates.');
 

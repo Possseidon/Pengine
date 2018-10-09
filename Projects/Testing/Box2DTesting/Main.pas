@@ -111,7 +111,7 @@ begin
   FixtureDef.Restitution := 0.3;
 
   Behavior.Body.Fixtures.Add(FixtureDef);
-  Behavior.Body.FixedRotation := True;
+  // Behavior.Body.FixedRotation := True;
 
   Shape.Free;
 
@@ -209,7 +209,7 @@ procedure TfrmMain.Init;
 begin
   GLState.State[stClearColor] := clSkyBlue;
   Context.VSync := False;
-  Context.Samples := Context.MaxSamples;
+  // Context.Samples := Context.MaxSamples;
 
   Game.Timer.OnFPSUpdate.Add(UpdateFPS);
   Game.OnUpdate.Add(GameUpdate);
@@ -298,11 +298,12 @@ end;
 
 procedure TPhysicBehaivor.Update;
 begin
+  {
   if Body.Awake then
     Sprite.Color := ColorRGB(1.0, 1.0, 1.0)
   else
     Sprite.Color := ColorRGB(0.2, 0.5, 0.8);
-
+  }
   if not(Body.Position in Bounds2(-10, 10)) then
   begin
     Body.Free;

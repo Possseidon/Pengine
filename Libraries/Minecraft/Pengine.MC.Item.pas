@@ -102,15 +102,9 @@ type
   public type
 
     /// <summary>Parses a whole item stack.</summary>
-    TParser = class(TObjectParserWithSettings<TItemStack>)
-    private
-      FSettings: TItemSettings;
-
+    TParser = class(TObjectParser<TItemStack>)
     protected
       function Parse: Boolean; override;
-      procedure InitSettings; override;
-
-      property Settings: TItemSettings read FSettings;
 
     public
       class function GetResultName: string; override;
@@ -118,16 +112,8 @@ type
     end;
 
     TItemSuggestions = class(TParseSuggestionsGenerated<TParser>)
-    private
-      FSettings: TItemSettings;
-
     protected
       procedure Generate; override;
-
-    public
-      constructor Create(ASettings: TItemSettings);
-
-      property Settings: TItemSettings read FSettings;
 
     end;
 
@@ -242,15 +228,9 @@ type
   public type
 
     /// <summary>Parses a whole item state.</summary>
-    TParser = class(TObjectParserWithSettings<TItemStackTag>)
-    private
-      FSettings: TItemTagSettings;
-
+    TParser = class(TObjectParser<TItemStackTag>)
     protected
       function Parse: Boolean; override;
-      procedure InitSettings; override;
-
-      property Settings: TItemTagSettings read FSettings;
 
     public
       class function GetResultName: string; override;
@@ -258,16 +238,8 @@ type
     end;
 
     TItemTagSuggestions = class(TParseSuggestionsGenerated<TParser>)
-    private
-      FSettings: TItemTagSettings;
-
     protected
       procedure Generate; override;
-
-    public
-      constructor Create(ASettings: TItemTagSettings);
-
-      property Settings: TItemTagSettings read FSettings;
 
     end;
 
@@ -578,11 +550,6 @@ begin
   Result := 'Item-Stack';
 end;
 
-procedure TItemStack.TParser.InitSettings;
-begin
-  FSettings := AllSettings.Sub<TItemSettings>;
-end;
-
 function TItemStack.TParser.Parse: Boolean;
 var
   Marker: TLogMarker;
@@ -593,7 +560,7 @@ var
 begin
   Marker := GetMarker;
 
-  BeginSuggestions(TItemSuggestions.Create(Settings));
+  BeginSuggestions(TItemSuggestions.Create);
 
   NSPathString := ReadWhile(NamespacePathChars);
 
@@ -603,7 +570,7 @@ begin
     Exit(False);
   NSPath := NSPathString;
 
-  ItemExists := Settings.Items.Get(NSPath, ItemType);
+  ItemExists := RootSettings.Get<TItemSettings>.Items.Get(NSPath, ItemType);
   if not ItemExists then
     Log(Marker, '"%s" is not a valid item.', [NSPath.Format]);
 
@@ -616,15 +583,12 @@ end;
 
 { TItemStack.TItemSuggestions }
 
-constructor TItemStack.TItemSuggestions.Create(ASettings: TItemSettings);
-begin
-  FSettings := ASettings;
-end;
-
 procedure TItemStack.TItemSuggestions.Generate;
 var
   Item: TItemType;
+  Settings: TItemSettings;
 begin
+  Settings := RootSettings.Get<TItemSettings>;
   for Item in Settings.Items.Order do
     AddSuggestion(ParseSuggestion(Item.NSPath.Format(False), Item.NSPath.Format(False)));
   AddSuggestion(ParseSuggestion(TNSPath.Empty, TNSPath.Empty));
@@ -796,7 +760,7 @@ end;
 procedure TItemTagSettings.Reload;
 begin
   FItemTags.Free;
-  FItemTags := TItemTagCollection.Create(Sub<TItemSettings>.Items, Path);
+  FItemTags := TItemTagCollection.Create(Get<TItemSettings>.Items, Path);
 end;
 
 procedure TItemTagSettings.SetDefaults;
@@ -824,11 +788,6 @@ begin
   Result := 'Item-Tag';
 end;
 
-procedure TItemStackTag.TParser.InitSettings;
-begin
-  FSettings := AllSettings.Sub<TItemTagSettings>;
-end;
-
 function TItemStackTag.TParser.Parse: Boolean;
 var
   NSPathString: string;
@@ -842,7 +801,7 @@ begin
   if not StartsWith('#') then
     Exit(False);
 
-  BeginSuggestions(TItemTagSuggestions.Create(Settings));
+  BeginSuggestions(TItemTagSuggestions.Create);
 
   NSPathString := ReadWhile(NamespacePathChars);
 
@@ -856,7 +815,7 @@ begin
   NSPath := NSPathString;
 
   SetParseResult(TItemStackTag.Create(NSPath));
-  TagExists := Settings.ItemTags.Get(NSPath, ItemTag);
+  TagExists := RootSettings.Get<TItemTagSettings>.ItemTags.Get(NSPath, ItemTag);
   if not TagExists then
     Log(Marker, '"%s" is not a valid item tag.', [NSPath.Format]);
 
@@ -867,16 +826,12 @@ end;
 
 { TItemStackTag.TItemTagSuggestions }
 
-constructor TItemStackTag.TItemTagSuggestions.Create(ASettings: TItemTagSettings);
-begin
-  inherited Create;
-  FSettings := ASettings;
-end;
-
 procedure TItemStackTag.TItemTagSuggestions.Generate;
 var
   Tag: TItemTag;
+  Settings: TItemTagSettings;
 begin
+  Settings := RootSettings.Get<TItemTagSettings>;
   for Tag in Settings.ItemTags.Tags do
     AddSuggestion(ParseSuggestion(Tag.NSPath.Format(False), Tag.NSPath.Format(False)));
   AddSuggestion(ParseSuggestion(TNSPath.Empty, TNSPath.Empty));

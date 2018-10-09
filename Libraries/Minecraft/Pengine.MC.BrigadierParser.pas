@@ -1213,7 +1213,7 @@ type
     class function GetParserString: TNSPath; override;
 
   end;
-          {
+
   /// <summary>A criteria for a scoreboard objective.</summary>
   TBrigadierObjectiveCriteria = class(TBrigadierArgumentParameter)
   private
@@ -1239,7 +1239,7 @@ type
     class function GetParserString: TNSPath; override;
 
   end;
-          }
+
 implementation
 
 { TBrigadierBoolParser }
@@ -2253,7 +2253,7 @@ function TBrigadierBlockStateParser.Parse: Boolean;
 var
   Parser: TBlockState.TParser;
 begin
-  Parser := TBlockState.TParser.Create(Info, Settings, False);
+  Parser := TBlockState.TParser.Create(Info, False);
   Result := Parser.Success;
   if Result then
     SetParseResult(TBrigadierBlockState.Create(Argument, Parser.OwnParseResult));
@@ -2304,7 +2304,7 @@ var
 begin
   if StartsWith('#', False) then
   begin
-    BlockTagParser := TBlockStateTag.TParser.Create(Info, Settings, False);
+    BlockTagParser := TBlockStateTag.TParser.Create(Info, False);
     Result := BlockTagParser.Success;
     if Result then
       SetParseResult(TBrigadierBlockPredicate.Create(Argument, BlockTagParser.OwnParseResult));
@@ -2312,7 +2312,7 @@ begin
   end
   else
   begin
-    BlockStateParser := TBlockState.TParser.Create(Info, Settings, False);
+    BlockStateParser := TBlockState.TParser.Create(Info, False);
     Result := BlockStateParser.Success;
     if Result then
       SetParseResult(TBrigadierBlockPredicate.Create(Argument, BlockStateParser.OwnParseResult));
@@ -2572,7 +2572,7 @@ function TBrigadierItemStackParser.Parse: Boolean;
 var
   Parser: TItemStack.TParser;
 begin
-  Parser := TItemStack.TParser.Create(Info, Settings, False);
+  Parser := TItemStack.TParser.Create(Info, False);
   Result := Parser.Success;
   if Result then
     SetParseResult(TBrigadierItemStack.Create(Argument, Parser.OwnParseResult));
@@ -3134,7 +3134,7 @@ var
 begin
   if StartsWith('#', False) then
   begin
-    ItemTagParser := TItemStackTag.TParser.Create(Info, Settings, False);
+    ItemTagParser := TItemStackTag.TParser.Create(Info, False);
     Result := ItemTagParser.Success;
     if Result then
       SetParseResult(TBrigadierItemPredicate.Create(Argument, ItemTagParser.OwnParseResult));
@@ -3142,7 +3142,7 @@ begin
   end
   else
   begin
-    ItemStackParser := TItemStack.TParser.Create(Info, Settings, False);
+    ItemStackParser := TItemStack.TParser.Create(Info, False);
     Result := ItemStackParser.Success;
     if Result then
       SetParseResult(TBrigadierItemPredicate.Create(Argument, ItemStackParser.OwnParseResult));
@@ -3199,11 +3199,59 @@ begin
   Parser.Free;
 end;
 
+{ TBrigadierObjectiveCriteria }
+
+constructor TBrigadierObjectiveCriteria.Create(AArgument: TBrigadierArgument);
+begin
+  inherited;
+  FCriteria := TOwned<TScoreboardCriteria>.Create;
+end;
+
+constructor TBrigadierObjectiveCriteria.Create(AArgument: TBrigadierArgument; ACriteria: TScoreboardCriteria);
+begin
+  inherited Create(AArgument);
+  FCriteria := TOwned<TScoreboardCriteria>.Create(ACriteria);
+end;
+
+destructor TBrigadierObjectiveCriteria.Destroy;
+begin
+  FCriteria.Free;
+  inherited;
+end;
+
+function TBrigadierObjectiveCriteria.Format: string;
+begin
+  Result := Criteria.Value.Format;
+end;
+
+{ TBrigadierObjectiveCriteriaParser }
+
+class function TBrigadierObjectiveCriteriaParser.GetParserString: TNSPath;
+begin
+  Result := 'objective_criteria';
+end;
+
+class function TBrigadierObjectiveCriteriaParser.GetResultName: string;
+begin
+  Result := 'Objective-Criteria';
+end;
+
+function TBrigadierObjectiveCriteriaParser.Parse: Boolean;
+var
+  Parser: TScoreboardCriteria.TParser;
+begin
+  Parser := TScoreboardCriteria.TParser.Create(Info, False);
+  Result := Parser.Success;
+  if Result then
+    SetParseResult(TBrigadierObjectiveCriteria.Create(Argument, Parser.OwnParseResult));
+  Parser.Free;
+end;
+
 initialization
 
-// Progress: 37 / 38
+// Progress: 38 / 38
 // /--------------------------------------\
-// [||||||||||||||||||||||||||||||||||||| ]
+// [||||||||||||||||||||||||||||||||||||||]
 // \--------------------------------------/
 
 // - Basic Types -
@@ -3248,7 +3296,7 @@ TBrigadierColorParser.RegisterClass;
 // - Scoreboard related -
 
 TBrigadierObjectiveParser.RegisterClass;
-// TBrigadierObjectiveCriteriaParser.RegisterClass; // kindof big, split it up, or huuuge suggestion list
+TBrigadierObjectiveCriteriaParser.RegisterClass;
 TBrigadierScoreHolderParser.RegisterClass;
 TBrigadierScoreboardSlotParser.RegisterClass;
 TBrigadierOperationParser.RegisterClass;

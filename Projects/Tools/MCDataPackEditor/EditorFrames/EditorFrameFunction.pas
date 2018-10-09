@@ -34,6 +34,7 @@ uses
   Pengine.HashCollections,
   Pengine.Parser,
   Pengine.IntMaths,
+  Pengine.Settings,
 
   Pengine.MC.Brigadier,
   Pengine.MC.EntitySelector,
@@ -72,10 +73,13 @@ type
     ilFunctions: TImageList;
     frmSynEditor: TfrmSynEditor;
     synCompletion: TSynCompletionProposal;
+    synContextPreview: TSynCompletionProposal;
     procedure frmSynEditorsynEditorPaint(Sender: TObject; ACanvas: TCanvas);
     procedure lvErrorsDblClick(Sender: TObject);
     procedure synCompletionExecute(Kind: SynCompletionType; Sender: TObject; var CurrentInput: string;
       var X, Y: Integer; var CanExecute: Boolean);
+    procedure synContextPreviewExecute(Kind: SynCompletionType; Sender: TObject;
+        var CurrentInput: string; var x, y: Integer; var CanExecute: Boolean);
     procedure synEditorChange(Sender: TObject);
     procedure synEditorCommandProcessed(Sender: TObject; var Command: TSynEditorCommand; var AChar: Char;
       Data: Pointer);
@@ -90,6 +94,7 @@ type
 
     procedure ReplaceTabsWithSpaces;
     function GetSynEditor: TSynEdit;
+    procedure UpdateCompletionBreakChars;
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -126,11 +131,8 @@ uses
 { TLinesMap }
 
 constructor TLinesMap.Create;
-var
-  Brigadier: TBrigadierRoot;
 begin
-  Brigadier := frmMain.Settings.Sub<TBrigadierSettings>.Brigadier;
-  FSettings := TBrigadierCommandParser.TSettings.Create(Brigadier);
+  FSettings := TBrigadierCommandParser.TSettings.Create;
   FSettings.SlashMode := smNone;
   FSettings.AllowComment := True;
   FSettings.AllowPreceedingSpace := False;
@@ -394,8 +396,7 @@ begin
 end;
 
 procedure TfrmEditorFunctions.synCompletionExecute(Kind: SynCompletionType; Sender: TObject;
-  var CurrentInput: string;
-  var X, Y: Integer; var CanExecute: Boolean);
+  var CurrentInput: string; var X, Y: Integer; var CanExecute: Boolean);
 var
   Context: TParseInfo.TContext;
   Line, Pos, I: Integer;
@@ -421,6 +422,74 @@ begin
   end;
 
   CanExecute := synCompletion.ItemList.Count > 0;
+end;
+
+procedure TfrmEditorFunctions.synContextPreviewExecute(Kind: SynCompletionType;
+    Sender: TObject; var CurrentInput: string; var x, y: Integer; var
+    CanExecute: Boolean);
+
+  function Encase(AText: string; AParam: TBrigadierParameter): string;
+  begin
+    if (AParam <> nil) and AParam.Executable then
+      Result := '[' + AText + ']'
+    else
+      Result := '<' + AText + '>';
+  end;
+    
+var
+  Line: Integer;
+  Command: TBrigadierCommand;
+  Parameter, PrevParam: TBrigadierParameter;
+  Text: string;
+  Argument: TBrigadierArgument;
+  LastChild: TBrigadierChild;
+  Parsers: TParseInfo.TParserStack.TReader;
+begin
+  synContextPreview.ClearList;
+
+  Line := synEditor.CaretY - 1;
+  if not FLines.RangeCheck(Line) or (FLines[Line] = nil) then
+  begin
+    Exit;
+  end;
+
+  Command := FLines[Line].Command;
+  if Command = nil then
+    Exit;                        
+    
+  Parsers := FLines[Line].Context.Parsers[synEditor.CaretX - 1];
+  if (Parsers <> nil) and not Parsers.Empty then
+    synContextPreview.Form.CurrentIndex := Parsers.First.Index
+  else
+    synContextPreview.Form.CurrentIndex := Command.Parameters.Count;
+    
+  Text := '';
+  PrevParam := nil;
+  for Parameter in Command.Parameters do
+  begin
+    if Parameter.Child is TBrigadierArgument then
+      Text := Text + Encase(TBrigadierArgument(Parameter.Child).Name, PrevParam)
+    else
+      Text := Text + TBrigadierLiteral(Parameter.Child).Literal;
+    Text := Text + ' ';
+    PrevParam := Parameter;
+  end;
+  
+  if not Command.Parameters.Empty then
+    LastChild := Command.Parameters.Last.Child
+  else
+    LastChild := RootSettings.Get<TBrigadierSettings>.Brigadier;
+  
+  for Argument in LastChild.Arguments do
+    synContextPreview.AddItem(Text + Encase(Argument.Name, PrevParam), '');
+
+  if not LastChild.Literals.Empty then
+    synContextPreview.AddItem(Text + Encase('...', PrevParam), '');
+
+  if synContextPreview.ItemList.Count = 0 then
+    synContextPreview.AddItem(Text, '');
+    
+  CanExecute := True;
 end;
 
 procedure TfrmEditorFunctions.synEditorChange(Sender: TObject);
@@ -480,6 +549,8 @@ begin
   end;
   // Win XP Fix
   synEditor.Invalidate;
+  // No event for pre-completion, so end of token chars have to be set here
+  UpdateCompletionBreakChars;
 end;
 
 procedure TfrmEditorFunctions.synEditorGutterPaint(Sender: TObject; ALine, X, Y: Integer);
@@ -511,6 +582,23 @@ procedure TfrmEditorFunctions.synEditorStatusChange(Sender: TObject; Changes: TS
 begin
   if scModified in Changes then
     Editor.Modified := synEditor.Modified;
+end;
+
+procedure TfrmEditorFunctions.UpdateCompletionBreakChars;
+var
+  Line, Pos: Integer;
+  Context: TParseInfo.TContext;
+begin
+  Line := synEditor.CaretY - 1;
+  if not FLines.RangeCheck(Line) or (FLines[Line] = nil) then
+    Exit;
+
+  Context := FLines[Line].Context;
+  Pos := synEditor.CaretX - 1;
+  if not Context.HasSuggestions(Pos) then
+    Exit;
+
+  synCompletion.EndOfTokenChr := Context.SuggestionBreakCharString[Pos];
 end;
 
 { TEditorFunctions }

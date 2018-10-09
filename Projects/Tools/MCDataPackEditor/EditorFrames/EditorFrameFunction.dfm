@@ -77,7 +77,7 @@ object frmEditorFunctions: TfrmEditorFunctions
     Left = 104
     Top = 48
     Bitmap = {
-      494C010103000500140010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010103000500200010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -219,7 +219,7 @@ object frmEditorFunctions: TfrmEditorFunctions
   object synCompletion: TSynCompletionProposal
     Options = [scoLimitToMatchedText, scoUseInsertList, scoCompleteWithTab, scoCompleteWithEnter]
     Width = 420
-    EndOfTokenChr = ' ()[]=,{}!|#.'
+    EndOfTokenChr = ' '
     TriggerChars = '.'
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
@@ -238,5 +238,29 @@ object frmEditorFunctions: TfrmEditorFunctions
     TimerInterval = 1
     Left = 104
     Top = 104
+  end
+  object synContextPreview: TSynCompletionProposal
+    DefaultType = ctParams
+    Options = []
+    Width = 420
+    EndOfTokenChr = ' '
+    TriggerChars = '.'
+    Font.Charset = ANSI_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -19
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    TitleFont.Charset = ANSI_CHARSET
+    TitleFont.Color = clCaptionText
+    TitleFont.Height = -15
+    TitleFont.Name = 'Tahoma'
+    TitleFont.Style = [fsBold]
+    Columns = <>
+    OnExecute = synContextPreviewExecute
+    ShortCut = 24608
+    Editor = frmSynEditor.synEditor
+    TimerInterval = 1
+    Left = 104
+    Top = 160
   end
 end

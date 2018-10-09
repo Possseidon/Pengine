@@ -3,6 +3,8 @@ unit DatapackView;
 interface
 
 uses
+  Winapi.Windows,
+
   System.SysUtils,
   System.Types,
   System.Classes,
@@ -11,11 +13,11 @@ uses
   Vcl.ComCtrls,
   Vcl.Controls,
   Vcl.Forms,
+  Vcl.Dialogs,
 
   Pengine.Collections,
 
-  Pengine.MC.Datapack,
-  Vcl.Dialogs;
+  Pengine.MC.Datapack;
 
 type
 
@@ -76,6 +78,7 @@ type
     procedure DblClick(Sender: TObject);
     procedure Editing(Sender: TObject; ANode: TTreeNode; var AllowEdit: Boolean);
     procedure Edited(Sender: TObject; ANode: TTreeNode; var NewText: string);
+    procedure KeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 
     function GenerateNamespaceName: string;
     function GenerateDirectoryName(ADirectory: TDatapack.TDirectory): string;
@@ -192,7 +195,7 @@ const
     nil // Tag
     );
 
-{ TDatapackTreeview }
+  { TDatapackTreeview }
 
 procedure TDatapackTreeView.AddData(ADataType: TDatapack.TDataType);
 var
@@ -238,9 +241,9 @@ var
   FileNode: TDatapack.TFileSystemEntry;
   DirNode: TDatapack.TDirectory;
   NewNode: TTreeNode;
-begin          
+begin
   NodeData := TreeView.Selected.NodeData;
-  
+
   if NodeData is TDatapack.TDataSimple then
     NodeData := TDatapack.TDataSimple(NodeData).Directory;
 
@@ -254,7 +257,7 @@ begin
   begin
     NewDir := FileNode.Parent.AddDirectory(GenerateDirectoryName(FileNode.Parent));
   end;
-  
+
   if GetNode(NewDir, NewNode) then
   begin
     NewNode.MakeVisible;
@@ -294,7 +297,7 @@ begin
     Exit(False);
   NodeData := TreeView.Selected.NodeData;
   Result := (NodeData is TDatapack.TDataSimple) and (TDatapack.TDataSimple(NodeData).GetType = ADataType) or
-    (NodeData is TDatapack.TFileSystemEntry) and (TDatapack.TFileSystemEntry(NodeData).Data.GetType = ADataType)or
+    (NodeData is TDatapack.TFileSystemEntry) and (TDatapack.TFileSystemEntry(NodeData).Data.GetType = ADataType) or
     (NodeData is TDatapack.TNamespace) and not TDatapack.TNamespace(NodeData).DataEnabled(ADataType);
 end;
 
@@ -347,6 +350,7 @@ begin
   TreeView.OnDblClick := DblClick;
   TreeView.OnEditing := Editing;
   TreeView.OnEdited := Edited;
+  TreeView.OnKeyDown := KeyDown;
 end;
 
 procedure TDatapackTreeView.DataDisable(AInfo: TDatapack.TData.TEventInfo);
@@ -509,7 +513,7 @@ begin
   begin
     Inc(I);
     Result := DefaultName + I.ToString;
-  end;    
+  end;
 end;
 
 function TDatapackTreeView.GenerateFileName(ADirectory: TDatapack.TDirectory): string;
@@ -524,7 +528,7 @@ begin
   begin
     Inc(I);
     Result := DefaultName + I.ToString + ADirectory.Data.GetFileExtension;
-  end;     
+  end;
 end;
 
 function TDatapackTreeView.GenerateNamespaceName: string;
@@ -552,6 +556,25 @@ begin
     ANode := ANode.GetNext;
   end;
   Exit(False);
+end;
+
+procedure TDatapackTreeView.KeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+var
+  Node: TTreeNode;
+begin
+  case Key of
+    VK_RETURN:
+      begin
+        Node := TreeView.Selected;
+        if Node <> nil then
+        begin
+          if Node.HasChildren then
+            Node.Expand(False)
+          else
+            PageControl.Open(Node);
+        end;
+      end;
+  end;
 end;
 
 procedure TDatapackTreeView.NamespaceAdd(AInfo: TDatapack.TNamespace.TEventInfo);
@@ -794,7 +817,7 @@ var
   PageControl: TPageControl;
 begin
   if Modified then
-    ModalResult := MessageDlg(Format('Save changes in %s before closing?', [NodeData.NamespacePath]), 
+    ModalResult := MessageDlg(Format('Save changes in %s before closing?', [NodeData.NamespacePath]),
       mtConfirmation, mbYesNoCancel, 0, mbYes)
   else
     ModalResult := mrNo;
@@ -850,7 +873,7 @@ begin
   end;
   Modified := True;
   TabSheet.PageControl.ActivePage := TabSheet;
-  if MessageDlg(Format('Content of %s changed, do you want to reload it?', [NodeData.NamespacePath]), 
+  if MessageDlg(Format('Content of %s changed, do you want to reload it?', [NodeData.NamespacePath]),
     mtConfirmation, mbYesNo, 0, mbYes) = mrYes then
   begin
     Load;
@@ -860,7 +883,7 @@ end;
 procedure TEditor.FileRemoved;
 begin
   Modified := True;
-  if MessageDlg(Format('File for %s does not exist anymore, do you want to recreate it?', [NodeData.NamespacePath]), 
+  if MessageDlg(Format('File for %s does not exist anymore, do you want to recreate it?', [NodeData.NamespacePath]),
     mtConfirmation, mbYesNo, 0, mbYes) = mrYes then
   begin
     Save;

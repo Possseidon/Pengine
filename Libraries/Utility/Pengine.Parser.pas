@@ -120,6 +120,7 @@ type
     class function GetTitle: string; virtual; abstract;
     class function GetCount: Integer; virtual; abstract;
     class function GetSuggestion(AIndex: Integer): TParseSuggestion; virtual; abstract;
+    class function GetBreakChars: TSysCharSet; virtual;
 
   end;
 
@@ -132,10 +133,15 @@ type
 
   /// <summary>A baseclass allowing you to store suggestion info in the parser context.</summary>
   TParseSuggestions = class
+  public const
+
+    DefaultBreakChars = [' ', '(', ')', '[', ']', '=', ',', '{', '}', '!', '|', '#', '.'];
+
   public
     function GetTitle: string; virtual; abstract;
     function GetCount: Integer; virtual; abstract;
     function GetSuggestion(AIndex: Integer): TParseSuggestion; virtual; abstract;
+    function GetBreakChars: TSysCharSet; virtual;
 
   end;
 
@@ -188,7 +194,16 @@ type
   TParseInfo = class
   public type
 
-    TParserStack = TArray<TParserClass>;
+    TParserInfo = record
+      ParserClass: TParserClass;
+      Index: Integer;
+
+      constructor Create(AParserClass: TParserClass; AIndex: Integer);
+    end;
+
+    TParserStack = TArray<TParserInfo>;
+
+    TParserIndices = TArray<Integer>;
 
     TTokenStack = TStack<Integer>;
 
@@ -201,8 +216,10 @@ type
         ParserStack: TParserStack;
         Token: Integer;
         case UseSuggestionsClass: Boolean of
-          False: (Suggestions: TParseSuggestions);
-          True: (SuggestionsClass: TParseSuggestionsClass);
+          False:
+            (Suggestions: TParseSuggestions);
+          True:
+            (SuggestionsClass: TParseSuggestionsClass);
       end;
 
       /// <summary>An array, that holds charinfo for multiple chars and automatically frees its content.</summary>
@@ -252,6 +269,8 @@ type
 
       /// <returns>Wether to use the pos, current suggestion or nothing.</returns>
       function GetSuggestionPos(APos: Integer): TSuggestionPos;
+      function GetSuggestionBreakChars(APos: Integer): TSysCharSet;
+      function GetSuggestionBreakCharString(APos: Integer): string;
 
     public
       constructor Create;
@@ -276,6 +295,9 @@ type
 
       /// <returns>Wether the given position has any suggestions.</returns>
       function HasSuggestions(APos: Integer): Boolean;
+      /// <returns>A set of all chars, that could break up a token of a suggestion.</returns>
+      property SuggestionBreakChars[APos: Integer]: TSysCharSet read GetSuggestionBreakChars;
+      property SuggestionBreakCharString[APos: Integer]: string read GetSuggestionBreakCharString;
       /// <summary>The title of the suggestions-box at a given position.</summary>
       property SuggestionTitle[APos: Integer]: string read GetSuggestionTitle;
       /// <summary>The count of suggestions at a given position.</summary>
@@ -302,6 +324,7 @@ type
     FText: string;
     FPosition: TParsePosition;
     FParserStack: TParserStack;
+    FParserIndices: TParserIndices;
     FTokenStack: TTokenStack;
     FToken: Integer;
     FSuggestionsEnd: Boolean;
@@ -355,6 +378,9 @@ type
     procedure PushParser(AParserClass: TParserClass);
     /// <summary>Used internally to remove the topmost parser calss from the stack.</summary>
     procedure PopParser;
+
+    /// <summary>Allows manual increase of the current parser index.</summary>
+    procedure IncrementParserIndex;
 
     /// <summary>Starts a new suggestion section with the given simple suggestion class.</summary>
     procedure BeginSuggestions(ASuggestions: TParseSuggestionsClass); overload;
@@ -419,6 +445,8 @@ type
 
     procedure PushParser(AParserClass: TParserClass); inline;
     procedure PopParser; inline;
+
+    procedure IncrementParserIndex; inline;
 
     procedure BeginSuggestions(ASuggestions: TParseSuggestionsClass); overload; inline;
     procedure BeginSuggestions(ASuggestions: TParseSuggestions); overload; inline;
@@ -488,31 +516,6 @@ type
 
     class function Require(AInfo: TParseInfo): T; reintroduce;
     class function Optional(AInfo: TParseInfo): T; reintroduce;
-
-  end;
-
-  TParserWithSettings<T> = class(TParser<T>)
-  private
-    FSettings: TRootSettings;
-
-  protected
-    property AllSettings: TRootSettings read FSettings;
-
-    procedure InitSettings; virtual; abstract;
-
-  public
-    constructor Create(AText: string; ASettings: TRootSettings; AGenerateEditInfo: Boolean); overload;
-    constructor Create(AInfo: TParseInfo; ASettings: TRootSettings; ARequired: Boolean); reintroduce; overload; virtual;
-
-  end;
-
-  TObjectParserWithSettings<T: class> = class(TParserWithSettings<T>)
-  public
-    destructor Destroy; override;
-
-    function OwnParseResult: T;
-
-    class function Require(AInfo: TParseInfo; ASettings: TRootSettings): T; reintroduce;
 
   end;
 
@@ -641,6 +644,11 @@ end;
 class function TParser.IgnoreContext: Boolean;
 begin
   Result := False;
+end;
+
+procedure TParser.IncrementParserIndex;
+begin
+  Info.IncrementParserIndex;
 end;
 
 class function TParser.KeepEndSuggestions: Boolean;
@@ -826,6 +834,8 @@ begin
   if AGenerateEditInfo then
   begin
     FParserStack := TParserStack.Create;
+    FParserIndices := TParserIndices.Create;
+    FParserIndices.Add(0);
     FTokenStack := TTokenStack.Create;
   end;
 end;
@@ -833,6 +843,7 @@ end;
 destructor TParseInfo.Destroy;
 begin
   FParserStack.Free;
+  FParserIndices.Free;
   FContext.Free;
   FTokenStack.Free;
   inherited;
@@ -908,6 +919,15 @@ begin
   Result := Pos;
 end;
 
+procedure TParseInfo.IncrementParserIndex;
+var
+  NewIndex: Integer;
+begin
+  NewIndex := FParserStack.Last.Index + 1;
+  FParserIndices[FParserIndices.MaxIndex - 1] := NewIndex;
+  FParserStack.Last := TParserInfo.Create(FParserStack.Last.ParserClass, NewIndex);
+end;
+
 procedure TParseInfo.Log(AMarker: TLogMarker; AMessage: string; const AFmt: array of const; ALevel: TParseError.TLevel);
 begin
   Log(AMarker, Format(AMessage, AFmt, FormatSettings.Invariant), ALevel);
@@ -929,6 +949,7 @@ begin
   if EditInfoEnabled then
   begin
     FParserStack.RemoveLast;
+    FParserIndices.RemoveLast;
     FToken := FTokenStack.Pop;
   end;
 end;
@@ -937,7 +958,9 @@ procedure TParseInfo.PushParser(AParserClass: TParserClass);
 begin
   if EditInfoEnabled then
   begin
-    FParserStack.Add(AParserClass);
+    FParserStack.Add(TParserInfo.Create(AParserClass, FParserIndices.Last));
+    FParserIndices.Last := FParserIndices.Last + 1;
+    FParserIndices.Add(0);
     FTokenStack.Push(FToken);
     FToken := 0;
   end;
@@ -1193,6 +1216,47 @@ begin
   end;
 end;
 
+function TParseInfo.TContext.GetSuggestionBreakChars(APos: Integer): TSysCharSet;
+begin
+  case GetSuggestionPos(APos) of
+    spGiven:
+      begin
+        if FCharInfo[APos].UseSuggestionsClass then
+          Result := FCharInfo[APos].SuggestionsClass.GetBreakChars
+        else
+          Result := FCharInfo[APos].Suggestions.GetBreakChars;
+      end;
+    spEnd:
+      begin
+        if FCurrentSuggestions <> nil then
+          Result := FCurrentSuggestions.GetBreakChars
+        else
+          Result := FCurrentSuggestionsSimple.GetBreakChars;
+      end;
+  else
+    raise EParseSuggestionException.Create;
+  end;
+end;
+
+function TParseInfo.TContext.GetSuggestionBreakCharString(APos: Integer): string;
+var
+  C: Char;
+  Len: Integer;
+begin
+  Result := '';
+  Len := 0;
+  for C in SuggestionBreakChars[APos] do
+    Inc(Len);
+
+  SetLength(Result, Len);
+  Len := 1;
+  for C in SuggestionBreakChars[APos] do
+  begin
+    Result[Len] := C;
+    Inc(Len);
+  end;
+end;
+
 function TParseInfo.TContext.GetSuggestionCount(APos: Integer): Integer;
 begin
   case GetSuggestionPos(APos) of
@@ -1406,43 +1470,26 @@ begin
   Result.Pos := APos;
 end;
 
-{ TParserWithSettings<T> }
+{ TParseSuggestions }
 
-constructor TParserWithSettings<T>.Create(AInfo: TParseInfo; ASettings: TRootSettings; ARequired: Boolean);
+function TParseSuggestions.GetBreakChars: TSysCharSet;
 begin
-  FSettings := ASettings;
-  InitSettings;
-  inherited Create(AInfo, ARequired);
+  Result := DefaultBreakChars;
 end;
 
-constructor TParserWithSettings<T>.Create(AText: string; ASettings: TRootSettings; AGenerateEditInfo: Boolean);
+{ TParseSuggestionsSimple }
+
+class function TParseSuggestionsSimple.GetBreakChars: TSysCharSet;
 begin
-  FSettings := ASettings;
-  InitSettings;
-  inherited Create(AText, AGenerateEditInfo);
+  Result := TParseSuggestions.DefaultBreakChars;
 end;
 
-{ TObjectParserWithSettings<T> }
+{ TParseInfo.TParserInfo }
 
-destructor TObjectParserWithSettings<T>.Destroy;
+constructor TParseInfo.TParserInfo.Create(AParserClass: TParserClass; AIndex: Integer);
 begin
-  ParseResult.Free;
-  inherited;
-end;
-
-function TObjectParserWithSettings<T>.OwnParseResult: T;
-begin
-  Result := ParseResult;
-  SetParseResult(nil);
-end;
-
-class function TObjectParserWithSettings<T>.Require(AInfo: TParseInfo; ASettings: TRootSettings): T;
-begin
-  with Self.Create(AInfo, ASettings, True) do
-  begin
-    Result := OwnParseResult;
-    Free;
-  end;
+  ParserClass := AParserClass;
+  Index := AIndex;
 end;
 
 end.

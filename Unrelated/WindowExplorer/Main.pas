@@ -14,6 +14,7 @@ type
     btnBorderlessFullscreen: TButton;
     cbHideTaskbar: TCheckBox;
     Button1: TButton;
+    btnDoStuff: TButton;
     procedure lbChildDblClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -23,6 +24,7 @@ type
     procedure edtWindowNameKeyPress(Sender: TObject; var Key: Char);
     procedure tbTransparencyChange(Sender: TObject);
     procedure btnBorderlessFullscreenClick(Sender: TObject);
+    procedure btnDoStuffClick(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure cbHideTaskbarClick(Sender: TObject);
   private
@@ -43,8 +45,6 @@ implementation
 procedure TfrmMain.btnBorderlessFullscreenClick(Sender: TObject);
 const
   FullscreenFlags: NativeUInt = WS_POPUP or WS_CLIPSIBLINGS or WS_CLIPCHILDREN or WS_VISIBLE;
-var
-  M: TMonitor;
 begin
   if FHandle = 0 then
     Exit;
@@ -52,20 +52,29 @@ begin
   SetWindowPos(FHandle, 0, 0, 0, Monitor.Width, Monitor.Height, SWP_NOZORDER);
 end;
 
-procedure TfrmMain.Button1Click(Sender: TObject);
+procedure TfrmMain.btnDoStuffClick(Sender: TObject);
 var
-  Style: Int64;
+  H: HWND;
+begin
+  if lbChild.ItemIndex = -1 then
+    Exit;
+  H := HWND(lbChild.Items.Objects[lbChild.ItemIndex]);
+  MoveWindow(H, 0, 0, 1000, 1000, True);
+end;
+
+procedure TfrmMain.Button1Click(Sender: TObject);
+//var
+//  Style: Int64;
 begin
   if FHandle = 0 then
     Exit;
 
-  Style := GetWindowLong(FHandle, GWL_STYLE);
+  // Style := GetWindowLong(FHandle, GWL_STYLE);
 end;
 
 procedure TfrmMain.cbHideTaskbarClick(Sender: TObject);
 var
   H: HWND;
-  WL: NativeInt;
 begin
   H := FindWindow('Shell_TrayWnd', nil);
   if cbHideTaskbar.Checked then
@@ -157,7 +166,7 @@ begin
   if (Button = mbRight) and (FHistory.Count > 1) then
   begin
     lbChild.Clear;
-    FHistory.DelLast;
+    FHistory.RemoveLast;
     EnumChildWindows(FHistory.Last, @EnumFunc, LPARAM(lbChild));
   end;
 end;
@@ -165,7 +174,6 @@ end;
 procedure TfrmMain.tbTransparencyChange(Sender: TObject);
 var
   WL: NativeInt;
-  E: BOOL;
 begin
   if FHandle <> 0 then
   begin

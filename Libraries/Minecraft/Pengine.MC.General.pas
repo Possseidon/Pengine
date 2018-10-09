@@ -54,7 +54,7 @@ const
 
   NamespaceChars = IdentChars - ['+']; // wtf
 
-  NamespacePathChars = IdentChars + [':', '/'];
+  NamespacePathChars = NamespaceChars + [':', '/'];
 
   IdentCharsText = 'letters, numbers and "_ . + -"';
 

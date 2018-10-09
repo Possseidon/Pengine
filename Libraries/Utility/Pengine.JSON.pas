@@ -1072,24 +1072,31 @@ begin
 end;
 
 function TJValue.TParser.Parse: Boolean;
+var
+  ParserClass: TParserClass;
+  Parser: TObjectParser<TJValue>;
 begin
   case First of
     '"':
-      SetParseResult(TJString.TParser.Require(Info));
+      ParserClass := TJString.TParser;
     '0' .. '9', '-', '+', '.':
-      SetParseResult(TJNumber.TParser.Require(Info));
+      ParserClass := TJNumber.TParser;
     '{':
-      SetParseResult(TJObject.TParser.Require(Info));
+      ParserClass := TJObject.TParser;
     '[':
-      SetParseResult(TJArray.TParser.Require(Info));
+      ParserClass := TJArray.TParser;
     't', 'f':
-      SetParseResult(TJBool.TParser.Require(Info));
+      ParserClass := TJBool.TParser;
     'n':
-      SetParseResult(TJNull.TParser.Require(Info));
+      ParserClass := TJNull.TParser;
   else
     Exit(False);
   end;
-  Result := True;
+  Parser := TObjectParser<TJValue>(ParserClass.Create(Info, False));
+  Result := Parser.Success;
+  if Result then
+    SetParseResult(Parser.OwnParseResult);
+  Parser.Free;
 end;
 
 { TJNumber.TParser }

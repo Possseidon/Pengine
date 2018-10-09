@@ -3,18 +3,31 @@ unit Main;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, VectorGeometry, Vcl.ExtCtrls, Lists, Math, TimeManager, Color;
+  Winapi.Windows,
+  Winapi.Messages,
+  System.SysUtils,
+  System.Variants,
+  System.Classes,
+  Vcl.Graphics,
+  Vcl.Controls,
+  Vcl.Forms,
+  Vcl.Dialogs,
+  Pengine.Vector,
+  Vcl.ExtCtrls,
+  Pengine.Collections,
+  Pengine.TimeManager,
+  Pengine.Color, System.Math;
 
 type
   TForm1 = class(TForm)
+    procedure FormDestroy(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormPaint(Sender: TObject);
     procedure FormResize(Sender: TObject);
   private
     { Private-Deklarationen }
-    Jumper: TGVector2;
-    Points: TArray<TGVector2>;
+    Jumper: TVector2;
+    Points: TArray<TVector2>;
     Pic: TBitmap;
     PixelCounter: Cardinal;
 
@@ -41,48 +54,53 @@ implementation
 {$R *.dfm}
 
 
+procedure TForm1.FormDestroy(Sender: TObject);
+begin
+  Timer.Free;
+end;
+
 procedure TForm1.FormCreate(Sender: TObject);
 var
   I: Integer;
   R: Single;
 begin
-  Points := TArray<TGVector2>.Create;
+  Points := TArray<TVector2>.Create;
+
+    {
+    // Classic Sierpinski
+    Points.Add(TVector2.Create(0.5, 0.1));
+    Points.Add(TVector2.Create(0.9, 0.9));
+    Points.Add(TVector2.Create(0.1, 0.9));
+    // }
+
+
+    // Rectangle
+    Points.Add(TVector2.Create(0.1, 0.1));
+    Points.Add(TVector2.Create(0.9, 0.9));
+    Points.Add(TVector2.Create(0.1, 0.9));
+    Points.Add(TVector2.Create(0.9, 0.1));
+    Points.Add(TVector2.Create(0.5, 0.5));
+    // }
 
   {
-  // Classic Sierpinski
-  Points.Add(TGVector2.Create(0.5, 0.1));
-  Points.Add(TGVector2.Create(0.9, 0.9));
-  Points.Add(TGVector2.Create(0.1, 0.9));
-  //}
-
-  {
-  // Rectangle
-  Points.Add(TGVector2.Create(0.1, 0.1));
-  Points.Add(TGVector2.Create(0.9, 0.9));
-  Points.Add(TGVector2.Create(0.1, 0.9));
-  Points.Add(TGVector2.Create(0.9, 0.1));
-  Points.Add(TGVector2.Create(0.5, 0.5));
-  //}
-
-  {
-  // Circle stuff
-  for I := 0 to 6 - 1 do
-  begin
+    // Circle stuff
+    for I := 0 to 6 - 1 do
+    begin
     R := I / 6 * 2 * Pi;
     Points.Add(TGVector2.Create(Sin(R), Cos(R)) * 0.5 + 0.5);
-  end;
-  Points.Add(TGVector2.Create(0.5, 0.5));
-  //}
-  //{
+    end;
+    Points.Add(TGVector2.Create(0.5, 0.5));
+    // }
+  // {
   // Random
-  for I := 0 to 99 do
-    Points.Add(TGVector2.Create(Random, Random));
-  //}
-  Jumper := TGVector2.Create(Random, Random);
+  //for I := 0 to 99 do
+  //  Points.Add(TVector2.Create(Random, Random));
+  // }
+  Jumper := TVector2.Create(Random, Random);
   Application.OnIdle := IdleHandler;
 
   Pic := TBitmap.Create;
-  Timer.Init;
+  Timer := TDeltaTimer.Create;
 end;
 
 procedure TForm1.FormPaint(Sender: TObject);
@@ -112,29 +130,31 @@ begin
   Y := EnsureRange(Round(Jumper.Y * ClientHeight), 0, ClientHeight - 1);
 
   ColorFull := TColorRGB.Rainbow(SelectedPoint / Points.Count * 6);
-  ColorNew := (TColorRGB.Create(Pic.Canvas.Pixels[X, Y]) + ColorFull * 0.01).EnsureColor;
-  //Pic.Canvas.Pixels[X, Y] := ColorNew.ToWinColor;
+  ColorNew := (TColorRGB.Create(Pic.Canvas.Pixels[X, Y]) + ColorFull * 0.1).EnsureColor;
+  Pic.Canvas.Pixels[X, Y] := ColorNew.ToWinColor;
+  {
   Pic.Canvas.Pen.Style := psSolid;
   Pic.Canvas.Pen.Color := ColorNew.ToWinColor;
   Pic.Canvas.Brush.Style := bsSolid;
   Pic.Canvas.Brush.Color := ColorNew.ToWinColor;
   Pic.Canvas.Ellipse(X - Random(8), Y - Random(8), X + Random(8), Y + Random(8));
   {
-  Pic.Canvas.Brush.Style := bsClear;
-  Pic.Canvas.Pen.Style := psSolid;
-  Pic.Canvas.Pen.Color := $FF7F7F;
-  Pic.Canvas.Rectangle(X - 1, Y - 1, X + 2, Y + 2);
+    Pic.Canvas.Brush.Style := bsClear;
+    Pic.Canvas.Pen.Style := psSolid;
+    Pic.Canvas.Pen.Color := $FF7F7F;
+    Pic.Canvas.Rectangle(X - 1, Y - 1, X + 2, Y + 2);
   }
 
   Inc(PixelCounter);
 
-  if Timer.Update then
-    Caption := Format('Pixels/Second: %f', [PixelsPerSecond]);
+  Timer.Update;
+  // if Timer. then
+  //   Caption := Format('Pixels/Second: %f', [PixelsPerSecond]);
 
-  if Timer.Seconds - RepaintTimestamp >= UpdateInterval then
+  if Timer.Time - RepaintTimestamp >= UpdateInterval then
   begin
-    PixelsPerSecond := PixelCounter / (Timer.Seconds - RepaintTimestamp);
-    RepaintTimestamp := Timer.Seconds;
+    PixelsPerSecond := PixelCounter / (Timer.Time - RepaintTimestamp);
+    RepaintTimestamp := Timer.Time;
     PixelCounter := 0;
     Invalidate;
   end;

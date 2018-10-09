@@ -37,8 +37,8 @@ type
     /// <remarks>The root is not changed.</remarks>
     procedure Assign(AFrom: TSettings); virtual;
 
-    function Sub<T: TSettings>: T; overload;
-    function Sub(ASettingsClass: TSettingsClass): TSettings; overload;
+    function Get<T: TSettings>: T; overload;
+    function Get(ASettingsClass: TSettingsClass): TSettings; overload;
 
   end;
 
@@ -58,6 +58,9 @@ type
     class function GetDescription: string; override;
 
   end;
+
+var
+  RootSettings: TRootSettings;
 
 implementation
 
@@ -96,7 +99,7 @@ begin
   // nothing by default
 end;
 
-function TSettings.Sub(ASettingsClass: TSettingsClass): TSettings;
+function TSettings.Get(ASettingsClass: TSettingsClass): TSettings;
 begin
   if not Root.FSubSettings.Get(ASettingsClass, Result) then
   begin
@@ -106,9 +109,9 @@ begin
   end;
 end;
 
-function TSettings.Sub<T>: T;
+function TSettings.Get<T>: T;
 begin
-  Result := T(Sub(T));
+  Result := T(Get(T));
 end;
 
 { TRootSettings }
@@ -134,5 +137,13 @@ class function TRootSettings.GetTitle: string;
 begin
   Result := 'Root';
 end;
+
+initialization
+
+RootSettings := TRootSettings.Create;
+
+finalization
+
+RootSettings.Free;
 
 end.

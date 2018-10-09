@@ -170,7 +170,6 @@ type
     procedure tvNamespacesMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure tvNamespacesMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
   private
-    FSettings: TRootSettings;
     FDatapack: TDatapack;
     FDatapackTreeView: TDatapackTreeView;
     FDraggedPage: TTabSheet;
@@ -194,7 +193,6 @@ type
     procedure UpdateActions; override;
 
   public
-    property Settings: TRootSettings read FSettings;
     property FunctionTheme: TFunctionTheme read FFunctionTheme;
 
   end;
@@ -503,7 +501,6 @@ end;
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
   // SHAutoComplete(edtTestInput.Handle, SHACF_AUTOAPPEND_FORCE_OFF or SHACF_AUTOSUGGEST_FORCE_OFF);
-  FSettings := TRootSettings.Create;
   InitDataTypes;
   InitTheme;
   ExceptionLagFix;
@@ -517,7 +514,6 @@ begin
   FFunctionTheme.Free;
   FDatapackTreeView.Free;
   FDatapack.Free;
-  FSettings.Free;
 end;
 
 procedure TfrmMain.InitDataTypes;

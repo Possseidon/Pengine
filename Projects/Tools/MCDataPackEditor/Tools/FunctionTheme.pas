@@ -294,7 +294,7 @@ begin
     Exit(Theme.Error);
 
   Token := Line.Context.Tokens[Pos];
-  Parser := Line.Context.Parsers[Pos].Last;
+  Parser := Line.Context.Parsers[Pos].Last.ParserClass;
 
   if not Theme.Parsers.Get(Parser, ParserTokens) then
     Exit(Theme.Default);

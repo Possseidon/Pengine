@@ -138,15 +138,9 @@ type
   public type
 
     /// <summary>Parses a whole block state.</summary>
-    TParser = class(TObjectParserWithSettings<TBlockState>)
-    private
-      FSettings: TBlockSettings;
-
+    TParser = class(TObjectParser<TBlockState>)
     protected
       function Parse: Boolean; override;
-      procedure InitSettings; override;
-
-      property Settings: TBlockSettings read FSettings;
 
     public
       class function GetResultName: string; override;
@@ -154,16 +148,8 @@ type
     end;
 
     TBlockSuggestions = class(TParseSuggestionsGenerated<TParser>)
-    private
-      FSettings: TBlockSettings;
-
     protected
       procedure Generate; override;
-
-    public
-      constructor Create(ASettings: TBlockSettings);
-
-      property Settings: TBlockSettings read FSettings;
 
     end;
 
@@ -348,15 +334,9 @@ type
   public type
 
     /// <summary>Parses a whole block state.</summary>
-    TParser = class(TObjectParserWithSettings<TBlockStateTag>)
-    private
-      FSettings: TBlockTagSettings;
-
+    TParser = class(TObjectParser<TBlockStateTag>)
     protected
       function Parse: Boolean; override;
-      procedure InitSettings; override;
-
-      property Settings: TBlockTagSettings read FSettings;
 
     public
       class function GetResultName: string; override;
@@ -364,16 +344,8 @@ type
     end;
 
     TBlockTagSuggestions = class(TParseSuggestionsGenerated<TParser>)
-    private
-      FSettings: TBlockTagSettings;
-
     protected
       procedure Generate; override;
-
-    public
-      constructor Create(ASettings: TBlockTagSettings);
-
-      property Settings: TBlockTagSettings read FSettings;
 
     end;
 
@@ -551,11 +523,6 @@ begin
   Result := 'Block-State';
 end;
 
-procedure TBlockState.TParser.InitSettings;
-begin
-  FSettings := AllSettings.Sub<TBlockSettings>;
-end;
-
 function TBlockState.TParser.Parse: Boolean;
 var
   Marker: TLogMarker;
@@ -567,7 +534,7 @@ var
 begin
   Marker := GetMarker;
 
-  BeginSuggestions(TBlockSuggestions.Create(Settings));
+  BeginSuggestions(TBlockSuggestions.Create);
 
   NSPathString := ReadWhile(NamespacePathChars);
 
@@ -577,7 +544,7 @@ begin
     Exit(False);
   NSPath := NSPathString;
 
-  BlockExists := Settings.Blocks.Get(NSPath, BlockType);
+  BlockExists := RootSettings.Get<TBlockSettings>.Blocks.Get(NSPath, BlockType);
   if not BlockExists then
     Log(Marker, '"%s" is not a valid block.', [NSPath.Format]);
 
@@ -670,16 +637,12 @@ end;
 
 { TBlockState.TBlockSuggestions }
 
-constructor TBlockState.TBlockSuggestions.Create(ASettings: TBlockSettings);
-begin
-  FSettings := ASettings;
-  inherited Create;
-end;
-
 procedure TBlockState.TBlockSuggestions.Generate;
 var
   Block: TBlockType;
+  Settings: TBlockSettings;
 begin
+  Settings := RootSettings.Get<TBlockSettings>;
   for Block in Settings.Blocks.Order do
     AddSuggestion(ParseSuggestion(Block.NSPath.Format(False), Block.NSPath.Format(False)));
   AddSuggestion(ParseSuggestion(TNSPath.Empty, TNSPath.Empty));
@@ -1006,7 +969,7 @@ end;
 procedure TBlockTagSettings.Reload;
 begin
   FBlockTags.Free;
-  FBlockTags := TBlockTagCollection.Create(Sub<TBlockSettings>.Blocks, Path);
+  FBlockTags := TBlockTagCollection.Create(Get<TBlockSettings>.Blocks, Path);
 end;
 
 procedure TBlockTagSettings.SetDefaults;
@@ -1027,11 +990,6 @@ begin
   Result := 'Block Tag';
 end;
 
-procedure TBlockStateTag.TParser.InitSettings;
-begin
-  FSettings := AllSettings.Sub<TBlockTagSettings>;
-end;
-
 function TBlockStateTag.TParser.Parse: Boolean;
 var
   NSPathString: string;
@@ -1046,7 +1004,7 @@ begin
   if not StartsWith('#') then
     Exit(False);
 
-  BeginSuggestions(TBlockTagSuggestions.Create(Settings));
+  BeginSuggestions(TBlockTagSuggestions.Create);
 
   NSPathString := ReadWhile(NamespacePathChars);
 
@@ -1060,7 +1018,7 @@ begin
   NSPath := NSPathString;
 
   SetParseResult(TBlockStateTag.Create(NSPath));
-  TagExists := Settings.BlockTags.Get(NSPath, BlockTag);
+  TagExists := RootSettings.Get<TBlockTagSettings>.BlockTags.Get(NSPath, BlockTag);
   if not TagExists then
     Log(Marker, '"%s" is not a valid block tag.', [NSPath.Format]);
 
@@ -1081,16 +1039,12 @@ end;
 
 { TBlockStateTag.TBlockTagSuggestions }
 
-constructor TBlockStateTag.TBlockTagSuggestions.Create(ASettings: TBlockTagSettings);
-begin
-  inherited Create;
-  FSettings := ASettings;
-end;
-
 procedure TBlockStateTag.TBlockTagSuggestions.Generate;
 var
+  Settings: TBlockTagSettings;
   Tag: TBlockTag;
 begin
+  Settings := RootSettings.Get<TBlockTagSettings>;
   for Tag in Settings.BlockTags.Tags do
     AddSuggestion(ParseSuggestion(Tag.NSPath.Format(False), Tag.NSPath.Format(False)));
   AddSuggestion(ParseSuggestion(TNSPath.Empty, TNSPath.Empty));

@@ -81,7 +81,7 @@ type
     constructor Create(AProperties: TJObject); virtual;
   end;
 
-  TBrigadierParser = class abstract(TObjectParserWithSettings<TBrigadierArgumentParameter>)
+  TBrigadierParser = class abstract(TObjectParser<TBrigadierArgumentParameter>)
   public type
 
     TLookup = TMap<string, TBrigadierParserClass, TStringHasher>;
@@ -114,15 +114,11 @@ type
   end;
 
   TBrigadierParser<T: TBrigadierArgumentParameter> = class(TBrigadierParser)
-  private
-    function GetSettings: TRootSettings;
   protected
     procedure SetParseResult(AResult: T);
 
   public
     function ParseResult: T;
-
-    property Settings: TRootSettings read GetSettings;
 
   end;
 
@@ -300,19 +296,14 @@ type
   /// <summary>The root of the brigadier command system.</summary>
   TBrigadierRoot = class(TBrigadierChild)
   private
-    FSettings: TRootSettings;
-    FBrigadierSettings: TBrigadierSettings;
     FTeleport: TBrigadierChild;
 
     procedure TeleportFix;
 
   public
-    constructor Create(ASettings: TRootSettings);
+    constructor Create(APath: string);
 
     class function GetTypeString: string; override;
-
-    property Settings: TRootSettings read FSettings;
-    property BrigadierSettings: TBrigadierSettings read FBrigadierSettings;
 
     property Teleport: TBrigadierChild read FTeleport;
 
@@ -331,16 +322,12 @@ type
         );
 
     private
-      FBrigadier: TBrigadierRoot;
       FSlashMode: TSlashMode;
       FAllowComment: Boolean;
       FAllowPreceedingSpace: Boolean;
       FAllowEmpty: Boolean;
 
     public
-      constructor Create(ABrigadier: TBrigadierRoot);
-
-      property Brigadier: TBrigadierRoot read FBrigadier;
       property SlashMode: TSlashMode read FSlashMode write FSlashMode;
       property AllowComment: Boolean read FAllowComment write FAllowComment;
       property AllowPreceedingSpace: Boolean read FAllowPreceedingSpace write FAllowPreceedingSpace;
@@ -404,17 +391,14 @@ uses
 
 { TBrigadierRoot }
 
-constructor TBrigadierRoot.Create(ASettings: TRootSettings);
+constructor TBrigadierRoot.Create(APath: string);
 var
   BrigadierText: string;
   BrigadierJ: TJObject;
 begin
-  FSettings := ASettings;
-  FBrigadierSettings := Settings.Sub<TBrigadierSettings>;
-
-  if TFile.Exists(BrigadierSettings.Path) then
+  if TFile.Exists(APath) then
   begin
-    BrigadierText := TFile.ReadAllText(BrigadierSettings.Path);
+    BrigadierText := TFile.ReadAllText(APath);
     BrigadierJ := TJObject.Parse(BrigadierText);
   end
   else
@@ -843,10 +827,12 @@ var
   LastIteration: Boolean;
   PreceedingWhitespace: Boolean;
   StartMarker: TLogMarker;
+  Brigadier: TBrigadierRoot;
 begin
   Result := True;
   SetParseResult(TBrigadierCommand.Create);
-  CurrentChild := Settings.Brigadier;
+  Brigadier := RootSettings.Get<TBrigadierSettings>.Brigadier;
+  CurrentChild := Brigadier;
 
   StartMarker := GetMarker;
 
@@ -902,7 +888,7 @@ begin
           Continue;
         ParseResult.FParameters.Add(TBrigadierLiteralParameter.Create(Literal));
         Found := True;
-        Token := IfThen(CurrentChild.IsOrRedirects(Settings.Brigadier), TokenMainCommand, TokenSubCommand);
+        Token := IfThen(CurrentChild.IsOrRedirects(Brigadier), TokenMainCommand, TokenSubCommand);
         Advance(ScannedLiteral.Length);
         ResetToken;
         CurrentChild := Literal;
@@ -951,7 +937,7 @@ begin
 
       // Teleport Fix
       if (ParseResult.Parameters.Count = 2) and
-        ParseResult.Parameters[0].Child.IsOrRedirects(Settings.Brigadier.Teleport) and
+        ParseResult.Parameters[0].Child.IsOrRedirects(Brigadier.Teleport) and
         (ParseResult.Parameters[1] is TBrigadierEntitySelector) and
         TBrigadierEntitySelector(ParseResult.Parameters[1]).Selector.AllowsMultiple then
       begin
@@ -965,6 +951,8 @@ begin
       raise EParseError.Create('Expected whitespace.');
 
     Advance;
+
+    IncrementParserIndex;
 
     SkipWhitespace;
 
@@ -982,11 +970,6 @@ begin
 end;
 
 { TBrigadierParser<T> }
-
-function TBrigadierParser<T>.GetSettings: TRootSettings;
-begin
-  Result := Argument.Settings;
-end;
 
 function TBrigadierParser<T>.ParseResult: T;
 begin
@@ -1031,13 +1014,6 @@ begin
     Result := TokenNames[TokenMainCommand]
   else
     Result := TokenNames[TokenSubCommand];
-end;
-
-{ TBrigadierCommandParser.TSettings }
-
-constructor TBrigadierCommandParser.TSettings.Create(ABrigadier: TBrigadierRoot);
-begin
-  FBrigadier := ABrigadier;
 end;
 
 { TBrigadierParameter }
@@ -1087,7 +1063,7 @@ end;
 procedure TBrigadierSettings.Reload;
 begin
   FBrigadier.Free;
-  FBrigadier := TBrigadierRoot.Create(Root);
+  FBrigadier := TBrigadierRoot.Create(Path);
 end;
 
 procedure TBrigadierSettings.SetDefaults;
@@ -1097,8 +1073,6 @@ end;
 
 procedure TBrigadierSettings.SetPath(const Value: string);
 begin
-  if Path = Value then
-    Exit;
   FPath := Value;
   Reload;
 end;
