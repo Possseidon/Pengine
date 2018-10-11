@@ -177,7 +177,7 @@ type
   TGLObjectBindings = class
   public type
     // from TGLObjectBindingClass to TGLObjectBinding
-    TBindingMap = TClassObjectMap<TGLObjectBinding>;
+    TBindingMap = TClassObjectMap<TGLObjectBindingClass, TGLObjectBinding>;
 
   private
     FBindings: TBindingMap;

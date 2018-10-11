@@ -19,11 +19,18 @@ uses
   LightThemePreset in 'ThemePresets\LightThemePreset.pas',
   Vcl.Themes,
   Vcl.Styles,
-  SettingsForm in 'Tools\SettingsForm.pas' {frmSettings};
+  SettingsForm in 'Tools\SettingsForm.pas' {frmSettings},
+  SynEdit,
+  Vcl.StdCtrls {frmSettings},
+  EditorFrameTag in 'EditorFrames\EditorFrameTag.pas' {frmEditorTags: TFrame},
+  EditorFrameAdvancement in 'EditorFrames\EditorFrameAdvancement.pas' {frmEditorAdvancements: TFrame},
+  EditorFrameRecipe in 'EditorFrames\EditorFrameRecipe.pas' {frmEditorRecipes: TFrame},
+  EditorFrameStructure in 'EditorFrames\EditorFrameStructure.pas' {frmEditorStructures: TFrame};
 
 {$R *.res}
 
 begin
+  TStyleManager.Engine.RegisterStyleHook(TCustomSynEdit, TMemoStyleHook);
   ReportMemoryLeaksOnShutdown := True;
   Application.Initialize;
   Application.MainFormOnTaskbar := True;

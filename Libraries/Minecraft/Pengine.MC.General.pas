@@ -7,47 +7,6 @@ uses
 
   Pengine.Parser;
 
-type
-
-  TStringParser = class(TParser<string>)
-  public const
-
-    TokenQuote = 1;
-    TokenContent = 2;
-    TokenBackslash = 3;
-    TokenEscaped = 4;
-
-    TokenNames: array [TokenQuote .. TokenEscaped] of string = (
-      'Quotes',
-      'Content',
-      'Backslash',
-      'Escaped'
-      );
-
-  protected
-    function Parse: Boolean; override;
-
-  public
-    class function GetResultName: string; override;
-    class function GetTokenCount: Integer; override;
-    class function GetTokenName(AIndex: Integer): string; override;
-
-  end;
-
-  TStringOrIdentParser = class(TParser<string>)
-  private
-    FIsIdent: Boolean;
-
-  protected
-    function Parse: Boolean; override;
-
-  public
-    class function GetResultName: string; override;
-
-    property IsIdent: Boolean read FIsIdent;
-
-  end;
-
 const
 
   IdentChars = ['a' .. 'z', 'A' .. 'Z', '0' .. '9', '_', '.', '+', '-'];
@@ -102,89 +61,6 @@ begin
   end;
 end;
 
-{ TStringOrIdentParser }
-
-class function TStringOrIdentParser.GetResultName: string;
-begin
-  Result := 'String or Identifier';
-end;
-
-function TStringOrIdentParser.Parse: Boolean;
-var
-  Text: string;
-begin
-  FIsIdent := not Info.StartsWith('"', False);
-  if IsIdent then
-    Text := ReadWhile(IdentChars)
-  else
-    Text := TStringParser.Require(Info);
-  SetParseResult(Text);
-  Result := True;
-end;
-
-{ TStringParser }
-
-class function TStringParser.GetResultName: string;
-begin
-  Result := 'Quoted String';
-end;
-
-class function TStringParser.GetTokenCount: Integer;
-begin
-  Result := Length(TokenNames);
-end;
-
-class function TStringParser.GetTokenName(AIndex: Integer): string;
-begin
-  Result := TokenNames[AIndex];
-end;
-
-function TStringParser.Parse: Boolean;
-var
-  Builder: TStringBuilder;
-  Escaped: Char;
-begin
-  Token := TokenQuote;
-  if not StartsWith('"') then
-    Exit(False);
-
-  Builder := TStringBuilder.Create;
-  try
-    while not StartsWith('"') do
-    begin
-      if ReachedEnd then
-        raise EParseError.Create('Found unterminated string.');
-
-      Token := TokenBackslash;
-      if StartsWith('\') then
-      begin
-        Token := TokenEscaped;
-        Escaped := First;
-        Advance;
-        case Escaped of
-          '\', '"':
-            Builder.Append(Escaped);
-        else
-          Log(-2, 'Only \" and \\ are valid escape sequences.', elFatal);
-        end;
-      end
-      else
-      begin
-        Token := TokenContent;
-        Builder.Append(First);
-        Advance;
-      end;
-      Token := TokenQuote;
-    end;
-
-    SetParseResult(Builder.ToString);
-    Result := True;
-
-  finally
-    Builder.Free;
-
-  end;
-end;
 
 {
 begin

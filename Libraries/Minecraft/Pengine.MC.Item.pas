@@ -576,7 +576,7 @@ begin
 
   SetParseResult(TItemStack.Create(NSPath));
 
-  ParseResult.NBT.Put(TNBTParserCompound.Optional(Info, omReturnNil));
+  ParseResult.NBT.Put(TNBTCompound.TParser.Optional(Info, omReturnNil));
 
   Result := True;
 end;
@@ -819,7 +819,7 @@ begin
   if not TagExists then
     Log(Marker, '"%s" is not a valid item tag.', [NSPath.Format]);
 
-  ParseResult.NBT.Put(TNBTParserCompound.Optional(Info, omReturnNil));
+  ParseResult.NBT.Put(TNBTCompound.TParser.Optional(Info, omReturnNil));
 
   Result := True;
 end;

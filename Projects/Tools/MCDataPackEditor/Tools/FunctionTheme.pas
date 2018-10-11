@@ -8,58 +8,382 @@ uses
 
   Vcl.Graphics,
 
+  Pengine.Hasher,
   Pengine.Collections,
   Pengine.HashCollections,
   Pengine.Parser,
   Pengine.IntMaths,
-  Pengine.Hasher,
+  Pengine.Color, // TODO: Remove this
+  Pengine.JSON,
 
+  Pengine.MC.General,
   Pengine.MC.Brigadier,
   Pengine.MC.NBT,
   Pengine.MC.EntitySelector,
-  Pengine.MC.General,
+  Pengine.MC.BrigadierParser,
+  Pengine.MC.Vector,
 
   SynEditHighlighter;
 
 type
 
+  {
+    Features for Function Theme:
+    - Attributes
+    |-> Optional Text Color
+    |-> Optional Text Style
+    '-> Optional Background Color
+    - Global (non optional) Default Attributes
+    - Assigning Attributes per Parser
+    |-> Token Attributes
+    |-> Default Attributes
+    '-> Used if Token Attributes are not set
+    - Category
+    |-> A list of multile parsers, grouped together
+    |-> Gives better overwiew
+    |-> Always show a full category at once in the form
+    '-> Has a preview text, that shows everything
+    - Presets
+  }
+
+  {
+    Categories:
+
+    - Basic Types
+    |-> TBrigadierBoolParser
+    |-> TBrigadierIntegerParser
+    |-> TBrigadierFloatParser
+    |-> TBrigadierDoubleParser
+    |-> TBrigadierStringParser
+    '-> TBrigadierIntRangeParser
+
+    - Positional
+    |-> TBrigadierVec3Parser
+    |-> TBrigadierBlockPosParser
+    |-> TBrigadierSwizzleParser
+    |-> TBrigadierVec2Parser
+    |-> TBrigadierRotationParser
+    |-> TBrigadierColumnPosParser
+    '-> TBrigadierDimensionParser
+
+    - Entity and Player
+    |-> TBrigadierEntityParser
+    |-> TBrigadierEntityAnchorParser
+    |-> TBrigadierGameProfileParser
+    |-> TBrigadierMobEffectParser
+    |-> TBrigadierParticleParser
+    '-> TBrigadierEntitySummonParser
+
+    - NBT
+    |-> TBrigadierNBTParser
+    '-> TBrigadierNBTPathParser
+
+    - Text
+    |-> TBrigadierComponentParser
+    |-> TBrigadierMessageParser
+    '-> TBrigadierColorParser
+
+    - Scoreboard
+    |-> TBrigadierObjectiveParser
+    |-> TBrigadierObjectiveCriteriaParser
+    |-> TBrigadierScoreHolderParser
+    |-> TBrigadierScoreboardSlotParser
+    |-> TBrigadierOperationParser
+    '-> TBrigadierTeamParser
+
+    - Blocks and Items
+    |-> TBrigadierItemStackParser
+    |-> TBrigadierItemPredicateParser
+    |-> TBrigadierItemEnchantmentParser
+    |-> TBrigadierItemSlotParser
+    |-> TBrigadierBlockPredicateParser
+    '-> TBrigadierBlockStateParser
+
+    - Resources
+    |-> TBrigadierResourceLocationParser
+    '-> TBrigadierFunctionParser
+  }
+
   TFunctionTheme = class
   public type
+
+    TTextAttributesBase = class
+    private
+      FForeground: TColor;
+      FBackground: TColor;
+      FStyle: TFontStyles;
+
+    public
+      constructor Create; overload;
+      constructor Create(AForeground, ABackground: TColor; AStyles: TFontStyles = []); overload;
+
+      property Foreground: TColor read FForeground write FForeground;
+      property Background: TColor read FBackground write FBackground;
+      property Style: TFontStyles read FStyle write FStyle;
+
+      function ToSynAttributes: TSynHighlighterAttributes;
+      procedure Apply(AAttributes: TSynHighlighterAttributes);
+
+    end;
+
+    TTextAttributes = class(TTextAttributesBase)
+    private
+      FOverrideBackground: Boolean;
+      FOverrideForeground: Boolean;
+
+    public
+      property OverrideForeground: Boolean read FOverrideForeground write FOverrideForeground;
+      property OverrideBackground: Boolean read FOverrideBackground write FOverrideBackground;
+
+      procedure SetFg(AForeground: TColor; AStyle: TFontStyles = []); overload;
+
+      procedure Merge(AAttributes: TSynHighlighterAttributes);
+
+    end;
+
+    TCategoryClass = class of TCategory;
 
     TCategory = class
     public
       class function GetName: string; virtual; abstract;
-      class function GetDisplayName: string; virtual; abstract;
+      class function GetParserCount: Integer; virtual; abstract;
+      class function GetParser(AIndex: Integer): TParserClass; virtual; abstract;
+      class function GetExample: string; virtual;
 
     end;
 
-    TCategoryGeneral = class(TCategory)
+    TCategoryCommand = class(TCategory)
+    public const
+
+      Parsers: array [0 .. 0] of TParserClass = (
+        TBrigadierCommandParser
+        );
+
     public
+      class function GetName: string; override;
+      class function GetParserCount: Integer; override;
+      class function GetParser(AIndex: Integer): TParserClass; override;
 
     end;
 
-    TCategoryNBT = class(TCategory)
+    TCategoryBasicTypes = class(TCategory)
+    public const
+
+      Parsers: array [0 .. 4] of TParserClass = (
+        TBrigadierBoolParser,
+        TBrigadierIntegerParser,
+        TBrigadierFloatParser,
+        TBrigadierDoubleParser,
+        TBrigadierStringParser
+        );
+
     public
+      class function GetName: string; override;
+      class function GetParserCount: Integer; override;
+      class function GetParser(AIndex: Integer): TParserClass; override;
+
+    end;
+
+    TCategoryPositional = class(TCategory)
+    public const
+
+      Parsers: array [0 .. 9] of TParserClass = (
+        // TODO: Tokenize
+        TBrigadierVec3Parser,
+        TBrigadierBlockPosParser,
+        TBrigadierVec2Parser,
+        TBrigadierRotationParser,
+        TBrigadierColumnPosParser,
+
+        TMCVec3.TParser,
+        TMCVec2.TParser,
+        TMCVecValue.TParser,
+
+        TBrigadierSwizzleParser,
+        TBrigadierDimensionParser
+        );
+
+    public
+      class function GetName: string; override;
+      class function GetParserCount: Integer; override;
+      class function GetParser(AIndex: Integer): TParserClass; override;
+
+    end;
+
+    TCategoryEntityAndPlayer = class(TCategory)
+    public const
+
+      Parsers: array [0 .. 5] of TParserClass = (
+        TBrigadierEntityParser,
+        TBrigadierEntityAnchorParser,
+        TBrigadierGameProfileParser,
+        TBrigadierMobEffectParser,
+        TBrigadierParticleParser,
+        TBrigadierEntitySummonParser
+        );
+
+    public
+      class function GetName: string; override;
+      class function GetParserCount: Integer; override;
+      class function GetParser(AIndex: Integer): TParserClass; override;
 
     end;
 
     TCategoryEntitySelector = class(TCategory)
+    public const
+
+      Parsers: array [0 .. 13] of TParserClass = (
+        // TODO:Tokenize
+        TEntitySelector.TParser,
+        TEntitySelector.TOption.TParser,
+        TEntitySelector.TOptionValueOrRange.TParser,
+        TEntitySelector.TOptionIntValueOrRange.TParser,
+        TEntitySelector.TOptionInteger.TParser,
+        TEntitySelector.TOptionFloat.TParser,
+        TEntitySelector.TOptionString.TParser,
+        TEntitySelector.TOptionIdentifier.TParser,
+        TEntitySelector.TOptionSort.TParser,
+        TEntitySelector.TOptionNBT.TParser,
+        TEntitySelector.TOptionScores.TParser,
+        TEntitySelector.TOptionType.TParser,
+        TEntitySelector.TOptionAdvancements.TParser,
+        TEntitySelector.TOptionGamemode.TParser
+        );
+
     public
+      class function GetName: string; override;
+      class function GetParserCount: Integer; override;
+      class function GetParser(AIndex: Integer): TParserClass; override;
 
     end;
 
-    TParserTokens = TObjectArray<TSynHighlighterAttributes>;
+    TCategoryNBT = class(TCategory)
+    public const
 
-    TParsers = TClassObjectMap<TParserTokens>;
+      Parsers: array [0 .. 7] of TParserClass = (
+        TBrigadierNBTParser,
+        TNBTCompound.TParser,
+        TNBTListOrArrayParser,
+        TNBTString.TStringOrIdentParser,
+        TNBTString.TStringParser,
+        TNBTNumberParser,
 
-    TParsersReader = TClassObjectMap<TParserTokens.TReader>.TReader;
+        TBrigadierNBTPathParser,
+        TNBTPath.TParser
+        );
+
+    public
+      class function GetName: string; override;
+      class function GetParserCount: Integer; override;
+      class function GetParser(AIndex: Integer): TParserClass; override;
+
+    end;
+
+    TCategoryText = class(TCategory)
+    public const
+
+      Parsers: array [0 .. 9] of TParserClass = (
+        TBrigadierComponentParser,
+        TJValue.TParser,
+        TJObject.TParser,
+        TJArray.TParser,
+        TJString.TParser,
+        TJNumber.TParser,
+        TJBool.TParser,
+        TJNull.TParser,
+        TBrigadierMessageParser,
+        TBrigadierColorParser
+        );
+
+    public
+      class function GetName: string; override;
+      class function GetParserCount: Integer; override;
+      class function GetParser(AIndex: Integer): TParserClass; override;
+
+    end;
+
+    TCategoryScoreboard = class(TCategory)
+    public const
+
+      Parsers: array [0 .. 5] of TParserClass = (
+        // TODO: Split up and tokenize
+        TBrigadierObjectiveParser,
+        TBrigadierObjectiveCriteriaParser,
+        TBrigadierScoreHolderParser,
+        TBrigadierScoreboardSlotParser,
+        TBrigadierOperationParser,
+        TBrigadierTeamParser
+        );
+
+    public
+      class function GetName: string; override;
+      class function GetParserCount: Integer; override;
+      class function GetParser(AIndex: Integer): TParserClass; override;
+
+    end;
+
+    TCategoryBlocksAndItems = class(TCategory)
+    public const
+
+      Parsers: array [0 .. 5] of TParserClass = (
+        // TODO: Split up and tokenize
+        TBrigadierItemStackParser,
+        TBrigadierItemPredicateParser,
+        TBrigadierItemEnchantmentParser,
+        TBrigadierItemSlotParser,
+        TBrigadierBlockPredicateParser,
+        TBrigadierBlockStateParser
+        );
+
+    public
+      class function GetName: string; override;
+      class function GetParserCount: Integer; override;
+      class function GetParser(AIndex: Integer): TParserClass; override;
+
+    end;
+
+    TCategoryResources = class(TCategory)
+    public const
+
+      Parsers: array [0 .. 1] of TParserClass = (
+        // TODO: Split up and tokenize
+        TBrigadierResourceLocationParser,
+        TBrigadierFunctionParser
+        );
+
+    public
+      class function GetName: string; override;
+      class function GetParserCount: Integer; override;
+      class function GetParser(AIndex: Integer): TParserClass; override;
+
+    end;
 
     TPreset = class
     public
-      class procedure Register;
-
       class function GetName: string; virtual; abstract;
       class procedure Apply(ATheme: TFunctionTheme); virtual; abstract;
+
+    end;
+
+    TParserTokenData = class
+    public type
+
+      TTokens = TObjectArray<TTextAttributes>;
+
+    private
+      FParserClass: TParserClass;
+      FTokens: TTokens;
+
+      function GetTokens: TTokens.TReader;
+      function GetTokenName(AIndex: Integer): string;
+
+    public
+      constructor Create(AParserClass: TParserClass);
+      destructor Destroy; override;
+
+      property ParserClass: TParserClass read FParserClass;
+      property TokenName[AIndex: Integer]: string read GetTokenName;
+      property Tokens: TTokens.TReader read GetTokens;
 
     end;
 
@@ -67,30 +391,23 @@ type
 
     TPresets = TArray<TPresetClass>;
 
+    TCategories = TArray<TCategoryClass>;
+
+    TParsers = TClassObjectMap<TParserClass, TParserTokenData>;
+
   public const
 
-    ParserClasses: array [0 .. 17] of TParserClass = (
-      TBrigadierCommandParser,
-
-      TStringParser,
-      TStringOrIdentParser,
-
-      TEntitySelector.TParser,
-      TEntitySelector.TIntRangeParser,
-      TEntitySelector.TRangeParser,
-      TEntitySelector.TOption.TParser,
-      TEntitySelector.TOptionInteger.TParser,
-      TEntitySelector.TOptionFloat.TParser,
-      TEntitySelector.TOptionIdentifier.TParser,
-      TEntitySelector.TOptionSort.TParser,
-      TEntitySelector.TOptionScores.TParser,
-      TEntitySelector.TOptionType.TParser,
-      TEntitySelector.TOptionAdvancements.TParser,
-      TEntitySelector.TOptionGamemode.TParser,
-
-      TNBTParserCompound,
-      TNBTParserListOrArray,
-      TNBTParserNumber
+    CategoryClasses: array [0 .. 9] of TCategoryClass = (
+      TCategoryCommand,
+      TCategoryBasicTypes,
+      TCategoryPositional,
+      TCategoryEntityAndPlayer,
+      TCategoryEntitySelector,
+      TCategoryNBT,
+      TCategoryText,
+      TCategoryScoreboard,
+      TCategoryBlocksAndItems,
+      TCategoryResources
       );
 
   private
@@ -100,14 +417,14 @@ type
   private
     FName: string;
     FFontName: TFontName;
-    FDefault: TSynHighlighterAttributes;
-    FComment: TSynHighlighterAttributes;
-    FError: TSynHighlighterAttributes;
+    FDefault: TTextAttributesBase;
+    FCurrentLineColor: TColor;
+    FError: TTextAttributesBase;
     FParsers: TParsers;
 
-    function GetParsers: TParsersReader;
-
     procedure InitParsers;
+    function GetParsers: TParsers.TReader;
+    function GetText(AParser: TParserClass; AToken: Integer): TTextAttributes;
 
   public
     class constructor Create;
@@ -121,15 +438,14 @@ type
     property Name: string read FName write FName;
 
     property FontName: TFontName read FFontName write FFontName;
-    property Default: TSynHighlighterAttributes read FDefault;
-    property Comment: TSynHighlighterAttributes read FComment;
-    property Error: TSynHighlighterAttributes read FError;
-    property Parsers: TParsersReader read GetParsers;
+    property DefaultAttributes: TTextAttributesBase read FDefault;
+    property CurrentLineColor: TColor read FCurrentLineColor write FCurrentLineColor;
+    property ErrorAttributes: TTextAttributesBase read FError;
+    property Parsers: TParsers.TReader read GetParsers;
 
     procedure SetDefault(ATextColor, ABackgroundColor: TColor; AStyle: TFontStyles = []);
-    procedure SetComment(AColor: TColor; AStyle: TFontStyles = []);
-    procedure SetError(AColor: TColor; AStyle: TFontStyles = []);
-    procedure SetParser(AParserClass: TParserClass; AToken: Integer; AColor: TColor; AStyle: TFontStyles = []);
+    procedure SetError(ATextColor, ABackgroundColor: TColor; AStyle: TFontStyles = []);
+    property Text[AParser: TParserClass; AToken: Integer]: TTextAttributes read GetText;
 
     procedure Assign(ATheme: TFunctionTheme);
     function Copy: TFunctionTheme;
@@ -166,19 +482,38 @@ type
   TLines = TRefArray<TLine>;
 
   TFunctionHighlighter = class(TSynCustomHighlighter)
+  public type
+
+    TAttributeHasher = class(THasher<TSynHighlighterAttributes>)
+    public
+      class function Equal(const A, B: TSynHighlighterAttributes): Boolean; override;
+      class function GetHash(const AValue: TSynHighlighterAttributes): Cardinal; override;
+
+    end;
+
+    TAttributes = TObjectSet<TSynHighlighterAttributes, TAttributeHasher>;
+
   private
     FLines: TLines.TReader;
     FTheme: TFunctionTheme;
     FDummyAttributes: TSynHighlighterAttributes;
+    FCurrentAttributes: TSynHighlighterAttributes;
+
+{$MESSAGE WARN 'Attributes are never cleared, and will accumulate. Reset on Theme change to get rid of not more possible colors.'}
+    FAttributes: TAttributes;
+
+    function GetAttributes: TSynHighlighterAttributes;
+    procedure SetTheme(const Value: TFunctionTheme);
 
   protected
     function GetDefaultAttribute(Index: Integer): TSynHighlighterAttributes; override;
 
   public
     constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
 
     property Lines: TLines.TReader read FLines write FLines;
-    property Theme: TFunctionTheme read FTheme write FTheme;
+    property Theme: TFunctionTheme read FTheme write SetTheme;
 
     function GetEol: Boolean; override;
     procedure Next; override;
@@ -188,9 +523,6 @@ type
   end;
 
 implementation
-
-uses
-  Main;
 
 { TLine }
 
@@ -254,14 +586,34 @@ begin
 
   fCaseSensitive := True;
 
-  FDummyAttributes := TSynHighlighterAttributes.Create('', '');
+  FDummyAttributes := TSynHighlighterAttributes.Create('Dummy');
   AddAttribute(FDummyAttributes);
 
+  FAttributes := TAttributes.Create;
+  FCurrentAttributes := TSynHighlighterAttributes.Create('Current');
+end;
+
+destructor TFunctionHighlighter.Destroy;
+begin
+  FCurrentAttributes.Free;
+  FAttributes.Free;
+  inherited;
+end;
+
+function TFunctionHighlighter.GetAttributes: TSynHighlighterAttributes;
+begin
+  if not FAttributes.GetActualValue(FCurrentAttributes, Result) then
+  begin
+    Result := FAttributes.Add(FCurrentAttributes);
+    FCurrentAttributes := TSynHighlighterAttributes.Create('');
+    FCurrentAttributes.AssignColorAndStyle(Result);
+  end;
 end;
 
 function TFunctionHighlighter.GetDefaultAttribute(Index: Integer): TSynHighlighterAttributes;
 begin
-  Result := FDummyAttributes;
+  FTheme.DefaultAttributes.Apply(FCurrentAttributes);
+  Result := GetAttributes;
 end;
 
 function TFunctionHighlighter.GetEol: Boolean;
@@ -273,37 +625,53 @@ function TFunctionHighlighter.GetTokenAttribute: TSynHighlighterAttributes;
 var
   Pos: Integer;
   Line: TLine;
-  Parser: TParserClass;
   Token: Integer;
-  ParserTokens: TFunctionTheme.TParserTokens.TReader;
+  Parser: TParserClass;
+  I: Integer;
+  TokenData: TFunctionTheme.TParserTokenData;
 begin
   if Theme = nil then
     Exit(FDummyAttributes);
 
   if not FLines.RangeCheck(fLineNumber) then
-    Exit(Theme.Default);
+  begin
+    Theme.DefaultAttributes.Apply(FCurrentAttributes);
+    Exit(GetAttributes);
+  end;
 
   Line := FLines[fLineNumber];
 
   if Line = nil then
-    Exit(Theme.Default);
+  begin
+    Theme.DefaultAttributes.Apply(FCurrentAttributes);
+    Exit(GetAttributes);
+  end;
 
   Pos := fExpandedTokenPos;
 
   if Pos >= Line.Context.Length then
-    Exit(Theme.Error);
+  begin
+    Theme.ErrorAttributes.Apply(FCurrentAttributes);
+    Exit(GetAttributes);
+  end;
+
+  Theme.DefaultAttributes.Apply(FCurrentAttributes);
+  for I := 0 to Line.Context.Parsers[Pos].MaxIndex do
+  begin
+    Parser := Line.Context.Parsers[Pos][I].ParserClass;
+    if FTheme.Parsers.Get(Parser, TokenData) then
+      TokenData.Tokens[0].Merge(FCurrentAttributes);
+  end;
 
   Token := Line.Context.Tokens[Pos];
-  Parser := Line.Context.Parsers[Pos].Last.ParserClass;
+  if Token <> 0 then
+  begin
+    Parser := Line.Context.Parsers[Pos].Last.ParserClass;
+    if FTheme.Parsers.Get(Parser, TokenData) then
+      TokenData.Tokens[Token].Merge(FCurrentAttributes);
+  end;
 
-  if not Theme.Parsers.Get(Parser, ParserTokens) then
-    Exit(Theme.Default);
-
-  if not ParserTokens.RangeCheck(Token) then
-    Exit(Theme.Default);
-
-  Result := ParserTokens[Token];
-
+  Result := GetAttributes;
 end;
 
 function TFunctionHighlighter.GetTokenKind: Integer;
@@ -317,21 +685,26 @@ begin
   inherited;
 end;
 
+procedure TFunctionHighlighter.SetTheme(const Value: TFunctionTheme);
+begin
+  FTheme := Value;
+end;
+
 { TTheme }
 
 procedure TFunctionTheme.Assign(ATheme: TFunctionTheme);
-var
-  Pair: TParsers.TPair;
-  I: Integer;
 begin
-  FName := ATheme.Name;
-  FFontName := ATheme.FontName;
-  Default.Assign(ATheme.Default);
-  Comment.Assign(ATheme.Comment);
-  Error.Assign(ATheme.Error);
-  for Pair in ATheme.FParsers do
+  raise ENotImplemented.Create('TFunctionTheme.Assign');
+  {
+    FName := ATheme.Name;
+    FFontName := ATheme.FontName;
+    Default.Assign(ATheme.Default);
+    Comment.Assign(ATheme.Comment);
+    Error.Assign(ATheme.Error);
+    for Pair in ATheme.FParsers do
     for I := 0 to Pair.Value.MaxIndex do
-      FParsers[Pair.Key][I].Assign(Pair.Value[I]);
+    FParsers[Pair.Key][I].Assign(Pair.Value[I]);
+  }
 end;
 
 function TFunctionTheme.Copy: TFunctionTheme;
@@ -342,9 +715,8 @@ end;
 
 constructor TFunctionTheme.Create;
 begin
-  FDefault := TSynHighlighterAttributes.Create('', '');
-  FComment := TSynHighlighterAttributes.Create('', '');
-  FError := TSynHighlighterAttributes.Create('', '');
+  FDefault := TTextAttributesBase.Create;
+  FError := TTextAttributesBase.Create;
   InitParsers;
 end;
 
@@ -362,31 +734,35 @@ destructor TFunctionTheme.Destroy;
 begin
   FParsers.Free;
   FError.Free;
-  FComment.Free;
   FDefault.Free;
   inherited;
 end;
 
-function TFunctionTheme.GetParsers: TParsersReader;
+function TFunctionTheme.GetParsers: TParsers.TReader;
 begin
-  Result := TParsersReader(FParsers);
+  Result := FParsers.Reader;
+end;
+
+function TFunctionTheme.GetText(AParser: TParserClass; AToken: Integer): TTextAttributes;
+begin
+  Result := FParsers[AParser].Tokens[AToken];
 end;
 
 procedure TFunctionTheme.InitParsers;
 var
-  C: TClass;
-  ParserClass: TParserClass;
-  ParserTokens: TParserTokens;
+  Category: TCategoryClass;
   I: Integer;
+  ParserClass: TParserClass;
 begin
   FParsers := TParsers.Create;
-  for C in ParserClasses do
+  for Category in CategoryClasses do
   begin
-    ParserClass := TParserClass(C);
-    ParserTokens := TParserTokens.Create;
-    for I := 0 to ParserClass.GetTokenCount do
-      ParserTokens.Add(TSynHighlighterAttributes.Create('', ''));
-    FParsers[ParserClass] := ParserTokens;
+    for I := 0 to Category.GetParserCount - 1 do
+    begin
+      ParserClass := Category.GetParser(I);
+      if not FParsers.KeyExists(ParserClass) then
+        FParsers[ParserClass] := TParserTokenData.Create(ParserClass);
+    end;
   end;
 end;
 
@@ -400,39 +776,291 @@ begin
   Result := FPresets.Reader;
 end;
 
-procedure TFunctionTheme.SetComment(AColor: TColor; AStyle: TFontStyles);
-begin
-  Comment.Foreground := AColor;
-  Comment.Style := AStyle;
-end;
-
 procedure TFunctionTheme.SetDefault(ATextColor, ABackgroundColor: TColor; AStyle: TFontStyles);
 begin
-  Default.Foreground := ATextColor;
-  Default.Background := ABackgroundColor;
-  Default.Style := AStyle;
+  DefaultAttributes.Foreground := ATextColor;
+  DefaultAttributes.Background := ABackgroundColor;
+  DefaultAttributes.Style := AStyle;
 end;
 
-procedure TFunctionTheme.SetError(AColor: TColor; AStyle: TFontStyles);
+procedure TFunctionTheme.SetError(ATextColor, ABackgroundColor: TColor; AStyle: TFontStyles);
 begin
-  Error.Foreground := AColor;
-  Error.Style := AStyle;
+  ErrorAttributes.Foreground := ATextColor;
+  ErrorAttributes.Background := ABackgroundColor;
+  ErrorAttributes.Style := AStyle;
 end;
 
-procedure TFunctionTheme.SetParser(AParserClass: TParserClass; AToken: Integer; AColor: TColor; AStyle: TFontStyles);
+{ TFunctionTheme.TCategoryNBT }
+
+class function TFunctionTheme.TCategoryNBT.GetName: string;
+begin
+  Result := 'NBT';
+end;
+
+class function TFunctionTheme.TCategoryNBT.GetParser(AIndex: Integer): TParserClass;
+begin
+  Result := Parsers[AIndex];
+end;
+
+class function TFunctionTheme.TCategoryNBT.GetParserCount: Integer;
+begin
+  Result := Length(Parsers);
+end;
+
+{ TFunctionTheme.TCategory }
+
+class function TFunctionTheme.TCategory.GetExample: string;
+begin
+  Result := '# There is no Example for this Category yet.';
+end;
+
+{ TFunctionTheme.TParserTokenData }
+
+constructor TFunctionTheme.TParserTokenData.Create(AParserClass: TParserClass);
 var
-  Attributes: TSynHighlighterAttributes;
+  I: Integer;
 begin
-  Attributes := FParsers[AParserClass][AToken];
-  Attributes.Foreground := AColor;
-  Attributes.Style := AStyle;
+  FParserClass := AParserClass;
+  FTokens := TTokens.Create;
+  for I := 0 to FParserClass.GetTokenCount do
+  begin
+    FTokens.Add(TTextAttributes.Create);
+    FTokens.Last.SetFg(TColorRGB.HSV(Random * 6, 1 - Random * 0.25, 1 - Random * 0.25).ToWinColor);
+  end;
 end;
 
-{ TTheme.TPreset }
-
-class procedure TFunctionTheme.TPreset.Register;
+destructor TFunctionTheme.TParserTokenData.Destroy;
 begin
-  TFunctionTheme.FPresets.Add(Self);
+  FTokens.Free;
+  inherited;
+end;
+
+function TFunctionTheme.TParserTokenData.GetTokenName(AIndex: Integer): string;
+begin
+  Result := ParserClass.GetTokenName(AIndex);
+end;
+
+function TFunctionTheme.TParserTokenData.GetTokens: TTokens.TReader;
+begin
+  Result := FTokens.Reader;
+end;
+
+{ TFunctionTheme.TTextAttributesBase }
+
+constructor TFunctionTheme.TTextAttributesBase.Create;
+begin
+  FBackground := clWhite;
+end;
+
+procedure TFunctionTheme.TTextAttributesBase.Apply(AAttributes: TSynHighlighterAttributes);
+begin
+  AAttributes.SetColors(Foreground, Background);
+  AAttributes.Style := Style;
+end;
+
+constructor TFunctionTheme.TTextAttributesBase.Create(AForeground, ABackground: TColor; AStyles: TFontStyles);
+begin
+  FForeground := AForeground;
+  FBackground := ABackground;
+  FStyle := AStyles;
+end;
+
+function TFunctionTheme.TTextAttributesBase.ToSynAttributes: TSynHighlighterAttributes;
+begin
+  Result := TSynHighlighterAttributes.Create('');
+  Apply(Result);
+end;
+
+{ TFunctionTheme.TTextAttributes }
+
+procedure TFunctionTheme.TTextAttributes.Merge(AAttributes: TSynHighlighterAttributes);
+begin
+  if OverrideForeground then
+    AAttributes.Foreground := Foreground;
+
+  if OverrideBackground then
+    AAttributes.Background := Background;
+
+  AAttributes.Style := Style;
+end;
+
+procedure TFunctionTheme.TTextAttributes.SetFg(AForeground: TColor; AStyle: TFontStyles);
+begin
+  Foreground := AForeground;
+  OverrideForeground := True;
+  Style := AStyle;
+end;
+
+{ TFunctionHighlighter.TAttributeHasher }
+
+class function TFunctionHighlighter.TAttributeHasher.Equal(const A, B: TSynHighlighterAttributes): Boolean;
+begin
+  Result :=
+    (A.Foreground = B.Foreground) and
+    (A.Background = B.Background) and
+    (A.Style = B.Style);
+end;
+
+class function TFunctionHighlighter.TAttributeHasher.GetHash(const AValue: TSynHighlighterAttributes): Cardinal;
+var
+  Style: TFontStyle;
+begin
+  Result := HashOf(AValue.Foreground) xor HashOf(AValue.Background);
+  for Style in AValue.Style do
+    Result := Result xor ($03000000 shl (Ord(Style) * 2));
+end;
+
+{ TFunctionTheme.TCategoryBasicTypes }
+
+class function TFunctionTheme.TCategoryBasicTypes.GetName: string;
+begin
+  Result := 'Basic Types';
+end;
+
+class function TFunctionTheme.TCategoryBasicTypes.GetParser(AIndex: Integer): TParserClass;
+begin
+  Result := Parsers[AIndex];
+end;
+
+class function TFunctionTheme.TCategoryBasicTypes.GetParserCount: Integer;
+begin
+  Result := Length(Parsers);
+end;
+
+{ TFunctionTheme.TCategoryPositional }
+
+class function TFunctionTheme.TCategoryPositional.GetName: string;
+begin
+  Result := 'Positional';
+end;
+
+class function TFunctionTheme.TCategoryPositional.GetParser(AIndex: Integer): TParserClass;
+begin
+  Result := Parsers[AIndex];
+end;
+
+class function TFunctionTheme.TCategoryPositional.GetParserCount: Integer;
+begin
+  Result := Length(Parsers);
+end;
+
+{ TFunctionTheme.TCategoryEntityAndPlayer }
+
+class function TFunctionTheme.TCategoryEntityAndPlayer.GetName: string;
+begin
+  Result := 'Entity and Player';
+end;
+
+class function TFunctionTheme.TCategoryEntityAndPlayer.GetParser(AIndex: Integer): TParserClass;
+begin
+  Result := Parsers[AIndex];
+end;
+
+class function TFunctionTheme.TCategoryEntityAndPlayer.GetParserCount: Integer;
+begin
+  Result := Length(Parsers);
+end;
+
+{ TFunctionTheme.TCategoryText }
+
+class function TFunctionTheme.TCategoryText.GetName: string;
+begin
+  Result := 'Text';
+end;
+
+class function TFunctionTheme.TCategoryText.GetParser(AIndex: Integer): TParserClass;
+begin
+  Result := Parsers[AIndex];
+end;
+
+class function TFunctionTheme.TCategoryText.GetParserCount: Integer;
+begin
+  Result := Length(Parsers);
+end;
+
+{ TFunctionTheme.TCategoryScoreboard }
+
+class function TFunctionTheme.TCategoryScoreboard.GetName: string;
+begin
+  Result := 'Scoreboard';
+end;
+
+class function TFunctionTheme.TCategoryScoreboard.GetParser(AIndex: Integer): TParserClass;
+begin
+  Result := Parsers[AIndex];
+end;
+
+class function TFunctionTheme.TCategoryScoreboard.GetParserCount: Integer;
+begin
+  Result := Length(Parsers);
+end;
+
+{ TFunctionTheme.TCategoryBlocksAndItems }
+
+class function TFunctionTheme.TCategoryBlocksAndItems.GetName: string;
+begin
+  Result := 'Blocks and Items';
+end;
+
+class function TFunctionTheme.TCategoryBlocksAndItems.GetParser(AIndex: Integer): TParserClass;
+begin
+  Result := Parsers[AIndex];
+end;
+
+class function TFunctionTheme.TCategoryBlocksAndItems.GetParserCount: Integer;
+begin
+  Result := Length(Parsers);
+end;
+
+{ TFunctionTheme.TCategoryResources }
+
+class function TFunctionTheme.TCategoryResources.GetName: string;
+begin
+  Result := 'Resources';
+end;
+
+class function TFunctionTheme.TCategoryResources.GetParser(AIndex: Integer): TParserClass;
+begin
+  Result := Parsers[AIndex];
+end;
+
+class function TFunctionTheme.TCategoryResources.GetParserCount: Integer;
+begin
+  Result := Length(Parsers);
+end;
+
+{ TFunctionTheme.TCategoryCommand }
+
+class function TFunctionTheme.TCategoryCommand.GetName: string;
+begin
+  Result := 'Command';
+end;
+
+class function TFunctionTheme.TCategoryCommand.GetParser(AIndex: Integer): TParserClass;
+begin
+  Result := Parsers[AIndex];
+end;
+
+class function TFunctionTheme.TCategoryCommand.GetParserCount: Integer;
+begin
+  Result := Length(Parsers);
+end;
+
+{ TFunctionTheme.TCategoryEntitySelector }
+
+class function TFunctionTheme.TCategoryEntitySelector.GetName: string;
+begin
+  Result := 'Entity-Selector';
+end;
+
+class function TFunctionTheme.TCategoryEntitySelector.GetParser(AIndex: Integer): TParserClass;
+begin
+  Result := Parsers[AIndex];
+end;
+
+class function TFunctionTheme.TCategoryEntitySelector.GetParserCount: Integer;
+begin
+  Result := Length(Parsers);
 end;
 
 end.

@@ -33,6 +33,8 @@ uses
 
 type
 
+  // TODO: Replace most of the EParseError raisings with Log elFatal
+
   // TODO: Probably better to split this up and keep it in correct unit
   TFormatNamespaceSettings = class(TSettings)
   public type
@@ -308,7 +310,7 @@ type
 
   end;
 
-  TBrigadierRangeParser = class(TBrigadierParser<TBrigadierIntRange>)
+  TBrigadierIntRangeParser = class(TBrigadierParser<TBrigadierIntRange>)
   protected
     function Parse: Boolean; override;
 
@@ -396,12 +398,22 @@ type
   end;
 
   TBrigadierEntityParser = class(TBrigadierParser<TBrigadierEntity, TBrigadierEntityProperties>)
+  public const
+
+    TokenUsername = 1;
+
+    TokenNames: array [TokenUsername .. TokenUsername] of string = (
+      'Username'
+      );
+
   protected
     function Parse: Boolean; override;
 
   public
     class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
+    class function GetTokenCount: Integer; override;
+    class function GetTokenName(AIndex: Integer): string; override;
 
   end;
 
@@ -1128,6 +1140,8 @@ type
   public
     class function GetResultName: string; override;
     class function GetParserString: TNSPath; override;
+    class function GetTokenCount: Integer; override;
+    class function GetTokenName(AIndex: Integer): string; override;
 
   end;
 
@@ -1176,6 +1190,8 @@ type
     public
       class function GetCount: Integer; override;
       class function GetSuggestion(AIndex: Integer): TParseSuggestion; override;
+
+      class function GetBreakChars: TSysCharSet; override;
 
     end;
 
@@ -1351,6 +1367,16 @@ begin
   Result := 'Entity';
 end;
 
+class function TBrigadierEntityParser.GetTokenCount: Integer;
+begin
+  Result := Length(TokenNames);
+end;
+
+class function TBrigadierEntityParser.GetTokenName(AIndex: Integer): string;
+begin
+  Result := TokenNames[AIndex];
+end;
+
 function TBrigadierEntityParser.Parse: Boolean;
 var
   SelectorParser: TEntitySelector.TParser;
@@ -1371,11 +1397,12 @@ begin
     if (Properties.Amount = eaSingle) and Selector.AllowsMultiple then
       Log(Marker, 'The selector must not be able to match multiple entities.');
 
-    if (Properties.EntityType = etPlayers) and not Selector.AllowsPlayersOnly then
+    if (Properties.EntityType = etPlayers) and not Selector.AllowsPlayersOnly and (Selector.Variable <> svSender) then
       Log(Marker, 'The selector must only be able to match players.');
   end
   else
   begin
+    Token := TokenUsername;
     Name := ReadWhile(IdentChars);
     if Name.IsEmpty then
       Exit(False);
@@ -1504,9 +1531,9 @@ end;
 
 function TBrigadierNBTParser.Parse: Boolean;
 var
-  Parser: TNBTParserCompound;
+  Parser: TNBTCompound.TParser;
 begin
-  Parser := TNBTParserCompound.Create(Info, False);
+  Parser := TNBTCompound.TParser.Create(Info, False);
   Result := Parser.Success;
   if Result then
     SetParseResult(TBrigadierNBT.Create(Argument, Parser.OwnParseResult));
@@ -1675,7 +1702,7 @@ end;
 
 function TBrigadierStringParser.Parse: Boolean;
 var
-  Parser: TStringOrIdentParser;
+  Parser: TNBTString.TStringOrIdentParser;
   Text: string;
 begin
   case Properties.Mode of
@@ -1687,7 +1714,7 @@ begin
       end;
     smPhrase:
       begin
-        Parser := TStringOrIdentParser.Create(Info, False);
+        Parser := TNBTString.TStringOrIdentParser.Create(Info, False);
         if not Parser.Success or Parser.IsIdent and Parser.ParseResult.IsEmpty then
         begin
           Parser.Free;
@@ -1747,9 +1774,9 @@ end;
 
 function TBrigadierNBTPathParser.Parse: Boolean;
 var
-  Parser: TNBTPathParser;
+  Parser: TNBTPath.TParser;
 begin
-  Parser := TNBTPathParser.Create(Info, False);
+  Parser := TNBTPath.TParser.Create(Info, False);
   Result := Parser.Success;
   if Result then
     SetParseResult(TBrigadierNBTPath.Create(Argument, Parser.OwnParseResult));
@@ -2887,18 +2914,30 @@ begin
   Result := 'Color';
 end;
 
+class function TBrigadierColorParser.GetTokenCount: Integer;
+begin
+  Result := Length(MCColorNames);
+end;
+
+class function TBrigadierColorParser.GetTokenName(AIndex: Integer): string;
+begin
+  Result := MCColorDisplayNames[TMCColor(AIndex - 1)];
+end;
+
 function TBrigadierColorParser.Parse: Boolean;
 var
   Name: string;
   Color: TMCColor;
 begin
   BeginSuggestions(TSuggestions);
-  Name := ReadWhile(IdentChars);
+  Name := ReadWhile(IdentChars, False);
   EndSuggestions;
 
   if Name.IsEmpty or not MCColorFromName(Name, Color) then
     Exit(False);
 
+  Token := Ord(Color) + 1;
+  Advance(Name.Length);
   SetParseResult(TBrigadierColor.Create(Argument, Color));
 
   Result := True;
@@ -3013,17 +3052,17 @@ end;
 
 { TBrigadierRangeParser }
 
-class function TBrigadierRangeParser.GetParserString: TNSPath;
+class function TBrigadierIntRangeParser.GetParserString: TNSPath;
 begin
   Result := 'int_range';
 end;
 
-class function TBrigadierRangeParser.GetResultName: string;
+class function TBrigadierIntRangeParser.GetResultName: string;
 begin
   Result := 'Integer-Range';
 end;
 
-function TBrigadierRangeParser.Parse: Boolean;
+function TBrigadierIntRangeParser.Parse: Boolean;
 var
   Parser: TEntitySelector.TIntRangeParser;
 begin
@@ -3077,6 +3116,11 @@ begin
 end;
 
 { TBrigadierOperationParser.TSuggestions }
+
+class function TBrigadierOperationParser.TSuggestions.GetBreakChars: TSysCharSet;
+begin
+  Result := [' '];
+end;
 
 class function TBrigadierOperationParser.TSuggestions.GetCount: Integer;
 begin
@@ -3261,7 +3305,7 @@ TBrigadierIntegerParser.RegisterClass;
 TBrigadierFloatParser.RegisterClass;
 TBrigadierDoubleParser.RegisterClass;
 TBrigadierStringParser.RegisterClass;
-TBrigadierRangeParser.RegisterClass;
+TBrigadierIntRangeParser.RegisterClass;
 
 // - Position related -
 

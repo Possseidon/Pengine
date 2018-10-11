@@ -45,7 +45,7 @@ type
   TRootSettings = class(TSettings)
   public type
 
-    TSubSettings = TClassObjectMap<TSettings>;
+    TSubSettings = TClassObjectMap<TSettingsClass, TSettings>;
 
   private
     FSubSettings: TSubSettings;

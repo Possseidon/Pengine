@@ -550,7 +550,7 @@ begin
 
   SetParseResult(TBlockState.Create(NSPath));
 
-  ParseResult.NBT.Put(TNBTParserCompound.Optional(Info, omReturnNil));
+  ParseResult.NBT.Put(TNBTCompound.TParser.Optional(Info, omReturnNil));
 
   Blocks := TBlockTypes.Create;
   try
@@ -562,7 +562,7 @@ begin
   end;
 
   if not ParseResult.NBT.HasValue then
-    ParseResult.NBT.Put(TNBTParserCompound.Optional(Info, omReturnNil));
+    ParseResult.NBT.Put(TNBTCompound.TParser.Optional(Info, omReturnNil));
 
   Result := True;
 end;
@@ -1022,7 +1022,7 @@ begin
   if not TagExists then
     Log(Marker, '"%s" is not a valid block tag.', [NSPath.Format]);
 
-  ParseResult.NBT.Put(TNBTParserCompound.Optional(Info, omReturnNil));
+  ParseResult.NBT.Put(TNBTCompound.TParser.Optional(Info, omReturnNil));
 
   if BlockTag <> nil then
     BlockTypes := BlockTag.BlockTypes
@@ -1032,7 +1032,7 @@ begin
   ParseResult.Properties.Put(TPropertiesParser.Optional(Info, BlockTypes));
 
   if not ParseResult.NBT.HasValue then
-    ParseResult.NBT.Put(TNBTParserCompound.Optional(Info, omReturnNil));
+    ParseResult.NBT.Put(TNBTCompound.TParser.Optional(Info, omReturnNil));
 
   Result := True;
 end;

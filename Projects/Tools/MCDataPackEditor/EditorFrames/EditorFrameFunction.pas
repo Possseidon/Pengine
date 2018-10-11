@@ -4,25 +4,20 @@ interface
 
 uses
   Winapi.Windows,
-  Winapi.Messages,
 
   System.SysUtils,
-  System.Variants,
   System.Classes,
-  System.IOUtils,
   System.StrUtils,
   System.ImageList,
 
   Vcl.Graphics,
   Vcl.Controls,
   Vcl.Forms,
-  Vcl.Dialogs,
   Vcl.ExtCtrls,
   Vcl.ComCtrls,
   Vcl.ImgList,
 
   SynEdit,
-  SynEditHighlighter,
   SynEditKeyCmds,
   SynEditorFrame,
   SynEditTextBuffer,
@@ -37,8 +32,6 @@ uses
   Pengine.Settings,
 
   Pengine.MC.Brigadier,
-  Pengine.MC.EntitySelector,
-  Pengine.MC.BrigadierParser,
 
   DatapackView,
   FunctionTheme;
@@ -79,7 +72,7 @@ type
     procedure synCompletionExecute(Kind: SynCompletionType; Sender: TObject; var CurrentInput: string;
       var X, Y: Integer; var CanExecute: Boolean);
     procedure synContextPreviewExecute(Kind: SynCompletionType; Sender: TObject;
-        var CurrentInput: string; var x, y: Integer; var CanExecute: Boolean);
+      var CurrentInput: string; var X, Y: Integer; var CanExecute: Boolean);
     procedure synEditorChange(Sender: TObject);
     procedure synEditorCommandProcessed(Sender: TObject; var Command: TSynEditorCommand; var AChar: Char;
       Data: Pointer);
@@ -180,16 +173,16 @@ end;
 { TfrmEditorFunctions }
 
 constructor TfrmEditorFunctions.Create(AOwner: TComponent);
+var
+  I: Integer;
 begin
   inherited;
 
   synEditor.Lines.WriteBOM := False;
 
   FErrorImages := TObjectArray<TBitmap>.Create;
-  ilFunctions.GetBitmap(0, FErrorImages.Add(TBitmap.Create));
-  ilFunctions.GetBitmap(1, FErrorImages.Add(TBitmap.Create));
-  ilFunctions.GetBitmap(2, FErrorImages.Add(TBitmap.Create));
-  ilFunctions.GetBitmap(2, FErrorImages.Add(TBitmap.Create));
+  for I := 0 to 3 do
+    ilFunctions.GetBitmap(I, FErrorImages.Add(TBitmap.Create));
 
   FLinesMap := TLinesMap.Create;
   FLines := TLines.Create;
@@ -199,6 +192,7 @@ begin
   FHighlighter.Theme := frmMain.FunctionTheme;
 
   synEditor.Highlighter := FHighlighter;
+  synEditor.ActiveLineColor := frmMain.FunctionTheme.CurrentLineColor;
 
 end;
 
@@ -280,6 +274,7 @@ begin
     for Err in FLines[I].Context.Log.InReverse do
     begin
       ACanvas.Pen.Width := 1;
+      ACanvas.Brush.Style := bsClear;
       case Err.Level of
         elNone:
           begin
@@ -425,8 +420,8 @@ begin
 end;
 
 procedure TfrmEditorFunctions.synContextPreviewExecute(Kind: SynCompletionType;
-    Sender: TObject; var CurrentInput: string; var x, y: Integer; var
-    CanExecute: Boolean);
+  Sender: TObject; var CurrentInput: string; var X, Y: Integer; var
+  CanExecute: Boolean);
 
   function Encase(AText: string; AParam: TBrigadierParameter): string;
   begin
@@ -435,7 +430,7 @@ procedure TfrmEditorFunctions.synContextPreviewExecute(Kind: SynCompletionType;
     else
       Result := '<' + AText + '>';
   end;
-    
+
 var
   Line: Integer;
   Command: TBrigadierCommand;
@@ -455,14 +450,14 @@ begin
 
   Command := FLines[Line].Command;
   if Command = nil then
-    Exit;                        
-    
+    Exit;
+
   Parsers := FLines[Line].Context.Parsers[synEditor.CaretX - 1];
   if (Parsers <> nil) and not Parsers.Empty then
     synContextPreview.Form.CurrentIndex := Parsers.First.Index
   else
     synContextPreview.Form.CurrentIndex := Command.Parameters.Count;
-    
+
   Text := '';
   PrevParam := nil;
   for Parameter in Command.Parameters do
@@ -474,12 +469,12 @@ begin
     Text := Text + ' ';
     PrevParam := Parameter;
   end;
-  
+
   if not Command.Parameters.Empty then
     LastChild := Command.Parameters.Last.Child
   else
     LastChild := RootSettings.Get<TBrigadierSettings>.Brigadier;
-  
+
   for Argument in LastChild.Arguments do
     synContextPreview.AddItem(Text + Encase(Argument.Name, PrevParam), '');
 
@@ -488,7 +483,7 @@ begin
 
   if synContextPreview.ItemList.Count = 0 then
     synContextPreview.AddItem(Text, '');
-    
+
   CanExecute := True;
 end;
 

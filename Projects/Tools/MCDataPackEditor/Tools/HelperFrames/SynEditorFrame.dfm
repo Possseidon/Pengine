@@ -34,10 +34,6 @@ object frmSynEditor: TfrmSynEditor
     TabWidth = 2
     WantTabs = True
     FontSmoothing = fsmClearType
-    ExplicitLeft = -290
-    ExplicitTop = -169
-    ExplicitWidth = 610
-    ExplicitHeight = 409
     RemovedKeystrokes = <>
     AddedKeystrokes = <
       item

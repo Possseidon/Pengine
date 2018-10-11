@@ -8,11 +8,13 @@ uses
   Pengine.Parser,
 
   Pengine.MC.Brigadier,
+  Pengine.MC.BrigadierParser,
   Pengine.MC.NBT,
   Pengine.MC.EntitySelector,
   Pengine.MC.General,
 
-  FunctionTheme;
+  FunctionTheme,
+  Pengine.JSON;
 
 type
 
@@ -37,75 +39,60 @@ begin
   with ATheme do
   begin
     SetDefault(clBlack, clWhite);
-    SetComment(clGreen, [fsBold]);
-    SetError(clRed, [fsItalic]);
+    CurrentLineColor := $00E6FFFA;
+    //SetDefault(clWhite, $2F1F0F);
+    //CurrentLineColor := $4A3036;
+    SetError(clRed, clWhite, [fsItalic]);
 
-    // Commands
-    SetParser(TBrigadierCommandParser, TBrigadierCommandParser.TokenMainCommand, $DF1F7F, [fsBold]);
-    SetParser(TBrigadierCommandParser, TBrigadierCommandParser.TokenSubCommand, $DF1F1F);
-    SetParser(TBrigadierCommandParser, TBrigadierCommandParser.TokenComment, $007F00, [fsItalic]);
-    SetParser(TBrigadierCommandParser, TBrigadierCommandParser.TokenSlash, $DF1F1F, [fsBold]);
+    // Command
+    Text[TBrigadierCommandParser, TBrigadierCommandParser.TokenMainCommand].SetFg($DF1F7F, [fsBold]);
+    Text[TBrigadierCommandParser, TBrigadierCommandParser.TokenSubCommand].SetFg($DF1F1F);
+    Text[TBrigadierCommandParser, TBrigadierCommandParser.TokenComment].SetFg($007F00, [fsItalic]);
+    Text[TBrigadierCommandParser, TBrigadierCommandParser.TokenSlash].SetFg($DF1F1F, [fsBold]);
 
-    // String
-    SetParser(TStringParser, TStringParser.TokenQuote, $FF3F00, [fsBold]);
-    SetParser(TStringParser, TStringParser.TokenContent, $FF7F00);
-    SetParser(TStringParser, TStringParser.TokenBackslash, $AF3F3F, [fsBold]);
-    SetParser(TStringParser, TStringParser.TokenEscaped, $AF4F4F, [fsBold]);
-
-    // Entity-Selector
-    SetParser(TEntitySelector.TParser, TEntitySelector.TParser.TokenPrefix, $2FCF2F, [fsBold]);
-    SetParser(TEntitySelector.TParser, TEntitySelector.TParser.TokenVariable, $2F2FCF);
-    SetParser(TEntitySelector.TParser, TEntitySelector.TParser.TokenBrackets, $2FCF2F, [fsBold]);
-    SetParser(TEntitySelector.TParser, TEntitySelector.TParser.TokenComma, $2FCF2F, [fsBold]);
-
-    SetParser(TEntitySelector.TIntRangeParser, TEntitySelector.TIntRangeParser.TokenValue, $);
-    SetParser(TEntitySelector.TIntRangeParser, TEntitySelector.TIntRangeParser.TokenSplitter, $);
-
-    SetParser(TEntitySelector.TRangeParser, TEntitySelector.TRangeParser.TokenValue, $);
-    SetParser(TEntitySelector.TRangeParser, TEntitySelector.TRangeParser.TokenSplitter, $);
-
-    SetParser(TEntitySelector.TOption.TParser, TEntitySelector.TOption.TParser.TokenOption, $);
-    SetParser(TEntitySelector.TOption.TParser, TEntitySelector.TOption.TParser.TokenEquals, $);
-    SetParser(TEntitySelector.TOption.TParser, TEntitySelector.TOption.TParser.TokenInvert, $);
-
-    SetParser(TEntitySelector.TOptionInteger.TParser, TParser.TokenNone, $);
-
-    SetParser(TEntitySelector.TOptionFloat.TParser, TParser.TokenNone, $);
-
-    SetParser(TEntitySelector.TOptionIdentifier.TParser, TParser.TokenNone, $);
-
-    SetParser(TEntitySelector.TOptionSort.TParser, TParser.TokenNone, $);
-
-    SetParser(TEntitySelector.TOptionScores.TParser, TEntitySelector.TOptionScores.TParser.TokenBrackets, $);
-    SetParser(TEntitySelector.TOptionScores.TParser, TEntitySelector.TOptionScores.TParser.TokenName, $);
-    SetParser(TEntitySelector.TOptionScores.TParser, TEntitySelector.TOptionScores.TParser.TokenEquals, $);
-    SetParser(TEntitySelector.TOptionScores.TParser, TEntitySelector.TOptionScores.TParser.TokenComma, $);
-
-    SetParser(TEntitySelector.TOptionType.TParser, TParser.TokenNone, $);
-
-    SetParser(TEntitySelector.TOptionAdvancements.TParser, TEntitySelector.TOptionAdvancements.TParser.TokenBrackets, $);
-    SetParser(TEntitySelector.TOptionAdvancements.TParser, TEntitySelector.TOptionAdvancements.TParser.TokenName, $);
-    SetParser(TEntitySelector.TOptionAdvancements.TParser, TEntitySelector.TOptionAdvancements.TParser.TokenEquals, $);
-    SetParser(TEntitySelector.TOptionAdvancements.TParser, TEntitySelector.TOptionAdvancements.TParser.TokenComma, $);
-    SetParser(TEntitySelector.TOptionAdvancements.TParser, TEntitySelector.TOptionAdvancements.TParser.TokenBoolean, $);
-
-    SetParser(TEntitySelector.TOptionGamemode.TParser, TParser.TokenNone, $);
+    // Basic Types
+    Text[TBrigadierBoolParser, TBrigadierBoolParser.TokenNone].SetFg($BF0000, [fsBold]);
+    Text[TBrigadierIntegerParser, TBrigadierIntegerParser.TokenNone].SetFg($BF0000);
+    Text[TBrigadierFloatParser, TBrigadierFloatParser.TokenNone].SetFg($BF0000);
+    Text[TBrigadierDoubleParser, TBrigadierDoubleParser.TokenNone].SetFg($BF0000);
+    Text[TBrigadierStringParser, TBrigadierStringParser.TokenNone].SetFg($BF0000);
 
     // NBT
-    SetParser(TNBTParserCompound, TNBTParserCompound.TokenBracket, $DF3F3F, [fsBold]);
-    SetParser(TNBTParserCompound, TNBTParserCompound.TokenTag, $DF3F3F);
-    SetParser(TNBTParserCompound, TNBTParserCompound.TokenColon, $DF3F3F, [fsBold]);
-    SetParser(TNBTParserCompound, TNBTParserCompound.TokenComma, $DF3F3F, [fsBold]);
+    Text[TNBTCompound.TParser, TNBTCompound.TParser.TokenBracket].SetFg($DF3F3F);
+    Text[TNBTCompound.TParser, TNBTCompound.TParser.TokenColon].SetFg($DF3F3F);
+    Text[TNBTCompound.TParser, TNBTCompound.TParser.TokenComma].SetFg($DF3F3F);
 
-    SetParser(TNBTParserListOrArray, TNBTParserListOrArray.TokenBracket, $3FDF3F);
-    SetParser(TNBTParserListOrArray, TNBTParserListOrArray.TokenComma, $3FDF3F);
-    SetParser(TNBTParserListOrArray, TNBTParserListOrArray.TokenArrayType, $1F9F9F);
-    SetParser(TNBTParserListOrArray, TNBTParserListOrArray.TokenArraySeperator, $3FDF3F);
+    Text[TNBTListOrArrayParser, TNBTListOrArrayParser.TokenBracket].SetFg($3FDF3F);
+    Text[TNBTListOrArrayParser, TNBTListOrArrayParser.TokenComma].SetFg($3FDF3F);
+    Text[TNBTListOrArrayParser, TNBTListOrArrayParser.TokenArrayType].SetFg($AF3F00, [fsBold]);
+    Text[TNBTListOrArrayParser, TNBTListOrArrayParser.TokenArraySeperator].SetFg($3FDF3F);
 
-    SetParser(TNBTParserNumber, TNBTParserNumber.TokenNumber, $004FDF);
-    SetParser(TNBTParserNumber, TNBTParserNumber.TokenSuffix, $0000DF, [fsBold]);
+    Text[TNBTString.TStringOrIdentParser, TNBTString.TStringOrIdentParser.TokenNone].SetFg($006FEF);
+    Text[TNBTString.TStringParser, TNBTString.TStringParser.TokenQuotes].SetFg($AF0000);
+    Text[TNBTString.TStringParser, TNBTString.TStringParser.TokenContent].SetFg($FF3F3F);
+    Text[TNBTString.TStringParser, TNBTString.TStringParser.TokenBackslash].SetFg($FF8F3F);
+    Text[TNBTString.TStringParser, TNBTString.TStringParser.TokenEscaped].SetFg($FF8F8F);
 
-    // ...
+    Text[TNBTNumberParser, TNBTNumberParser.TokenNumber].SetFg($004FDF);
+    Text[TNBTNumberParser, TNBTNumberParser.TokenSuffix].SetFg($0000DF);
+
+    Text[TNBTPath.TParser, TNBTPath.TParser.TokenKey].SetFg($006FEF);
+    Text[TNBTPath.TParser, TNBTPath.TParser.TokenBrackets].SetFg($3FDF3F);
+    Text[TNBTPath.TParser, TNBTPath.TParser.TokenIndex].SetFg($003FEF);
+    Text[TNBTPath.TParser, TNBTPath.TParser.TokenDot].SetFg($3FDF3F);
+
+    // Text
+    Text[TBrigadierMessageParser, TBrigadierMessageParser.TokenNone].SetFg($DF1F1F);
+         {
+    Text[TBrigadierComponentParser, TBrigadierComponentParser.TokenNone].SetFg();
+    // Text[TJValue.TParser, TJValue.TParser.TokenNone].SetFg();
+    Text[TJObject.TParser, TJObject.TParser.TokenNone].SetFg();
+    Text[TJArray.TParser, TJArray.TParser.TokenNone].SetFg();
+    Text[TJString.TParser, TJString.TParser.TokenNone].SetFg();
+    Text[TJNumber.TParser, TJNumber.TParser.TokenNone].SetFg();
+    Text[TJBool.TParser, TJBool.TParser.TokenNone].SetFg();
+    Text[TJNull.TParser, TJNull.TParser.TokenNone].SetFg();
+         }
   end;
 end;
 

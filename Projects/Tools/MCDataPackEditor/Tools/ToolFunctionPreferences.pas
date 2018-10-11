@@ -5,9 +5,11 @@ interface
 uses
   Winapi.Windows,
   Winapi.Messages,
+
   System.SysUtils,
   System.Variants,
   System.Classes,
+
   Vcl.Graphics,
   Vcl.Controls,
   Vcl.Forms,
@@ -15,13 +17,17 @@ uses
   Vcl.ExtCtrls,
   Vcl.StdCtrls,
   Vcl.ComCtrls,
-  TextAttributeFrame,
-  ParserHighlightingFrame,
+  Vcl.Menus,
+
+  SynEditorFrame,
+
+  Pengine.Parser,
   Pengine.MC.Brigadier,
   Pengine.MC.EntitySelector,
-  SynEditorFrame,
-  Vcl.Menus,
-  FunctionTheme, Pengine.Parser;
+
+  TextAttributeFrame,
+  ParserHighlightingFrame,
+  FunctionTheme;
 
 type
 
@@ -88,6 +94,7 @@ implementation
 
 {$R *.dfm}
 
+
 procedure TfrmFunctionPreferences.btnSelectFontClick(Sender: TObject);
 begin
   raise ENotImplemented.Create('Font Dialog');
@@ -104,7 +111,7 @@ end;
 
 procedure TfrmFunctionPreferences.cbElementChange(Sender: TObject);
 begin
-  phElementHighlighting.ParserClass := TFunctionTheme.ParserClasses[cbElement.ItemIndex];
+  // phElementHighlighting.ParserClass := TFunctionTheme.ParserClasses[cbElement.ItemIndex];
 end;
 
 function TfrmFunctionPreferences.Execute(ATheme: TFunctionTheme): Boolean;
@@ -121,12 +128,12 @@ begin
 end;
 
 procedure TfrmFunctionPreferences.InitHighlightElements;
-var
-  ParserClass: TParserClass;
+//var
+//  ParserClass: TParserClass;
 begin
   cbElement.Clear;
-  for ParserClass in TFunctionTheme.ParserClasses do
-    cbElement.Items.Add(ParserClass.GetResultName);
+  //for ParserClass in TFunctionTheme.ParserClasses do
+  //  cbElement.Items.Add(ParserClass.GetResultName);
 end;
 
 procedure TfrmFunctionPreferences.InitPresets;

@@ -16,7 +16,7 @@ uses
   Pengine.Parser,
   Pengine.Settings,
   Pengine.JSON,
-  
+
   Pengine.MC.General,
   Pengine.MC.Namespace;
 
@@ -107,7 +107,8 @@ type
     class function GetParameterClass: TBrigadierParameterClass; virtual; abstract;
     class function GetPropertiesClass: TBrigadierParserPropertiesClass; virtual;
 
-    constructor Create(AInfo: TParseInfo; AArgument: TBrigadierArgument; AProperties: TBrigadierParserProperties); virtual;
+    constructor Create(AInfo: TParseInfo; AArgument: TBrigadierArgument;
+      AProperties: TBrigadierParserProperties); virtual;
 
     function ToString: string; override;
 
@@ -346,6 +347,7 @@ type
       constructor Create(AChild: TBrigadierChild);
 
       function GetTitle: string; override;
+      function GetBreakChars: TSysCharSet; override;
 
     end;
 
@@ -353,14 +355,12 @@ type
 
     TokenMainCommand = 1;
     TokenSubCommand = 2;
-    TokenInvalidLiteral = 3;
-    TokenComment = 4;
-    TokenSlash = 5;
+    TokenComment = 3;
+    TokenSlash = 4;
 
-    TokenNames: array [TokenMainCommand.. TokenSlash] of string = (
+    TokenNames: array [TokenMainCommand .. TokenSlash] of string = (
       'Main-Command',
       'Sub-Command',
-      'Invalid Literal',
       'Comment',
       'Slash'
       );
@@ -720,7 +720,8 @@ begin
   FLookup := TLookup.Create;
 end;
 
-constructor TBrigadierParser.Create(AInfo: TParseInfo; AArgument: TBrigadierArgument; AProperties: TBrigadierParserProperties);
+constructor TBrigadierParser.Create(AInfo: TParseInfo; AArgument: TBrigadierArgument;
+  AProperties: TBrigadierParserProperties);
 begin
   if (GetPropertiesClass <> nil) and not(AProperties is GetPropertiesClass) then
     raise EBrigadierProperties.Create('Invalid brigadier property class.');
@@ -941,7 +942,8 @@ begin
         (ParseResult.Parameters[1] is TBrigadierEntitySelector) and
         TBrigadierEntitySelector(ParseResult.Parameters[1]).Selector.AllowsMultiple then
       begin
-        Log(StartMarker, 'If the entity is used as destination, the selector must not be able to match multiple entities.');
+        Log(StartMarker,
+          'If the entity is used as destination, the selector must not be able to match multiple entities.');
       end;
 
     end
@@ -1006,6 +1008,12 @@ var
 begin
   for Literal in FChild.Literals do
     AddSuggestion(Literal.Literal);
+end;
+
+function TBrigadierCommandParser.TSuggestions.GetBreakChars: TSysCharSet;
+begin
+  // Those exist in the execute command...
+  Result := inherited - ['=', '<', '>'];
 end;
 
 function TBrigadierCommandParser.TSuggestions.GetTitle: string;

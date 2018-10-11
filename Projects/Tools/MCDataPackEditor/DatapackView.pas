@@ -78,7 +78,7 @@ type
     procedure DblClick(Sender: TObject);
     procedure Editing(Sender: TObject; ANode: TTreeNode; var AllowEdit: Boolean);
     procedure Edited(Sender: TObject; ANode: TTreeNode; var NewText: string);
-    procedure KeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure KeyPress(Sender: TObject; var Key: Char);
 
     function GenerateNamespaceName: string;
     function GenerateDirectoryName(ADirectory: TDatapack.TDirectory): string;
@@ -181,18 +181,22 @@ type
 implementation
 
 uses
+  EditorFrameAdvancement,
   EditorFrameFunction,
-  EditorFrameLootTable;
+  EditorFrameLootTable,
+  EditorFrameRecipe,
+  EditorFrameStructure,
+  EditorFrameTag;
 
 const
 
   EditorClasses: array [TDatapack.TDataType] of TEditorClass = (
-    nil, // Advancement
+    TEditorAdvancements,
     TEditorFunctions,
     TEditorLootTables,
-    nil, // Recipe
-    nil, // Structure
-    nil // Tag
+    TEditorRecipes,
+    TEditorStructures,
+    TEditorTags
     );
 
   { TDatapackTreeview }
@@ -350,7 +354,7 @@ begin
   TreeView.OnDblClick := DblClick;
   TreeView.OnEditing := Editing;
   TreeView.OnEdited := Edited;
-  TreeView.OnKeyDown := KeyDown;
+  TreeView.OnKeyPress := KeyPress;
 end;
 
 procedure TDatapackTreeView.DataDisable(AInfo: TDatapack.TData.TEventInfo);
@@ -558,13 +562,14 @@ begin
   Exit(False);
 end;
 
-procedure TDatapackTreeView.KeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+procedure TDatapackTreeView.KeyPress(Sender: TObject; var Key: Char);
 var
   Node: TTreeNode;
 begin
   case Key of
-    VK_RETURN:
+    Chr(VK_RETURN):
       begin
+        Key := #0;
         Node := TreeView.Selected;
         if Node <> nil then
         begin

@@ -39,8 +39,10 @@ type
 
     private
       case IsFloat: Boolean of
-        False: (AsInt: Int64);
-        True: (AsFloat: Double);
+        False:
+          (AsInt: Int64);
+        True:
+          (AsFloat: Double);
     end;
 
     TParser = class(TObjectParser<TJValue>)
@@ -165,11 +167,25 @@ type
     end;
 
     TParser = class(TObjectParser<TJObject>)
+    public const
+
+      TokenBrackets = 1;
+      TokenColon = 2;
+      TokenComma = 3;
+
+      TokenNames: array [TokenBrackets .. TokenComma] of string = (
+        'Brackets',
+        'Colon',
+        'Comma'
+        );
+
     protected
       function Parse: Boolean; override;
 
     public
       class function GetResultName: string; override;
+      class function GetTokenCount: Integer; override;
+      class function GetTokenName(AIndex: Integer): string; override;
 
     end;
 
@@ -246,11 +262,23 @@ type
     end;
 
     TParser = class(TObjectParser<TJArray>)
+    public const
+
+      TokenBrackets = 1;
+      TokenComma = 2;
+
+      TokenNames: array [TokenBrackets .. TokenComma] of string = (
+        'Brackets',
+        'Comma'
+        );
+
     protected
       function Parse: Boolean; override;
 
     public
       class function GetResultName: string; override;
+      class function GetTokenCount: Integer; override;
+      class function GetTokenName(AIndex: Integer): string; override;
 
     end;
 
@@ -285,6 +313,20 @@ type
     public const
 
       HexChars = ['0' .. '9', 'a' .. 'f', 'A' .. 'F'];
+
+      TokenQuotes = 1;
+      TokenContent = 2;
+      TokenBackslash = 3;
+      TokenEscaped = 4;
+      TokenUnicodeHex = 5;
+
+      TokenNames: array [TokenQuotes .. TokenUnicodeHex] of string = (
+        'Quotes',
+        'Content',
+        'Backslash',
+        'Escaped',
+        'Unicode-Hex'
+        );
 
     protected
       function Parse: Boolean; override;
@@ -368,11 +410,23 @@ type
   public type
 
     TParser = class(TParser<TJBool>)
+    public const
+
+      TokenFalse = 1;
+      TokenTrue = 2;
+
+      TokenNames: array [TokenFalse .. TokenTrue] of string = (
+        'False',
+        'True'
+        );
+
     protected
       function Parse: Boolean; override;
 
     public
       class function GetResultName: string; override;
+      class function GetTokenCount: Integer; override;
+      class function GetTokenName(AIndex: Integer): string; override;
 
     end;
 
@@ -943,19 +997,33 @@ begin
   Result := TJObject.GetTypeName;
 end;
 
+class function TJObject.TParser.GetTokenCount: Integer;
+begin
+  Result := Length(TokenNames);
+end;
+
+class function TJObject.TParser.GetTokenName(AIndex: Integer): string;
+begin
+  Result := TokenNames[AIndex];
+end;
+
 function TJObject.TParser.Parse: Boolean;
 var
   Key: string;
 begin
+  Token := TokenBrackets;
   if not StartsWith('{') then
     Exit(False);
+  ResetToken;
 
   SkipWhitespace;
 
   SetParseResult(TJObject.Create);
 
+  Token := TokenBrackets;
   if StartsWith('}') then
     Exit(True);
+  ResetToken;
 
   while True do
   begin
@@ -963,8 +1031,10 @@ begin
 
     SkipWhitespace;
 
+    Token := TokenColon;
     if not StartsWith(':') then
-      raise EParseError.Create('Expected ":" followed by JSON-Value.');
+      Log(1, 'Expected ":".', elError);
+    ResetToken;
 
     SkipWhitespace;
 
@@ -972,10 +1042,13 @@ begin
 
     SkipWhitespace;
 
+    Token := TokenBrackets;
     if StartsWith('}') then
       Break;
+    Token := TokenComma;
     if not StartsWith(',') then
-      raise EParseError.Create('Expected "," followed by key or "}" to close the object.');
+      Log(1, 'Expected "," or "}" to close the object.', elError);
+    ResetToken;
 
     SkipWhitespace;
 
@@ -997,6 +1070,7 @@ var
   Marker: TLogMarker;
   HexString: string;
 begin
+  Token := TokenQuotes;
   if not StartsWith('"') then
     Exit(False);
 
@@ -1005,14 +1079,14 @@ begin
     while not StartsWith('"') do
     begin
       if ReachedEnd then
-      begin
         raise EParseError.Create('Found unterminated string.');
-      end;
 
       Marker := GetMarker;
+      Token := TokenBackslash;
       if StartsWith('\') then
       begin
         Escaped := First;
+        Token := TokenEscaped;
         Advance;
         case Escaped of
           '\', '"', '/':
@@ -1029,6 +1103,7 @@ begin
             Builder.Append(#13);
           'u':
             begin
+              Token := TokenUnicodeHex;
               HexString := ReadWhile(HexChars, 4);
               if HexString.Length <> 4 then
                 Log(Marker, 'Expected 4 hexadecimal digits.', elFatal)
@@ -1042,9 +1117,11 @@ begin
       else
       begin
         Builder.Append(First);
+        Token := TokenContent;
         Advance;
       end;
 
+      Token := TokenQuotes;
     end;
 
     SetParseResult(Builder.ToString);
@@ -1131,16 +1208,31 @@ begin
   Result := TJBool.GetTypeName;
 end;
 
+class function TJBool.TParser.GetTokenCount: Integer;
+begin
+  Result := Length(TokenNames);
+end;
+
+class function TJBool.TParser.GetTokenName(AIndex: Integer): string;
+begin
+  Result := TokenNames[AIndex];
+end;
+
 function TJBool.TParser.Parse: Boolean;
+const
+  BoolTokenIndex: array [Boolean] of Integer = (TokenFalse, TokenTrue);
 var
   Bool: Boolean;
 begin
   for Bool := Low(Boolean) to High(Boolean) do
+  begin
+    Token := BoolTokenIndex[Bool];
     if StartsWith(BoolStrings[Bool]) then
     begin
       SetParseResult(TJBool.Create(Bool));
       Exit(True);
     end;
+  end;
   Result := False;
 end;
 
@@ -1166,17 +1258,31 @@ begin
   Result := TJArray.GetTypeName;
 end;
 
+class function TJArray.TParser.GetTokenCount: Integer;
+begin
+  Result := Length(TokenNames);
+end;
+
+class function TJArray.TParser.GetTokenName(AIndex: Integer): string;
+begin
+  Result := TokenNames[AIndex];
+end;
+
 function TJArray.TParser.Parse: Boolean;
 begin
+  Token := TokenBrackets;
   if not StartsWith('[') then
     Exit(False);
+  ResetToken;
 
   SkipWhitespace;
 
   SetParseResult(TJArray.Create);
 
+  Token := TokenBrackets;
   if StartsWith(']') then
     Exit(True);
+  ResetToken;
 
   while True do
   begin
@@ -1185,10 +1291,13 @@ begin
 
     SkipWhitespace;
 
+    Token := TokenBrackets;
     if StartsWith(']') then
       Break;
+    Token := TokenComma;
     if not StartsWith(',') then
-      raise EParseError.Create('Expected "," followed by key.');
+      Log(1, 'Expected "," or "]" to close array.', elError);
+    ResetToken;
 
     SkipWhitespace;
 

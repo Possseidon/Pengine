@@ -16,7 +16,8 @@ uses
   Pengine.MC.NBT,
   Pengine.MC.Gamemode,
   Pengine.MC.Entity,
-  Pengine.MC.General, Pengine.MC.Namespace;
+  Pengine.MC.General,
+  Pengine.MC.Namespace;
 
 type
 
@@ -1666,9 +1667,9 @@ end;
 
 function TEntitySelector.TOptionNBT.TParser.Parse: Boolean;
 var
-  Parser: TNBTParserCompound;
+  Parser: TNBTCompound.TParser;
 begin
-  Parser := TNBTParserCompound.Create(Info, True);
+  Parser := TNBTCompound.TParser.Create(Info, True);
   ParseObject.FNBT := Parser.OwnParseResult;
   Parser.Free;
   Result := True;
@@ -1688,9 +1689,9 @@ end;
 
 function TEntitySelector.TOptionString.TParser.Parse: Boolean;
 var
-  Parser: TStringOrIdentParser;
+  Parser: TNBTString.TStringOrIdentParser;
 begin
-  Parser := TStringOrIdentParser.Create(Info, True);
+  Parser := TNBTString.TStringOrIdentParser.Create(Info, True);
   ParseObject.Text := Parser.ParseResult;
   Parser.Free;
   Result := True;

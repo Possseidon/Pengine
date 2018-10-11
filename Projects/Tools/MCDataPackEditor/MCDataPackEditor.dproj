@@ -192,6 +192,26 @@
             <Form>frmSettings</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="EditorFrames\EditorFrameTag.pas">
+            <Form>frmEditorTags</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
+        <DCCReference Include="EditorFrames\EditorFrameAdvancement.pas">
+            <Form>frmEditorAdvancements</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
+        <DCCReference Include="EditorFrames\EditorFrameRecipe.pas">
+            <Form>frmEditorRecipes</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
+        <DCCReference Include="EditorFrames\EditorFrameStructure.pas">
+            <Form>frmEditorStructures</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

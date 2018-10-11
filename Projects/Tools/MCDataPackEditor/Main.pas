@@ -13,8 +13,6 @@ uses
   System.Actions,
   System.ImageList,
 
-  // SynEdit,
-
   Vcl.Forms,
   Vcl.Menus,
   Vcl.ImgList,
@@ -377,7 +375,7 @@ end;
 
 procedure TfrmMain.actFunctionPreferencesExecute(Sender: TObject);
 begin
-  frmFunctionPreferences.Execute(nil);
+  frmFunctionPreferences.Execute(FFunctionTheme);
 end;
 
 procedure TfrmMain.actNewDatapackExecute(Sender: TObject);

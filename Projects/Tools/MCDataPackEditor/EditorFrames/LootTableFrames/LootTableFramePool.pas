@@ -46,8 +46,6 @@ type
   private
     FPool: TLootTable.TPool;
 
-    procedure PoolMove(AInfo: TLootTable.TPoolMoveEventInfo);
-
     procedure UpdateBoxCaption;
 
     procedure RollsChange(Sender: TObject);
@@ -110,7 +108,6 @@ begin
   FPool := APool;
   InitEntryBox;
   UpdateBoxCaption;
-  Pool.LootTable.OnMovePool.Add(PoolMove);
   frmRolls.Bounds := Pool.Rolls;
   frmRolls.OnChange := RollsChange;
   frmBonusRolls.Bounds := Pool.BonusRolls;
@@ -130,13 +127,6 @@ begin
     cbEntries.Items.Add(TLootTable.EntryDisplayNames[Entry]);
   cbEntries.Items.EndUpdate;
   cbEntries.ItemIndex := 0;
-end;
-
-procedure TfrmPool.PoolMove(AInfo: TLootTable.TPoolMoveEventInfo);
-begin
-  if Pool <> AInfo.Pool then
-    Exit;
-  UpdateBoxCaption;
 end;
 
 procedure TfrmPool.UpdateBoxCaption;

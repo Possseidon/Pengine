@@ -258,6 +258,7 @@ type
   private
     function GetElement(AElement: T): Boolean;
     procedure SetElement(AElement: T; const Value: Boolean);
+    function GetActualValueE(AElement: T): T;
 
   protected
     function GetBuckets: Integer; override;
@@ -274,12 +275,15 @@ type
     /// <remarks>Changing the existence will not raise exceptions, like <c>Add</c> and <c>Remove</c> do.</remarks>
     property Elements[AElement: T]: Boolean read GetElement write SetElement; default;
 
+    function GetActualValue(AElement: T; out AActualElement: T): Boolean;
+    property ActualValues[AElement: T]: T read GetActualValueE;
+
     /// <summary>Tries to add an element.</summary>
     /// <returns>Wether the element did not exist previously.</returns>
     function TryAdd(AElement: T): Boolean;
     /// <summary>Adds an element to the set.</summary>
     /// <exception><see cref="Pengine.HashCollections|ESetKeyExistsAlready"/> if the element exists already.</exception>
-    procedure Add(AElement: T); overload;
+    function Add(AElement: T): T; overload;
     /// <summary>Adds every element in the given set to the set.</summary>
     /// <remarks>Does not raise exceptions for existing keys.</remarks>
     procedure Add(ASet: TSet<T, H>); overload;
@@ -665,24 +669,22 @@ type
   end;
 
   /// <summary>A set of class references.</summary>
-  // TClassSet = TSet<TClass, TClassHasher>;
-
   TClassSet<T> = class(TSet<T, TClassHasher<T>>);
 
   /// <summary>A map from class refernces.</summary>
-  TClassMap<T> = class(TMap<TClass, T, TClassHasher>)
+  TClassMap<K, V> = class(TMap<K, V, TClassHasher<K>>)
   public
-    function Copy: TClassMap<T>; reintroduce; inline;
+    function Copy: TClassMap<K, V>; reintroduce; inline;
   end;
 
   /// <summary>A map from class references to object references.</summary>
-  TClassRefMap<T: class> = class(TToRefMap<TClass, T, TClassHasher>)
+  TClassRefMap<K; V: class> = class(TToRefMap<K, V, TClassHasher<K>>)
   public
-    function Copy: TClassRefMap<T>; reintroduce; inline;
+    function Copy: TClassRefMap<K, V>; reintroduce; inline;
   end;
-                                                                                   
+
   /// <summary>A map from class references to objects.</summary>
-  TClassObjectMap<T: class> = class(TToObjectMap<TClass, T, TClassHasher>);
+  TClassObjectMap<K; V: class> = class(TToObjectMap<K, V, TClassHasher<K>>);
 
 implementation
 
@@ -974,10 +976,11 @@ end;
 
 { TSet<T, H> }
 
-procedure TSet<T, H>.Add(AElement: T);
+function TSet<T, H>.Add(AElement: T): T;
 begin
-  if not TryAdd(AElement) then
-    raise ESetKeyExistsAlready.Create;
+  if TryAdd(AElement) then
+    Exit(AElement);
+  raise ESetKeyExistsAlready.Create;
 end;
 
 procedure TSet<T, H>.Add(ASet: TSet<T, H>);
@@ -1040,6 +1043,34 @@ begin
       Exit(False);
 
   Result := True;
+end;
+
+function TSet<T, H>.GetActualValue(AElement: T; out AActualElement: T): Boolean;
+var
+  H: Integer;
+  Element: T;
+begin
+  if Empty then
+    Exit(False);
+
+  H := GetCappedHash(AElement);
+  if FBuckets[H] = nil then
+    Exit(False);
+  for Element in TBucket(FBuckets[H]) do
+  begin
+    if KeysEqual(Element, AElement) then
+    begin
+      AActualElement := Element;
+      Exit(True);
+    end;
+  end;
+  Result := False;
+end;
+
+function TSet<T, H>.GetActualValueE(AElement: T): T;
+begin
+  if not GetActualValue(AElement, Result) then
+    raise ESetKeyNotFound.Create;
 end;
 
 function TSet<T, H>.GetBuckets: Integer;
@@ -1767,13 +1798,6 @@ begin
   Result.Assign(Self);
 end;
 
-{ TClassMap<T> }
-
-function TClassMap<T>.Copy: TClassMap<T>;
-begin
-  Result := TClassMap<T>(CreateCopy);
-end;
-
 { THashBase.TReader }
 
 function THashBase.TReader.GetBuckets: Integer;
@@ -1983,13 +2007,6 @@ begin
     Result.Add(Value);  
 end;
 
-{ TClassRefMap<T> }
-
-function TClassRefMap<T>.Copy: TClassRefMap<T>;
-begin
-  Result := TClassRefMap<T>(CreateCopy);
-end;
-
 { TRefSet<T> }
 
 function TRefSet<T>.Copy: TRefSet<T>;
@@ -2084,6 +2101,20 @@ function TRefObjectMap<K, V, H>.CreateCopy: THashBase;
 begin
   Result := TRefRefMap<K, V, H>.Create;
   Result.Assign(Self);
+end;
+
+{ TClassMap<K, V> }
+
+function TClassMap<K, V>.Copy: TClassMap<K, V>;
+begin
+  Result := TClassMap<K, V>(CreateCopy);
+end;
+
+{ TClassRefMap<K, V> }
+
+function TClassRefMap<K, V>.Copy: TClassRefMap<K, V>;
+begin
+  Result := TClassRefMap<K, V>(CreateCopy);
 end;
 
 end.

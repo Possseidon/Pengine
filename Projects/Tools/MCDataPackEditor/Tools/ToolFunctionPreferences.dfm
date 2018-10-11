@@ -2,7 +2,7 @@ object frmFunctionPreferences: TfrmFunctionPreferences
   Left = 0
   Top = 0
   Caption = 'Function Highlighting'
-  ClientHeight = 557
+  ClientHeight = 500
   ClientWidth = 484
   Color = clBtnFace
   Constraints.MinHeight = 400
@@ -25,8 +25,6 @@ object frmFunctionPreferences: TfrmFunctionPreferences
     Align = alTop
     Caption = 'Basic'
     TabOrder = 0
-    ExplicitLeft = 8
-    ExplicitTop = 63
     DesignSize = (
       478
       161)
@@ -317,26 +315,25 @@ object frmFunctionPreferences: TfrmFunctionPreferences
     Left = 0
     Top = 203
     Width = 484
-    Height = 323
+    Height = 266
     Align = alClient
     Caption = 'Syntax Highlighting'
     TabOrder = 2
-    ExplicitTop = 198
-    ExplicitHeight = 309
+    ExplicitHeight = 323
     object pnlElementSettings: TPanel
       Left = 2
       Top = 48
       Width = 480
-      Height = 273
+      Height = 216
       Align = alClient
       BevelEdges = [beTop]
       BevelKind = bkTile
       BevelOuter = bvNone
       TabOrder = 0
-      ExplicitHeight = 259
+      ExplicitHeight = 273
       object splPreview: TSplitter
         Left = 0
-        Top = 162
+        Top = 105
         Width = 480
         Height = 3
         Cursor = crVSplit
@@ -349,22 +346,22 @@ object frmFunctionPreferences: TfrmFunctionPreferences
         Left = 0
         Top = 0
         Width = 480
-        Height = 162
+        Height = 105
         VertScrollBar.Tracking = True
         Align = alClient
         AutoScroll = True
         TabOrder = 0
         ExplicitWidth = 480
-        ExplicitHeight = 148
+        ExplicitHeight = 162
       end
       inline frmSynPreview: TfrmSynEditor
         Left = 0
-        Top = 165
+        Top = 108
         Width = 480
         Height = 106
         Align = alBottom
         TabOrder = 1
-        ExplicitTop = 151
+        ExplicitTop = 165
         ExplicitWidth = 480
         ExplicitHeight = 106
         inherited synEditor: TSynEdit
@@ -410,13 +407,13 @@ object frmFunctionPreferences: TfrmFunctionPreferences
   end
   object pnlBottom: TPanel
     Left = 0
-    Top = 526
+    Top = 469
     Width = 484
     Height = 31
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 1
-    ExplicitTop = 505
+    ExplicitTop = 526
     object btnCancel: TButton
       AlignWithMargins = True
       Left = 406
@@ -428,7 +425,6 @@ object frmFunctionPreferences: TfrmFunctionPreferences
       Caption = 'Cancel'
       ModalResult = 2
       TabOrder = 0
-      ExplicitHeight = 23
     end
     object btnOk: TButton
       AlignWithMargins = True
@@ -441,7 +437,6 @@ object frmFunctionPreferences: TfrmFunctionPreferences
       Default = True
       ModalResult = 1
       TabOrder = 1
-      ExplicitHeight = 23
     end
   end
   object FontDialog: TFontDialog
