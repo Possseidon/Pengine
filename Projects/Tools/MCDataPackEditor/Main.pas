@@ -380,7 +380,7 @@ end;
 
 procedure TfrmMain.actNewDatapackExecute(Sender: TObject);
 begin
-  raise ENotImplemented.Create('NewDatapack');
+  raise ENotImplemented.Create('New Datapack is not yet implemented.');
 end;
 
 procedure TfrmMain.actNewDirectoryExecute(Sender: TObject);

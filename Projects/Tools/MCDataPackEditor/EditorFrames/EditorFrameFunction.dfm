@@ -56,6 +56,14 @@ object frmEditorFunctions: TfrmEditorFunctions
     inherited synEditor: TSynEdit
       Width = 610
       Height = 409
+      OnChange = synEditorChange
+      OnCommandProcessed = synEditorCommandProcessed
+      OnGutterPaint = synEditorGutterPaint
+      OnPaint = frmSynEditorsynEditorPaint
+      OnSpecialLineColors = synEditorSpecialLineColors
+      OnStatusChange = synEditorStatusChange
+      ExplicitWidth = 610
+      ExplicitHeight = 409
     end
   end
   object ilFunctions: TImageList
@@ -64,7 +72,7 @@ object frmEditorFunctions: TfrmEditorFunctions
     Left = 104
     Top = 48
     Bitmap = {
-      494C010104000500400010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010104000500440010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000002000000001002000000000000020
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -353,6 +361,7 @@ object frmEditorFunctions: TfrmEditorFunctions
     Columns = <>
     OnExecute = synCompletionExecute
     ShortCut = 16416
+    Editor = frmSynEditor.synEditor
     TimerInterval = 1
     Left = 104
     Top = 104
@@ -365,7 +374,7 @@ object frmEditorFunctions: TfrmEditorFunctions
     TriggerChars = '.'
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
-    Font.Height = -19
+    Font.Height = -12
     Font.Name = 'Tahoma'
     Font.Style = []
     TitleFont.Charset = ANSI_CHARSET
@@ -376,6 +385,7 @@ object frmEditorFunctions: TfrmEditorFunctions
     Columns = <>
     OnExecute = synContextPreviewExecute
     ShortCut = 24608
+    Editor = frmSynEditor.synEditor
     TimerInterval = 1
     Left = 104
     Top = 160

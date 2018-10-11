@@ -116,6 +116,7 @@ end;
 
 function TfrmFunctionPreferences.Execute(ATheme: TFunctionTheme): Boolean;
 begin
+  raise ENotImplemented.Create('Function Format Preferences are not yet implemented.');
   LoadTheme(ATheme);
   FTheme := ATheme.Copy;
   try

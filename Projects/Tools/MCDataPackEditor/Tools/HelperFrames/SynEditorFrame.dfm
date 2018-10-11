@@ -29,8 +29,10 @@ object frmSynEditor: TfrmSynEditor
     Gutter.LeftOffset = 18
     Gutter.ShowLineNumbers = True
     Gutter.Gradient = True
-    Options = [eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoTabsToSpaces, eoTrimTrailingSpaces]
-    RightEdge = 120
+    MaxScrollWidth = 1
+    MaxUndo = 65536
+    Options = [eoAltSetsColumnMode, eoAutoSizeMaxScrollWidth, eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoTabsToSpaces, eoTrimTrailingSpaces]
+    RightEdge = 0
     TabWidth = 2
     WantTabs = True
     FontSmoothing = fsmClearType

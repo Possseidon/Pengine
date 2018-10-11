@@ -367,8 +367,6 @@ object frmFunctionPreferences: TfrmFunctionPreferences
         inherited synEditor: TSynEdit
           Width = 480
           Height = 106
-          ExplicitLeft = 0
-          ExplicitTop = 0
           ExplicitWidth = 480
           ExplicitHeight = 106
         end
