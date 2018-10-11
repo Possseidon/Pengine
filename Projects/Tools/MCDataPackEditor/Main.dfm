@@ -339,7 +339,7 @@ object frmMain: TfrmMain
     DefaultExt = '.mcmeta'
     FileName = 'pack.mcmeta'
     Filter = 'Minecraft Datapack|*.mcmeta'
-    Options = [ofHideReadOnly, ofPathMustExist, ofFileMustExist, ofEnableSizing]
+    Options = [ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofFileMustExist, ofEnableSizing]
     Left = 48
     Top = 144
   end
