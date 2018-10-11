@@ -21,6 +21,7 @@ uses
   Vcl.Styles,
   SettingsForm in 'Tools\SettingsForm.pas' {frmSettings},
   SynEdit,
+  System.SysUtils,
   Vcl.StdCtrls {frmSettings},
   EditorFrameTag in 'EditorFrames\EditorFrameTag.pas' {frmEditorTags: TFrame},
   EditorFrameAdvancement in 'EditorFrames\EditorFrameAdvancement.pas' {frmEditorAdvancements: TFrame},
@@ -30,6 +31,7 @@ uses
 {$R *.res}
 
 begin
+  ChDir(ExtractFilePath(Application.ExeName));
   TStyleManager.Engine.RegisterStyleHook(TCustomSynEdit, TMemoStyleHook);
   ReportMemoryLeaksOnShutdown := True;
   Application.Initialize;
