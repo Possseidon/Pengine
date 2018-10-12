@@ -85,16 +85,24 @@ begin
 end;
 
 procedure TEditorLootTables.SaveProc;
+var
+  JObject: TJObject;
 begin
-  // TODO: Save
+  JObject := Frame.FLootTable.Save;
+  TFile.WriteAllText(NodeData.FullPath, JObject.Format);
+  JObject.Free;
 end;
 
 { TfrmEditorLootTables }
 
 constructor TfrmEditorLootTables.Create(AOwner: TComponent);
+var
+  Pool: TLootTable.TPool;
 begin
   inherited;
   FLootTable := TLootTable.Create;
+  Pool := FLootTable.AddPool;
+  Pool.AddEntry<TLootTable.TEntryItem>;
 end;
 
 destructor TfrmEditorLootTables.Destroy;

@@ -54,6 +54,28 @@ type
 
     end;
 
+  protected type
+
+    TJStringBuilder = class(TStringBuilder)
+    private
+      FPretty: Boolean;
+      FIndentWidth: Integer;
+      FIndentLevel: Integer;
+
+    public
+      constructor Create(APretty: Boolean = True; AIndentWidth: Integer = 2);
+
+      property Pretty: Boolean read FPretty;
+      property IndentWith: Integer read FIndentWidth;
+
+      procedure Indent; inline;
+      procedure Unindent; inline;
+      procedure AddIndentation; inline;
+      procedure NewLine; inline;
+      property IndentLevel: Integer read FIndentLevel;
+
+    end;
+
   private
     function GetAsObject: TJObject;
     function GetAsArray: TJArray;
@@ -73,11 +95,11 @@ type
     procedure SetValue(AIndex: Integer; const Value: TJValue); overload;
 
   protected
-    procedure FormatInternal(ABuilder: TStringBuilder); virtual; abstract;
+    procedure FormatInternal(ABuilder: TJStringBuilder); virtual; abstract;
 
   public
     class function GetTypeName: string; virtual;
-    function Format: string;
+    function Format(APretty: Boolean = True; AIndentWidth: Integer = 2): string;
 
     function Cast<T: TJValue>: T; inline;
 
@@ -202,7 +224,7 @@ type
     procedure SetValue(AKey: string; const Value: TJValue); overload;
 
   protected
-    procedure FormatInternal(ABuilder: TStringBuilder); override;
+    procedure FormatInternal(ABuilder: TJValue.TJStringBuilder); override;
 
   public
     constructor Create;
@@ -288,7 +310,7 @@ type
     FValues: TValues;
 
   protected
-    procedure FormatInternal(ABuilder: TStringBuilder); override;
+    procedure FormatInternal(ABuilder: TJValue.TJStringBuilder); override;
 
   public
     constructor Create;
@@ -297,6 +319,12 @@ type
     class function GetTypeName: string; override;
 
     property Values: TValues read FValues;
+
+    procedure Add(AValue: string); overload;
+    procedure Add(AValue: TJValue.TNumber); overload;
+    procedure Add(AValue: Boolean); overload;
+    function AddObject: TJObject;
+    function AddArray: TJArray;
 
     function GetEnumerator: IIterator<TJValue>;
 
@@ -348,7 +376,7 @@ type
     function GetQuoted: string;
 
   protected
-    procedure FormatInternal(ABuilder: TStringBuilder); override;
+    procedure FormatInternal(ABuilder: TJValue.TJStringBuilder); override;
 
   public
     constructor Create(AText: string); overload;
@@ -385,7 +413,7 @@ type
     FNumber: TJValue.TNumber;
 
   protected
-    procedure FormatInternal(ABuilder: TStringBuilder); override;
+    procedure FormatInternal(ABuilder: TJValue.TJStringBuilder); override;
 
   public
     constructor Create(ANumber: TJValue.TNumber); overload;
@@ -434,7 +462,7 @@ type
     FValue: Boolean;
 
   protected
-    procedure FormatInternal(ABuilder: TStringBuilder); override;
+    procedure FormatInternal(ABuilder: TJValue.TJStringBuilder); override;
 
   public
     constructor Create(AValue: Boolean); overload;
@@ -463,7 +491,7 @@ type
     end;
 
   protected
-    procedure FormatInternal(ABuilder: TStringBuilder); override;
+    procedure FormatInternal(ABuilder: TJValue.TJStringBuilder); override;
 
   public
     class function GetTypeName: string; override;
@@ -534,7 +562,7 @@ begin
   if Self is T then
     Exit(T(Self));
   if IsNull then
-    raise EJSONError.CreateFmt('Expected %s got null.', [T.GetTypeName]);
+    Exit(nil); // raise EJSONError.CreateFmt('Expected %s got null.', [T.GetTypeName]);
   raise EJSONError.CreateFmt('Expected %s, got %s.', [T.GetTypeName, GetTypeName]);
 end;
 
@@ -550,11 +578,11 @@ begin
   Result := ADefault;
 end;
 
-function TJValue.Format: string;
+function TJValue.Format(APretty: Boolean = True; AIndentWidth: Integer = 2): string;
 var
-  Builder: TStringBuilder;
+  Builder: TJStringBuilder;
 begin
-  Builder := TStringBuilder.Create;
+  Builder := TJStringBuilder.Create(APretty, AIndentWidth);
   try
     FormatInternal(Builder);
     Result := Builder.ToString;
@@ -688,12 +716,14 @@ begin
   inherited;
 end;
 
-procedure TJObject.FormatInternal(ABuilder: TStringBuilder);
+procedure TJObject.FormatInternal(ABuilder: TJValue.TJStringBuilder);
 
   procedure AppendIndex(I: Integer);
   begin
     ABuilder.Append(TJString.Quote(Order[I].Key));
-    ABuilder.Append(': ');
+    ABuilder.Append(':');
+    if ABuilder.Pretty then
+      ABuilder.Append(' ');
     Order[I].Value.FormatInternal(ABuilder);
   end;
 
@@ -701,15 +731,18 @@ var
   I: Integer;
 begin
   ABuilder.Append('{');
+  ABuilder.Indent;
   if not Order.Empty then
   begin
     AppendIndex(0);
     for I := 1 to Order.MaxIndex do
     begin
-      ABuilder.Append(', ');
+      ABuilder.Append(',');
+      ABuilder.NewLine;
       AppendIndex(I);
     end;
   end;
+  ABuilder.Unindent;
   ABuilder.Append('}');
 end;
 
@@ -796,6 +829,33 @@ end;
 
 { TJArray }
 
+procedure TJArray.Add(AValue: TJValue.TNumber);
+begin
+  Values.Add(TJNumber.Create(AValue));
+end;
+
+procedure TJArray.Add(AValue: string);
+begin
+  Values.Add(TJString.Create(AValue));
+end;
+
+procedure TJArray.Add(AValue: Boolean);
+begin
+  Values.Add(TJBool.Create(AValue));
+end;
+
+function TJArray.AddArray: TJArray;
+begin
+  Result := TJArray.Create;
+  Values.Add(Result);
+end;
+
+function TJArray.AddObject: TJObject;
+begin
+  Result := TJObject.Create;
+  Values.Add(Result);
+end;
+
 constructor TJArray.Create;
 begin
   FValues := TValues.Create;
@@ -807,20 +867,23 @@ begin
   inherited;
 end;
 
-procedure TJArray.FormatInternal(ABuilder: TStringBuilder);
+procedure TJArray.FormatInternal(ABuilder: TJValue.TJStringBuilder);
 var
   I: Integer;
 begin
   ABuilder.Append('[');
+  ABuilder.Indent;
   if not Values.Empty then
   begin
     Values[0].FormatInternal(ABuilder);
     for I := 1 to Values.MaxIndex do
     begin
-      ABuilder.Append(', ');
+      ABuilder.Append(',');
+      ABuilder.NewLine;
       Values[I].FormatInternal(ABuilder);
     end;
   end;
+  ABuilder.Unindent;
   ABuilder.Append(']');
 end;
 
@@ -839,7 +902,7 @@ end;
 
 { TJNull }
 
-procedure TJNull.FormatInternal(ABuilder: TStringBuilder);
+procedure TJNull.FormatInternal(ABuilder: TJValue.TJStringBuilder);
 begin
   ABuilder.Append(NullString);
 end;
@@ -856,7 +919,7 @@ begin
   FValue := AValue;
 end;
 
-procedure TJBool.FormatInternal(ABuilder: TStringBuilder);
+procedure TJBool.FormatInternal(ABuilder: TJValue.TJStringBuilder);
 begin
   ABuilder.Append(BoolStrings[Value]);
 end;
@@ -873,7 +936,7 @@ begin
   FText := AText;
 end;
 
-procedure TJString.FormatInternal(ABuilder: TStringBuilder);
+procedure TJString.FormatInternal(ABuilder: TJValue.TJStringBuilder);
 begin
   ABuilder.Append(Quoted);
 end;
@@ -942,7 +1005,7 @@ begin
   FNumber := ANumber;
 end;
 
-procedure TJNumber.FormatInternal(ABuilder: TStringBuilder);
+procedure TJNumber.FormatInternal(ABuilder: TJValue.TJStringBuilder);
 begin
   if Number.IsFloat then
     ABuilder.Append(PrettyFloat(Number.AsFloat))
@@ -1426,6 +1489,41 @@ end;
 function TJObject.TEmptyIterator.MoveNext: Boolean;
 begin
   Result := False;
+end;
+
+{ TJValue.TJStringBuilder }
+
+procedure TJValue.TJStringBuilder.AddIndentation;
+begin
+  Append(' ', IndentLevel * IndentWith);
+end;
+
+constructor TJValue.TJStringBuilder.Create(APretty: Boolean; AIndentWidth: Integer);
+begin
+  inherited Create;
+  FPretty := APretty;
+  FIndentWidth := AIndentWidth;
+end;
+
+procedure TJValue.TJStringBuilder.Indent;
+begin
+  Inc(FIndentLevel);
+  NewLine;
+end;
+
+procedure TJValue.TJStringBuilder.NewLine;
+begin
+  if Pretty then
+  begin
+    AppendLine;
+    AddIndentation;
+  end;
+end;
+
+procedure TJValue.TJStringBuilder.Unindent;
+begin
+  Dec(FIndentLevel);
+  NewLine;
 end;
 
 end.

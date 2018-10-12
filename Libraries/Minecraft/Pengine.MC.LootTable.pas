@@ -60,6 +60,7 @@ type
       class function GetDisplayName: string;
 
       procedure Load(AValue: TJValue); virtual;
+      procedure Save(AValue: TJObject); virtual;
 
       class function CreateTyped(AConditioned: TConditioned; AValue: TJValue): TCondition; static;
 
@@ -104,6 +105,7 @@ type
 
     public
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Target: TTarget read FTarget write SetTarget;
 
@@ -120,7 +122,8 @@ type
       class function GetType: TCondition.TType; override;
 
       procedure Load(AValue: TJValue); override;
-
+      procedure Save(AValue: TJObject); override;
+      
       property OnFire: TOpt<Boolean> read FOnFire;
 
     end;
@@ -142,6 +145,7 @@ type
       class function GetType: TCondition.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Scores: TScores.TReader read GetScores;
       procedure AddScore(AObjective: string; AValue: TIntBounds1);
@@ -160,6 +164,7 @@ type
       class function GetType: TCondition.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Inverse: Boolean read FInverse write SetInverse;
 
@@ -176,6 +181,7 @@ type
       class function GetType: TCondition.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Chance: Single read FChance write SetChance;
 
@@ -190,6 +196,7 @@ type
       class function GetType: TCondition.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property LootingMultiplier: Single read FLootingMultiplier write FLootingMultiplier;
 
@@ -209,6 +216,7 @@ type
       destructor Destroy; override;
 
       procedure Load(AValue: TJValue); virtual;
+      procedure Save(AValue: TJObject); virtual;
 
       property Conditions: TConditions.TReader read GetConditions;
 
@@ -274,6 +282,7 @@ type
       class function GetType: TFunction.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Enchantments: TEnchantments read FEnchantments write SetEnchantments;
 
@@ -294,6 +303,7 @@ type
       class function GetType: TFunction.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Treasure: Boolean read FTreasure write SetTreasure;
       property Levels: TIntBounds1 read FLevels write SetLevels;
@@ -329,6 +339,7 @@ type
       class function GetType: TFunction.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Destination: string read FDestination write SetDestination;
       property Decoration: string read FDecoration write SetDecoration;
@@ -360,6 +371,7 @@ type
       class function GetType: TFunction.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Count: TIntBounds1 read FCount write SetCount;
       property CountMin: Integer read FCount.C1 write SetCountMin;
@@ -423,6 +435,7 @@ type
       class function GetType: TFunction.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Modifiers: TModifiers.TReader read GetModifieres;
       function AddModifier: TModifier;
@@ -447,6 +460,7 @@ type
       class function GetType: TFunction.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Count: TIntBounds1 read FCount write SetCount;
       property CountMin: Integer read FCount.C1 write SetCountMin;
@@ -469,6 +483,7 @@ type
       class function GetType: TFunction.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Damage: TBounds1 read FDamage write SetDamage;
       property DamageMin: Single read FDamage.C1 write SetDamageMin;
@@ -489,6 +504,7 @@ type
       class function GetType: TFunction.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Data: TIntBounds1 read FData write SetData;
       property DataMin: Integer read FData.C1 write SetDataMin;
@@ -511,6 +527,7 @@ type
       class function GetType: TFunction.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property Tag: TNBTCompound read FTag;
       property TagString: string read GetTagString write SetTagString;
@@ -543,7 +560,8 @@ type
       constructor Create(APool: TPool; AValue: TJValue); overload;
 
       procedure Load(AValue: TJValue); override;
-
+      procedure Save(AValue: TJObject); override;
+      
       class function CreateTyped(APool: TPool; AValue: TJValue): TEntry;
 
       class function GetType: TType; virtual; abstract;
@@ -577,6 +595,7 @@ type
       destructor Destroy; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       class function GetType: TEntry.TType; override;
 
@@ -602,6 +621,7 @@ type
       class function GetType: TEntry.TType; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property LootTable: string read FLootTable write SetLootTable;
 
@@ -644,6 +664,7 @@ type
       destructor Destroy; override;
 
       procedure Load(AValue: TJValue); override;
+      procedure Save(AValue: TJObject); override;
 
       property LootTable: TLootTable read FLootTable;
       property Index: Integer read GetIndex write SetIndex;
@@ -763,6 +784,7 @@ type
     destructor Destroy; override;
 
     procedure Load(AValue: TJValue);
+    function Save: TJObject;
 
     property Pools: TPools.TReader read GetPools;
 
@@ -774,7 +796,7 @@ type
 
 implementation
 
-function ParseIntBounds(AValue: TJValue; ADefault: Integer = 0): TIntBounds1;
+function LoadIntBounds(AValue: TJValue; ADefault: Integer = 0): TIntBounds1;
 begin
   if AValue = nil then
     Exit(ADefault);
@@ -784,7 +806,7 @@ begin
   Result.C2 := AValue['max'].AsInt;
 end;
 
-function ParseBounds(AValue: TJValue; ADefault: Single = 0): TBounds1;
+function LoadBounds(AValue: TJValue; ADefault: Single = 0): TBounds1;
 begin
   if AValue = nil then
     Exit(ADefault);
@@ -792,6 +814,34 @@ begin
     Exit(AValue.AsFloat);
   Result.C1 := AValue['min'].AsFloat;
   Result.C2 := AValue['max'].AsFloat;
+end;
+          
+procedure SaveIntBounds(AObject: TJObject; AName: string; AValue: TBounds1);
+var
+  JBounds: TJObject;
+begin
+  if AValue.C1 = AValue.C2 then
+    AObject.Add(AName, AValue.C1)
+  else
+  begin  
+    JBounds := AObject.AddObject(AName);
+    JBounds.Add('min', AValue.C1);
+    JBounds.Add('max', AValue.C2);
+  end;
+end;
+
+procedure SaveBounds(AObject: TJObject; AName: string; AValue: TBounds1);
+var
+  JBounds: TJObject;
+begin
+  if AValue.C1 = AValue.C2 then
+    AObject.Add(AName, AValue.C1)
+  else
+  begin  
+    JBounds := AObject.AddObject(AName);
+    JBounds.Add('min', AValue.C1);
+    JBounds.Add('max', AValue.C2);
+  end;
 end;
 
 { TLootTable }
@@ -803,7 +853,7 @@ end;
 
 function TLootTable.AddPool: TPool;
 begin
-  Result := FPools.Add(TPool.Create);
+  Result := FPools.Add(TPool.Create(Self));
 end;
 
 constructor TLootTable.Create(AValue: TJValue);
@@ -816,6 +866,17 @@ destructor TLootTable.Destroy;
 begin
   FPools.Free;
   inherited;
+end;
+
+function TLootTable.Save: TJObject;
+var
+  JPools: TJArray;
+  Pool: TPool;
+begin
+  Result := TJObject.Create;
+  JPools := Result.AddArray('pools');
+  for Pool in Pools do
+    Pool.Save(JPools.AddObject);
 end;
 
 function TLootTable.GetPoolIndex(APool: TPool): Integer;
@@ -877,6 +938,13 @@ begin
     OnFire.Clear;
 end;
 
+procedure TLootTable.TConditionEntityProperties.Save(AValue: TJObject);
+begin
+  inherited;
+  if OnFire.HasValue then
+    AValue.AddObject('properties').Add('on_fire', OnFire.Value);
+end;
+
 { TLootTable.TConditionEntityScores }
 
 procedure TLootTable.TConditionEntityScores.AddScore(AObjective: string; AValue: TIntBounds1);
@@ -912,12 +980,23 @@ var
 begin
   inherited;
   for JScore in AValue['scores'] do
-    AddScore(JScore.Key, ParseIntBounds(JScore.Value));
+    AddScore(JScore.Key, LoadIntBounds(JScore.Value));
 end;
 
 procedure TLootTable.TConditionEntityScores.RemoveScore(AObjective: string);
 begin
   FScores.Remove(AObjective);
+end;
+
+procedure TLootTable.TConditionEntityScores.Save(AValue: TJObject);
+var
+  Score: TScores.TPair;
+  JScores: TJObject;
+begin
+  inherited;
+  JScores := AValue.AddObject('scores');
+  for Score in Scores do
+    SaveIntBounds(JScores, Score.Key, Score.Value);
 end;
 
 { TLootTable.TConditionKilledByPlayer }
@@ -931,6 +1010,12 @@ procedure TLootTable.TConditionKilledByPlayer.Load(AValue: TJValue);
 begin
   inherited;
   Inverse := AValue['inverse'].BoolOrDefault;
+end;
+
+procedure TLootTable.TConditionKilledByPlayer.Save(AValue: TJObject);
+begin
+  inherited;
+  AValue.Add('inverse', Inverse);
 end;
 
 procedure TLootTable.TConditionKilledByPlayer.SetInverse(const Value: Boolean);
@@ -953,6 +1038,12 @@ begin
   Chance := AValue['chance'].FloatOrDefault;
 end;
 
+procedure TLootTable.TConditionRandomChance.Save(AValue: TJObject);
+begin
+  inherited;
+  AValue.Add('chance', Chance);
+end;
+
 procedure TLootTable.TConditionRandomChance.SetChance(const Value: Single);
 begin
   if Chance = Value then
@@ -973,7 +1064,24 @@ begin
   LootingMultiplier := AValue['looting_multiplier'].FloatOrDefault;
 end;
 
+procedure TLootTable.TConditionRandomChanceWithLooting.Save(AValue: TJObject);
+begin
+  inherited;
+  AValue.Add('looting_multiplier', LootingMultiplier);
+end;
+
 { TLootTable.TFunctionEnchantRandomly }
+
+procedure TLootTable.TFunctionEnchantRandomly.Save(AValue: TJObject);
+var
+  JEnchantments: TJArray;
+  Enchantment: TEnchantment;
+begin
+  inherited;
+  JEnchantments := AValue.AddArray('enchantments');
+  for Enchantment in Enchantments do
+    JEnchantments.Add(EnchantmentNames[Enchantment]);
+end;
 
 procedure TLootTable.TFunctionEnchantRandomly.SetEnchantments(const Value: TEnchantments);
 var
@@ -994,10 +1102,9 @@ procedure TLootTable.TFunctionEnchantRandomly.Load(AValue: TJValue);
 var
   JEnchantment: TJValue;
   Enchantment: TEnchantment;
-  Found: TEnchantments;
 begin
   inherited;
-  Found := [];
+  Enchantments := [];
   for JEnchantment in AValue['enchantments'].AsArray do
   begin
     if JEnchantment is TJString then
@@ -1006,13 +1113,12 @@ begin
       begin
         if JEnchantment.AsString = EnchantmentNames[Enchantment] then
         begin
-          Include(Found, Enchantment);
+          Include(FEnchantments, Enchantment);
           Break;
         end;
       end;
     end;
   end;
-  Enchantments := Found;
 end;
 
 { TLootTable.TFunctionEnchantWithLevels }
@@ -1025,8 +1131,15 @@ end;
 procedure TLootTable.TFunctionEnchantWithLevels.Load(AValue: TJValue);
 begin
   inherited;
-  Levels := ParseIntBounds(AValue['levels']);
+  Levels := LoadIntBounds(AValue['levels']);
   Treasure := AValue['treasure'].BoolOrDefault;
+end;
+
+procedure TLootTable.TFunctionEnchantWithLevels.Save(AValue: TJObject);
+begin
+  inherited;
+  SaveIntBounds(AValue, 'levels', Levels);
+  AValue.Add('treasure', Treasure);
 end;
 
 procedure TLootTable.TFunctionEnchantWithLevels.SetLevels(const Value: TIntBounds1);
@@ -1080,6 +1193,16 @@ begin
   Zoom := AValue['zoom'].IntOrDefault(DefaultZoom);
   SearchRadius := AValue['search_radius'].IntOrDefault(DefaultSearchRadius);
   SkipExistingChunks := AValue['skip_existing_chunks'].BoolOrDefault(DefaultSkipExistingChunks);
+end;
+
+procedure TLootTable.TFunctionExplorationMap.Save(AValue: TJObject);
+begin
+  inherited;
+  AValue.Add('destination', Destination);
+  AValue.Add('decoration', Decoration);
+  AValue.Add('zoom', Zoom);
+  AValue.Add('search_radius', SearchRadius);
+  AValue.Add('skip_existing_chunks', SkipExistingChunks);
 end;
 
 procedure TLootTable.TFunctionExplorationMap.SetDecoration(const Value: string);
@@ -1136,6 +1259,13 @@ begin
   inherited;
   Count := AValue['count'].IntOrDefault;
   Limit := AValue['limit'].IntOrDefault;
+end;
+
+procedure TLootTable.TFunctionLootingEnchant.Save(AValue: TJObject);
+begin
+  inherited;
+  AValue.Add('count', Count);
+  AValue.Add('limit', Limit);
 end;
 
 procedure TLootTable.TFunctionLootingEnchant.SetCount(const Value: TIntBounds1);
@@ -1218,6 +1348,12 @@ begin
   FModifiers.Remove(AModifier);
 end;
 
+procedure TLootTable.TFunctionSetAttribute.Save(AValue: TJObject);
+begin
+  inherited;
+  raise ENotImplemented.Create('TFunctionSetAttribute.Save');  
+end;
+
 procedure TLootTable.TFunctionSetAttribute.SetModifierIndex(AModifier: TModifier; const Value: Integer);
 begin
   FModifiers.SetIndex(AModifier.Index, Value);
@@ -1239,7 +1375,13 @@ end;
 procedure TLootTable.TFunctionSetCount.Load(AValue: TJValue);
 begin
   inherited;
-  Count := ParseIntBounds(AValue['count'], 1);
+  Count := LoadIntBounds(AValue['count'], 1);
+end;
+
+procedure TLootTable.TFunctionSetCount.Save(AValue: TJObject);
+begin
+  inherited;
+  AValue.Add('count', Count);
 end;
 
 procedure TLootTable.TFunctionSetCount.SetCount(const Value: TIntBounds1);
@@ -1279,7 +1421,13 @@ end;
 procedure TLootTable.TFunctionSetDamage.Load(AValue: TJValue);
 begin
   inherited;
-  Damage := ParseIntBounds(AValue['damage'], 1);
+  Damage := LoadBounds(AValue['damage'], 1);
+end;
+
+procedure TLootTable.TFunctionSetDamage.Save(AValue: TJObject);
+begin
+  inherited;
+  SaveBounds(AValue, 'damage', Damage);
 end;
 
 procedure TLootTable.TFunctionSetDamage.SetDamage(const Value: TBounds1);
@@ -1313,7 +1461,13 @@ end;
 procedure TLootTable.TFunctionSetData.Load(AValue: TJValue);
 begin
   inherited;
-  Data := ParseIntBounds(AValue['data']);
+  Data := LoadIntBounds(AValue['data']);
+end;
+
+procedure TLootTable.TFunctionSetData.Save(AValue: TJObject);
+begin
+  inherited;
+  SaveIntBounds(AValue, 'data', Data);
 end;
 
 procedure TLootTable.TFunctionSetData.SetData(const Value: TIntBounds1);
@@ -1365,6 +1519,12 @@ procedure TLootTable.TFunctionSetNBT.Load(AValue: TJValue);
 begin
   inherited;
   TagString := AValue['tag'].StringOrDefault('{}');
+end;
+
+procedure TLootTable.TFunctionSetNBT.Save(AValue: TJObject);
+begin
+  inherited;
+  AValue.Add('tag', TagString);
 end;
 
 procedure TLootTable.TFunctionSetNBT.SetTagString(const Value: string);
@@ -1441,6 +1601,17 @@ end;
 procedure TLootTable.TEntryItem.RemoveFunction(AFunction: TFunction);
 begin
   FFunctions.Remove(AFunction);
+end;
+
+procedure TLootTable.TEntryItem.Save(AValue: TJObject);
+begin
+  inherited;
+  AValue.Add('name', Item);
+  if not Functions.Empty then
+  begin
+    JFunctions := AValue.AddArray;
+    // TODO here
+  end;
 end;
 
 procedure TLootTable.TEntryItem.SetFunctionIndex(AFunction: TFunction; const Value: Integer);
@@ -1538,8 +1709,8 @@ procedure TLootTable.TPool.Load(AValue: TJValue);
 var
   JEntry: TJValue;
 begin
-  Rolls := ParseIntBounds(AValue['rolls'], 1);
-  BonusRolls := ParseIntBounds(AValue['bonus_rolls'], 0);
+  Rolls := LoadIntBounds(AValue['rolls'], 1);
+  BonusRolls := LoadIntBounds(AValue['bonus_rolls'], 0);
   for JEntry in AValue['entries'].AsArray do
     FEntries.Add(TEntry.CreateTyped(Self, JEntry));
 end;
@@ -1547,6 +1718,18 @@ end;
 procedure TLootTable.TPool.RemoveEntry(AEntry: TEntry);
 begin
   FEntries.Remove(AEntry);
+end;
+
+procedure TLootTable.TPool.Save(AValue: TJObject);
+var
+  JEntries: TJArray;
+  Entry: TEntry;
+begin
+  SaveIntBounds(AValue, 'rolls', Rolls);
+  SaveIntBounds(AValue, 'bonus_rolls', BonusRolls);
+  JEntries := AValue.AddArray('entries');
+  for Entry in Entries do
+    Entry.Save(JEntries.AddObject);
 end;
 
 procedure TLootTable.TPool.SetBonusRolls(const Value: TBounds1);
@@ -1646,6 +1829,11 @@ begin
   // nothing by default
 end;
 
+procedure TLootTable.TCondition.Save(AValue: TJObject);
+begin
+  // nothing by default
+end;
+
 procedure TLootTable.TCondition.SetIndex(const Value: Integer);
 begin
   Conditioned.ConditionIndex[Self] := Value;
@@ -1671,6 +1859,12 @@ begin
   end;
 
   raise ELootTable.Create('Invalid target entity specified.');
+end;
+
+procedure TLootTable.TConditionEntity.Save(AValue: TJObject);
+begin
+  inherited;
+  AValue.Add('entity', TargetNames[Target]);
 end;
 
 procedure TLootTable.TConditionEntity.SetTarget(const Value: TTarget);
@@ -1728,6 +1922,13 @@ begin
   inherited;
   Weight := AValue['weight'].IntOrDefault;
   Quality := AValue['quality'].IntOrDefault;
+end;
+
+procedure TLootTable.TEntry.Save(AValue: TJObject);
+begin
+  inherited;
+  AValue.Add('weight', Weight);
+  AValue.Add('quality', Quality);
 end;
 
 procedure TLootTable.TEntry.SetIndex(const Value: Integer);
@@ -1798,6 +1999,19 @@ end;
 procedure TLootTable.TConditioned.RemoveCondition(ACondition: TCondition);
 begin
   FConditions.Remove(ACondition);
+end;
+
+procedure TLootTable.TConditioned.Save(AValue: TJObject);
+var
+  JConditions: TJArray;
+  Condition: TCondition;
+begin                                                         
+  if not FConditions.Empty then
+  begin   
+    JConditions := AValue.AddArray('conditions');
+    for Condition in Conditions do
+      Condition.Save(JConditions.AddObject);
+  end;
 end;
 
 procedure TLootTable.TConditioned.SetConditionIndex(ACondition: TCondition; const Value: Integer);
