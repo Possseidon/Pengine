@@ -721,9 +721,7 @@ procedure TJObject.FormatInternal(ABuilder: TJValue.TJStringBuilder);
   procedure AppendIndex(I: Integer);
   begin
     ABuilder.Append(TJString.Quote(Order[I].Key));
-    ABuilder.Append(':');
-    if ABuilder.Pretty then
-      ABuilder.Append(' ');
+    ABuilder.Append(': ');
     Order[I].Value.FormatInternal(ABuilder);
   end;
 
@@ -738,7 +736,10 @@ begin
     for I := 1 to Order.MaxIndex do
     begin
       ABuilder.Append(',');
-      ABuilder.NewLine;
+      if not ABuilder.Pretty then
+        ABuilder.Append(' ')
+      else
+        ABuilder.NewLine;
       AppendIndex(I);
     end;
   end;
@@ -879,7 +880,10 @@ begin
     for I := 1 to Values.MaxIndex do
     begin
       ABuilder.Append(',');
-      ABuilder.NewLine;
+      if not ABuilder.Pretty then
+        ABuilder.Append(' ')
+      else
+        ABuilder.NewLine;
       Values[I].FormatInternal(ABuilder);
     end;
   end;

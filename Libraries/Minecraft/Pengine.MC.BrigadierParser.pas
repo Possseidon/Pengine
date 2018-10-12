@@ -367,13 +367,6 @@ type
 
   end;
 
-  /// <summary>The placeholder "*", that stands for all entries of the context specific objective.</summary>
-  TBrigadierEntityAllScoreHolders = class(TBrigadierEntity)
-  public
-    function Format: string; override;
-
-  end;
-
   TBrigadierEntityProperties = class(TBrigadierParserProperties)
   public type
 
@@ -433,7 +426,44 @@ type
 
   end;
 
-  TBrigadierScoreHolderParser = class(TBrigadierParser<TBrigadierEntity>)
+  TBrigadierScoreHolder = class(TBrigadierArgumentParameter);
+
+  /// <summary>The placeholder "*", that stands for all entries of the context specific objective.</summary>
+  TBrigadierScoreHolderAll = class(TBrigadierScoreHolder)
+  public
+    function Format: string; override;
+
+  end;
+
+  TBrigadierScoreHolderSelector = class(TBrigadierScoreHolder)
+  private
+    FSelector: TEntitySelector;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument); overload; override;
+    constructor Create(AArgument: TBrigadierArgument; ASelector: TEntitySelector); reintroduce; overload;
+    destructor Destroy; override;
+
+    property Selector: TEntitySelector read FSelector;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierScoreHolderText = class(TBrigadierScoreHolder)
+  private
+    FText: string;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; AText: string); reintroduce; overload;
+
+    property Text: string read FText;
+
+    function Format: string; override;
+
+  end;
+
+  TBrigadierScoreHolderParser = class(TBrigadierParser<TBrigadierScoreHolder>)
   public type
 
     TSuggestions = class(TParseSuggestionsSimple<TBrigadierScoreHolderParser>)
@@ -1423,36 +1453,36 @@ begin
     Marker := GetMarker;
     Name := ReadWhile(IdentChars, False);
     if Name.Length > UsernameMaxLength then
-    begin                  
-      Token := TokenUUID; 
+    begin
+      Token := TokenUUID;
       Advance(Name.Length);
       Name := Name.Replace('-', '');
-      FillChar(UUIDBytes, SizeOf(UUIDBytes), 0);    
+      FillChar(UUIDBytes, SizeOf(UUIDBytes), 0);
       if Name.Length <> 32 then
       begin
         Log(Marker, 'Invalid UUID length.', elFatal);
       end
       else
-      begin  
+      begin
         for I := 0 to 15 do
         begin
           if not Byte.TryParse('$' + Name.Substring(I * 2, 2), UUIDBytes[I]) then
           begin
             Log(Marker, 'Invalid UUID.', elFatal);
             Break;
-          end;             
+          end;
         end;
       end;
-      
-      SetParseResult(TBrigadierEntityUUID.Create(Argument, TGUID.Create(UUIDBytes, TEndian.Big))); 
+
+      SetParseResult(TBrigadierEntityUUID.Create(Argument, TGUID.Create(UUIDBytes, TEndian.Big)));
       Exit(True);
     end;
-                          
-    Token := TokenUsername; 
+
+    Token := TokenUsername;
     Advance(Name.Length);
     if Name.IsEmpty then
       Exit(False);
-    
+
     SetParseResult(TBrigadierEntityPlayer.Create(Argument, Name));
   end;
   Result := True;
@@ -2650,13 +2680,6 @@ begin
   Parser.Free;
 end;
 
-{ TBrigadierEntityAllScoreboardHolders }
-
-function TBrigadierEntityAllScoreHolders.Format: string;
-begin
-  Result := '*';
-end;
-
 { TBrigadierScoreHolderParser }
 
 class function TBrigadierScoreHolderParser.GetParserString: TNSPath;
@@ -2672,38 +2695,39 @@ end;
 function TBrigadierScoreHolderParser.Parse: Boolean;
 var
   SelectorParser: TEntitySelector.TParser;
-  Name: string;
+  Text: string;
   Marker: TLogMarker;
   Selector: TEntitySelector;
 begin
   BeginSuggestions(TSuggestions);
-
-  if StartsWith('*') then
-  begin
-    SetParseResult(TBrigadierEntityAllScoreHolders.Create(Argument));
-    Exit(True);
-  end;
+  Marker := GetMarker;
 
   if StartsWith(TEntitySelector.Prefix, False) then
   begin
-    Marker := GetMarker;
 
     SelectorParser := TEntitySelector.TParser.Create(Info, True);
     Selector := SelectorParser.OwnParseResult;
-    SetParseResult(TBrigadierEntitySelector.Create(Argument, Selector));
+    SetParseResult(TBrigadierScoreHolderSelector.Create(Argument, Selector));
     SelectorParser.Free;
 
-  end
-  else
-  begin
-    Name := ReadWhile(IdentChars);
-    if Name.IsEmpty then
-      Exit(False);
-    if Name.Length > UsernameMaxLength then
-      Log(-Name.Length, 'Usernames can only be %d characters long.', [UsernameMaxLength]);
-
-    SetParseResult(TBrigadierEntityPlayer.Create(Argument, Name));
+    Exit(True);
   end;
+
+  Text := ReadUntil([' ']);
+
+  if Text.IsEmpty then
+    Exit(False);
+
+  if Text = '*' then
+  begin
+    SetParseResult(TBrigadierScoreHolderAll.Create(Argument));
+    Exit(True);
+  end;
+
+  if Text.Length > 40 then
+    Log(Marker, 'The score holder can be at most 40 characters long.');
+
+  SetParseResult(TBrigadierScoreHolderText.Create(Argument, Text));
   Result := True;
 end;
 
@@ -2754,6 +2778,8 @@ begin
   Name := ReadWhile(IdentChars);
   if Name.IsEmpty then
     Exit(False);
+  if Name.Length > 16 then
+    Log(-Name.Length, 'Objective names can be at most 16 characters long.');
   SetParseResult(TBrigadierObjective.Create(Argument, Name));
   Result := True;
 end;
@@ -2780,7 +2806,7 @@ end;
 
 function TBrigadierComponent.Format: string;
 begin
-  Result := JSON.Value.Format;
+  Result := JSON.Value.Format(False);
 end;
 
 { TBrigadierComponentParser }
@@ -3348,6 +3374,51 @@ begin
   Result := UUID.ToString;
   // remove the {}
   Result := Result.Substring(1, Result.Length - 2);
+end;
+
+{ TBrigadierScoreHolderAll }
+
+function TBrigadierScoreHolderAll.Format: string;
+begin
+  Result := '*';
+end;
+
+{ TBrigadierScoreHolderSelector }
+
+constructor TBrigadierScoreHolderSelector.Create(AArgument: TBrigadierArgument);
+begin
+  inherited;
+  FSelector := TEntitySelector.Create;
+end;
+
+constructor TBrigadierScoreHolderSelector.Create(AArgument: TBrigadierArgument; ASelector: TEntitySelector);
+begin
+  inherited Create(AArgument);
+  FSelector := ASelector;
+end;
+
+destructor TBrigadierScoreHolderSelector.Destroy;
+begin
+  FSelector.Free;
+  inherited;
+end;
+
+function TBrigadierScoreHolderSelector.Format: string;
+begin
+  Result := Selector.Format;
+end;
+
+{ TBrigadierScoreHolderText }
+
+constructor TBrigadierScoreHolderText.Create(AArgument: TBrigadierArgument; AText: string);
+begin
+  inherited Create(AArgument);
+  FText := AText;
+end;
+
+function TBrigadierScoreHolderText.Format: string;
+begin
+  Result := Text;
 end;
 
 initialization

@@ -1609,7 +1609,7 @@ begin
   AValue.Add('name', Item);
   if not Functions.Empty then
   begin
-    JFunctions := AValue.AddArray;
+    // JFunctions := AValue.AddArray;
     // TODO here
   end;
 end;
@@ -1637,6 +1637,12 @@ procedure TLootTable.TEntryLootTable.Load(AValue: TJValue);
 begin
   inherited;
   LootTable := AValue['name'].StringOrDefault;
+end;
+
+procedure TLootTable.TEntryLootTable.Save(AValue: TJObject);
+begin
+  inherited;
+  // TODO
 end;
 
 procedure TLootTable.TEntryLootTable.SetLootTable(const Value: string);

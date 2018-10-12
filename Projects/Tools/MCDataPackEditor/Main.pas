@@ -502,6 +502,7 @@ var
   LootTable: TLootTable;
   JLootTable: TJObject;
 begin
+  {
   JLootTable := TJObject.Parse(TFile.ReadAllText('junk.json'));
   LootTable := TLootTable.Create(JLootTable);
   JLootTable.Free;
@@ -509,7 +510,7 @@ begin
   TFile.WriteAllText('compact.json', JLootTable.Format(False));
   TFile.WriteAllText('pretty.json', JLootTable.Format);
   JLootTable.Free;
-
+  }
   // SHAutoComplete(edtTestInput.Handle, SHACF_AUTOAPPEND_FORCE_OFF or SHACF_AUTOSUGGEST_FORCE_OFF);
   InitDataTypes;
   InitTheme;
