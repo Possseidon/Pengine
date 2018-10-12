@@ -6,6 +6,7 @@ uses
   System.SysUtils,
   System.IOUtils,
   System.Math,
+  System.Types,
 
   Pengine.IntMaths,
   Pengine.Vector,
@@ -337,6 +338,19 @@ type
 
   end;
 
+  TBrigadierEntityUUID = class(TBrigadierEntity)
+  private
+    FUUID: TGUID;
+
+  public
+    constructor Create(AArgument: TBrigadierArgument; AUUID: TGUID); reintroduce; overload;
+
+    property UUID: TGUID read FUUID write FUUID;
+
+    function Format: string; override;
+
+  end;
+
   /// <summary>An entity selector with possible context specific constraints.</summary>
   TBrigadierEntitySelector = class(TBrigadierEntity)
   private
@@ -401,9 +415,11 @@ type
   public const
 
     TokenUsername = 1;
+    TokenUUID = 2;
 
-    TokenNames: array [TokenUsername .. TokenUsername] of string = (
-      'Username'
+    TokenNames: array [TokenUsername .. TokenUUID] of string = (
+      'Username',
+      'UUID'
       );
 
   protected
@@ -1383,6 +1399,8 @@ var
   Name: string;
   Marker: TLogMarker;
   Selector: TEntitySelector;
+  UUIDBytes: array [0 .. 15] of Byte;
+  I: Integer;
 begin
   BeginSuggestions(TEntitySelector.TSuggestions);
   if StartsWith(TEntitySelector.Prefix, False) then
@@ -1402,13 +1420,39 @@ begin
   end
   else
   begin
-    Token := TokenUsername;
-    Name := ReadWhile(IdentChars);
+    Marker := GetMarker;
+    Name := ReadWhile(IdentChars, False);
+    if Name.Length > UsernameMaxLength then
+    begin                  
+      Token := TokenUUID; 
+      Advance(Name.Length);
+      Name := Name.Replace('-', '');
+      FillChar(UUIDBytes, SizeOf(UUIDBytes), 0);    
+      if Name.Length <> 32 then
+      begin
+        Log(Marker, 'Invalid UUID length.', elFatal);
+      end
+      else
+      begin  
+        for I := 0 to 15 do
+        begin
+          if not Byte.TryParse('$' + Name.Substring(I * 2, 2), UUIDBytes[I]) then
+          begin
+            Log(Marker, 'Invalid UUID.', elFatal);
+            Break;
+          end;             
+        end;
+      end;
+      
+      SetParseResult(TBrigadierEntityUUID.Create(Argument, TGUID.Create(UUIDBytes, TEndian.Big))); 
+      Exit(True);
+    end;
+                          
+    Token := TokenUsername; 
+    Advance(Name.Length);
     if Name.IsEmpty then
       Exit(False);
-    if Name.Length > UsernameMaxLength then
-      Log(-Name.Length, 'Usernames can only be %d characters long.', [UsernameMaxLength]);
-
+    
     SetParseResult(TBrigadierEntityPlayer.Create(Argument, Name));
   end;
   Result := True;
@@ -3289,6 +3333,21 @@ begin
   if Result then
     SetParseResult(TBrigadierObjectiveCriteria.Create(Argument, Parser.OwnParseResult));
   Parser.Free;
+end;
+
+{ TBrigadierEntityUUID }
+
+constructor TBrigadierEntityUUID.Create(AArgument: TBrigadierArgument; AUUID: TGUID);
+begin
+  inherited Create(AArgument);
+  FUUID := AUUID;
+end;
+
+function TBrigadierEntityUUID.Format: string;
+begin
+  Result := UUID.ToString;
+  // remove the {}
+  Result := Result.Substring(1, Result.Length - 2);
 end;
 
 initialization
