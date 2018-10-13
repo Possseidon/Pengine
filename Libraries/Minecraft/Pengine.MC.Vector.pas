@@ -296,7 +296,6 @@ end;
 function TMCVecValue.TParser.Parse: Boolean;
 const
   NumChars = ['0' .. '9', '-', '.'];
-
 var
   Mode: TMode;
   Value: Single;
@@ -311,16 +310,11 @@ begin
   else
     Mode := vmAbsolute;
 
-  NumString := ReadWhile(NumChars);
+  NumString := ReadUntil([' ']);
   if NumString.IsEmpty and (Mode <> vmAbsolute) then
     Value := 0
   else if not TryStrToFloat(NumString, Value, FormatSettings.Invariant) then
-  begin
-    if FBlockPos and (Mode = vmAbsolute) then
-      raise EParseError.Create('Expected integer value.', NumString.Length)
-    else
-      raise EParseError.Create('Expected floating point value.', NumString.Length);
-  end;
+    Exit(False);
 
   if FBlockPos and (Mode = vmAbsolute) and NumString.Contains('.') then
     Log(-NumString.Length, 'Absolute block positions must be integer.');
