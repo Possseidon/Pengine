@@ -1749,7 +1749,7 @@ var
   JEntry: TJValue;
 begin
   Rolls := LoadIntBounds(AValue['rolls'], 1);
-  BonusRolls := LoadIntBounds(AValue['bonus_rolls'], 0);
+  BonusRolls := LoadBounds(AValue['bonus_rolls'], 0);
   for JEntry in AValue['entries'].AsArray do
     FEntries.Add(TEntry.CreateTyped(Self, JEntry));
 end;
@@ -1765,7 +1765,7 @@ var
   Entry: TEntry;
 begin
   SaveIntBounds(AValue, 'rolls', Rolls);
-  SaveIntBounds(AValue, 'bonus_rolls', BonusRolls, 0);
+  SaveBounds(AValue, 'bonus_rolls', BonusRolls, 0);
   JEntries := AValue.AddArray('entries');
   for Entry in Entries do
     Entry.Save(JEntries.AddObject);
