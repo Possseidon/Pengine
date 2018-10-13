@@ -993,7 +993,7 @@ var
   Tag: TNBTTag;
   Name: string;
 begin
-  inherited;
+  Create;
   while True do
   begin
     Tag := TNBTTag.Parse(AStream, Name);

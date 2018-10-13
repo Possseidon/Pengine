@@ -12,6 +12,7 @@ uses
   System.IOUtils,
   System.Actions,
   System.ImageList,
+  System.Classes,
 
   Vcl.Forms,
   Vcl.Menus,
@@ -42,9 +43,7 @@ uses
   EditorFrameFunction,
   FunctionTheme,
   LightThemePreset,
-  SettingsForm,
-  System.Classes,
-  Pengine.MC.LootTable, Pengine.JSON;
+  SettingsForm;
 
 type
 
@@ -320,13 +319,14 @@ begin
   // The first time, this exception is raised, the raising takes a little longer with the debugger...
   // So let's do it at the start so it's not anoying while typing.
 
-{$IFDEF DEBUG}
+  {$IFDEF DEBUG}
+
   try
     raise EParseError.Create('');
   except
   end;
 
-{$ENDIF}
+  {$ENDIF}
 
 end;
 
@@ -498,19 +498,7 @@ begin
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
-var
-  LootTable: TLootTable;
-  JLootTable: TJObject;
 begin
-  {
-  JLootTable := TJObject.Parse(TFile.ReadAllText('junk.json'));
-  LootTable := TLootTable.Create(JLootTable);
-  JLootTable.Free;
-  JLootTable := LootTable.Save;
-  TFile.WriteAllText('compact.json', JLootTable.Format(False));
-  TFile.WriteAllText('pretty.json', JLootTable.Format);
-  JLootTable.Free;
-  }
   // SHAutoComplete(edtTestInput.Handle, SHACF_AUTOAPPEND_FORCE_OFF or SHACF_AUTOSUGGEST_FORCE_OFF);
   InitDataTypes;
   InitTheme;

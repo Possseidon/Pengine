@@ -61,40 +61,4 @@ begin
   end;
 end;
 
-
-{
-begin
-  Token := TokenQuote;
-  if not StartsWith('"') then
-    Exit(False);
-  Token := TokenContent;
-  while not StartsWith('"') do
-  begin
-    if ReachedEnd then
-      raise EParseError.Create('Found unterminated string.');
-
-    if Token = TokenEscaped then
-      Token := TokenContent;
-
-    case First of
-      '"':
-        begin
-          Token := TokenQuote;
-          Advance;
-          Exit(True);
-        end;
-      '\':
-        begin
-          Token := TokenBackslash;
-          Advance;
-          if not CharInSet(First, ['"', '\']) then
-            Log(1, 'Only \" and \\ are valid escape sequences.');
-          Token := TokenEscaped;
-        end;
-    end;
-    SetParseResult(ParseResult + First);
-  end;
-  raise EParseError.Create('Found unterminated string.');
-end;
- }
 end.

@@ -32,16 +32,28 @@ type
   public type
 
     TNumber = record
+    public type
+
+      TType = (
+        ntInt,
+        ntSingle,
+        ntDouble
+        );
+
     public
       class operator Implicit(ANumber: TNumber): Double; static;
       class operator Implicit(ANumber: Int64): TNumber; static;
+      class operator Implicit(ANumber: Single): TNumber; static;
       class operator Implicit(ANumber: Double): TNumber; static;
 
+      function IsFloat: Boolean;
+
     private
-      case IsFloat: Boolean of
-        False:
+
+      case NumType: TType of
+        ntInt:
           (AsInt: Int64);
-        True:
+        ntSingle, ntDouble:
           (AsFloat: Double);
     end;
 
@@ -1011,10 +1023,14 @@ end;
 
 procedure TJNumber.FormatInternal(ABuilder: TJValue.TJStringBuilder);
 begin
-  if Number.IsFloat then
-    ABuilder.Append(PrettyFloat(Number.AsFloat))
-  else
-    ABuilder.Append(Number.AsInt);
+  case Number.NumType of
+    ntInt:
+      ABuilder.Append(Number.AsInt);
+    ntSingle:
+      ABuilder.Append(PrettyFloat(Single(Number.AsFloat)));
+    ntDouble:
+      ABuilder.Append(PrettyFloat(Number.AsFloat));
+  end;
 end;
 
 class function TJNumber.GetTypeName: string;
@@ -1047,13 +1063,24 @@ end;
 
 class operator TJValue.TNumber.Implicit(ANumber: Int64): TNumber;
 begin
-  Result.IsFloat := False;
+  Result.NumType := ntInt;
   Result.AsInt := ANumber;
 end;
 
 class operator TJValue.TNumber.Implicit(ANumber: Double): TNumber;
 begin
-  Result.IsFloat := True;
+  Result.NumType := ntDouble;
+  Result.AsFloat := ANumber;
+end;
+
+function TJValue.TNumber.IsFloat: Boolean;
+begin
+  Result := NumType <> ntInt;
+end;
+
+class operator TJValue.TNumber.Implicit(ANumber: Single): TNumber;
+begin
+  Result.NumType := ntSingle;
   Result.AsFloat := ANumber;
 end;
 

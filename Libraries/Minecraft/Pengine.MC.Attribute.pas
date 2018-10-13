@@ -98,6 +98,49 @@ const
     'head'
     );
 
+function AttributeFromName(AName: string; out AAttribute: TAttribute): Boolean;
+function AttributeOperationFromName(AName: string; out AAttributeOperation: TAttributeOperation): Boolean;
+function AttributeSlotFromName(AName: string; out AAttributeSlot: TAttributeSlot): Boolean;
+
 implementation
+
+function AttributeFromName(AName: string; out AAttribute: TAttribute): Boolean;
+var
+  Attribute: TAttribute;
+begin
+  for Attribute := Low(TAttribute) to High(TAttribute) do
+    if AName = AttributeNames[Attribute] then
+    begin
+      AAttribute := Attribute;
+      Exit(True);
+    end;
+  Result := False;
+end;
+
+function AttributeOperationFromName(AName: string; out AAttributeOperation: TAttributeOperation): Boolean;
+var
+  AttributeOperation: TAttributeOperation;
+begin
+  for AttributeOperation := Low(TAttributeOperation) to High(TAttributeOperation) do
+    if AName = AttributeOperationNames[AttributeOperation] then
+    begin
+      AAttributeOperation := AttributeOperation;
+      Exit(True);
+    end;
+  Result := False;
+end;
+
+function AttributeSlotFromName(AName: string; out AAttributeSlot: TAttributeSlot): Boolean;
+var
+  AttributeSlot: TAttributeSlot;
+begin
+  for AttributeSlot := Low(TAttributeSlot) to High(TAttributeSlot) do
+    if AName = AttributeSlotNames[AttributeSlot] then
+    begin
+      AAttributeSlot := AttributeSlot;
+      Exit(True);
+    end;
+  Result := False;
+end;
 
 end.
