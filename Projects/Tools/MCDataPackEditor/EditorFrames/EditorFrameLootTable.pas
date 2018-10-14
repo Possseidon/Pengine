@@ -16,12 +16,12 @@ uses
   Vcl.Forms,
   Vcl.Dialogs,
 
-  System.JSON,
+  Pengine.JSON,
 
   Pengine.MC.LootTable,
 
   DatapackView,
-  LootTableFramePool, Pengine.JSON;
+  LootTableFramePool;
 
 type
 

@@ -29,6 +29,18 @@ object frmMain: TfrmMain
     ExplicitLeft = 209
     ExplicitHeight = 506
   end
+  object PaintBox1: TPaintBox
+    Left = 240
+    Top = 0
+    Width = 836
+    Height = 560
+    Align = alClient
+    OnPaint = PaintBox1Paint
+    ExplicitLeft = 264
+    ExplicitTop = 24
+    ExplicitWidth = 777
+    ExplicitHeight = 473
+  end
   object Panel1: TPanel
     Left = 0
     Top = 0
@@ -118,6 +130,7 @@ object frmMain: TfrmMain
     ParentShowHint = False
     ShowHint = False
     TabOrder = 2
+    Visible = False
     OnDragDrop = pcTabsDragDrop
     OnDragOver = pcTabsDragOver
     OnMouseDown = pcTabsMouseDown
@@ -126,6 +139,7 @@ object frmMain: TfrmMain
     OnMouseMove = pcTabsMouseMove
     OnMouseUp = pcTabsMouseUp
     OnStartDrag = pcTabsStartDrag
+    ExplicitTop = 0
   end
   object alActions: TActionList
     Images = ilIcons
@@ -349,7 +363,7 @@ object frmMain: TfrmMain
     Left = 48
     Top = 192
     Bitmap = {
-      494C01010A000D003C0010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01010A000D00400010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000003000000001002000000000000030
       000000000000000000000000000000000000000000000000000047C7EBFF47C6
       EAFF47C6EAFF46C5EAFF46C4E9FF46C4E9FF45C3E8FF45C2E8FF45C2E7FF45C1

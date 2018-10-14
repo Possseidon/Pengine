@@ -7,7 +7,8 @@ uses
 
   Pengine.Collections,
   Pengine.HashCollections,
-  Pengine.Hasher;
+  Pengine.Hasher,
+  Pengine.EventHandling;
 
 type
 
@@ -18,11 +19,20 @@ type
   TRootSettings = class;
 
   TSettings = class
+  public type
+
+    TEventInfo = TSenderEventInfo<TSettings>;
+
+    TEvent = TEvent<TEventInfo>;
+
   private
     FRoot: TRootSettings;
+    FOnReload: TEvent;
 
   protected
     constructor Create(ARoot: TRootSettings); virtual;
+
+    procedure DoReload; virtual;
 
   public
     class function GetTitle: string; virtual; abstract;
@@ -39,6 +49,9 @@ type
 
     function Get<T: TSettings>: T; overload;
     function Get(ASettingsClass: TSettingsClass): TSettings; overload;
+
+    procedure Reload; 
+    function OnReload: TEvent.TAccess;
 
   end;
 
@@ -77,6 +90,11 @@ begin
   FRoot := ARoot;
 end;
 
+procedure TSettings.DoReload;
+begin
+  // nothing by default
+end;
+
 function TSettings.Equals(Obj: TObject): Boolean;
 begin
   Result := Equals(Obj as TSettings);
@@ -94,6 +112,17 @@ begin
   Result := '-';
 end;
 
+function TSettings.OnReload: TEvent.TAccess;
+begin
+  Result := FOnReload.Access;
+end;
+
+procedure TSettings.Reload;
+begin
+  DoReload;
+  FOnReload.Execute(TEventInfo.Create(Self));
+end;
+
 procedure TSettings.SetDefaults;
 begin
   // nothing by default
@@ -105,7 +134,9 @@ begin
   begin
     Result := ASettingsClass.Create(Root);
     Root.FSubSettings[ASettingsClass] := Result;
+    Result.FOnReload.Disable;
     Result.SetDefaults;
+    Result.FOnReload.Enable;
   end;
 end;
 

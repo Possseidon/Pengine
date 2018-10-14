@@ -115,6 +115,9 @@ type
 
     procedure SetPath(const Value: string);
 
+  protected
+    procedure DoReload; override;
+
   public
     destructor Destroy; override;
 
@@ -125,8 +128,6 @@ type
 
     property Path: string read FPath write SetPath;
     property Blocks: TBlockTypeCollection read FBlocks;
-
-    procedure Reload;
 
   end;
 
@@ -311,6 +312,9 @@ type
 
     procedure SetPath(const Value: string);
 
+  protected
+    procedure DoReload; override;
+
   public
     destructor Destroy; override;
 
@@ -321,8 +325,6 @@ type
 
     property Path: string read FPath write SetPath;
     property BlockTags: TBlockTagCollection read FBlockTags;
-
-    procedure Reload;
 
   end;
 
@@ -598,7 +600,7 @@ begin
   Result := 'Blocks';
 end;
 
-procedure TBlockSettings.Reload;
+procedure TBlockSettings.DoReload;
 var
   BlocksText: string;
   BlocksJ: TJObject;
@@ -966,7 +968,7 @@ begin
   Result := 'Block-Tags';
 end;
 
-procedure TBlockTagSettings.Reload;
+procedure TBlockTagSettings.DoReload;
 begin
   FBlockTags.Free;
   FBlockTags := TBlockTagCollection.Create(Get<TBlockSettings>.Blocks, Path);

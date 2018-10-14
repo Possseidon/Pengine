@@ -78,6 +78,9 @@ type
 
     procedure SetPath(const Value: string);
 
+  protected
+    procedure DoReload; override;
+
   public
     destructor Destroy; override;
 
@@ -88,8 +91,6 @@ type
 
     property Path: string read FPath write SetPath;
     property Items: TItemTypeCollection read FItems;
-
-    procedure Reload;
 
   end;
 
@@ -205,6 +206,9 @@ type
 
     procedure SetPath(const Value: string);
 
+  protected
+    procedure DoReload; override;
+
   public
     destructor Destroy; override;
 
@@ -215,8 +219,6 @@ type
 
     property Path: string read FPath write SetPath;
     property ItemTags: TItemTagCollection read FItemTags;
-
-    procedure Reload;
 
   end;
 
@@ -501,7 +503,7 @@ begin
   Result := 'Items';
 end;
 
-procedure TItemSettings.Reload;
+procedure TItemSettings.DoReload;
 var
   ItemsText: string;
   JItems: TJObject;
@@ -530,8 +532,6 @@ end;
 
 procedure TItemSettings.SetPath(const Value: string);
 begin
-  if Path = Value then
-    Exit;
   FPath := Value;
   Reload;
 end;
@@ -757,7 +757,7 @@ begin
   Result := 'Item-Tags';
 end;
 
-procedure TItemTagSettings.Reload;
+procedure TItemTagSettings.DoReload;
 begin
   FItemTags.Free;
   FItemTags := TItemTagCollection.Create(Get<TItemSettings>.Items, Path);
