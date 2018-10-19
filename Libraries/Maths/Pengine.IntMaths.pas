@@ -11,15 +11,18 @@ uses
 
 type
 
-  // TODO: Big todo! Make bounds [C1, C2] instead of [C1, C2) as it is not cabable of representing every int value
-
   /// <summary>A vertex-index for a triangle in range: <c>[0, 3)</c></summary>
   TTriangleIndex = 0 .. 2;
   /// <summary>A vertex-index for a render-quad in range: <c>[0, 6)</c></summary>
   TQuadIndex = 0 .. 5;
 
   /// <summary>Describes one of the three axes: <c>caX, caY, caZ</c> and also contains <c>caNone</c> to specify no axis.</summary>
-  TCoordAxis = (caNone, caX, caY, caZ);
+  TCoordAxis = (
+    caNone = -1,
+    caX,
+    caY,
+    caZ
+    );
 
   /// <summary>A 1-Dimensional subrange for <see cref="Pengine.Vector|TCoordAxis"/>, which does not contain caNone.</summary>
   TCoordAxis1 = caX .. caX;
@@ -132,15 +135,13 @@ type
     class operator Implicit(A: TIntVector2): TPoint;
     class operator Implicit(A: TPoint): TIntVector2;
 
-    {$REGION 'All versions of rearrangement TIntVector2'}
-
+{$REGION 'All versions of rearrangement TIntVector2'}
     property XX: TIntVector2 read GetXX;
     property XY: TIntVector2 read GetXY write SetXY;
     property YX: TIntVector2 read GetYX write SetYX;
     property YY: TIntVector2 read GetYY;
 
-    {$ENDREGION}
-
+{$ENDREGION}
     class operator Add(const A, B: TIntVector2): TIntVector2;
     class operator Subtract(const A, B: TIntVector2): TIntVector2;
     class operator Multiply(const A, B: TIntVector2): TIntVector2;
@@ -254,8 +255,7 @@ type
 
     class operator Implicit(V: Integer): TIntVector3; inline;
 
-    {$REGION 'All versions of rearrangement TIntVector2'}
-
+{$REGION 'All versions of rearrangement TIntVector2'}
     property XX: TIntVector2 read GetXX;
     property XY: TIntVector2 read GetXY write SetXY;
     property XZ: TIntVector2 read GetXZ write SetXZ;
@@ -266,9 +266,8 @@ type
     property ZY: TIntVector2 read GetZY write SetZY;
     property ZZ: TIntVector2 read GetZZ;
 
-    {$ENDREGION}
-    {$REGION 'All versions of rearrangement TIntVector3'}
-
+{$ENDREGION}
+{$REGION 'All versions of rearrangement TIntVector3'}
     property XXX: TIntVector3 read GetXXX;
     property XXY: TIntVector3 read GetXXY;
     property XXZ: TIntVector3 read GetXXZ;
@@ -297,8 +296,7 @@ type
     property ZZY: TIntVector3 read GetZZY;
     property ZZZ: TIntVector3 read GetZZZ;
 
-    {$ENDREGION}
-
+{$ENDREGION}
     class operator Add(const A, B: TIntVector3): TIntVector3;
     class operator Subtract(const A, B: TIntVector3): TIntVector3;
     class operator Multiply(const A, B: TIntVector3): TIntVector3;

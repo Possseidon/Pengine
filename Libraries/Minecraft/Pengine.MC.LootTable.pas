@@ -17,7 +17,8 @@ uses
 
   Pengine.MC.NBT,
   Pengine.MC.Enchantment,
-  Pengine.MC.Attribute, Pengine.MC.Namespace;
+  Pengine.MC.Attribute,
+  Pengine.MC.Namespace;
 
 type
 
@@ -407,7 +408,7 @@ type
       constructor Create(AFunction: TFunctionSetAttributes); overload;
       constructor Create(AFunction: TFunctionSetAttributes; AValue: TJValue); overload;
       destructor Destroy; override;
-      
+
       procedure Load(AValue: TJValue);
       procedure Save(AValue: TJObject);
 
@@ -1933,7 +1934,7 @@ var
   EntryType: TNSPath;
   T: TType;
 begin
-  EntryType := AValue['type'].AsString;   
+  EntryType := AValue['type'].AsString;
   for T := Low(TType) to High(TType) do
     if EntryType = EntryClasses[T].GetName then
       Exit(EntryClasses[T].Create(APool, AValue));
@@ -2143,7 +2144,7 @@ var
   Slot: TAttributeSlot;
 begin
   Name := AValue['name'].AsString;
-  
+
   if not AttributeFromName(AValue['attribute'].AsString, FAttribute) then
     raise ELootTable.Create('Unknown attribute type.');
 
@@ -2164,13 +2165,13 @@ begin
     FSlots := [Slot];
   end
   else
-  begin    
+  begin
     FSlots := [];
     for JSlot in JSlot.AsArray do
     begin
       if not AttributeSlotFromName(JSlot.AsString, Slot) then
         raise ELootTable.Create('Unknown attribute slot.');
-      Include(FSlots, Slot);  
+      Include(FSlots, Slot);
     end;
   end;
 end;
@@ -2201,10 +2202,10 @@ begin
       AValue.Add('slot', AttributeSlotNames[Slot]);
   end
   else
-  begin            
+  begin
     JSlot := AValue.AddArray('slot');
     for Slot in Slots do
-      JSlot.Add(AttributeSlotNames[Slot]);    
+      JSlot.Add(AttributeSlotNames[Slot]);
   end;
 end;
 

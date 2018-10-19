@@ -473,7 +473,7 @@ begin
   if not Command.Parameters.Empty then
     LastChild := Command.Parameters.Last.Child
   else
-    LastChild := RootSettings.Get<TBrigadierSettings>.Brigadier;
+    LastChild := RootSettingsG.Get<TBrigadierSettings>.Brigadier;
 
   for Argument in LastChild.Arguments do
     synContextPreview.AddItem(Text + Encase(Argument.Name, PrevParam), '');

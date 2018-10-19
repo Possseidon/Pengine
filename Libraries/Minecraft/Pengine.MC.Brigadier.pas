@@ -55,6 +55,11 @@ type
 
     procedure SetPath(const Value: string);
 
+  protected
+    class function GetNameForVersion(AVersion: Integer): string; override;
+
+    procedure DoReload; override;
+
   public
     destructor Destroy; override;
 
@@ -66,7 +71,7 @@ type
     property Path: string read FPath write SetPath;
     property Brigadier: TBrigadierRoot read FBrigadier;
 
-    procedure Reload;
+    procedure DefineJStorage(ASerializer: TJSerializer); override;
 
   end;
 
@@ -467,7 +472,7 @@ begin
   if ParserClass <> nil then
   begin
     if ParserClass.GetPropertiesClass <> nil then
-      FParserProperties := ParserClass.GetPropertiesClass.Create(AJPair.AsObject['properties'].ObjectOrNil);
+      FParserProperties := ParserClass.GetPropertiesClass.Create(AJPair.AsObject['properties'].AsObject);
   end
   else
   begin
@@ -621,7 +626,7 @@ var
 begin
   FLiterals := TLiterals.Create;
   FArguments := TArguments.Create;
-  JChildren := AJObject['children'].ObjectOrNil;
+  JChildren := AJObject['children'].AsObject;
   if JChildren.Exists then
   begin
     for JChild in JChildren do
@@ -648,7 +653,7 @@ var
   JRedirect: TJValue;
 begin
   FRedirection := TRedirection.Create;
-  JRedirects := AJObject['redirect'].ArrayOrNil;
+  JRedirects := AJObject['redirect'].AsArray;
   for JRedirect in JRedirects do
     FRedirection.Add(JRedirect.AsString);
 end;
@@ -832,7 +837,7 @@ var
 begin
   Result := True;
   SetParseResult(TBrigadierCommand.Create);
-  Brigadier := RootSettings.Get<TBrigadierSettings>.Brigadier;
+  Brigadier := RootSettingsG.Get<TBrigadierSettings>.Brigadier;
   CurrentChild := Brigadier;
 
   StartMarker := GetMarker;
@@ -1052,6 +1057,15 @@ end;
 
 { TBrigadierSettings }
 
+procedure TBrigadierSettings.DefineJStorage(ASerializer: TJSerializer);
+begin
+  inherited;
+  with ASerializer do
+  begin
+    Define('path', FPath);
+  end;
+end;
+
 destructor TBrigadierSettings.Destroy;
 begin
   FBrigadier.Free;
@@ -1063,12 +1077,17 @@ begin
   Result := 'Path configuration for commands, items and blocks json files.';
 end;
 
+class function TBrigadierSettings.GetNameForVersion(AVersion: Integer): string;
+begin
+  Result := 'mc_brigadier';
+end;
+
 class function TBrigadierSettings.GetTitle: string;
 begin
   Result := 'Brigadier';
 end;
 
-procedure TBrigadierSettings.Reload;
+procedure TBrigadierSettings.DoReload;
 begin
   FBrigadier.Free;
   FBrigadier := TBrigadierRoot.Create(Path);

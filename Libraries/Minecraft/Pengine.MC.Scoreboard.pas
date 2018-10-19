@@ -654,17 +654,17 @@ end;
 constructor TScoreboardCriteriaItem.Create;
 begin
   inherited;
-  FItems := RootSettings.Get<TItemSettings>.Items;
+  FItems := RootSettingsG.Get<TItemSettings>.Items;
 end;
 
 class function TScoreboardCriteriaItem.GetSubTypeCount: Integer;
 begin
-  Result := RootSettings.Get<TItemSettings>.Items.Order.Count;
+  Result := RootSettingsG.Get<TItemSettings>.Items.Order.Count;
 end;
 
 class function TScoreboardCriteriaItem.GetSubTypeName(ASubType: Integer): string;
 begin
-  Result := RootSettings.Get<TItemSettings>.Items.Order[ASubType].NSPath.Path;
+  Result := RootSettingsG.Get<TItemSettings>.Items.Order[ASubType].NSPath.Path;
 end;
 
 { TScoreboardCriteriaFileSettings.TCriteriaType }
@@ -768,7 +768,7 @@ end;
 
 class function TScoreboardCriteriaFromFile.GetSubTypes: TScoreboardCriteriaFileSettings.TCriteriaType;
 begin
-  Result := RootSettings.Get<TScoreboardCriteriaFileSettings>.CriteriaType[GetFileName];
+  Result := RootSettingsG.Get<TScoreboardCriteriaFileSettings>.CriteriaType[GetFileName];
 end;
 
 { TScoreboardCriteriaCustom }

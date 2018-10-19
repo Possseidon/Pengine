@@ -11,7 +11,9 @@ uses
   Pengine.Parser,
   Pengine.ObservableCollections,
   Pengine.Collections,
+  Pengine.Settings,
   Pengine.Utility,
+  Pengine.JSON,
 
   Pengine.MC.NBT,
   Pengine.MC.Gamemode,
@@ -20,6 +22,24 @@ uses
   Pengine.MC.Namespace;
 
 type
+
+  TEntitySelectorSettings = class(TSettings)
+  private
+    FEntityNamespacePrefix: Boolean;
+    FSpaceAfterComma: Boolean;
+
+  protected
+    class function GetNameForVersion(AVersion: Integer): string; override;
+
+  public
+    property EntityNamespacePrefix: Boolean read FEntityNamespacePrefix write FEntityNamespacePrefix;
+    property SpaceAfterComma: Boolean read FSpaceAfterComma write FSpaceAfterComma;
+
+    procedure SetDefaults; override;
+
+    procedure DefineJStorage(ASerializer: TJSerializer); override;
+
+  end;
 
   TEntitySelector = class
   public type
@@ -1229,8 +1249,11 @@ end;
 { TEntitySelector.TOptionType }
 
 function TEntitySelector.TOptionType.FormatData: string;
+var
+  PrefixNamespace: Boolean;
 begin
-  Result := inherited + NSPath(EntityNames[Entity]).Format;
+  PrefixNamespace := RootSettingsG.Get<TEntitySelectorSettings>.EntityNamespacePrefix;
+  Result := inherited + NSPath(EntityNames[Entity]).Format(PrefixNamespace);
 end;
 
 class function TEntitySelector.TOptionType.GetDataParserClass: TOption.TDataParserClass;
@@ -1382,7 +1405,9 @@ end;
 function TEntitySelector.Format: string;
 var
   Option: TOption;
+  SpaceAfterComma: Boolean;
 begin
+  SpaceAfterComma := RootSettingsG.Get<TEntitySelectorSettings>.SpaceAfterComma;
   Result := '@' + VariableChar;
   if Options.Empty then
     Exit;
@@ -1391,7 +1416,11 @@ begin
   begin
     Result := Result + Option.Format;
     if Option.Index <> Options.MaxIndex then
-      Result := Result + ', ';
+    begin
+      Result := Result + ',';
+      if SpaceAfterComma then
+        Result := Result + ' ';
+    end;
   end;
   Result := Result + ']';
 end;
@@ -2316,6 +2345,29 @@ class function TEntitySelector.TOptionGamemode.TSuggestions.GetSuggestion(AIndex
 begin
   Result.Display := GamemodeDisplayNames[TGamemode(AIndex)];
   Result.Insert := GamemodeNames[TGamemode(AIndex)];
+end;
+
+{ TEntitySelectorSettings }
+
+procedure TEntitySelectorSettings.DefineJStorage(ASerializer: TJSerializer);
+begin
+  inherited;
+  with ASerializer do
+  begin
+    Define('entity_namespace_prefix', FEntityNamespacePrefix);
+    Define('space_after_comma', FSpaceAfterComma);
+  end;
+end;
+
+class function TEntitySelectorSettings.GetNameForVersion(AVersion: Integer): string;
+begin
+  Result := 'mc_entityselector';
+end;
+
+procedure TEntitySelectorSettings.SetDefaults;
+begin
+  EntityNamespacePrefix := True;
+  SpaceAfterComma := True;
 end;
 
 end.

@@ -112,11 +112,14 @@ type
   private
     FBlocks: TBlockTypeCollection;
     FPath: string;
+    FNamespacePrefix: Boolean;
 
     procedure SetPath(const Value: string);
 
   protected
     procedure DoReload; override;
+
+    class function GetNameForVersion(AVersion: Integer): string; override;
 
   public
     destructor Destroy; override;
@@ -127,7 +130,11 @@ type
     procedure SetDefaults; override;
 
     property Path: string read FPath write SetPath;
+    property NamespacePrefix: Boolean read FNamespacePrefix write FNamespacePrefix;
+
     property Blocks: TBlockTypeCollection read FBlocks;
+
+    procedure DefineJStorage(ASerializer: TJSerializer); override;
 
   end;
 
@@ -237,7 +244,7 @@ type
     property Properties: TOwned<TProperties> read FProperties;
     property NBT: TOwned<TNBTCompound> read FNBT;
 
-    function Format(AShowDefaultNamespace: Boolean = True): string; virtual;
+    function Format: string; virtual;
 
   end;
 
@@ -309,11 +316,14 @@ type
   private
     FBlockTags: TBlockTagCollection;
     FPath: string;
+    FNamespacePrefix: Boolean;
 
     procedure SetPath(const Value: string);
 
   protected
     procedure DoReload; override;
+
+    class function GetNameForVersion(AVersion: Integer): string; override;
 
   public
     destructor Destroy; override;
@@ -324,7 +334,11 @@ type
     procedure SetDefaults; override;
 
     property Path: string read FPath write SetPath;
+    property NamespacePrefix: Boolean read FNamespacePrefix write FNamespacePrefix;
+
     property BlockTags: TBlockTagCollection read FBlockTags;
+
+    procedure DefineJStorage(ASerializer: TJSerializer); override;
 
   end;
 
@@ -352,7 +366,7 @@ type
     end;
 
   public
-    function Format(AShowDefaultNamespace: Boolean = True): string; override;
+    function Format: string; override;
 
   end;
 
@@ -509,9 +523,9 @@ begin
   inherited;
 end;
 
-function TBlockState.Format(AShowDefaultNamespace: Boolean): string;
+function TBlockState.Format: string;
 begin
-  Result := NSPath.Format(AShowDefaultNamespace);
+  Result := NSPath.Format(RootSettingsG.Get<TBlockSettings>.NamespacePrefix);
   if Properties.HasValue and not Properties.Value.Empty then
     Result := Result + Properties.Value.Format;
   if NBT.HasValue and not NBT.Value.Empty then
@@ -546,7 +560,7 @@ begin
     Exit(False);
   NSPath := NSPathString;
 
-  BlockExists := RootSettings.Get<TBlockSettings>.Blocks.Get(NSPath, BlockType);
+  BlockExists := RootSettingsG.Get<TBlockSettings>.Blocks.Get(NSPath, BlockType);
   if not BlockExists then
     Log(Marker, '"%s" is not a valid block.', [NSPath.Format]);
 
@@ -584,6 +598,16 @@ end;
 
 { TBlockSettings }
 
+procedure TBlockSettings.DefineJStorage(ASerializer: TJSerializer);
+begin
+  inherited;
+  with ASerializer do
+  begin
+    Define('path', FPath);
+    Define('namespace_prefix', FNamespacePrefix);
+  end;
+end;
+
 destructor TBlockSettings.Destroy;
 begin
   FBlocks.Free;
@@ -593,6 +617,11 @@ end;
 class function TBlockSettings.GetDescription: string;
 begin
   Result := 'Path configuration for block states in blocks.json file.';
+end;
+
+class function TBlockSettings.GetNameForVersion(AVersion: Integer): string;
+begin
+  Result := 'mc_blocks';
 end;
 
 class function TBlockSettings.GetTitle: string;
@@ -627,6 +656,7 @@ end;
 procedure TBlockSettings.SetDefaults;
 begin
   Path := DefaultPath;
+  NamespacePrefix := True;
 end;
 
 procedure TBlockSettings.SetPath(const Value: string);
@@ -644,7 +674,7 @@ var
   Block: TBlockType;
   Settings: TBlockSettings;
 begin
-  Settings := RootSettings.Get<TBlockSettings>;
+  Settings := RootSettingsG.Get<TBlockSettings>;
   for Block in Settings.Blocks.Order do
     AddSuggestion(ParseSuggestion(Block.NSPath.Format(False), Block.NSPath.Format(False)));
   AddSuggestion(ParseSuggestion(TNSPath.Empty, TNSPath.Empty));
@@ -828,9 +858,13 @@ end;
 
 { TBlockStateTag }
 
-function TBlockStateTag.Format(AShowDefaultNamespace: Boolean): string;
+function TBlockStateTag.Format: string;
 begin
-  Result := '#' + inherited;
+  Result := '#' + NSPath.Format(RootSettingsG.Get<TBlockTagSettings>.NamespacePrefix);
+  if Properties.HasValue and not Properties.Value.Empty then
+    Result := Result + Properties.Value.Format;
+  if NBT.HasValue and not NBT.Value.Empty then
+    Result := Result + NBT.Value.Format;
 end;
 
 { TBlockTag }
@@ -952,6 +986,16 @@ end;
 
 { TBlockTagSettings }
 
+procedure TBlockTagSettings.DefineJStorage(ASerializer: TJSerializer);
+begin
+  inherited;
+  with ASerializer do
+  begin
+    Define('path', FPath);
+    Define('namespace_prefix', FNamespacePrefix);
+  end;
+end;
+
 destructor TBlockTagSettings.Destroy;
 begin
   FBlockTags.Free;
@@ -963,6 +1007,11 @@ begin
   Result := 'Path configuration for block tags folder.';
 end;
 
+class function TBlockTagSettings.GetNameForVersion(AVersion: Integer): string;
+begin
+  Result := 'mc_blocktags';
+end;
+
 class function TBlockTagSettings.GetTitle: string;
 begin
   Result := 'Block-Tags';
@@ -971,12 +1020,13 @@ end;
 procedure TBlockTagSettings.DoReload;
 begin
   FBlockTags.Free;
-  FBlockTags := TBlockTagCollection.Create(Get<TBlockSettings>.Blocks, Path);
+  FBlockTags := TBlockTagCollection.Create(Root.Get<TBlockSettings>.Blocks, Path);
 end;
 
 procedure TBlockTagSettings.SetDefaults;
 begin
   Path := DefaultPath;
+  NamespacePrefix := True;
 end;
 
 procedure TBlockTagSettings.SetPath(const Value: string);
@@ -1020,7 +1070,7 @@ begin
   NSPath := NSPathString;
 
   SetParseResult(TBlockStateTag.Create(NSPath));
-  TagExists := RootSettings.Get<TBlockTagSettings>.BlockTags.Get(NSPath, BlockTag);
+  TagExists := RootSettingsG.Get<TBlockTagSettings>.BlockTags.Get(NSPath, BlockTag);
   if not TagExists then
     Log(Marker, '"%s" is not a valid block tag.', [NSPath.Format]);
 
@@ -1046,7 +1096,7 @@ var
   Settings: TBlockTagSettings;
   Tag: TBlockTag;
 begin
-  Settings := RootSettings.Get<TBlockTagSettings>;
+  Settings := RootSettingsG.Get<TBlockTagSettings>;
   for Tag in Settings.BlockTags.Tags do
     AddSuggestion(ParseSuggestion(Tag.NSPath.Format(False), Tag.NSPath.Format(False)));
   AddSuggestion(ParseSuggestion(TNSPath.Empty, TNSPath.Empty));

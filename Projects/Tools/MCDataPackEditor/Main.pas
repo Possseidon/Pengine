@@ -40,6 +40,8 @@ uses
   Pengine.MC.Brigadier,
   Pengine.MC.NBT,
   Pengine.MC.Datapack,
+  Pengine.MC.Item,
+  Pengine.MC.BlockState,
 
   DatapackView,
   ToolFunctionPreferences,
@@ -47,9 +49,7 @@ uses
   FunctionTheme,
   LightThemePreset,
   SettingsForm,
-  Pengine.MC.Item,
-  Vcl.Imaging.pngimage,
-  Pengine.MC.BlockState;
+  StartupView;
 
 type
 
@@ -130,7 +130,6 @@ type
     actFormatCurrent: TAction;
     actFormatAll: TAction;
     actFunctionPreferences: TAction;
-    PaintBox1: TPaintBox;
     procedure actCollapseAllExecute(Sender: TObject);
     procedure actCopyNameExecute(Sender: TObject);
     procedure actCopyNameUpdate(Sender: TObject);
@@ -163,7 +162,7 @@ type
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure PaintBox1Paint(Sender: TObject);
+    procedure FormShow(Sender: TObject);
     procedure pcTabsDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure pcTabsDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);
     procedure pcTabsMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -187,13 +186,14 @@ type
     procedure InitTheme;
     procedure CheckAppParams;
     procedure ExceptionLagFix; inline;
+    procedure LoadSettings;
 
     procedure AppActivate(Sender: TObject);
 
     procedure AddData(Sender: TObject);
     procedure LoadDatapack(AFilename: TFilename);
 
-    function DatapackOpen: Boolean;
+    function DatapackOpen: Boolean;          
 
   protected
     procedure UpdateActions; override;
@@ -309,6 +309,37 @@ begin
   FDatapackTreeView.Datapack := FDatapack;
 end;
 
+procedure TfrmMain.LoadSettings;
+const
+
+  SettingsClasses: array [0 .. 5] of TSettingsClass = (
+    TItemSettings,
+    TItemTagSettings,
+    TBlockSettings,
+    TBlockTagSettings,
+    TItemIconSettings,
+    TBrigadierSettings
+    );
+
+//var
+  //Jobs: TLoadJobs;
+  //SettingsClass: TSettingsClass;
+begin
+  {
+  Jobs := TLoadJobs.Create;
+  for SettingsClass in SettingsClasses do
+    Jobs.Add(TLoadSettingsJob.Create(SettingsClass));
+
+  try
+    frmStartup.Execute(Jobs.Reader);
+
+  finally
+    Jobs.Free;
+
+  end;
+  }
+end;
+
 procedure TfrmMain.CheckAppParams;
 begin
   if ParamCount >= 1 then
@@ -327,14 +358,13 @@ begin
   // The first time, this exception is raised, the raising takes a little longer with the debugger...
   // So let's do it at the start so it's not anoying while typing.
 
-  {$IFDEF DEBUG}
-
+{$IFDEF DEBUG}
   try
     raise EParseError.Create('');
   except
   end;
 
-  {$ENDIF}
+{$ENDIF}
 
 end;
 
@@ -523,6 +553,12 @@ begin
   FDatapack.Free;
 end;
 
+procedure TfrmMain.FormShow(Sender: TObject);
+begin
+  Update;
+  LoadSettings;
+end;
+
 procedure TfrmMain.InitDataTypes;
 var
   DataType: TDatapack.TDataType;
@@ -557,47 +593,6 @@ procedure TfrmMain.InitTheme;
 begin
   FFunctionTheme := TFunctionTheme.Create;
   FFunctionTheme.LoadPreset(TLightTheme);
-end;
-
-procedure TfrmMain.PaintBox1Paint(Sender: TObject);
-var
-  Item: TItemType;
-  Block: TBlockType;
-  X, Y: Integer;
-  Image: TPngImage;
-begin
-  X := 0;
-  Y := 0;
-  for Item in RootSettings.Get<TItemSettings>.Items.Order do
-  begin
-    if not RootSettings.Get<TItemIconSettings>.ItemIcons.Get(Item, Image) then
-      PaintBox1.Canvas.Rectangle(X, Y, X + 15, Y + 15)
-    else
-      PaintBox1.Canvas.Draw(X, Y, Image);
-    Inc(X, 16);
-    if X > 800 then
-    begin
-      X := 0;
-      Inc(Y, 16);
-    end;
-  end;
-
-  Y := Y + 20;
-  X := 0;
-
-  for Block in RootSettings.Get<TBlockSettings>.Blocks.Order do
-  begin
-    if not RootSettings.Get<TItemIconSettings>.BlockIcons.Get(Block, Image) then
-      PaintBox1.Canvas.Rectangle(X, Y, X + 15, Y + 15)
-    else
-      PaintBox1.Canvas.Draw(X, Y, Image);
-    Inc(X, Image.Width);
-    if X > 800 then
-    begin
-      X := 0;
-      Inc(Y, Image.Height);
-    end;
-  end;
 end;
 
 procedure TfrmMain.pcTabsDragDrop(Sender, Source: TObject; X, Y: Integer);

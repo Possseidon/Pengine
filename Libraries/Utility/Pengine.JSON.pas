@@ -4,14 +4,16 @@ interface
 
 uses
   System.SysUtils,
+  System.Math,
 
+  Pengine.IntMaths,
   Pengine.Collections,
   Pengine.HashCollections,
   Pengine.Hasher,
-  System.Math,
   Pengine.Parser,
   Pengine.CollectionInterfaces,
-  Pengine.Utility;
+  Pengine.Utility,
+  Pengine.Interfaces;
 
 type
 
@@ -27,10 +29,13 @@ type
 
   TJPair = TPair<string, TJValue>;
 
+  TJValueClass = class of TJValue;
+
   /// <summary>Any json value.</summary>
   TJValue = class
   public type
 
+    /// <summary>A number, which is either an integer or a floating point number.</summary>
     TNumber = record
     public type
 
@@ -46,15 +51,107 @@ type
       class operator Implicit(ANumber: Single): TNumber; static;
       class operator Implicit(ANumber: Double): TNumber; static;
 
+      class operator Equal(A, B: TNumber): Boolean; static;
+      class operator NotEqual(A, B: TNumber): Boolean; static;
+
+      /// <returns>True, if the current type is a floating point type.</returns>
       function IsFloat: Boolean;
 
     private
-
       case NumType: TType of
         ntInt:
           (AsInt: Int64);
         ntSingle, ntDouble:
           (AsFloat: Double);
+    end;
+
+    /// <summary>A wrapper, that allows implicit conversion from primitive types to TJValue.</summary>
+    TWrapper = record
+    private
+      FValue: TJValue;
+
+      function GetAsObject: TJObject; inline;
+      function GetAsArray: TJArray; inline;
+      function GetAsString: string; inline;
+      function GetAsNumber: TNumber; inline;
+      function GetAsInt: Int64; inline;
+      function GetAsFloat: Double; inline;
+      function GetAsBool: Boolean; inline;
+      procedure SetAsString(const Value: string); inline;
+      procedure SetAsNumber(const Value: TNumber); inline;
+      procedure SetAsInt(const Value: Int64); inline;
+      procedure SetAsFloat(const Value: Double); inline;
+      procedure SetAsBool(const Value: Boolean); inline;
+
+      function GetValue(AKey: string): TJValue; overload; inline;
+      function GetValue(AIndex: Integer): TJValue; overload; inline;
+
+    public
+      // Wrapper <-> TJValue
+      class operator Implicit(AWrapper: TWrapper): TJValue; static; inline;
+      class operator Implicit(AValue: TJValue): TWrapper; static; inline;
+
+      // Primitive -> Wrapper
+      class operator Implicit(AText: string): TWrapper; static; inline;
+      class operator Implicit(ANumber: TNumber): TWrapper; static; inline;
+      class operator Implicit(ANumber: Double): TWrapper; static; inline;
+      class operator Implicit(ANumber: Single): TWrapper; static; inline;
+      class operator Implicit(ANumber: Int64): TWrapper; static; inline;
+      class operator Implicit(AValue: Boolean): TWrapper; static; inline;
+
+      // Wrapper -> Primitve
+      class operator Implicit(AWrapper: TWrapper): string; static; inline;
+      class operator Implicit(AWrapper: TWrapper): TNumber; static; inline;
+      class operator Implicit(AWrapper: TWrapper): Double; static; inline;
+      class operator Implicit(AWrapper: TWrapper): Single; static; inline;
+      class operator Implicit(AWrapper: TWrapper): Int64; static; inline;
+      class operator Implicit(AWrapper: TWrapper): Boolean; static; inline;
+
+      // TJValue relay functions
+      function Copy: TJValue; inline;
+
+      // or default operator
+      class operator LogicalOr(AWrapper: TWrapper; ADefault: string): string; static; inline;
+      class operator LogicalOr(AWrapper: TWrapper; ADefault: Boolean): Boolean; static; inline;
+      class operator LogicalOr(AWrapper: TWrapper; ADefault: Int64): Int64; static; inline;
+      class operator LogicalOr(AWrapper: TWrapper; ADefault: Single): Single; static; inline;
+      class operator LogicalOr(AWrapper: TWrapper; ADefault: Double): Double; static; inline;
+
+      function GetTypeName: string; inline;
+      function Format(APretty: Boolean = True; AIndentWidth: Integer = 2): string; inline;
+
+      function Cast<T: TJValue>: T; inline;
+
+      function IsNull: Boolean; inline;
+      function Exists: Boolean; inline;
+
+      property Value: TJValue read FValue;
+      property AsObject: TJObject read GetAsObject;
+      property AsArray: TJArray read GetAsArray;
+      property AsString: string read GetAsString write SetAsString;
+      property AsNumber: TNumber read GetAsNumber write SetAsNumber;
+      property AsInt: Int64 read GetAsInt write SetAsInt;
+      property AsFloat: Double read GetAsFloat write SetAsFloat;
+      property AsBool: Boolean read GetAsBool write SetAsBool;
+
+      function StringOrDefault(ADefault: string = ''): string; inline;
+      function NumberOrDefault(ADefault: TNumber): TNumber; inline;
+      function IntOrDefault(ADefault: Int64 = 0): Int64; inline;
+      function FloatOrDefault(ADefault: Double = 0): Double; inline;
+      function BoolOrDefault(ADefault: Boolean = False): Boolean; inline;
+
+      /// <summary>Interprets as TJObject and gets or sets the value at the specified key.</summary>
+      /// <remarks>Returns nil for null or none existent keys.</remarks>
+      property Values[AKey: string]: TJValue read GetValue; default;
+      /// <summary>Interprets as TJArray and gets or sets the value at the specified index.</summary>
+      /// <remarks>Returns nil for null or none existent indices.</remarks>
+      property Values[AIndex: Integer]: TJValue read GetValue; default;
+
+      procedure Assign(AFrom: TJValue); inline;
+
+      function GetEnumerator: IIterator<TJPair>; inline;
+      function ToString: string; inline;
+
     end;
 
     TParser = class(TObjectParser<TJValue>)
@@ -71,14 +168,16 @@ type
     TJStringBuilder = class(TStringBuilder)
     private
       FPretty: Boolean;
+      FArrayWrapThreshold: Integer;
       FIndentWidth: Integer;
       FIndentLevel: Integer;
 
     public
-      constructor Create(APretty: Boolean = True; AIndentWidth: Integer = 2);
+      constructor Create(APretty: Boolean; AIndentWidth: Integer; AArrayWrapTheshold: Integer);
 
       property Pretty: Boolean read FPretty;
       property IndentWith: Integer read FIndentWidth;
+      property ArrayWrapTheshold: Integer read FArrayWrapThreshold;
 
       procedure Indent; inline;
       procedure Unindent; inline;
@@ -92,27 +191,35 @@ type
     function GetAsObject: TJObject;
     function GetAsArray: TJArray;
     function GetAsString: string;
-    procedure SetAsString(const Value: string);
     function GetAsNumber: TNumber;
-    procedure SetAsNumber(const Value: TNumber);
     function GetAsInt: Int64;
-    procedure SetAsInt(const Value: Int64);
     function GetAsFloat: Double;
-    procedure SetAsFloat(const Value: Double);
     function GetAsBool: Boolean;
+    procedure SetAsString(const Value: string);
+    procedure SetAsNumber(const Value: TNumber);
+    procedure SetAsInt(const Value: Int64);
+    procedure SetAsFloat(const Value: Double);
     procedure SetAsBool(const Value: Boolean);
-    function GetValue(AKey: string): TJValue; overload;
-    procedure SetValue(AKey: string; const Value: TJValue); overload;
-    function GetValue(AIndex: Integer): TJValue; overload;
-    procedure SetValue(AIndex: Integer; const Value: TJValue); overload;
+
+    function GetValue(AKey: string): TWrapper; overload;
+    function GetValue(AIndex: Integer): TWrapper; overload;
 
   protected
     procedure FormatInternal(ABuilder: TJStringBuilder); virtual; abstract;
 
   public
-    class function GetTypeName: string; virtual;
-    function Format(APretty: Boolean = True; AIndentWidth: Integer = 2): string;
+    constructor Create; virtual;
+    function Copy: TJValue;
 
+    class function GetTypeName: string; virtual;
+    function Format(APretty: Boolean = True; AIndentWidth: Integer = 2; AArrayWrapThreshold: Integer = 3): string;
+
+    /// <returns>True, if the value is null or nil.</returns>
+    function IsNull: Boolean; inline;
+    /// <returns>True, if the valus it not null or nil.</returns>
+    function Exists: Boolean; inline;
+
+    /// <returns>The TJValue as the given type, or nil, if the value is null or nil.</returns>
     function Cast<T: TJValue>: T; inline;
 
     property AsObject: TJObject read GetAsObject;
@@ -123,23 +230,23 @@ type
     property AsFloat: Double read GetAsFloat write SetAsFloat;
     property AsBool: Boolean read GetAsBool write SetAsBool;
 
-    function ObjectOrNil: TJObject;
-    function ArrayOrNil: TJArray;
     function StringOrDefault(ADefault: string = ''): string;
     function NumberOrDefault(ADefault: TNumber): TNumber;
     function IntOrDefault(ADefault: Int64 = 0): Int64;
     function FloatOrDefault(ADefault: Double = 0): Double;
     function BoolOrDefault(ADefault: Boolean = False): Boolean;
 
-    /// <returns>True, if the value is null or actually nil.</returns>
-    function IsNull: Boolean; inline;
-    /// <returns>True, if the valus it not null or actually nil.</returns>
-    function Exists: Boolean; inline;
+    /// <summary>Interprets as TJObject and gets or sets the value at the specified key.</summary>
+    /// <remarks>Returns nil for null or none existent keys.</remarks>
+    property Values[AKey: string]: TWrapper read GetValue; default;
+    /// <summary>Interprets as TJArray and gets or sets the value at the specified index.</summary>
+    /// <remarks>Returns nil for null or none existent indices.</remarks>
+    property Values[AIndex: Integer]: TWrapper read GetValue; default;
 
-    property Values[AKey: string]: TJValue read GetValue write SetValue; default;
-    property Values[AIndex: Integer]: TJValue read GetValue write SetValue; default;
+    procedure Assign(AFrom: TJValue); virtual;
 
     function GetEnumerator: IIterator<TJPair>;
+    function ToString: string; override;
 
   end;
 
@@ -161,6 +268,9 @@ type
     procedure SetAsBool(const Value: Boolean); inline;
 
   public
+    function IsNull: Boolean; inline;
+    function Exists: Boolean; inline;
+
     property AsObject: TJObject read GetAsObject;
     property AsArray: TJArray read GetAsArray;
     property AsString: string read GetAsString write SetAsString;
@@ -169,8 +279,6 @@ type
     property AsFloat: Double read GetAsFloat write SetAsFloat;
     property AsBool: Boolean read GetAsBool write SetAsBool;
 
-    function ObjectOrNil: TJObject; inline;
-    function ArrayOrNil: TJArray; inline;
     function StringOrDefault(ADefault: string = ''): string; inline;
     function NumberOrDefault(ADefault: TJValue.TNumber): TJValue.TNumber; inline;
     function IntOrDefault(ADefault: Int64 = 0): Int64; inline;
@@ -232,15 +340,18 @@ type
     FMap: TMap;
 
     function GetOrder: TOrder.TReader;
-    function GetValue(AKey: string): TJValue;
-    procedure SetValue(AKey: string; const Value: TJValue); overload;
+    function GetValue(AKey: string): TJValue.TWrapper;
+    procedure SetValue(AKey: string; const Value: TJValue.TWrapper); overload;
+    function GetCount: Integer;
 
   protected
     procedure FormatInternal(ABuilder: TJValue.TJStringBuilder); override;
 
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
+
+    function Copy: TJObject;
 
     class function GetTypeName: string; override;
 
@@ -256,19 +367,26 @@ type
 
     /// <summary>Grants read and write access to all values.</summary>
     /// <remarks>The getter will return nil for non-existent keys or if the object itself is nil.</remarks>
-    property Values[AKey: string]: TJValue read GetValue write SetValue; default;
+    property Values[AKey: string]: TJValue.TWrapper read GetValue write SetValue; default;
 
-    procedure Add(AKey: string; AValue: string); overload;
-    procedure Add(AKey: string; AValue: TJValue.TNumber); overload;
-    procedure Add(AKey: string; AValue: Boolean); overload;
+    property Count: Integer read GetCount;
+    procedure Clear;
+
+    procedure Add(AKey: string; AValue: TJValue.TWrapper);
     function AddObject(AKey: string): TJObject;
     function AddArray(AKey: string): TJArray;
+    function AddNull(AKey: string): TJNull;
 
     procedure Remove(AKey: string);
+    function Extract(AKey: string): TJValue; overload;
+    function Extract<T: TJValue>(AKey: string): T; overload;
 
     property Order: TOrder.TReader read GetOrder;
 
     function GetEnumerator: IIterator<TJPair>;
+    function Equals(AObject: TObject): Boolean; override;
+
+    procedure Assign(AFrom: TJValue); override;
 
     class function Parse(AText: string): TJObject;
 
@@ -321,24 +439,39 @@ type
   private
     FValues: TValues;
 
+    function GetCount: Integer;
+    function GetMaxIndex: Integer;
+    function GetValue(AIndex: Integer): TJValue.TWrapper;
+    procedure SetValue(AIndex: Integer; const Value: TJValue.TWrapper);
+
   protected
     procedure FormatInternal(ABuilder: TJValue.TJStringBuilder); override;
 
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
+
+    function Copy: TJArray;
 
     class function GetTypeName: string; override;
 
-    property Values: TValues read FValues;
+    property Values[AIndex: Integer]: TJValue.TWrapper read GetValue write SetValue; default;
+    property Count: Integer read GetCount;
+    property MaxIndex: Integer read GetMaxIndex;
+    function Empty: Boolean;
 
-    procedure Add(AValue: string); overload;
-    procedure Add(AValue: TJValue.TNumber); overload;
-    procedure Add(AValue: Boolean); overload;
+    procedure Add(AValue: TJValue.TWrapper);
     function AddObject: TJObject;
     function AddArray: TJArray;
+    function AddNull: TJNull;
+
+    function Extract(AIndex: Integer): TJValue; overload;
+    function Extract<T: TJValue>(AIndex: Integer): T; overload;
 
     function GetEnumerator: IIterator<TJValue>;
+    function Equals(AObject: TObject): Boolean; override;
+
+    procedure Assign(AFrom: TJValue); override;
 
   end;
 
@@ -391,7 +524,7 @@ type
     procedure FormatInternal(ABuilder: TJValue.TJStringBuilder); override;
 
   public
-    constructor Create(AText: string); overload;
+    constructor Create(AText: string); reintroduce; overload;
 
     class function GetTypeName: string; override;
 
@@ -399,6 +532,10 @@ type
     property Quoted: string read GetQuoted;
 
     class function Quote(AText: string): string;
+
+    function Equals(AObject: TObject): Boolean; override;
+
+    procedure Assign(AValue: TJValue); override;
 
   end;
 
@@ -428,13 +565,17 @@ type
     procedure FormatInternal(ABuilder: TJValue.TJStringBuilder); override;
 
   public
-    constructor Create(ANumber: TJValue.TNumber); overload;
+    constructor Create(ANumber: TJValue.TNumber); reintroduce; overload;
 
     class function GetTypeName: string; override;
 
     property Number: TJValue.TNumber read FNumber write FNumber;
 
     function TryGetInt(out AValue: Int64): Boolean;
+
+    function Equals(AObject: TObject): Boolean; override;
+
+    procedure Assign(AFrom: TJValue); override;
 
   end;
 
@@ -477,11 +618,15 @@ type
     procedure FormatInternal(ABuilder: TJValue.TJStringBuilder); override;
 
   public
-    constructor Create(AValue: Boolean); overload;
+    constructor Create(AValue: Boolean); reintroduce; overload;
 
     class function GetTypeName: string; override;
 
     property Value: Boolean read FValue write FValue;
+
+    function Equals(AObject: TObject): Boolean; override;
+
+    procedure Assign(AFrom: TJValue); override;
 
   end;
 
@@ -507,6 +652,100 @@ type
 
   public
     class function GetTypeName: string; override;
+
+    function Equals(AObject: TObject): Boolean; override;
+
+  end;
+
+  TJSerializer = class;
+
+  IJSerializable = interface
+    function GetJVersion: Integer;
+    procedure DefineJStorage(ASerializer: TJSerializer);
+
+  end;
+
+  TJArraySerializer = class
+  public
+    procedure Serialize(AValue: TJArray); virtual; abstract;
+    procedure Unserialize(AValue: TJArray); virtual; abstract;
+
+  end;
+
+  TJArraySerializer<T> = class(TJArraySerializer)
+  private
+    FData: T;
+
+  protected
+    property Data: T read FData;
+
+  public
+    constructor Create(AData: T);
+
+  end;
+
+  TJArrayRefSerializer = class
+  public
+    procedure Serialize(AValue: TJArray); virtual; abstract;
+    procedure Unserialize(AValue: TJArray); virtual; abstract;
+
+  end;
+
+  TJArrayRefSerializer<T> = class(TJArrayRefSerializer)
+  public type
+
+    PT = ^T;
+
+  private
+    FData: PT;
+
+  protected
+    property Data: PT read FData;
+
+  public
+    constructor Create(AData: PT);
+
+  end;
+
+  TJSerializer = class
+  public type
+
+    TMode = (
+      smSerialize,
+      smUnserialize
+      );
+
+  private
+    FMode: TMode;
+    FValue: TJObject;
+    FVersion: Integer;
+
+    constructor Create(AValue: TJObject); overload;
+    constructor Create(AVersion: Integer); overload;
+
+  public
+    destructor Destroy; override;
+
+    class function Serialize(AObject: IJSerializable; AVersion: Integer = -1): TJObject;
+    class procedure Unserialize(AObject: IJSerializable; AValue: TJObject);
+
+    procedure Define(AName: string; var ANumber: Int64); overload;
+    procedure Define(AName: string; var ANumber: Integer); overload;
+    procedure Define(AName: string; var ANumber: Single); overload;
+    procedure Define(AName: string; var ANumber: Double); overload;
+    procedure Define(AName: string; var AText: string); overload;
+    procedure Define(AName: string; var AValue: Boolean); overload;
+    procedure Define(AName: string; AObject: IJSerializable; AVersion: Integer = -1); overload;
+    procedure Define(AName: string; ASerializer: TJArraySerializer); overload;
+    procedure Define(AName: string; ASerializer: TJArrayRefSerializer); overload;
+
+    property Mode: TMode read FMode;
+    function IsStoring: Boolean;
+
+    property Value: TJObject read FValue;
+    function OwnValue: TJObject;
+
+    property Version: Integer read FVersion;
 
   end;
 
@@ -555,11 +794,9 @@ begin
   Result := AsObject.GetEnumerator;
 end;
 
-function TJValue.ArrayOrNil: TJArray;
+procedure TJValue.Assign(AFrom: TJValue);
 begin
-  if Exists then
-    Exit(AsArray);
-  Result := nil;
+  // nothing by default
 end;
 
 function TJValue.BoolOrDefault(ADefault: Boolean): Boolean;
@@ -578,6 +815,19 @@ begin
   raise EJSONError.CreateFmt('Expected %s, got %s.', [T.GetTypeName, GetTypeName]);
 end;
 
+function TJValue.Copy: TJValue;
+begin
+  if Self = nil then
+    Exit(nil);
+  Result := TJValueClass(ClassType).Create;
+  Result.Assign(Self);
+end;
+
+constructor TJValue.Create;
+begin
+  // nothing by default
+end;
+
 function TJValue.Exists: Boolean;
 begin
   Result := not IsNull;
@@ -590,11 +840,13 @@ begin
   Result := ADefault;
 end;
 
-function TJValue.Format(APretty: Boolean = True; AIndentWidth: Integer = 2): string;
+function TJValue.Format(APretty: Boolean; AIndentWidth, AArrayWrapThreshold: Integer): string;
 var
   Builder: TJStringBuilder;
 begin
-  Builder := TJStringBuilder.Create(APretty, AIndentWidth);
+  if Self = nil then
+    Exit(TJNull.NullString);
+  Builder := TJStringBuilder.Create(APretty, AIndentWidth, AArrayWrapThreshold);
   try
     FormatInternal(Builder);
     Result := Builder.ToString;
@@ -608,14 +860,14 @@ begin
   Result := 'JSON-Value';
 end;
 
-function TJValue.GetValue(AIndex: Integer): TJValue;
+function TJValue.GetValue(AIndex: Integer): TWrapper;
 begin
-  Result := ArrayOrNil[AIndex];
+  Result := AsArray[AIndex];
 end;
 
-function TJValue.GetValue(AKey: string): TJValue;
+function TJValue.GetValue(AKey: string): TWrapper;
 begin
-  Result := ObjectOrNil[AKey];
+  Result := AsObject[AKey];
 end;
 
 function TJValue.IntOrDefault(ADefault: Int64): Int64;
@@ -627,7 +879,7 @@ end;
 
 function TJValue.IsNull: Boolean;
 begin
-  Result := (Self = nil) or (ClassType = TJNull);
+  Result := (Self = nil) or (Self is TJNull);
 end;
 
 function TJValue.NumberOrDefault(ADefault: TNumber): TNumber;
@@ -635,13 +887,6 @@ begin
   if Exists then
     Exit(AsNumber);
   Result := ADefault;
-end;
-
-function TJValue.ObjectOrNil: TJObject;
-begin
-  if Exists then
-    Exit(AsObject);
-  Result := nil;
 end;
 
 procedure TJValue.SetAsBool(const Value: Boolean);
@@ -669,16 +914,6 @@ begin
   Cast<TJString>.Text := Value;
 end;
 
-procedure TJValue.SetValue(AIndex: Integer; const Value: TJValue);
-begin
-  AsArray[AIndex] := Value;
-end;
-
-procedure TJValue.SetValue(AKey: string; const Value: TJValue);
-begin
-  AsObject[AKey] := Value;
-end;
-
 function TJValue.StringOrDefault(ADefault: string): string;
 begin
   if Exists then
@@ -686,21 +921,16 @@ begin
   Result := ADefault;
 end;
 
+function TJValue.ToString: string;
+begin
+  Result := Format(False);
+end;
+
 { TJObject }
 
-procedure TJObject.Add(AKey, AValue: string);
+procedure TJObject.Add(AKey: string; AValue: TJValue.TWrapper);
 begin
-  Values[AKey] := TJString.Create(AValue);
-end;
-
-procedure TJObject.Add(AKey: string; AValue: TJValue.TNumber);
-begin
-  Values[AKey] := TJNumber.Create(AValue);
-end;
-
-procedure TJObject.Add(AKey: string; AValue: Boolean);
-begin
-  Values[AKey] := TJBool.Create(AValue);
+  Values[AKey] := AValue;
 end;
 
 function TJObject.AddArray(AKey: string): TJArray;
@@ -709,10 +939,38 @@ begin
   Values[AKey] := Result;
 end;
 
+function TJObject.AddNull(AKey: string): TJNull;
+begin
+  Result := TJNull.Create;
+  Values[AKey] := Result;
+end;
+
 function TJObject.AddObject(AKey: string): TJObject;
 begin
   Result := TJObject.Create;
   Values[AKey] := Result;
+end;
+
+procedure TJObject.Assign(AFrom: TJValue);
+var
+  JPair: TJPair;
+begin
+  if not(AFrom is TJObject) then
+    raise EJSONError.Create('Cannot assign value to object.');
+  Clear;
+  for JPair in TJObject(AFrom).Order do
+    Self[JPair.Key] := JPair.Value.Copy;
+end;
+
+procedure TJObject.Clear;
+begin
+  FOrder.Clear;
+  FMap.Clear;
+end;
+
+function TJObject.Copy: TJObject;
+begin
+  Result := TJObject(inherited Copy);
 end;
 
 constructor TJObject.Create;
@@ -728,22 +986,52 @@ begin
   inherited;
 end;
 
+function TJObject.Equals(AObject: TObject): Boolean;
+var
+  JPair: TJPair;
+begin
+  if not(AObject is TJObject) then
+    Exit(inherited);
+  if Count <> TJObject(AObject).Count then
+    Exit(False);
+  for JPair in Self do
+    if not JPair.Value.Equals(TJObject(AObject)[JPair.Key]) then
+      Exit(False);
+  Result := True;
+end;
+
+function TJObject.Extract(AKey: string): TJValue;
+begin
+  Result := Self[AKey];
+  FOrder.OwnsValues := False;
+  Remove(AKey);
+  FOrder.OwnsValues := True;
+end;
+
+function TJObject.Extract<T>(AKey: string): T;
+begin
+  Result := Extract(AKey).Cast<T>;
+end;
+
 procedure TJObject.FormatInternal(ABuilder: TJValue.TJStringBuilder);
 
   procedure AppendIndex(I: Integer);
   begin
     ABuilder.Append(TJString.Quote(Order[I].Key));
     ABuilder.Append(': ');
-    Order[I].Value.FormatInternal(ABuilder);
+    if Order[I].Value = nil then
+      ABuilder.Append(TJNull.NullString)
+    else
+      Order[I].Value.FormatInternal(ABuilder);
   end;
 
 var
   I: Integer;
 begin
   ABuilder.Append('{');
-  ABuilder.Indent;
   if not Order.Empty then
   begin
+    ABuilder.Indent;
     AppendIndex(0);
     for I := 1 to Order.MaxIndex do
     begin
@@ -754,8 +1042,8 @@ begin
         ABuilder.NewLine;
       AppendIndex(I);
     end;
+    ABuilder.Unindent;
   end;
-  ABuilder.Unindent;
   ABuilder.Append('}');
 end;
 
@@ -771,6 +1059,11 @@ begin
   if FMap.Get(AKey, Value) and (Value is T) then
     Exit(T(Value));
   Result := nil;
+end;
+
+function TJObject.GetCount: Integer;
+begin
+  Result := Order.Count;
 end;
 
 function TJObject.Get<T>(AKey: string; out AValue: T): Boolean;
@@ -802,9 +1095,9 @@ begin
   Result := 'JSON-Object';
 end;
 
-function TJObject.GetValue(AKey: string): TJValue;
+function TJObject.GetValue(AKey: string): TJValue.TWrapper;
 begin
-  if Self.IsNull or not FMap.Get(AKey, Result) then
+  if Self.IsNull or not FMap.Get(AKey, Result.FValue) then
     Result := nil;
 end;
 
@@ -834,39 +1127,62 @@ begin
   FMap.Remove(AKey);
 end;
 
-procedure TJObject.SetValue(AKey: string; const Value: TJValue);
+procedure TJObject.SetValue(AKey: string; const Value: TJValue.TWrapper);
+var
+  I: Integer;
 begin
-  FMap[AKey] := Value;
+  if FMap.KeyExists(AKey) then
+    for I := 0 to FOrder.MaxIndex do
+      if AKey = FOrder[I].Key then
+      begin
+        FOrder[I] := TJPair.Create(FOrder[I].Key, Value);
+        Exit;
+      end;
   FOrder.Add(TJPair.Create(AKey, Value));
+  FMap[AKey] := Value;
 end;
 
 { TJArray }
 
-procedure TJArray.Add(AValue: TJValue.TNumber);
+procedure TJArray.Add(AValue: TJValue.TWrapper);
 begin
-  Values.Add(TJNumber.Create(AValue));
-end;
-
-procedure TJArray.Add(AValue: string);
-begin
-  Values.Add(TJString.Create(AValue));
-end;
-
-procedure TJArray.Add(AValue: Boolean);
-begin
-  Values.Add(TJBool.Create(AValue));
+  FValues.Add(AValue);
 end;
 
 function TJArray.AddArray: TJArray;
 begin
   Result := TJArray.Create;
-  Values.Add(Result);
+  FValues.Add(Result);
+end;
+
+function TJArray.AddNull: TJNull;
+begin
+  Result := TJNull.Create;
+  FValues.Add(Result);
 end;
 
 function TJArray.AddObject: TJObject;
 begin
   Result := TJObject.Create;
-  Values.Add(Result);
+  FValues.Add(Result);
+end;
+
+procedure TJArray.Assign(AFrom: TJValue);
+var
+  I: Integer;
+begin
+  if not(AFrom is TJArray) then
+    raise EJSONError.Create('Cannot assign value to array.');
+  FValues.Clear;
+  FValues.Capacity := TJArray(AFrom).Count;
+  FValues.ForceCount(FValues.Capacity);
+  for I := 0 to TJArray(AFrom).FValues.MaxIndex do
+    Values[I] := TJArray(AFrom).Values[I].Copy;
+end;
+
+function TJArray.Copy: TJArray;
+begin
+  Result := TJArray(inherited Copy);
 end;
 
 constructor TJArray.Create;
@@ -880,35 +1196,92 @@ begin
   inherited;
 end;
 
-procedure TJArray.FormatInternal(ABuilder: TJValue.TJStringBuilder);
+function TJArray.Empty: Boolean;
+begin
+  Result := FValues.Empty;
+end;
+
+function TJArray.Equals(AObject: TObject): Boolean;
 var
   I: Integer;
 begin
-  ABuilder.Append('[');
-  ABuilder.Indent;
-  if not Values.Empty then
+  if not(AObject is TJArray) then
+    Exit(inherited);
+  if Count <> TJArray(AObject).Count then
+    Exit(False);
+  for I := 0 to MaxIndex do
+    if not FValues[I].Equals(TJArray(AObject)[I]) then
+      Exit(False);
+  Result := True;
+end;
+
+function TJArray.Extract(AIndex: Integer): TJValue;
+begin
+  Result := Values[AIndex];
+  FValues.OwnsObjects := False;
+  FValues.RemoveAt(AIndex);
+  FValues.OwnsObjects := True;
+end;
+
+function TJArray.Extract<T>(AIndex: Integer): T;
+begin
+  Result := Extract(AIndex).Cast<T>;
+end;
+
+procedure TJArray.FormatInternal(ABuilder: TJValue.TJStringBuilder);
+var
+  Wrapped: Boolean;
+  I: Integer;
+begin
+  Wrapped := ABuilder.Pretty;
+  if Wrapped then
   begin
-    Values[0].FormatInternal(ABuilder);
-    for I := 1 to Values.MaxIndex do
+    Wrapped := Count > ABuilder.ArrayWrapTheshold;
+    if not Wrapped then
+      for I := 0 to ABuilder.ArrayWrapTheshold - 1 do
+        if (Values[I].Value is TJObject) or (Values[I].Value is TJArray) then
+        begin
+          Wrapped := True;
+          Break;
+        end;
+  end;
+  ABuilder.Append('[');
+  if Wrapped then
+    ABuilder.Indent;
+  if not Empty then
+  begin
+    FValues[0].FormatInternal(ABuilder);
+    for I := 1 to MaxIndex do
     begin
       ABuilder.Append(',');
-      if not ABuilder.Pretty then
+      if not Wrapped then
         ABuilder.Append(' ')
-      else
+      else if Wrapped then
         ABuilder.NewLine;
-      Values[I].FormatInternal(ABuilder);
+      FValues[I].FormatInternal(ABuilder);
     end;
   end;
-  ABuilder.Unindent;
+  if Wrapped then
+    ABuilder.Unindent;
   ABuilder.Append(']');
+end;
+
+function TJArray.GetCount: Integer;
+begin
+  Result := FValues.Count;
 end;
 
 function TJArray.GetEnumerator: IIterator<TJValue>;
 begin
   if Exists then
-    Result := Values.GetEnumerator
+    Result := FValues.GetEnumerator
   else
     Result := TEmptyIterator.Create;
+end;
+
+function TJArray.GetMaxIndex: Integer;
+begin
+  Result := FValues.MaxIndex;
 end;
 
 class function TJArray.GetTypeName: string;
@@ -916,7 +1289,32 @@ begin
   Result := 'JSON-Array';
 end;
 
+function TJArray.GetValue(AIndex: Integer): TJValue.TWrapper;
+begin
+  if FValues.RangeCheck(AIndex) then
+    Result := FValues[AIndex]
+  else
+    Result := nil;
+end;
+
+procedure TJArray.SetValue(AIndex: Integer; const Value: TJValue.TWrapper);
+begin
+  if FValues.RangeCheck(AIndex) then
+    FValues[AIndex] := Value
+  else
+  begin
+    while MaxIndex < AIndex - 1 do
+      AddNull;
+    Add(Value);
+  end;
+end;
+
 { TJNull }
+
+function TJNull.Equals(AObject: TObject): Boolean;
+begin
+  Result := (AObject = nil) or (AObject is TJNull);
+end;
 
 procedure TJNull.FormatInternal(ABuilder: TJValue.TJStringBuilder);
 begin
@@ -930,9 +1328,23 @@ end;
 
 { TJBool }
 
+procedure TJBool.Assign(AFrom: TJValue);
+begin
+  if not(AFrom is TJBool) then
+    raise EJSONError.Create('Cannot assign value to bool.');
+  Value := TJBool(AFrom).Value;
+end;
+
 constructor TJBool.Create(AValue: Boolean);
 begin
   FValue := AValue;
+end;
+
+function TJBool.Equals(AObject: TObject): Boolean;
+begin
+  if not(AObject is TJBool) then
+    Exit(False);
+  Result := Value = TJBool(AObject).Value;
 end;
 
 procedure TJBool.FormatInternal(ABuilder: TJValue.TJStringBuilder);
@@ -947,9 +1359,23 @@ end;
 
 { TJString }
 
+procedure TJString.Assign(AValue: TJValue);
+begin
+  if not(AValue is TJString) then
+    raise EJSONError.Create('Cannot assign value to string.');
+  Text := TJString(AValue).Text;
+end;
+
 constructor TJString.Create(AText: string);
 begin
   FText := AText;
+end;
+
+function TJString.Equals(AObject: TObject): Boolean;
+begin
+  if not(AObject is TJString) then
+    Exit(inherited);
+  Result := Text = TJString(AObject).Text;
 end;
 
 procedure TJString.FormatInternal(ABuilder: TJValue.TJStringBuilder);
@@ -1016,9 +1442,23 @@ end;
 
 { TJNumber }
 
+procedure TJNumber.Assign(AFrom: TJValue);
+begin
+  if not(AFrom is TJNumber) then
+    raise EJSONError.Create('Cannot assign value to number.');
+  Number := TJNumber(AFrom).Number;
+end;
+
 constructor TJNumber.Create(ANumber: TJValue.TNumber);
 begin
   FNumber := ANumber;
+end;
+
+function TJNumber.Equals(AObject: TObject): Boolean;
+begin
+  if not(AObject is TJNumber) then
+    Exit(False);
+  Result := Number = TJNumber(AObject).Number;
 end;
 
 procedure TJNumber.FormatInternal(ABuilder: TJValue.TJStringBuilder);
@@ -1067,6 +1507,14 @@ begin
   Result.AsInt := ANumber;
 end;
 
+class operator TJValue.TNumber.Equal(A, B: TNumber): Boolean;
+begin
+  if A.IsFloat or B.IsFloat then
+    Result := Double(A) = Double(B)
+  else
+    Result := A.AsInt = B.AsInt;
+end;
+
 class operator TJValue.TNumber.Implicit(ANumber: Double): TNumber;
 begin
   Result.NumType := ntDouble;
@@ -1076,6 +1524,11 @@ end;
 function TJValue.TNumber.IsFloat: Boolean;
 begin
   Result := NumType <> ntInt;
+end;
+
+class operator TJValue.TNumber.NotEqual(A, B: TNumber): Boolean;
+begin
+  Result := not(A = B);
 end;
 
 class operator TJValue.TNumber.Implicit(ANumber: Single): TNumber;
@@ -1381,7 +1834,7 @@ begin
   while True do
   begin
 
-    ParseResult.Values.Add(TJValue.TParser.Require(Info));
+    ParseResult.FValues.Add(TJValue.TParser.Require(Info));
 
     SkipWhitespace;
 
@@ -1401,14 +1854,14 @@ end;
 
 { TJPairHelper }
 
-function TJPairHelper.ArrayOrNil: TJArray;
-begin
-  Result := Value.ArrayOrNil;
-end;
-
 function TJPairHelper.BoolOrDefault(ADefault: Boolean): Boolean;
 begin
   Result := Value.BoolOrDefault(ADefault);
+end;
+
+function TJPairHelper.Exists: Boolean;
+begin
+  Result := Value.Exists;
 end;
 
 function TJPairHelper.FloatOrDefault(ADefault: Double): Double;
@@ -1456,14 +1909,14 @@ begin
   Result := Value.IntOrDefault(ADefault);
 end;
 
+function TJPairHelper.IsNull: Boolean;
+begin
+  Result := Value.IsNull;
+end;
+
 function TJPairHelper.NumberOrDefault(ADefault: TJValue.TNumber): TJValue.TNumber;
 begin
   Result := Value.NumberOrDefault(ADefault);
-end;
-
-function TJPairHelper.ObjectOrNil: TJObject;
-begin
-  Result := Value.ObjectOrNil;
 end;
 
 procedure TJPairHelper.SetAsBool(const Value: Boolean);
@@ -1529,10 +1982,11 @@ begin
   Append(' ', IndentLevel * IndentWith);
 end;
 
-constructor TJValue.TJStringBuilder.Create(APretty: Boolean; AIndentWidth: Integer);
+constructor TJValue.TJStringBuilder.Create(APretty: Boolean; AIndentWidth: Integer; AArrayWrapTheshold: Integer);
 begin
   inherited Create;
   FPretty := APretty;
+  FArrayWrapThreshold := AArrayWrapTheshold;
   FIndentWidth := AIndentWidth;
 end;
 
@@ -1555,6 +2009,465 @@ procedure TJValue.TJStringBuilder.Unindent;
 begin
   Dec(FIndentLevel);
   NewLine;
+end;
+
+{ TJValue.TWrapper }
+
+class operator TJValue.TWrapper.Implicit(AText: string): TWrapper;
+begin
+  Result.FValue := TJString.Create(AText);
+end;
+
+class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): TJValue;
+begin
+  Result := AWrapper.FValue;
+end;
+
+class operator TJValue.TWrapper.Implicit(AValue: TJValue): TWrapper;
+begin
+  Result.FValue := AValue;
+end;
+
+class operator TJValue.TWrapper.Implicit(ANumber: TNumber): TWrapper;
+begin
+  Result := TJNumber.Create(ANumber);
+end;
+
+class operator TJValue.TWrapper.Implicit(AValue: Boolean): TWrapper;
+begin
+  Result := TJBool.Create(AValue);
+end;
+
+class operator TJValue.TWrapper.Implicit(ANumber: Int64): TWrapper;
+begin
+  Result := TNumber(ANumber);
+end;
+
+class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): string;
+begin
+  Result := AWrapper.AsString;
+end;
+
+class operator TJValue.TWrapper.Implicit(ANumber: Double): TWrapper;
+begin
+  Result := TNumber(ANumber);
+end;
+
+class operator TJValue.TWrapper.Implicit(ANumber: Single): TWrapper;
+begin
+  Result := TNumber(ANumber);
+end;
+
+class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): TNumber;
+begin
+  Result := AWrapper.AsNumber;
+end;
+
+class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): Int64;
+begin
+  Result := AWrapper.AsInt;
+end;
+
+procedure TJValue.TWrapper.Assign(AFrom: TJValue);
+begin
+  FValue.Assign(AFrom);
+end;
+
+function TJValue.TWrapper.BoolOrDefault(ADefault: Boolean): Boolean;
+begin
+  Result := FValue.BoolOrDefault(ADefault);
+end;
+
+function TJValue.TWrapper.Cast<T>: T;
+begin
+  Result := FValue.Cast<T>;
+end;
+
+function TJValue.TWrapper.Copy: TJValue;
+begin
+  Result := FValue.Copy;
+end;
+
+function TJValue.TWrapper.Exists: Boolean;
+begin
+  Result := FValue.Exists;
+end;
+
+function TJValue.TWrapper.FloatOrDefault(ADefault: Double): Double;
+begin
+  Result := FValue.FloatOrDefault(ADefault);
+end;
+
+function TJValue.TWrapper.Format(APretty: Boolean; AIndentWidth: Integer): string;
+begin
+  Result := FValue.Format(APretty, AIndentWidth);
+end;
+
+function TJValue.TWrapper.GetAsArray: TJArray;
+begin
+  Result := FValue.AsArray;
+end;
+
+function TJValue.TWrapper.GetAsBool: Boolean;
+begin
+  Result := FValue.AsBool;
+end;
+
+function TJValue.TWrapper.GetAsFloat: Double;
+begin
+  Result := FValue.AsFloat;
+end;
+
+function TJValue.TWrapper.GetAsInt: Int64;
+begin
+  Result := FValue.AsInt;
+end;
+
+function TJValue.TWrapper.GetAsNumber: TNumber;
+begin
+  Result := FValue.AsNumber;
+end;
+
+function TJValue.TWrapper.GetAsObject: TJObject;
+begin
+  Result := FValue.AsObject;
+end;
+
+function TJValue.TWrapper.GetAsString: string;
+begin
+  Result := FValue.AsString;
+end;
+
+function TJValue.TWrapper.GetEnumerator: IIterator<TJPair>;
+begin
+  Result := FValue.GetEnumerator;
+end;
+
+function TJValue.TWrapper.GetTypeName: string;
+begin
+  Result := FValue.GetTypeName;
+end;
+
+function TJValue.TWrapper.GetValue(AKey: string): TJValue;
+begin
+  Result := FValue.Values[AKey];
+end;
+
+function TJValue.TWrapper.GetValue(AIndex: Integer): TJValue;
+begin
+  Result := FValue.Values[AIndex];
+end;
+
+class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): Boolean;
+begin
+  Result := AWrapper.AsBool;
+end;
+
+function TJValue.TWrapper.IntOrDefault(ADefault: Int64): Int64;
+begin
+  Result := FValue.IntOrDefault(ADefault);
+end;
+
+function TJValue.TWrapper.IsNull: Boolean;
+begin
+  Result := FValue.IsNull;
+end;
+
+class operator TJValue.TWrapper.LogicalOr(AWrapper: TWrapper; ADefault: Boolean): Boolean;
+begin
+  if AWrapper.IsNull then
+    Exit(ADefault);
+  Result := AWrapper;
+end;
+
+class operator TJValue.TWrapper.LogicalOr(AWrapper: TWrapper; ADefault: string): string;
+begin
+  if AWrapper.IsNull then
+    Exit(ADefault);
+  Result := AWrapper;
+end;
+
+function TJValue.TWrapper.NumberOrDefault(ADefault: TNumber): TNumber;
+begin
+  Result := FValue.NumberOrDefault(ADefault);
+end;
+
+procedure TJValue.TWrapper.SetAsBool(const Value: Boolean);
+begin
+  FValue.AsBool := Value;
+end;
+
+procedure TJValue.TWrapper.SetAsFloat(const Value: Double);
+begin
+  FValue.AsFloat := Value;
+end;
+
+procedure TJValue.TWrapper.SetAsInt(const Value: Int64);
+begin
+  FValue.AsInt := Value;
+end;
+
+procedure TJValue.TWrapper.SetAsNumber(const Value: TNumber);
+begin
+  FValue.AsNumber := Value;
+end;
+
+procedure TJValue.TWrapper.SetAsString(const Value: string);
+begin
+  FValue.AsString := Value;
+end;
+
+function TJValue.TWrapper.StringOrDefault(ADefault: string): string;
+begin
+  Result := FValue.StringOrDefault(ADefault);
+end;
+
+function TJValue.TWrapper.ToString: string;
+begin
+  Result := FValue.ToString;
+end;
+
+class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): Double;
+begin
+  Result := AWrapper.AsFloat;
+end;
+
+class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): Single;
+begin
+  Result := AWrapper.AsFloat;
+end;
+
+class operator TJValue.TWrapper.LogicalOr(AWrapper: TWrapper; ADefault: Int64): Int64;
+begin
+  if AWrapper.IsNull then
+    Exit(ADefault);
+  Result := AWrapper;
+end;
+
+class operator TJValue.TWrapper.LogicalOr(AWrapper: TWrapper; ADefault: Single): Single;
+begin
+  if AWrapper.IsNull then
+    Exit(ADefault);
+  Result := AWrapper;
+end;
+
+class operator TJValue.TWrapper.LogicalOr(AWrapper: TWrapper; ADefault: Double): Double;
+begin
+  if AWrapper.IsNull then
+    Exit(ADefault);
+  Result := AWrapper;
+end;
+
+{ TJSerializer }
+
+destructor TJSerializer.Destroy;
+begin
+  if IsStoring then
+    FValue.Free;
+  inherited;
+end;
+
+function TJSerializer.IsStoring: Boolean;
+begin
+  Result := Mode = smSerialize;
+end;
+
+function TJSerializer.OwnValue: TJObject;
+begin
+  Result := FValue;
+  FValue := nil;
+end;
+
+class function TJSerializer.Serialize(AObject: IJSerializable; AVersion: Integer): TJObject;
+var
+  Serializer: TJSerializer;
+begin
+  if AVersion = -1 then
+    AVersion := AObject.GetJVersion;
+  Serializer := TJSerializer.Create(AVersion);
+  try
+    AObject.DefineJStorage(Serializer);
+    Result := Serializer.OwnValue;
+
+  finally
+    Serializer.Free;
+
+  end;
+end;
+
+procedure TJSerializer.Define(AName: string; var ANumber: Single);
+var
+  V: TJValue;
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := ANumber;
+    smUnserialize:
+      if Value.Get(AName, V) then
+        ANumber := V.AsNumber;
+  end;
+end;
+
+procedure TJSerializer.Define(AName: string; var ANumber: Double);
+var
+  V: TJValue;
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := ANumber;
+    smUnserialize:
+      if Value.Get(AName, V) then
+        ANumber := V.AsNumber;
+  end;
+end;
+
+procedure TJSerializer.Define(AName: string; var ANumber: Int64);
+var
+  V: TJValue;
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := ANumber;
+    smUnserialize:
+      if Value.Get(AName, V) then
+        ANumber := V.AsInt;
+  end;
+end;
+
+procedure TJSerializer.Define(AName: string; var ANumber: Integer);
+var
+  V: TJValue;
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := ANumber;
+    smUnserialize:
+      if Value.Get(AName, V) then
+        ANumber := V.AsInt;
+  end;
+end;
+
+constructor TJSerializer.Create(AValue: TJObject);
+begin
+  FMode := smUnserialize;
+  FValue := AValue;
+  FVersion := Value['_VERSION'] or 0;
+end;
+
+constructor TJSerializer.Create(AVersion: Integer);
+begin
+  FMode := smSerialize;
+  FValue := TJObject.Create;
+  FVersion := AVersion;
+  if Version <> 0 then
+    Value['_VERSION'] := Version;
+end;
+
+procedure TJSerializer.Define(AName: string; AObject: IJSerializable; AVersion: Integer);
+var
+  V: TJValue;
+begin
+  if AObject = nil then
+    Exit;
+  case Mode of
+    smSerialize:
+      Value[AName] := TJSerializer.Serialize(AObject, AVersion);
+    smUnserialize:
+      if Value.Get(AName, V) then
+        TJSerializer.Unserialize(AObject, Value[AName].AsObject);
+  end;
+end;
+
+procedure TJSerializer.Define(AName: string; var AValue: Boolean);
+var
+  V: TJValue;
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := AValue;
+    smUnserialize:
+      if Value.Get(AName, V) then
+        AValue := V.AsBool;
+  end;
+end;
+
+procedure TJSerializer.Define(AName: string; var AText: string);
+var
+  V: TJValue;
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := AText;
+    smUnserialize:
+      if Value.Get(AName, V) then
+        AText := V.AsString;
+  end;
+end;
+
+class procedure TJSerializer.Unserialize(AObject: IJSerializable; AValue: TJObject);
+var
+  Serializer: TJSerializer;
+begin
+  Serializer := TJSerializer.Create(AValue);
+  try
+    AObject.DefineJStorage(Serializer);
+
+  finally
+    Serializer.Free;
+
+  end;
+end;
+
+procedure TJSerializer.Define(AName: string; ASerializer: TJArraySerializer);
+var
+  V: TJValue;
+begin
+  try
+    case Mode of
+      smSerialize:
+        ASerializer.Serialize(Value.AddArray(AName));
+      smUnserialize:
+        if Value.Get(AName, V) then
+          ASerializer.Unserialize(V.AsArray);
+    end;
+
+  finally
+    ASerializer.Free;
+
+  end;
+end;
+
+procedure TJSerializer.Define(AName: string; ASerializer: TJArrayRefSerializer);
+var
+  V: TJValue;
+begin
+  try
+    case Mode of
+      smSerialize:
+        ASerializer.Serialize(Value.AddArray(AName));
+      smUnserialize:
+        if Value.Get(AName, V) then
+          ASerializer.Unserialize(V.AsArray);
+    end;
+
+  finally
+    ASerializer.Free;
+
+  end;
+end;
+
+{ TJArraySerializer<T> }
+
+constructor TJArraySerializer<T>.Create(AData: T);
+begin
+  FData := AData;
+end;
+
+{ TJArrayRefSerializer<T> }
+
+constructor TJArrayRefSerializer<T>.Create(AData: PT);
+begin
+  FData := AData;
 end;
 
 end.

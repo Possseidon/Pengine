@@ -9,8 +9,7 @@ uses
 
   Pengine.IntMaths,
   Pengine.Collections,
-  Pengine.CollectionInterfaces,
-  Pengine.Settings;
+  Pengine.CollectionInterfaces;
 
 type
 

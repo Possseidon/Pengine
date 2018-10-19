@@ -75,11 +75,14 @@ type
   private
     FItems: TItemTypeCollection;
     FPath: string;
+    FNamespacePrefix: Boolean;
 
     procedure SetPath(const Value: string);
 
   protected
     procedure DoReload; override;
+
+    class function GetNameForVersion(AVersion: Integer): string; override;
 
   public
     destructor Destroy; override;
@@ -90,7 +93,11 @@ type
     procedure SetDefaults; override;
 
     property Path: string read FPath write SetPath;
+    property NamespacePrefix: Boolean read FNamespacePrefix write FNamespacePrefix;
+
     property Items: TItemTypeCollection read FItems;
+
+    procedure DefineJStorage(ASerializer: TJSerializer); override;
 
   end;
 
@@ -131,7 +138,7 @@ type
 
     property NBT: TOwned<TNBTCompound> read FNBT;
 
-    function Format(AShowDefaultNamespace: Boolean = True): string; virtual;
+    function Format: string; virtual;
 
   end;
 
@@ -203,11 +210,14 @@ type
   private
     FItemTags: TItemTagCollection;
     FPath: string;
+    FNamespacePrefix: Boolean;
 
     procedure SetPath(const Value: string);
 
   protected
     procedure DoReload; override;
+
+    class function GetNameForVersion(AVersion: Integer): string; override;
 
   public
     destructor Destroy; override;
@@ -218,7 +228,11 @@ type
     procedure SetDefaults; override;
 
     property Path: string read FPath write SetPath;
+    property NamespacePrefix: Boolean read FNamespacePrefix write FNamespacePrefix;
+
     property ItemTags: TItemTagCollection read FItemTags;
+
+    procedure DefineJStorage(ASerializer: TJSerializer); override;
 
   end;
 
@@ -246,7 +260,7 @@ type
     end;
 
   public
-    function Format(AShowDefaultNamespace: Boolean = True): string; override;
+    function Format: string; override;
 
   end;
 
@@ -279,7 +293,7 @@ type
       TSubNameSuggestions = class(TParseSuggestionsGenerated<TParser>)
       private
         FSlotClass: TItemSlotClass;
-        
+
       protected
         procedure Generate; override;
 
@@ -487,6 +501,16 @@ end;
 
 { TItemSettings }
 
+procedure TItemSettings.DefineJStorage(ASerializer: TJSerializer);
+begin
+  inherited;
+  with ASerializer do
+  begin
+    Define('path', FPath);
+    Define('namespace_prefix', FNamespacePrefix);
+  end;
+end;
+
 destructor TItemSettings.Destroy;
 begin
   FItems.Free;
@@ -496,6 +520,11 @@ end;
 class function TItemSettings.GetDescription: string;
 begin
   Result := 'Path configuration for items in items.json file.';
+end;
+
+class function TItemSettings.GetNameForVersion(AVersion: Integer): string;
+begin
+  Result := 'mc_items';
 end;
 
 class function TItemSettings.GetTitle: string;
@@ -528,6 +557,7 @@ end;
 procedure TItemSettings.SetDefaults;
 begin
   Path := DefaultPath;
+  NamespacePrefix := True;
 end;
 
 procedure TItemSettings.SetPath(const Value: string);
@@ -570,7 +600,7 @@ begin
     Exit(False);
   NSPath := NSPathString;
 
-  ItemExists := RootSettings.Get<TItemSettings>.Items.Get(NSPath, ItemType);
+  ItemExists := RootSettingsG.Get<TItemSettings>.Items.Get(NSPath, ItemType);
   if not ItemExists then
     Log(Marker, '"%s" is not a valid item.', [NSPath.Format]);
 
@@ -588,7 +618,7 @@ var
   Item: TItemType;
   Settings: TItemSettings;
 begin
-  Settings := RootSettings.Get<TItemSettings>;
+  Settings := RootSettingsG.Get<TItemSettings>;
   for Item in Settings.Items.Order do
     AddSuggestion(ParseSuggestion(Item.NSPath.Format(False), Item.NSPath.Format(False)));
   AddSuggestion(ParseSuggestion(TNSPath.Empty, TNSPath.Empty));
@@ -615,9 +645,9 @@ begin
   inherited;
 end;
 
-function TItemStack.Format(AShowDefaultNamespace: Boolean): string;
+function TItemStack.Format: string;
 begin
-  Result := NSPath.Format(AShowDefaultNamespace);
+  Result := NSPath.Format(RootSettingsG.Get<TItemSettings>.NamespacePrefix);
   if NBT.HasValue and not NBT.Value.Empty then
     Result := Result + NBT.Value.Format;
 end;
@@ -741,6 +771,16 @@ end;
 
 { TItemTagSettings }
 
+procedure TItemTagSettings.DefineJStorage(ASerializer: TJSerializer);
+begin
+  inherited;
+  with ASerializer do
+  begin
+    Define('path', FPath);
+    Define('namespace_prefix', FNamespacePrefix);
+  end;
+end;
+
 destructor TItemTagSettings.Destroy;
 begin
   FItemTags.Free;
@@ -752,6 +792,11 @@ begin
   Result := 'Path configuration for item tags folder.';
 end;
 
+class function TItemTagSettings.GetNameForVersion(AVersion: Integer): string;
+begin
+  Result := 'mc_itemtags';
+end;
+
 class function TItemTagSettings.GetTitle: string;
 begin
   Result := 'Item-Tags';
@@ -760,12 +805,13 @@ end;
 procedure TItemTagSettings.DoReload;
 begin
   FItemTags.Free;
-  FItemTags := TItemTagCollection.Create(Get<TItemSettings>.Items, Path);
+  FItemTags := TItemTagCollection.Create(Root.Get<TItemSettings>.Items, Path);
 end;
 
 procedure TItemTagSettings.SetDefaults;
 begin
   Path := DefaultPath;
+  NamespacePrefix := True;
 end;
 
 procedure TItemTagSettings.SetPath(const Value: string);
@@ -776,9 +822,11 @@ end;
 
 { TItemStackTag }
 
-function TItemStackTag.Format(AShowDefaultNamespace: Boolean): string;
+function TItemStackTag.Format: string;
 begin
-  Result := '#' + inherited;
+  Result := '#' + NSPath.Format(RootSettingsG.Get<TItemTagSettings>.NamespacePrefix);
+  if NBT.HasValue and not NBT.Value.Empty then
+    Result := Result + NBT.Value.Format;
 end;
 
 { TItemStackTag.TParser }
@@ -815,7 +863,7 @@ begin
   NSPath := NSPathString;
 
   SetParseResult(TItemStackTag.Create(NSPath));
-  TagExists := RootSettings.Get<TItemTagSettings>.ItemTags.Get(NSPath, ItemTag);
+  TagExists := RootSettingsG.Get<TItemTagSettings>.ItemTags.Get(NSPath, ItemTag);
   if not TagExists then
     Log(Marker, '"%s" is not a valid item tag.', [NSPath.Format]);
 
@@ -831,7 +879,7 @@ var
   Tag: TItemTag;
   Settings: TItemTagSettings;
 begin
-  Settings := RootSettings.Get<TItemTagSettings>;
+  Settings := RootSettingsG.Get<TItemTagSettings>;
   for Tag in Settings.ItemTags.Tags do
     AddSuggestion(ParseSuggestion(Tag.NSPath.Format(False), Tag.NSPath.Format(False)));
   AddSuggestion(ParseSuggestion(TNSPath.Empty, TNSPath.Empty));
@@ -1063,7 +1111,7 @@ begin
   BeginSuggestions(TNameSuggestions);
   Name := ReadWhile(IdentChars - ['.']);
   EndSuggestions;
-  
+
   if not TItemSlot.GetTypeFromName(Name, SlotType) then
     Exit(False);
   SlotClass := ItemSlotClasses[SlotType];
@@ -1078,7 +1126,7 @@ begin
 
   SubNameMarker := GetMarker;
   BeginSuggestions(TSubNameSuggestions.Create(SlotClass));
-  Name := ReadWhile(IdentChars);                   
+  Name := ReadWhile(IdentChars);
   EndSuggestions;
 
   if Name.IsEmpty then
@@ -1126,7 +1174,7 @@ end;
 procedure TItemSlot.TParser.TSubNameSuggestions.Generate;
 var
   Index: Integer;
-begin                             
+begin
   for Index := 0 to FSlotClass.GetSubNameCount - 1 do
     AddSuggestion(FSlotClass.GetSubName(Index));
   for Index := 0 to FSlotClass.GetIndexCount - 1 do

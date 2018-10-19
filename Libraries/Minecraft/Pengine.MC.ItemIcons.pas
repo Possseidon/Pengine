@@ -5,6 +5,8 @@ interface
 uses
   System.ZIP,
   System.IOUtils,
+  System.Classes,
+  System.SysUtils,
 
   Vcl.Imaging.pngimage,
 
@@ -13,11 +15,18 @@ uses
 
   Pengine.MC.Item,
   Pengine.MC.BlockState,
-  System.Classes,
-  System.SysUtils,
-  Pengine.MC.Namespace;
+  Pengine.MC.Namespace,
+  Pengine.JSON;
 
 type
+
+  {
+    Item Icon Generation:
+    - models\items\<name_without_namespace>.json
+    - item/generated -> use layer0
+    -
+  }
+
 
   TItemIconSettings = class(TSettings)
   public type
@@ -40,16 +49,22 @@ type
 
     procedure DoReload; override;
 
+    class function GetNameForVersion(AVersion: Integer): string; override;
+
   public
     destructor Destroy; override;
 
-    procedure SetDefaults; override;
-
+    class function GetTitle: string; override;
     class function DefaultPath: string; static;
 
+    procedure SetDefaults; override;
+
     property Path: string read FPath write SetPath;
+
     property ItemIcons: TItemIcons.TReader read GetItemIcons;
     property BlockIcons: TBlockIcons.TReader read GetBlockIcons;
+
+    procedure DefineJStorage(ASerializer: TJSerializer); override;
 
   end;
 
@@ -62,13 +77,22 @@ begin
   inherited;
   FItemIcons := TItemIcons.Create;
   FBlockIcons := TBlockIcons.Create;
-  RootSettings.Get<TItemSettings>.OnReload.Add(Reload);
-  RootSettings.Get<TBlockSettings>.OnReload.Add(Reload);
+  AddDependent(RootSettingsG.Get<TItemSettings>);
+  AddDependent(RootSettingsG.Get<TBlockSettings>);
 end;
 
 class function TItemIconSettings.DefaultPath: string;
 begin
   Result := TPath.Combine(TPath.GetHomePath, '.minecraft/versions/1.13.1/1.13.1.jar');
+end;
+
+procedure TItemIconSettings.DefineJStorage(ASerializer: TJSerializer);
+begin
+  inherited;
+  with ASerializer do
+  begin
+    Define('path', FPath);
+  end;
 end;
 
 destructor TItemIconSettings.Destroy;
@@ -98,8 +122,8 @@ begin
   try
     Jar.Open(Path, zmRead);
 
-    Items := RootSettings.Get<TItemSettings>.Items;
-    Blocks := RootSettings.Get<TBlockSettings>.Blocks;
+    Items := RootSettingsG.Get<TItemSettings>.Items;
+    Blocks := RootSettingsG.Get<TBlockSettings>.Blocks;
 
     for I := 0 to Jar.FileCount - 1 do
     begin
@@ -143,6 +167,16 @@ end;
 function TItemIconSettings.GetItemIcons: TItemIcons.TReader;
 begin
   Result := FItemIcons.Reader;
+end;
+
+class function TItemIconSettings.GetNameForVersion(AVersion: Integer): string;
+begin
+  Result := 'mc_itemicons';
+end;
+
+class function TItemIconSettings.GetTitle: string;
+begin
+  Result := 'Item-Icons';
 end;
 
 procedure TItemIconSettings.SetDefaults;
