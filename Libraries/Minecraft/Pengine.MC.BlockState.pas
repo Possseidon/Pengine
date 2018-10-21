@@ -88,6 +88,8 @@ type
 
     function GetOrder: TBlockTypes.TReader;
     function GetSorted: TBlockTypes.TReader;
+    function GetCount: Integer;
+    function GetMap: TMap.TReader;
 
   public
     constructor Create(AJObject: TJObject);
@@ -96,6 +98,9 @@ type
     function Exists(ANSPath: TNSPath): Boolean;
     function Get(ANSPath: TNSPath; out ABlockType: TBlockType): Boolean;
 
+    property Count: Integer read GetCount;
+
+    property Map: TMap.TReader read GetMap;
     /// <summary>All block types as found in the file.</summary>
     property Order: TBlockTypes.TReader read GetOrder;
     /// <summary>All block types sorted alphabetically.</summary>
@@ -448,6 +453,16 @@ begin
   Result := FMap.Get(ANSPath, ABlockType);
 end;
 
+function TBlockTypeCollection.GetCount: Integer;
+begin
+  Result := FOrder.Count;
+end;
+
+function TBlockTypeCollection.GetMap: TMap.TReader;
+begin
+  Result := FMap.Reader;
+end;
+
 function TBlockTypeCollection.GetOrder: TBlockTypes.TReader;
 begin
   Result := FOrder.Reader;
@@ -566,19 +581,19 @@ begin
 
   SetParseResult(TBlockState.Create(NSPath));
 
-  ParseResult.NBT.Put(TNBTCompound.TParser.Optional(Info, omReturnNil));
+  ParseResult.NBT.Value := TNBTCompound.TParser.Optional(Info, omReturnNil);
 
   Blocks := TBlockTypes.Create;
   try
     if BlockExists then
       Blocks.Add(BlockType);
-    ParseResult.Properties.Put(TPropertiesParser.Optional(Info, Blocks.Reader));
+    ParseResult.Properties.Value := TPropertiesParser.Optional(Info, Blocks.Reader);
   finally
     Blocks.Free;
   end;
 
   if not ParseResult.NBT.HasValue then
-    ParseResult.NBT.Put(TNBTCompound.TParser.Optional(Info, omReturnNil));
+    ParseResult.NBT.Value := TNBTCompound.TParser.Optional(Info, omReturnNil);
 
   Result := True;
 end;
@@ -1074,17 +1089,17 @@ begin
   if not TagExists then
     Log(Marker, '"%s" is not a valid block tag.', [NSPath.Format]);
 
-  ParseResult.NBT.Put(TNBTCompound.TParser.Optional(Info, omReturnNil));
+  ParseResult.NBT.Value := TNBTCompound.TParser.Optional(Info, omReturnNil);
 
   if BlockTag <> nil then
     BlockTypes := BlockTag.BlockTypes
   else
     BlockTypes := nil;
 
-  ParseResult.Properties.Put(TPropertiesParser.Optional(Info, BlockTypes));
+  ParseResult.Properties.Value := TPropertiesParser.Optional(Info, BlockTypes);
 
   if not ParseResult.NBT.HasValue then
-    ParseResult.NBT.Put(TNBTCompound.TParser.Optional(Info, omReturnNil));
+    ParseResult.NBT.Value := TNBTCompound.TParser.Optional(Info, omReturnNil);
 
   Result := True;
 end;

@@ -537,6 +537,8 @@ end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
+  RootSettingsG.Reload(TItemIconSettings);
+
   // SHAutoComplete(edtTestInput.Handle, SHACF_AUTOAPPEND_FORCE_OFF or SHACF_AUTOSUGGEST_FORCE_OFF);
   InitDataTypes;
   InitTheme;

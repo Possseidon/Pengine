@@ -3,6 +3,8 @@ unit Pengine.Utility;
 interface
 
 uses
+  Winapi.Windows,
+
   System.SysUtils,
 
   Pengine.Interfaces;
@@ -100,21 +102,21 @@ type
   private
     FValue: T;
 
+    procedure SetValue(const Value: T);
+
   public
     /// <summary>Initialized the owned object with the given instance.</summary>
     constructor Create(AValue: T); overload;
     destructor Destroy; override;
 
-    /// <returns>True, if an object is currentrly owned.</returns>
+    /// <returns>True, if an object is currently owned.</returns>
     function HasValue: Boolean;
     /// <summary>The current object.</summary>
-    property Value: T read FValue;
+    property Value: T read FValue write SetValue;
     /// <summary>Frees the current object and sets the reference to nil.</summary>
     procedure Reset;
     /// <returns>The current owned object and resets itself, without freeing said object.</returns>
     function Own: T;
-    /// <summary>Sets a new instance and frees the old, if one existed.</summary>
-    procedure Put(AValue: T);
 
   end;
 
@@ -124,6 +126,8 @@ function PrettyFloat(AValue: Single): string; overload;
 function PrettyFloat(AValue: Double): string; overload;
 
 function ContainsOnly(AText: string; ASet: TSysCharSet): Boolean;
+
+function ExpandEnvVars(AText: string): string;
 
 implementation
 
@@ -159,11 +163,23 @@ begin
   Result := True;
 end;
 
+function ExpandEnvVars(AText: string): string;
+var
+  Len: Cardinal;
+begin
+  if AText.IsEmpty then
+    Exit('');
+  Len := ExpandEnvironmentStrings(PChar(AText), nil, 0);
+  SetLength(Result, Len);
+  ExpandEnvironmentStrings(PChar(AText), PChar(Result), Len);
+  Result := TrimRight(Result);
+end;
+
 { EOptWrapperNoValue }
 
 constructor EOptWrapperNoValue.Create;
 begin
-  inherited Create('The optional wrapper does not have a wrapper.');
+  inherited Create('The optional wrapper does not have a value.');
 end;
 
 { TRef<T> }
@@ -294,16 +310,16 @@ begin
   FreeAndNil(FValue);
 end;
 
+procedure TOwned<T>.SetValue(const Value: T);
+begin
+  FValue.Free;
+  FValue := Value;
+end;
+
 function TOwned<T>.Own: T;
 begin
   Result := FValue;
   FValue := nil;
-end;
-
-procedure TOwned<T>.Put(AValue: T);
-begin
-  FValue.Free;
-  FValue := AValue;
 end;
 
 end.

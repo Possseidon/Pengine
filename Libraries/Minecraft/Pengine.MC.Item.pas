@@ -51,6 +51,7 @@ type
 
     function GetOrder: TItemTypes.TReader;
     function GetSorted: TItemTypes.TReader;
+    function GetCount: Integer;
 
   public
     constructor Create(AJObject: TJObject);
@@ -58,6 +59,8 @@ type
 
     function Exists(ANSPath: TNSPath): Boolean;
     function Get(ANSPath: TNSPath; out AItemType: TItemType): Boolean;
+
+    property Count: Integer read GetCount;
 
     /// <summary>All item types as found in the file.</summary>
     property Order: TItemTypes.TReader read GetOrder;
@@ -489,6 +492,11 @@ begin
   Result := FMap.Get(ANSPath, AItemType);
 end;
 
+function TItemTypeCollection.GetCount: Integer;
+begin
+  Result := FOrder.Count;
+end;
+
 function TItemTypeCollection.GetOrder: TItemTypes.TReader;
 begin
   Result := FOrder.Reader;
@@ -606,7 +614,7 @@ begin
 
   SetParseResult(TItemStack.Create(NSPath));
 
-  ParseResult.NBT.Put(TNBTCompound.TParser.Optional(Info, omReturnNil));
+  ParseResult.NBT.Value := TNBTCompound.TParser.Optional(Info, omReturnNil);
 
   Result := True;
 end;
@@ -867,7 +875,7 @@ begin
   if not TagExists then
     Log(Marker, '"%s" is not a valid item tag.', [NSPath.Format]);
 
-  ParseResult.NBT.Put(TNBTCompound.TParser.Optional(Info, omReturnNil));
+  ParseResult.NBT.Value := TNBTCompound.TParser.Optional(Info, omReturnNil);
 
   Result := True;
 end;

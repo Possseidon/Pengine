@@ -12,37 +12,27 @@ uses
 
   Pengine.Settings,
   Pengine.HashCollections,
+  Pengine.Collections, // remove me
+  Pengine.JSON,
+  Pengine.Utility,
 
   Pengine.MC.Item,
   Pengine.MC.BlockState,
-  Pengine.MC.Namespace,
-  Pengine.JSON;
+  Pengine.MC.Namespace;
 
 type
-
-  {
-    Item Icon Generation:
-    - models\items\<name_without_namespace>.json
-    - item/generated -> use layer0
-    -
-  }
-
 
   TItemIconSettings = class(TSettings)
   public type
 
-    TItemIcons = TRefObjectMap<TItemType, TPngImage>;
-
-    TBlockIcons = TRefObjectMap<TBlockType, TPngImage>;
+    TIcons = TRefObjectMap<TItemType, TPngImage>;
 
   private
     FPath: string;
-    FItemIcons: TItemIcons;
-    FBlockIcons: TBlockIcons;
+    FIcons: TIcons;
 
     procedure SetPath(const Value: string);
-    function GetItemIcons: TItemIcons.TReader;
-    function GetBlockIcons: TBlockIcons.TReader;
+    function GetIcons: TIcons.TReader;
 
   protected
     constructor Create(ARoot: TRootSettings); override;
@@ -61,8 +51,7 @@ type
 
     property Path: string read FPath write SetPath;
 
-    property ItemIcons: TItemIcons.TReader read GetItemIcons;
-    property BlockIcons: TBlockIcons.TReader read GetBlockIcons;
+    property Icons: TIcons.TReader read GetIcons;
 
     procedure DefineJStorage(ASerializer: TJSerializer); override;
 
@@ -75,15 +64,13 @@ implementation
 constructor TItemIconSettings.Create(ARoot: TRootSettings);
 begin
   inherited;
-  FItemIcons := TItemIcons.Create;
-  FBlockIcons := TBlockIcons.Create;
+  FIcons := TIcons.Create;
   AddDependent(RootSettingsG.Get<TItemSettings>);
-  AddDependent(RootSettingsG.Get<TBlockSettings>);
 end;
 
 class function TItemIconSettings.DefaultPath: string;
 begin
-  Result := TPath.Combine(TPath.GetHomePath, '.minecraft/versions/1.13.1/1.13.1.jar');
+  Result := '%appdata%\.minecraft\versions\1.13.1\1.13.1.jar';
 end;
 
 procedure TItemIconSettings.DefineJStorage(ASerializer: TJSerializer);
@@ -97,61 +84,48 @@ end;
 
 destructor TItemIconSettings.Destroy;
 begin
-  FItemIcons.Free;
-  FBlockIcons.Free;
+  FIcons.Free;
   inherited;
 end;
 
 procedure TItemIconSettings.DoReload;
 var
-  Item: TItemType;
-  Block: TBlockType;
   Jar: TZipFile;
-  I: Integer;
-  Image: TPngImage;
-  PngStream: TStream;
-  Header: TZipHeader;
-  NSPath: TNSPath;
   Items: TItemTypeCollection;
+  I: Integer;
+  FileName, ItemName: string;
+  Found, Missing: Integer;
   Blocks: TBlockTypeCollection;
+  MissingBlocks: TMap<TNSPath, TBlockType, TNSPathHasher>;
+  M: TArray<TNSPath>;
 begin
-  FItemIcons.Clear;
-  FBlockIcons.Clear;
+  FIcons.Clear;
 
   Jar := TZipFile.Create;
   try
-    Jar.Open(Path, zmRead);
+    Jar.Open(ExpandEnvVars(Path), zmRead);
 
     Items := RootSettingsG.Get<TItemSettings>.Items;
     Blocks := RootSettingsG.Get<TBlockSettings>.Blocks;
 
+    MissingBlocks := Blocks.Map.Copy;
+
+    Found := 0;
     for I := 0 to Jar.FileCount - 1 do
     begin
-      if not Jar.FileName[I].EndsWith('.png', True) or
-        not(Jar.FileName[I].StartsWith('assets/minecraft/textures/item') or
-        Jar.FileName[I].StartsWith('assets/minecraft/textures/block')) then
+      FileName := Jar.FileName[I];
+      if not FileName.StartsWith('assets/minecraft/blockstates/') or not FileName.EndsWith('.json') then
         Continue;
-      NSPath := ChangeFileExt(Jar.FileName[I].Substring(Jar.FileName[I].LastIndexOf('/') + 1), '');
-      if Items.Get(NSPath, Item) then
+      ItemName := ChangeFileExt(FileName.Substring(FileName.LastIndexOf('/') + 1), '');
+      if Blocks.Exists(ItemName) then
       begin
-        Image := TPngImage.Create;
-        Jar.Read(I, PngStream, Header);
-        Image.LoadFromStream(PngStream);
-        Image.Resize(16, 16);
-        PngStream.Free;
-        FItemIcons[Item] := Image;
+        Inc(Found);
+        MissingBlocks.TryRemove(ItemName);
       end;
-      if Blocks.Get(NSPath, Block) then
-      begin
-        Image := TPngImage.Create;
-        Jar.Read(I, PngStream, Header);
-        Image.LoadFromStream(PngStream);
-        Image.Resize(16, 16);
-        PngStream.Free;
-        FBlockIcons[Block] := Image;
-      end;
-
     end;
+
+    M := MissingBlocks.Keys.ToArray;
+    Missing := Blocks.Count - Found;
 
   finally
     Jar.Free;
@@ -159,14 +133,9 @@ begin
   end;
 end;
 
-function TItemIconSettings.GetBlockIcons: TBlockIcons.TReader;
+function TItemIconSettings.GetIcons: TIcons.TReader;
 begin
-  Result := FBlockIcons.Reader;
-end;
-
-function TItemIconSettings.GetItemIcons: TItemIcons.TReader;
-begin
-  Result := FItemIcons.Reader;
+  Result := FIcons.Reader;
 end;
 
 class function TItemIconSettings.GetNameForVersion(AVersion: Integer): string;

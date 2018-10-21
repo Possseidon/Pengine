@@ -909,10 +909,9 @@ var
   I: Integer;
 begin
   Clear;
-  SetBucketsDirect(Buckets);
-  for I := 0 to Buckets - 1 do
-    if FBuckets[I] <> nil then
-      FBuckets[I] := AHashBase.FBuckets[I].Copy;
+  FCount := AHashBase.Count;
+  SetBucketsDirect(AHashBase.Buckets);
+  CopyBuckets(AHashBase);
 end;
 
 function THashBase.BucketCounts: TIntArray;
