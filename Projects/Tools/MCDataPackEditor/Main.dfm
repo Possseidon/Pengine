@@ -30,19 +30,6 @@ object frmMain: TfrmMain
     ExplicitLeft = 209
     ExplicitHeight = 506
   end
-  object pbIcons: TPaintBox
-    AlignWithMargins = True
-    Left = 243
-    Top = 3
-    Width = 830
-    Height = 554
-    Align = alClient
-    OnPaint = pbIconsPaint
-    ExplicitLeft = 328
-    ExplicitTop = 104
-    ExplicitWidth = 105
-    ExplicitHeight = 105
-  end
   object Panel1: TPanel
     Left = 0
     Top = 0
@@ -141,6 +128,27 @@ object frmMain: TfrmMain
     OnMouseMove = pcTabsMouseMove
     OnMouseUp = pcTabsMouseUp
     OnStartDrag = pcTabsStartDrag
+    ExplicitTop = 0
+  end
+  object ScrollBox1: TScrollBox
+    Left = 240
+    Top = 0
+    Width = 836
+    Height = 560
+    VertScrollBar.Tracking = True
+    Align = alClient
+    TabOrder = 3
+    object pbIcons: TPaintBox
+      AlignWithMargins = True
+      Left = 3
+      Top = 3
+      Width = 826
+      Height = 550
+      Align = alClient
+      OnPaint = pbIconsPaint
+      ExplicitLeft = 6
+      ExplicitTop = 6
+    end
   end
   object alActions: TActionList
     Images = ilIcons
@@ -364,7 +372,7 @@ object frmMain: TfrmMain
     Left = 48
     Top = 192
     Bitmap = {
-      494C01010A000D00800010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01010A000D00840010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000003000000001002000000000000030
       000000000000000000000000000000000000000000000000000047C7EBFF47C6
       EAFF47C6EAFF46C5EAFF46C4E9FF46C4E9FF45C3E8FF45C2E8FF45C2E7FF45C1

@@ -915,6 +915,7 @@ begin
     pfBGRA:
       Result := Ord(pfRGBA);
   else
+    Result := 0;
     Assert(False);
   end;
 end;

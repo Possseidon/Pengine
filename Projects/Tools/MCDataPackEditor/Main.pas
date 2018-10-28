@@ -50,7 +50,8 @@ uses
   FunctionTheme,
   LightThemePreset,
   SettingsForm,
-  StartupView, Pengine.MC.BlockRenderer;
+  StartupView,
+  Pengine.MC.BlockRenderer;
 
 type
 
@@ -131,6 +132,7 @@ type
     actFormatCurrent: TAction;
     actFormatAll: TAction;
     actFunctionPreferences: TAction;
+    ScrollBox1: TScrollBox;
     pbIcons: TPaintBox;
     procedure actCollapseAllExecute(Sender: TObject);
     procedure actCopyNameExecute(Sender: TObject);
@@ -349,13 +351,14 @@ begin
   // The first time, this exception is raised, the raising takes a little longer with the debugger...
   // So let's do it at the start so it's not anoying while typing.
 
-{$IFDEF DEBUG}
+  {$IFDEF DEBUG}
+
   try
     raise EParseError.Create('');
   except
   end;
 
-{$ENDIF}
+  {$ENDIF}
 
 end;
 
@@ -587,7 +590,7 @@ end;
 
 procedure TfrmMain.pbIconsPaint(Sender: TObject);
 const
-  IconSize = 64;
+  IconSize = 128;
 
 var
   Graphics: IGPGraphics;
@@ -619,6 +622,8 @@ begin
       Inc(Y, IconSize + 1);
     end;
   end;
+
+  ScrollBox1.VertScrollBar.Range := Y + IconSize;
 
   Caption := StopTimerGetString;
 
