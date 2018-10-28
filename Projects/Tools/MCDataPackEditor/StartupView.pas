@@ -19,28 +19,15 @@ uses
   Pengine.MC.ItemIcons,
   Pengine.MC.Item,
   Pengine.MC.BlockState,
-  Pengine.MC.Brigadier;
+  Pengine.MC.Brigadier,
+  Pengine.JSON;
 
 type
 
-  TStartupSettings = class(TSettings)
-  public const
-
-    Path = 'settings.json';
-
-  private
-    FBackgroundLoading: Boolean;
-    FLoadEvertyhingOnStartup: Boolean;
-
-  public
-    procedure SetDefaults; override;
-
-    property BackgroundLoading: Boolean read FBackgroundLoading write FBackgroundLoading;
-    property LoadEverythingOnStartup: Boolean read FLoadEvertyhingOnStartup write FLoadEvertyhingOnStartup;
-
-  end;
-
   TLoadJob = class
+  private
+    FUpdateGUI: Boolean;
+
   protected
     function GetProgressLength: Integer; virtual;
     procedure StepProgress;
@@ -49,7 +36,7 @@ type
     procedure DoPerform; virtual; abstract;
 
   public
-    procedure Perform;
+    procedure Perform(AUpdateGUI: Boolean);
 
   end;
 
@@ -70,13 +57,15 @@ type
   TStartupThread = class(TThread)
   private
     FJobs: TLoadJobs.TReader;
+    FUpdateGUI: Boolean;
 
   protected
     procedure Execute; override;
 
   public
-    constructor Create(AJobs: TLoadJobs.TReader);
+    constructor Create(AJobs: TLoadJobs.TReader; AUpdateGUI: Boolean);
 
+    property UpdateGUI: Boolean read FUpdateGUI;
     property Jobs: TLoadJobs.TReader read FJobs;
 
   end;
@@ -87,14 +76,12 @@ type
     pbProgressSecondary: TProgressBar;
     memProgress: TMemo;
     procedure FormShow(Sender: TObject);
-  public const
-
-    SettingsPath = '%appdata%/.MCDPE';
-
   private
     FJobs: TLoadJobs.TReader;
 
     procedure StartupDone(Sender: TObject);
+
+    procedure StartJobs(AUpdateGUI: Boolean);
 
   public
     procedure Execute(AJobs: TLoadJobs.TReader);
@@ -110,39 +97,40 @@ implementation
 
 { TfrmStartup }
 
-procedure TfrmStartup.Execute(AJobs: TLoadJobs.TReader);
-var
-  StartupSettings: TStartupSettings;
-begin
-  FJobs := AJobs;
-  StartupSettings := RootSettingsG.Get<TStartupSettings>;
-  if StartupSettings.BackgroundLoading then
-    raise ENotImplemented.Create('Loading in background.')
-  else
-    ShowModal;
-end;
-
-procedure TfrmStartup.FormShow(Sender: TObject);
+procedure TfrmStartup.StartJobs(AUpdateGUI: Boolean);
 var
   Thread: TStartupThread;
 begin
-  Thread := TStartupThread.Create(FJobs);
+  Thread := TStartupThread.Create(FJobs, AUpdateGUI);
   Thread.OnTerminate := StartupDone;
   Thread.FreeOnTerminate := True;
   Thread.Start;
 end;
 
+procedure TfrmStartup.Execute(AJobs: TLoadJobs.TReader);
+begin
+  FJobs := AJobs;
+  ShowModal;
+end;
+
+procedure TfrmStartup.FormShow(Sender: TObject);
+begin
+  StartJobs(True);
+end;
+
 procedure TfrmStartup.StartupDone(Sender: TObject);
 begin
+  FreeAndNil(FJobs);
   Close;
 end;
 
 { TStartupThread }
 
-constructor TStartupThread.Create(AJobs: TLoadJobs.TReader);
+constructor TStartupThread.Create(AJobs: TLoadJobs.TReader; AUpdateGUI: Boolean);
 begin
   inherited Create(True);
   FJobs := AJobs;
+  FUpdateGUI := AUpdateGUI;
   frmStartup.pbProgress.Max := Jobs.Count * frmStartup.pbProgress.Step;
 end;
 
@@ -152,12 +140,13 @@ var
 begin
   for Job in FJobs do
   begin
-    Job.Perform;
-    Synchronize(
-      procedure
-      begin
-        frmStartup.pbProgress.StepIt;
-      end);
+    Job.Perform(UpdateGUI);
+    if UpdateGUI then
+      Synchronize(
+        procedure
+        begin
+          frmStartup.pbProgress.StepIt;
+        end);
   end;
 end;
 
@@ -183,38 +172,34 @@ end;
 
 procedure TLoadJob.Log(AText: string);
 begin
-  TThread.Synchronize(TThread.Current,
-    procedure
-    begin
-      frmStartup.memProgress.Lines.Add(AText);
-    end);
+  if FUpdateGUI then
+    TThread.Synchronize(TThread.Current,
+      procedure
+      begin
+        frmStartup.memProgress.Lines.Add(AText);
+      end);
 end;
 
-procedure TLoadJob.Perform;
+procedure TLoadJob.Perform(AUpdateGUI: Boolean);
 begin
-  TThread.Synchronize(TThread.Current,
-    procedure
-    begin
-      frmStartup.pbProgressSecondary.Max := GetProgressLength;
-    end);
+  FUpdateGUI := AUpdateGUI;
+  if FUpdateGUI then
+    TThread.Synchronize(TThread.Current,
+      procedure
+      begin
+        frmStartup.pbProgressSecondary.Max := GetProgressLength;
+      end);
   DoPerform;
 end;
 
 procedure TLoadJob.StepProgress;
 begin
-  TThread.Synchronize(TThread.Current,
-    procedure
-    begin
-      frmStartup.pbProgressSecondary.StepIt;
-    end);
-end;
-
-{ TStartupSettings }
-
-procedure TStartupSettings.SetDefaults;
-begin
-  FBackgroundLoading := False;
-  FLoadEvertyhingOnStartup := False;
+  if FUpdateGUI then
+    TThread.Synchronize(TThread.Current,
+      procedure
+      begin
+        frmStartup.pbProgressSecondary.StepIt;
+      end);
 end;
 
 end.

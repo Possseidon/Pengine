@@ -143,7 +143,10 @@ end;
 initialization
 
 Lock := TCriticalSection.Create;
+
+{$IFDEF LEAVE_CONSOLE_OPEN}
 ExitProcessProc := OnExit;
+{$ENDIF}
 
 finalization
 

@@ -801,6 +801,7 @@ end;
 
 procedure TVBOMutable<TData>.Generate(AData: TArray<TData>; AUsageHint: TGLBufferUsage);
 begin
+  FCount := AData.Count;
   FUsageHint := AUsageHint;
   Bind;
   glBufferData(Ord(btArrayBuffer), AData.Count * GetDataSize, AData.DataPointer, Ord(AUsageHint));

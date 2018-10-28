@@ -13,7 +13,8 @@ uses
   Pengine.Parser,
   Pengine.CollectionInterfaces,
   Pengine.Utility,
-  Pengine.Interfaces;
+  Pengine.Interfaces,
+  System.IOUtils;
 
 type
 
@@ -66,7 +67,7 @@ type
     end;
 
     /// <summary>A wrapper, that allows implicit conversion from primitive types to TJValue.</summary>
-    TWrapper = record
+    TJWrapper = record
     private
       FValue: TJValue;
 
@@ -83,39 +84,39 @@ type
       procedure SetAsFloat(const Value: Double); inline;
       procedure SetAsBool(const Value: Boolean); inline;
 
-      function GetValue(AKey: string): TJValue; overload; inline;
-      function GetValue(AIndex: Integer): TJValue; overload; inline;
+      function GetValue(AKey: string): TJWrapper; overload; inline;
+      function GetValue(AIndex: Integer): TJWrapper; overload; inline;
 
     public
       // Wrapper <-> TJValue
-      class operator Implicit(AWrapper: TWrapper): TJValue; static; inline;
-      class operator Implicit(AValue: TJValue): TWrapper; static; inline;
+      class operator Implicit(AWrapper: TJWrapper): TJValue; static; inline;
+      class operator Implicit(AValue: TJValue): TJWrapper; static; inline;
 
       // Primitive -> Wrapper
-      class operator Implicit(AText: string): TWrapper; static; inline;
-      class operator Implicit(ANumber: TNumber): TWrapper; static; inline;
-      class operator Implicit(ANumber: Double): TWrapper; static; inline;
-      class operator Implicit(ANumber: Single): TWrapper; static; inline;
-      class operator Implicit(ANumber: Int64): TWrapper; static; inline;
-      class operator Implicit(AValue: Boolean): TWrapper; static; inline;
+      class operator Implicit(AText: string): TJWrapper; static; inline;
+      class operator Implicit(ANumber: TNumber): TJWrapper; static; inline;
+      class operator Implicit(ANumber: Double): TJWrapper; static; inline;
+      class operator Implicit(ANumber: Single): TJWrapper; static; inline;
+      class operator Implicit(ANumber: Int64): TJWrapper; static; inline;
+      class operator Implicit(AValue: Boolean): TJWrapper; static; inline;
 
       // Wrapper -> Primitve
-      class operator Implicit(AWrapper: TWrapper): string; static; inline;
-      class operator Implicit(AWrapper: TWrapper): TNumber; static; inline;
-      class operator Implicit(AWrapper: TWrapper): Double; static; inline;
-      class operator Implicit(AWrapper: TWrapper): Single; static; inline;
-      class operator Implicit(AWrapper: TWrapper): Int64; static; inline;
-      class operator Implicit(AWrapper: TWrapper): Boolean; static; inline;
+      class operator Implicit(AWrapper: TJWrapper): string; static; inline;
+      class operator Implicit(AWrapper: TJWrapper): TNumber; static; inline;
+      class operator Implicit(AWrapper: TJWrapper): Double; static; inline;
+      class operator Implicit(AWrapper: TJWrapper): Single; static; inline;
+      class operator Implicit(AWrapper: TJWrapper): Int64; static; inline;
+      class operator Implicit(AWrapper: TJWrapper): Boolean; static; inline;
 
       // TJValue relay functions
       function Copy: TJValue; inline;
 
       // or default operator
-      class operator LogicalOr(AWrapper: TWrapper; ADefault: string): string; static; inline;
-      class operator LogicalOr(AWrapper: TWrapper; ADefault: Boolean): Boolean; static; inline;
-      class operator LogicalOr(AWrapper: TWrapper; ADefault: Int64): Int64; static; inline;
-      class operator LogicalOr(AWrapper: TWrapper; ADefault: Single): Single; static; inline;
-      class operator LogicalOr(AWrapper: TWrapper; ADefault: Double): Double; static; inline;
+      class operator LogicalOr(AWrapper: TJWrapper; ADefault: string): string; static; inline;
+      class operator LogicalOr(AWrapper: TJWrapper; ADefault: Boolean): Boolean; static; inline;
+      class operator LogicalOr(AWrapper: TJWrapper; ADefault: Int64): Int64; static; inline;
+      class operator LogicalOr(AWrapper: TJWrapper; ADefault: Single): Single; static; inline;
+      class operator LogicalOr(AWrapper: TJWrapper; ADefault: Double): Double; static; inline;
 
       function GetTypeName: string; inline;
       function Format(APretty: Boolean = True; AIndentWidth: Integer = 2): string; inline;
@@ -142,10 +143,10 @@ type
 
       /// <summary>Interprets as TJObject and gets or sets the value at the specified key.</summary>
       /// <remarks>Returns nil for null or none existent keys.</remarks>
-      property Values[AKey: string]: TJValue read GetValue; default;
+      property Values[AKey: string]: TJWrapper read GetValue; default;
       /// <summary>Interprets as TJArray and gets or sets the value at the specified index.</summary>
       /// <remarks>Returns nil for null or none existent indices.</remarks>
-      property Values[AIndex: Integer]: TJValue read GetValue; default;
+      property Values[AIndex: Integer]: TJWrapper read GetValue; default;
 
       procedure Assign(AFrom: TJValue); inline;
 
@@ -201,8 +202,8 @@ type
     procedure SetAsFloat(const Value: Double);
     procedure SetAsBool(const Value: Boolean);
 
-    function GetValue(AKey: string): TWrapper; overload;
-    function GetValue(AIndex: Integer): TWrapper; overload;
+    function GetValue(AKey: string): TJWrapper; overload;
+    function GetValue(AIndex: Integer): TJWrapper; overload;
 
   protected
     procedure FormatInternal(ABuilder: TJStringBuilder); virtual; abstract;
@@ -238,19 +239,24 @@ type
 
     /// <summary>Interprets as TJObject and gets or sets the value at the specified key.</summary>
     /// <remarks>Returns nil for null or none existent keys.</remarks>
-    property Values[AKey: string]: TWrapper read GetValue; default;
+    property Values[AKey: string]: TJWrapper read GetValue; default;
     /// <summary>Interprets as TJArray and gets or sets the value at the specified index.</summary>
     /// <remarks>Returns nil for null or none existent indices.</remarks>
-    property Values[AIndex: Integer]: TWrapper read GetValue; default;
+    property Values[AIndex: Integer]: TJWrapper read GetValue; default;
 
     procedure Assign(AFrom: TJValue); virtual;
 
     function GetEnumerator: IIterator<TJPair>;
     function ToString: string; override;
 
+    class function Parse(AText: string): TJValue;
+    class function CreateFromFile(APath: string): TJValue;
+
   end;
 
   TJValues = TRefArray<TJValue>;
+
+  TJWrapper = TJValue.TJWrapper;
 
   TJPairHelper = record helper for TJPair
   private
@@ -340,8 +346,8 @@ type
     FMap: TMap;
 
     function GetOrder: TOrder.TReader;
-    function GetValue(AKey: string): TJValue.TWrapper;
-    procedure SetValue(AKey: string; const Value: TJValue.TWrapper); overload;
+    function GetValue(AKey: string): TJValue.TJWrapper;
+    procedure SetValue(AKey: string; const Value: TJValue.TJWrapper); overload;
     function GetCount: Integer;
 
   protected
@@ -367,12 +373,12 @@ type
 
     /// <summary>Grants read and write access to all values.</summary>
     /// <remarks>The getter will return nil for non-existent keys or if the object itself is nil.</remarks>
-    property Values[AKey: string]: TJValue.TWrapper read GetValue write SetValue; default;
+    property Values[AKey: string]: TJValue.TJWrapper read GetValue write SetValue; default;
 
     property Count: Integer read GetCount;
     procedure Clear;
 
-    procedure Add(AKey: string; AValue: TJValue.TWrapper);
+    procedure Add(AKey: string; AValue: TJValue.TJWrapper);
     function AddObject(AKey: string): TJObject;
     function AddArray(AKey: string): TJArray;
     function AddNull(AKey: string): TJNull;
@@ -389,6 +395,7 @@ type
     procedure Assign(AFrom: TJValue); override;
 
     class function Parse(AText: string): TJObject;
+    class function CreateFromFile(APath: string): TJObject;
 
   end;
 
@@ -441,8 +448,8 @@ type
 
     function GetCount: Integer;
     function GetMaxIndex: Integer;
-    function GetValue(AIndex: Integer): TJValue.TWrapper;
-    procedure SetValue(AIndex: Integer; const Value: TJValue.TWrapper);
+    function GetValue(AIndex: Integer): TJValue.TJWrapper;
+    procedure SetValue(AIndex: Integer; const Value: TJValue.TJWrapper);
 
   protected
     procedure FormatInternal(ABuilder: TJValue.TJStringBuilder); override;
@@ -455,12 +462,12 @@ type
 
     class function GetTypeName: string; override;
 
-    property Values[AIndex: Integer]: TJValue.TWrapper read GetValue write SetValue; default;
+    property Values[AIndex: Integer]: TJValue.TJWrapper read GetValue write SetValue; default;
     property Count: Integer read GetCount;
     property MaxIndex: Integer read GetMaxIndex;
     function Empty: Boolean;
 
-    procedure Add(AValue: TJValue.TWrapper);
+    procedure Add(AValue: TJValue.TJWrapper);
     function AddObject: TJObject;
     function AddArray: TJArray;
     function AddNull: TJNull;
@@ -472,6 +479,9 @@ type
     function Equals(AObject: TObject): Boolean; override;
 
     procedure Assign(AFrom: TJValue); override;
+
+    class function Parse(AText: string): TJArray;
+    class function CreateFromFile(APath: string): TJArray;
 
   end;
 
@@ -828,6 +838,11 @@ begin
   // nothing by default
 end;
 
+class function TJValue.CreateFromFile(APath: string): TJValue;
+begin
+  Result := Parse(TFile.ReadAllText(APath));
+end;
+
 function TJValue.Exists: Boolean;
 begin
   Result := not IsNull;
@@ -860,12 +875,12 @@ begin
   Result := 'JSON-Value';
 end;
 
-function TJValue.GetValue(AIndex: Integer): TWrapper;
+function TJValue.GetValue(AIndex: Integer): TJWrapper;
 begin
   Result := AsArray[AIndex];
 end;
 
-function TJValue.GetValue(AKey: string): TWrapper;
+function TJValue.GetValue(AKey: string): TJWrapper;
 begin
   Result := AsObject[AKey];
 end;
@@ -887,6 +902,15 @@ begin
   if Exists then
     Exit(AsNumber);
   Result := ADefault;
+end;
+
+class function TJValue.Parse(AText: string): TJValue;
+var
+  Parser: TParser;
+begin
+  Parser := TParser.Create(AText, False);
+  Result := Parser.OwnParseResult;
+  Parser.Free;
 end;
 
 procedure TJValue.SetAsBool(const Value: Boolean);
@@ -928,7 +952,7 @@ end;
 
 { TJObject }
 
-procedure TJObject.Add(AKey: string; AValue: TJValue.TWrapper);
+procedure TJObject.Add(AKey: string; AValue: TJValue.TJWrapper);
 begin
   Values[AKey] := AValue;
 end;
@@ -977,6 +1001,11 @@ constructor TJObject.Create;
 begin
   FOrder := TOrder.Create;
   FMap := TMap.Create;
+end;
+
+class function TJObject.CreateFromFile(APath: string): TJObject;
+begin
+  Result := Parse(TFile.ReadAllText(APath));
 end;
 
 destructor TJObject.Destroy;
@@ -1095,7 +1124,7 @@ begin
   Result := 'JSON-Object';
 end;
 
-function TJObject.GetValue(AKey: string): TJValue.TWrapper;
+function TJObject.GetValue(AKey: string): TJValue.TJWrapper;
 begin
   if Self.IsNull or not FMap.Get(AKey, Result.FValue) then
     Result := nil;
@@ -1127,7 +1156,7 @@ begin
   FMap.Remove(AKey);
 end;
 
-procedure TJObject.SetValue(AKey: string; const Value: TJValue.TWrapper);
+procedure TJObject.SetValue(AKey: string; const Value: TJValue.TJWrapper);
 var
   I: Integer;
 begin
@@ -1144,7 +1173,7 @@ end;
 
 { TJArray }
 
-procedure TJArray.Add(AValue: TJValue.TWrapper);
+procedure TJArray.Add(AValue: TJValue.TJWrapper);
 begin
   FValues.Add(AValue);
 end;
@@ -1188,6 +1217,11 @@ end;
 constructor TJArray.Create;
 begin
   FValues := TValues.Create;
+end;
+
+class function TJArray.CreateFromFile(APath: string): TJArray;
+begin
+  Result := Parse(TFile.ReadAllText(APath));
 end;
 
 destructor TJArray.Destroy;
@@ -1289,7 +1323,7 @@ begin
   Result := 'JSON-Array';
 end;
 
-function TJArray.GetValue(AIndex: Integer): TJValue.TWrapper;
+function TJArray.GetValue(AIndex: Integer): TJValue.TJWrapper;
 begin
   if FValues.RangeCheck(AIndex) then
     Result := FValues[AIndex]
@@ -1297,7 +1331,16 @@ begin
     Result := nil;
 end;
 
-procedure TJArray.SetValue(AIndex: Integer; const Value: TJValue.TWrapper);
+class function TJArray.Parse(AText: string): TJArray;
+var
+  Parser: TParser;
+begin
+  Parser := TParser.Create(AText, False);
+  Result := Parser.OwnParseResult;
+  Parser.Free;
+end;
+
+procedure TJArray.SetValue(AIndex: Integer; const Value: TJValue.TJWrapper);
 begin
   if FValues.RangeCheck(AIndex) then
     FValues[AIndex] := Value
@@ -2013,245 +2056,245 @@ end;
 
 { TJValue.TWrapper }
 
-class operator TJValue.TWrapper.Implicit(AText: string): TWrapper;
+class operator TJValue.TJWrapper.Implicit(AText: string): TJWrapper;
 begin
   Result.FValue := TJString.Create(AText);
 end;
 
-class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): TJValue;
+class operator TJValue.TJWrapper.Implicit(AWrapper: TJWrapper): TJValue;
 begin
   Result := AWrapper.FValue;
 end;
 
-class operator TJValue.TWrapper.Implicit(AValue: TJValue): TWrapper;
+class operator TJValue.TJWrapper.Implicit(AValue: TJValue): TJWrapper;
 begin
   Result.FValue := AValue;
 end;
 
-class operator TJValue.TWrapper.Implicit(ANumber: TNumber): TWrapper;
+class operator TJValue.TJWrapper.Implicit(ANumber: TNumber): TJWrapper;
 begin
   Result := TJNumber.Create(ANumber);
 end;
 
-class operator TJValue.TWrapper.Implicit(AValue: Boolean): TWrapper;
+class operator TJValue.TJWrapper.Implicit(AValue: Boolean): TJWrapper;
 begin
   Result := TJBool.Create(AValue);
 end;
 
-class operator TJValue.TWrapper.Implicit(ANumber: Int64): TWrapper;
+class operator TJValue.TJWrapper.Implicit(ANumber: Int64): TJWrapper;
 begin
   Result := TNumber(ANumber);
 end;
 
-class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): string;
+class operator TJValue.TJWrapper.Implicit(AWrapper: TJWrapper): string;
 begin
   Result := AWrapper.AsString;
 end;
 
-class operator TJValue.TWrapper.Implicit(ANumber: Double): TWrapper;
+class operator TJValue.TJWrapper.Implicit(ANumber: Double): TJWrapper;
 begin
   Result := TNumber(ANumber);
 end;
 
-class operator TJValue.TWrapper.Implicit(ANumber: Single): TWrapper;
+class operator TJValue.TJWrapper.Implicit(ANumber: Single): TJWrapper;
 begin
   Result := TNumber(ANumber);
 end;
 
-class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): TNumber;
+class operator TJValue.TJWrapper.Implicit(AWrapper: TJWrapper): TNumber;
 begin
   Result := AWrapper.AsNumber;
 end;
 
-class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): Int64;
+class operator TJValue.TJWrapper.Implicit(AWrapper: TJWrapper): Int64;
 begin
   Result := AWrapper.AsInt;
 end;
 
-procedure TJValue.TWrapper.Assign(AFrom: TJValue);
+procedure TJValue.TJWrapper.Assign(AFrom: TJValue);
 begin
   FValue.Assign(AFrom);
 end;
 
-function TJValue.TWrapper.BoolOrDefault(ADefault: Boolean): Boolean;
+function TJValue.TJWrapper.BoolOrDefault(ADefault: Boolean): Boolean;
 begin
   Result := FValue.BoolOrDefault(ADefault);
 end;
 
-function TJValue.TWrapper.Cast<T>: T;
+function TJValue.TJWrapper.Cast<T>: T;
 begin
   Result := FValue.Cast<T>;
 end;
 
-function TJValue.TWrapper.Copy: TJValue;
+function TJValue.TJWrapper.Copy: TJValue;
 begin
   Result := FValue.Copy;
 end;
 
-function TJValue.TWrapper.Exists: Boolean;
+function TJValue.TJWrapper.Exists: Boolean;
 begin
   Result := FValue.Exists;
 end;
 
-function TJValue.TWrapper.FloatOrDefault(ADefault: Double): Double;
+function TJValue.TJWrapper.FloatOrDefault(ADefault: Double): Double;
 begin
   Result := FValue.FloatOrDefault(ADefault);
 end;
 
-function TJValue.TWrapper.Format(APretty: Boolean; AIndentWidth: Integer): string;
+function TJValue.TJWrapper.Format(APretty: Boolean; AIndentWidth: Integer): string;
 begin
   Result := FValue.Format(APretty, AIndentWidth);
 end;
 
-function TJValue.TWrapper.GetAsArray: TJArray;
+function TJValue.TJWrapper.GetAsArray: TJArray;
 begin
   Result := FValue.AsArray;
 end;
 
-function TJValue.TWrapper.GetAsBool: Boolean;
+function TJValue.TJWrapper.GetAsBool: Boolean;
 begin
   Result := FValue.AsBool;
 end;
 
-function TJValue.TWrapper.GetAsFloat: Double;
+function TJValue.TJWrapper.GetAsFloat: Double;
 begin
   Result := FValue.AsFloat;
 end;
 
-function TJValue.TWrapper.GetAsInt: Int64;
+function TJValue.TJWrapper.GetAsInt: Int64;
 begin
   Result := FValue.AsInt;
 end;
 
-function TJValue.TWrapper.GetAsNumber: TNumber;
+function TJValue.TJWrapper.GetAsNumber: TNumber;
 begin
   Result := FValue.AsNumber;
 end;
 
-function TJValue.TWrapper.GetAsObject: TJObject;
+function TJValue.TJWrapper.GetAsObject: TJObject;
 begin
   Result := FValue.AsObject;
 end;
 
-function TJValue.TWrapper.GetAsString: string;
+function TJValue.TJWrapper.GetAsString: string;
 begin
   Result := FValue.AsString;
 end;
 
-function TJValue.TWrapper.GetEnumerator: IIterator<TJPair>;
+function TJValue.TJWrapper.GetEnumerator: IIterator<TJPair>;
 begin
   Result := FValue.GetEnumerator;
 end;
 
-function TJValue.TWrapper.GetTypeName: string;
+function TJValue.TJWrapper.GetTypeName: string;
 begin
   Result := FValue.GetTypeName;
 end;
 
-function TJValue.TWrapper.GetValue(AKey: string): TJValue;
+function TJValue.TJWrapper.GetValue(AKey: string): TJWrapper;
 begin
   Result := FValue.Values[AKey];
 end;
 
-function TJValue.TWrapper.GetValue(AIndex: Integer): TJValue;
+function TJValue.TJWrapper.GetValue(AIndex: Integer): TJWrapper;
 begin
   Result := FValue.Values[AIndex];
 end;
 
-class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): Boolean;
+class operator TJValue.TJWrapper.Implicit(AWrapper: TJWrapper): Boolean;
 begin
   Result := AWrapper.AsBool;
 end;
 
-function TJValue.TWrapper.IntOrDefault(ADefault: Int64): Int64;
+function TJValue.TJWrapper.IntOrDefault(ADefault: Int64): Int64;
 begin
   Result := FValue.IntOrDefault(ADefault);
 end;
 
-function TJValue.TWrapper.IsNull: Boolean;
+function TJValue.TJWrapper.IsNull: Boolean;
 begin
   Result := FValue.IsNull;
 end;
 
-class operator TJValue.TWrapper.LogicalOr(AWrapper: TWrapper; ADefault: Boolean): Boolean;
+class operator TJValue.TJWrapper.LogicalOr(AWrapper: TJWrapper; ADefault: Boolean): Boolean;
 begin
   if AWrapper.IsNull then
     Exit(ADefault);
   Result := AWrapper;
 end;
 
-class operator TJValue.TWrapper.LogicalOr(AWrapper: TWrapper; ADefault: string): string;
+class operator TJValue.TJWrapper.LogicalOr(AWrapper: TJWrapper; ADefault: string): string;
 begin
   if AWrapper.IsNull then
     Exit(ADefault);
   Result := AWrapper;
 end;
 
-function TJValue.TWrapper.NumberOrDefault(ADefault: TNumber): TNumber;
+function TJValue.TJWrapper.NumberOrDefault(ADefault: TNumber): TNumber;
 begin
   Result := FValue.NumberOrDefault(ADefault);
 end;
 
-procedure TJValue.TWrapper.SetAsBool(const Value: Boolean);
+procedure TJValue.TJWrapper.SetAsBool(const Value: Boolean);
 begin
   FValue.AsBool := Value;
 end;
 
-procedure TJValue.TWrapper.SetAsFloat(const Value: Double);
+procedure TJValue.TJWrapper.SetAsFloat(const Value: Double);
 begin
   FValue.AsFloat := Value;
 end;
 
-procedure TJValue.TWrapper.SetAsInt(const Value: Int64);
+procedure TJValue.TJWrapper.SetAsInt(const Value: Int64);
 begin
   FValue.AsInt := Value;
 end;
 
-procedure TJValue.TWrapper.SetAsNumber(const Value: TNumber);
+procedure TJValue.TJWrapper.SetAsNumber(const Value: TNumber);
 begin
   FValue.AsNumber := Value;
 end;
 
-procedure TJValue.TWrapper.SetAsString(const Value: string);
+procedure TJValue.TJWrapper.SetAsString(const Value: string);
 begin
   FValue.AsString := Value;
 end;
 
-function TJValue.TWrapper.StringOrDefault(ADefault: string): string;
+function TJValue.TJWrapper.StringOrDefault(ADefault: string): string;
 begin
   Result := FValue.StringOrDefault(ADefault);
 end;
 
-function TJValue.TWrapper.ToString: string;
+function TJValue.TJWrapper.ToString: string;
 begin
   Result := FValue.ToString;
 end;
 
-class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): Double;
+class operator TJValue.TJWrapper.Implicit(AWrapper: TJWrapper): Double;
 begin
   Result := AWrapper.AsFloat;
 end;
 
-class operator TJValue.TWrapper.Implicit(AWrapper: TWrapper): Single;
+class operator TJValue.TJWrapper.Implicit(AWrapper: TJWrapper): Single;
 begin
   Result := AWrapper.AsFloat;
 end;
 
-class operator TJValue.TWrapper.LogicalOr(AWrapper: TWrapper; ADefault: Int64): Int64;
+class operator TJValue.TJWrapper.LogicalOr(AWrapper: TJWrapper; ADefault: Int64): Int64;
 begin
   if AWrapper.IsNull then
     Exit(ADefault);
   Result := AWrapper;
 end;
 
-class operator TJValue.TWrapper.LogicalOr(AWrapper: TWrapper; ADefault: Single): Single;
+class operator TJValue.TJWrapper.LogicalOr(AWrapper: TJWrapper; ADefault: Single): Single;
 begin
   if AWrapper.IsNull then
     Exit(ADefault);
   Result := AWrapper;
 end;
 
-class operator TJValue.TWrapper.LogicalOr(AWrapper: TWrapper; ADefault: Double): Double;
+class operator TJValue.TJWrapper.LogicalOr(AWrapper: TJWrapper; ADefault: Double): Double;
 begin
   if AWrapper.IsNull then
     Exit(ADefault);

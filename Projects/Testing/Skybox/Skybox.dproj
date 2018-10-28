@@ -1,7 +1,7 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{3E8C428A-C3FE-47E6-955D-521757DA8C0C}</ProjectGuid>
-        <ProjectVersion>18.2</ProjectVersion>
+        <ProjectVersion>18.4</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <MainSource>Skybox.dpr</MainSource>
         <Base>True</Base>
@@ -309,13 +309,13 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="Data\wooden_planks_speulcarmap.png" Configuration="Debug" Class="ProjectFile">
+                <DeployFile LocalName="Data\stone_bricks_smap.png" Configuration="Release" Class="ProjectFile">
                     <Platform Name="Win64">
                         <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="Data\stone_bricks_smap.png" Configuration="Release" Class="ProjectFile">
+                <DeployFile LocalName="Data\wooden_planks_speulcarmap.png" Configuration="Debug" Class="ProjectFile">
                     <Platform Name="Win64">
                         <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>

@@ -368,7 +368,7 @@ end;
 
 function TTextureAtlas.TTile.GetBounds: TBounds2;
 begin
-  Result := TBounds2(TexelBounds) / Atlas.Size;
+  Result := Bounds2(TexelBounds.C1, TexelBounds.C2 + 1) / Atlas.Size;
 end;
 
 function TTextureAtlas.TTile.GetBoundsHalfPixelInset: TBounds2;
@@ -777,7 +777,7 @@ begin
   if Value > Size then
   begin
     // lengthened
-    if not FRows.Empty and (FRows.Last.C2 = Size) then
+    if not FRows.Empty and (FRows.Last.C2 + 1 = Size) then
       // lengthen the last row
       FRows.Last := IBounds1I(FRows.Last.C1, Value)
     else
@@ -821,7 +821,7 @@ var
 begin
   for I := 0 to FRows.MaxIndex do
   begin
-    if AStart >= FRows[I].C2 then
+    if AStart > FRows[I].C2 then
       Continue;
     Row.C1 := Max(AStart, FRows[I].C1);
     Row.C2 := FRows[I].C2;
@@ -857,7 +857,7 @@ begin
       else
       begin
         // decrease cleared section to the right
-        FRows[I] := IBounds1(ARange.C2, FRows[I].C2);
+        FRows[I] := IBounds1(ARange.C2 + 1, FRows[I].C2 + 1);
       end;
     end
     else
@@ -870,7 +870,7 @@ begin
       else
       begin
         // split
-        FRows.Insert(IBounds1(ARange.C2, FRows[I].C2), I + 1);
+        FRows.Insert(IBounds1(ARange.C2 + 1, FRows[I].C2 + 1), I + 1);
         FRows[I] := IBounds1(FRows[I].C1, ARange.C1);
       end;
     end;
@@ -892,8 +892,8 @@ begin
     if I = 0 then
       Row.C1 := 0
     else
-      Row.C1 := FRows[I - 1].C2;
-    Row.C2 := FRows[I].C1;
+      Row.C1 := FRows[I - 1].C2 + 1;
+    Row.C2 := FRows[I].C1 - 1;
 
     if Row.Length = 0 then
       Continue;
@@ -909,13 +909,13 @@ begin
       if Right then
       begin
         // merge cleared sections
-        FRows[I - 1] := IBounds1(FRows[I - 1].C1, FRows[I].C2);
+        FRows[I - 1] := IBounds1(FRows[I - 1].C1, FRows[I].C2 + 1);
         FRows.RemoveAt(I);
       end
       else
       begin
         // increase left cleared section to the right
-        FRows[I - 1] := IBounds1(FRows[I - 1].C1, ARange.C2);
+        FRows[I - 1] := IBounds1(FRows[I - 1].C1, ARange.C2 + 1);
       end;
     end
     else
@@ -923,7 +923,7 @@ begin
       if Right then
       begin
         // inscrease right cleared section to the left
-        FRows[I - 1] := IBounds1(ARange.C1, FRows[I - 1].C2);
+        FRows[I - 1] := IBounds1(ARange.C1, FRows[I - 1].C2 + 1);
       end
       else
       begin
@@ -1247,7 +1247,7 @@ begin
     end;
     Bounds := (Pos * CharSize).Bounds(CharSize);
     Bounds.LineY := (ATexture.Height - Bounds.LineY).Normalize;
-    Bounds.C2.X := Bounds.C1.X + Floor((ATexture.Size.X div 16) * FWidths[I]);
+    Bounds.C2.X := Bounds.C1.X + Floor((ATexture.Size.X div 16) * FWidths[I]) - 1;
     ATextures[I] := ATexture.CreateSubTexture(Bounds);
   end;
 end;

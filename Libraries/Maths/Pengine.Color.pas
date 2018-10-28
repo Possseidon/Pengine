@@ -9,7 +9,7 @@ uses
 
 type
 
-  TColorRGBA = record
+  TColorRGBA = packed record
   public type
 
     PBytes = ^TBytes;
@@ -57,7 +57,7 @@ type
 
   end;
 
-  TColorRGB = record
+  TColorRGB = packed record
   public type
 
     PBytes = ^TBytes;

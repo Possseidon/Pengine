@@ -6,6 +6,7 @@ uses
   dglOpenGL,
 
   System.SysUtils,
+  System.Math,
 
   Pengine.GLEnums,
   Pengine.Matrix,
@@ -17,7 +18,9 @@ uses
   Pengine.Interfaces,
   Pengine.TimeManager;
 
-  // TODO: camera aspect via resize event
+  // TODO: TGameCamera, that adds aspect change already
+
+  // TODO: Instead of a renderlist per camera, add a scene class, that you can reference the camera to
 
 const
   RotMin = -180;
@@ -104,7 +107,7 @@ type
   // TODO: XmlDoc
   // Important: free renderables AFTER camera
   // Using the same location for objects rendered in succession speeds up the rendering significantly
-  // as the model matrix doesn'T change and no matrix calculations/uniform sending have to be done at all
+  // as the model matrix doesn't change and no matrix calculations/uniform sending have to be done at all
   TCamera = class
   public type
 
@@ -128,14 +131,16 @@ type
     private
       FCalculatesTo: TUniform;
       FValid: Boolean;
+      FSent: Boolean;
       FData: TMatrix4;
       FUniforms: TUniforms;
       FRotationUniforms: TRotationUniforms;
 
       function GetData: TMatrix4;
 
+      procedure InvalidateSent;
+
     protected
-      procedure SendToUniforms;
       function Calculate: TMatrix4; virtual; abstract;
 
       property CalculatesTo: TUniform read FCalculatesTo write FCalculatesTo;
@@ -144,7 +149,7 @@ type
       constructor Create;
       destructor Destroy; override;
 
-      procedure SendAllMatrices;
+      procedure SendToUniforms;
       procedure Invalidate;
 
       procedure AddUniform(AUniform: TGLProgram.TUniform<TMatrix4>); overload;
@@ -215,6 +220,8 @@ type
 
     function OcclusionRadiusVisible(const AFrustum: THexahedron; ARenderable: IRenderable): Boolean;
     function OcclusionPointsVisible(const AFrustum: THexahedron; ARenderable: IRenderable): Boolean;
+
+    procedure SendAllMatrices;
 
   protected
     function GetLocation: TLocation3; virtual;
@@ -317,9 +324,6 @@ type
   end;
 
 implementation
-
-uses
-  Math;
 
 { TCamera }
 
@@ -539,7 +543,7 @@ var
           begin
             FModelLocation := NewModelLocation;
             FMat[mtModel].Invalidate;
-            FMat[mtMVP].SendAllMatrices;
+            SendAllMatrices;
           end;
           RenderObject.Render;
         end;
@@ -551,7 +555,7 @@ var
 
 begin
   Frustum := GetViewFrustum;
-  FMat[mtMVP].SendAllMatrices;
+  SendAllMatrices;
   RenderList(FRenderObjects);
 end;
 
@@ -559,6 +563,14 @@ procedure TCamera.TurnPitch(AAngles: TVector2);
 begin
   FLocation.Turn(AAngles.X);
   FLocation.Pitch(AAngles.Y);
+end;
+
+procedure TCamera.SendAllMatrices;
+var
+  Mat: TUniform;
+begin
+  for Mat in FMat do
+    Mat.SendToUniforms;
 end;
 
 procedure TCamera.SetAspect(const AValue: Single);
@@ -711,12 +723,14 @@ end;
 
 procedure TCamera.TUniform.AddUniform(AUniform: TGLProgram.TUniform<TMatrix3>);
 begin
+  FSent := False;
   if AUniform.Active then
     FRotationUniforms.Add(AUniform);
 end;
 
 procedure TCamera.TUniform.AddUniform(AUniform: TGLProgram.TUniform<TMatrix4>);
 begin
+  FSent := False;
   if AUniform.Active then
     FUniforms.Add(AUniform);
 end;
@@ -756,34 +770,44 @@ begin
   Result := FData;
 end;
 
-procedure TCamera.TUniform.SendAllMatrices;
-begin
-  SendToUniforms;
-end;
-
 procedure TCamera.TUniform.SendToUniforms;
 var
   I: Integer;
 begin
+  if FSent then
+    Exit;
   for I := 0 to FUniforms.MaxIndex do
     FUniforms[I].Value := Data;
   for I := 0 to FRotationUniforms.MaxIndex do
     FRotationUniforms[I].Value := Data.Minor[3];
+  FSent := True;
 end;
 
 procedure TCamera.TUniform.Invalidate;
 begin
+  if not FValid then
+    Exit;
   FValid := False;
   if FCalculatesTo <> nil then
     FCalculatesTo.Invalidate;
+  InvalidateSent;
+end;
+
+procedure TCamera.TUniform.InvalidateSent;
+begin
+  if not FSent then
+    Exit;
+  FSent := False;
+  if FCalculatesTo <> nil then
+    FCalculatesTo.InvalidateSent;
 end;
 
 { TCamera.TUniformCombined }
 
 function TCamera.TUniformCombined.Calculate: TMatrix4;
 begin
-  FComponent1.SendAllMatrices;
-  FComponent2.SendAllMatrices;
+  FComponent1.Invalidate;
+  FComponent2.Invalidate;
   Result := FComponent1.Data * FComponent2.Data;
 end;
 

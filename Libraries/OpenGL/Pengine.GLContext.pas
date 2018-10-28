@@ -36,7 +36,6 @@ type
     FFPSLimit: Single;
     FClearMask: TGLAttribMaskFlags;
     FGLState: TGLState;
-    FHWND: HWND;
     FDC: HDC;
     FRC: HGLRC;
 
@@ -86,8 +85,6 @@ type
     class function ErrorBox(const ATitle, AMessage: String; AButtons: TMsgDlgButtons; ADefault: TMsgDlgBtn): TModalResult;
 
     procedure WaitForFPSLimit;
-
-    function CanRender: Boolean;
 
     procedure Update;
     procedure ForceFPSUpdate;
@@ -161,10 +158,7 @@ end;
 
 procedure TGLContext.InitGL;
 begin
-  if CanRender then
-    FRC := CreateRenderingContextVersion(FDC, [opDoubleBuffered], 4, 2, True, 32, 32, 0, 0, 0, 0)
-  else
-    FRC := CreateRenderingContextVersion(FDC, [], 4, 2, True, 0, 0, 0, 0, 0, 0);
+  FRC := CreateRenderingContextVersion(FDC, [opDoubleBuffered], 4, 2, True, 32, 32, 0, 0, 0, 0);
   ActivateRenderingContext(FDC, FRC);
 
   glDebugMessageCallback(DebugCallback, Self);
@@ -282,11 +276,6 @@ begin
   Result := MessageDlg(ATitle + sLineBreak + sLineBreak + AMessage, mtError, AButtons, 0, ADefault);
 end;
 
-function TGLContext.CanRender: Boolean;
-begin
-  Result := FHWND = 0;
-end;
-
 procedure TGLContext.Clear(AMask: TGLAttribMaskFlags);
 begin
   if MultiSampled then
@@ -298,12 +287,7 @@ end;
 
 constructor TGLContext.Create(ADC: HDC; ASize: TIntVector2; ARenderCallback: TRenderCallback);
 begin
-  if ADC = 0 then
-    FHWND := GetDesktopWindow;
-  if CanRender then
-    FDC := ADC
-  else
-    FDC := GetDC(FHWND);
+  FDC := ADC;
   FRenderCallback := ARenderCallback;
 
   FTimer := TDeltaTimer.Create;
@@ -348,10 +332,10 @@ var
 begin
   Self := TGLContext(AUserData);
   Severity := GLDebugSeverityToEnum(ASeverity);
-  if Severity in Self.GLDebugLogLevels then
-    OutputDebugString(@Formatted[1]);
   if Severity in Self.GLDebugRaiseLevels then
     raise Exception.Create(Formatted);
+  if Severity in Self.GLDebugLogLevels then
+    OutputDebugString(PChar(Formatted));
 end;
 
 destructor TGLContext.Destroy;
@@ -361,8 +345,6 @@ begin
   FDepthRenderbuffer.Free;
   FinalizeGL;
   FTimer.Free;
-  if not CanRender then
-    ReleaseDC(FHWND, FDC);
   inherited;
 end;
 

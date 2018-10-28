@@ -5,6 +5,8 @@ interface
 uses
   System.SysUtils,
   System.IOUtils,
+  System.SyncObjs,
+  System.Classes,
 
   Pengine.Collections,
   Pengine.HashCollections,
@@ -60,6 +62,8 @@ type
     class function GetTitle: string; virtual; abstract;
     /// <returns>A user-friendly description.</returns>
     class function GetDescription: string; virtual;
+    /// <returns>Wether there is nothing to save.</returns>
+    class function SkipSave: Boolean; virtual;
 
     /// <summary>The relevant root settings object.</summary>
     property Root: TRootSettings read FRoot;
@@ -96,11 +100,17 @@ type
 
     TSubSettings = TClassObjectMap<TSettingsClass, TSettings>;
 
+  public
+    class var
+
+      LatestVersion: Integer;
+
   private
     FSubSettings: TSubSettings;
     FPath: string;
     FJObject: TJObject;
     FVersion: Integer;
+    FLock: TCriticalSection;
 
     procedure SetPath(const Value: string);
 
@@ -108,7 +118,6 @@ type
     constructor Create; reintroduce;
     destructor Destroy; override;
 
-    class function GetLatestVersion: Integer;
     property Version: Integer read FVersion;
 
     property Path: string read FPath write SetPath;
@@ -123,6 +132,11 @@ type
     function Get<T: TSettings>: T; overload;
     /// <returns>A new or existing instance of the specified class in the relevant root object.</returns>
     function Get(ASettingsClass: TSettingsClass): TSettings; overload;
+
+    function IsLoaded(ASettingsClass: TSettingsClass): Boolean; overload;
+    function GetIfLoaded<T: TSettings>(out ASettings: T): Boolean; overload;
+    function GetIfLoaded(ASettingsClass: TSettingsClass; out ASettings: TSettings): Boolean; overload;
+    procedure Preload(ASettingsClass: TSettingsClass);
 
   end;
 
@@ -180,7 +194,7 @@ end;
 class function TSettings.GetName(AVersion: Integer): string;
 begin
   if AVersion = -1 then
-    AVersion := TRootSettings.GetLatestVersion;
+    AVersion := TRootSettings.LatestVersion;
   Result := GetNameForVersion(AVersion);
 end;
 
@@ -209,16 +223,33 @@ begin
   // nothing by default
 end;
 
+class function TSettings.SkipSave: Boolean;
+begin
+  Result := False;
+end;
+
 { TRootSettings }
 
 constructor TRootSettings.Create;
 begin
   FSubSettings := TSubSettings.Create;
+  FLock := TCriticalSection.Create;
 end;
 
 destructor TRootSettings.Destroy;
+var
+  SubSettings: TSettings;
 begin
+  FLock.Enter;
+  for SubSettings in FSubSettings.Values do
+  begin
+    TMonitor.Enter(SubSettings);
+    TMonitor.Exit(SubSettings);
+  end;
   FSubSettings.Free;
+  FLock.Leave;
+  FLock.Leave;
+  FLock.Free;
   FJObject.Free;
   inherited;
 end;
@@ -227,18 +258,24 @@ function TRootSettings.Get(ASettingsClass: TSettingsClass): TSettings;
 var
   JSettings: TJObject;
 begin
+  FLock.Enter;
   if not FSubSettings.Get(ASettingsClass, Result) then
   begin
     Result := ASettingsClass.Create(Self);
     FSubSettings[ASettingsClass] := Result;
-    Result.FOnReload.Disable;
+    TMonitor.Enter(Result);
+    FLock.Leave;
     Result.SetDefaults;
-    Result.FOnReload.Enable;
-    if FJObject.Get<TJObject>(Result.GetName(Version), JSettings) then
-    begin
+    if not Result.SkipSave and FJObject.Get<TJObject>(Result.GetName(Version), JSettings) then
       TJSerializer.Unserialize(Result, JSettings);
-      Result.DoReload;
-    end;
+    Result.DoReload;
+    TMonitor.Exit(Result);
+  end
+  else
+  begin
+    FLock.Leave;
+    TMonitor.Enter(Result);
+    TMonitor.Exit(Result);
   end;
 end;
 
@@ -247,15 +284,31 @@ begin
   Result := T(Get(T));
 end;
 
-class function TRootSettings.GetLatestVersion: Integer;
+function TRootSettings.GetIfLoaded(ASettingsClass: TSettingsClass; out ASettings: TSettings): Boolean;
 begin
-  Result := 0;
+  FLock.Enter;
+  Result := FSubSettings.Get(ASettingsClass, ASettings);
+  FLock.Leave;
+end;
+
+function TRootSettings.GetIfLoaded<T>(out ASettings: T): Boolean;
+begin
+  Result := GetIfLoaded(T, TSettings(ASettings));
+end;
+
+function TRootSettings.IsLoaded(ASettingsClass: TSettingsClass): Boolean;
+begin
+  FLock.Enter;
+  Result := FSubSettings.KeyExists(ASettingsClass);
+  FLock.Leave;
 end;
 
 procedure TRootSettings.Load;
 var
   Parser: TJObject.TParser;
 begin
+  FLock.Enter;
+  FSubSettings.Clear;
   if not TFile.Exists(Path) then
     FJObject := TJObject.Create
   else
@@ -265,7 +318,7 @@ begin
       if not Parser.Success then
       begin
         FJObject := TJObject.Create;
-        FVersion := GetLatestVersion;
+        FVersion := LatestVersion;
       end
       else
       begin
@@ -278,16 +331,29 @@ begin
 
     end;
   end;
+  FLock.Leave;
+end;
+
+procedure TRootSettings.Preload(ASettingsClass: TSettingsClass);
+begin
+  TThread.CreateAnonymousThread(
+    procedure
+    begin
+      Get(ASettingsClass);
+    end
+    ).Start;
 end;
 
 procedure TRootSettings.Reload(ASettingsClass: TSettingsClass);
 var
   Settings: TSettings;
 begin
+  FLock.Enter;
   if FSubSettings.Get(ASettingsClass, Settings) then
     Settings.Reload
   else
     Get(ASettingsClass);
+  FLock.Leave;
 end;
 
 procedure TRootSettings.Save;
@@ -297,8 +363,14 @@ begin
   if not ForceDirectories(ExtractFilePath(Path)) then
     raise ESettings.CreateFmt('Could not create settings directory "%s".', [Path]);
 
+  FLock.Enter;
   for Setting in FSubSettings.Values do
+  begin
+    if Setting.SkipSave then
+      Continue;
     FJObject[Setting.GetName] := TJSerializer.Serialize(Setting);
+  end;
+  FLock.Leave;
 
   TFile.WriteAllText(Path, FJObject.Format);
 end;
@@ -308,13 +380,5 @@ begin
   FPath := Value;
   Load;
 end;
-
-initialization
-
-RootSettingsG := TRootSettings.Create;
-
-finalization
-
-RootSettingsG.Free;
 
 end.

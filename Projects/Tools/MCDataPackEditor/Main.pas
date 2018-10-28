@@ -14,9 +14,6 @@ uses
   System.ImageList,
   System.Classes,
 
-  // TODO: remove
-  Pengine.MC.ItemIcons,
-
   Vcl.Forms,
   Vcl.Menus,
   Vcl.ImgList,
@@ -28,6 +25,8 @@ uses
   Vcl.ExtCtrls,
   Vcl.ClipBrd,
   Vcl.Graphics,
+
+  GdiPlus,
 
   Pengine.Collections,
   Pengine.HashCollections,
@@ -42,6 +41,8 @@ uses
   Pengine.MC.Datapack,
   Pengine.MC.Item,
   Pengine.MC.BlockState,
+  Pengine.MC.Assets,
+  Pengine.MC.ItemIcons,
 
   DatapackView,
   ToolFunctionPreferences,
@@ -49,7 +50,7 @@ uses
   FunctionTheme,
   LightThemePreset,
   SettingsForm,
-  StartupView;
+  StartupView, Pengine.MC.BlockRenderer;
 
 type
 
@@ -130,6 +131,7 @@ type
     actFormatCurrent: TAction;
     actFormatAll: TAction;
     actFunctionPreferences: TAction;
+    pbIcons: TPaintBox;
     procedure actCollapseAllExecute(Sender: TObject);
     procedure actCopyNameExecute(Sender: TObject);
     procedure actCopyNameUpdate(Sender: TObject);
@@ -163,6 +165,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure pbIconsPaint(Sender: TObject);
     procedure pcTabsDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure pcTabsDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);
     procedure pcTabsMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -193,7 +196,7 @@ type
     procedure AddData(Sender: TObject);
     procedure LoadDatapack(AFilename: TFilename);
 
-    function DatapackOpen: Boolean;          
+    function DatapackOpen: Boolean;
 
   protected
     procedure UpdateActions; override;
@@ -317,27 +320,15 @@ const
     TItemTagSettings,
     TBlockSettings,
     TBlockTagSettings,
-    TItemIconSettings,
-    TBrigadierSettings
+    TBrigadierSettings,
+    TAssetsSettings
     );
 
-//var
-  //Jobs: TLoadJobs;
-  //SettingsClass: TSettingsClass;
+var
+  SettingsClass: TSettingsClass;
 begin
-  {
-  Jobs := TLoadJobs.Create;
   for SettingsClass in SettingsClasses do
-    Jobs.Add(TLoadSettingsJob.Create(SettingsClass));
-
-  try
-    frmStartup.Execute(Jobs.Reader);
-
-  finally
-    Jobs.Free;
-
-  end;
-  }
+    RootSettingsG.Preload(SettingsClass);
 end;
 
 procedure TfrmMain.CheckAppParams;
@@ -537,8 +528,6 @@ end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
-  RootSettingsG.Reload(TItemIconSettings);
-
   // SHAutoComplete(edtTestInput.Handle, SHACF_AUTOAPPEND_FORCE_OFF or SHACF_AUTOSUGGEST_FORCE_OFF);
   InitDataTypes;
   InitTheme;
@@ -557,7 +546,6 @@ end;
 
 procedure TfrmMain.FormShow(Sender: TObject);
 begin
-  Update;
   LoadSettings;
 end;
 
@@ -595,6 +583,45 @@ procedure TfrmMain.InitTheme;
 begin
   FFunctionTheme := TFunctionTheme.Create;
   FFunctionTheme.LoadPreset(TLightTheme);
+end;
+
+procedure TfrmMain.pbIconsPaint(Sender: TObject);
+const
+  IconSize = 64;
+
+var
+  Graphics: IGPGraphics;
+  IconSettings: TItemIconSettings;
+  Item: TItemType;
+  Icon: IGPBitmap;
+  X, Y: Integer;
+begin
+  StartTimer;
+
+  Graphics := TGPGraphics.Create(pbIcons.Canvas.Handle);
+
+  Graphics.InterpolationMode := InterpolationModeNearestNeighbor;
+  Graphics.PixelOffsetMode := PixelOffsetModeHalf;
+
+  IconSettings := RootSettingsG.Get<TItemIconSettings>;
+
+  X := 0;
+  Y := 0;
+  for Item in RootSettingsG.Get<TItemSettings>.Items.Order do
+  begin
+    Icon := IconSettings.Icons[Item];
+    // Graphics.DrawRectangle(TGPPen.Create(TGPColor.Blue), X, Y, IconSize, IconSize);
+    Graphics.DrawImage(Icon, X, Y, IconSize, IconSize);
+    Inc(X, IconSize + 1);
+    if X > pbIcons.Width - IconSize then
+    begin
+      X := 0;
+      Inc(Y, IconSize + 1);
+    end;
+  end;
+
+  Caption := StopTimerGetString;
+
 end;
 
 procedure TfrmMain.pcTabsDragDrop(Sender, Source: TObject; X, Y: Integer);

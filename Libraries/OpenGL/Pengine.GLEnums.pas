@@ -268,6 +268,8 @@ type
     pfAlpha,
     pfRGB,
     pfRGBA,
+    pfBGR = GL_BGR,
+    pfBGRA,
     pfDepthComponent16 = GL_DEPTH_COMPONENT16,
     pfDepthComponent24,
     pfDepthComponent32
@@ -300,7 +302,7 @@ type
     snExtensions
     );
 
-  TGLTextureMagFilter= (
+  TGLTextureMagFilter = (
     magNearest = GL_NEAREST,
     magLinear
     );
@@ -487,6 +489,8 @@ function GLDebugSourceName(ASource: TGLDebugSource): string;
 function GLDebugTypeName(AType: TGLDebugType): string;
 function GLDebugSeverityToEnum(ASeverity: GLenum): TGLDebugSeverity;
 
+function GLInternalFormat(APixelFormat: TGLPixelFormat): TGLenum;
+
 procedure GLErrorMessage;
 
 implementation
@@ -524,56 +528,101 @@ end;
 function GLDataTypeSize(ADataType: TGLDataType): Integer;
 begin
   case ADataType of
-    dtByte: Result := 1;
-    dtUByte: Result := 1;
-    dtShort: Result := 2;
-    dtUShort: Result := 2;
-    dtInt: Result := 4;
-    dtUInt: Result := 4;
-    dtFloat: Result := 4;
-    dt2Bytes: Result := 2;
-    dt3Bytes: Result := 3;
-    dt4Bytes: Result := 4;
-    dtDouble: Result := 8;
+    dtByte:
+      Result := 1;
+    dtUByte:
+      Result := 1;
+    dtShort:
+      Result := 2;
+    dtUShort:
+      Result := 2;
+    dtInt:
+      Result := 4;
+    dtUInt:
+      Result := 4;
+    dtFloat:
+      Result := 4;
+    dt2Bytes:
+      Result := 2;
+    dt3Bytes:
+      Result := 3;
+    dt4Bytes:
+      Result := 4;
+    dtDouble:
+      Result := 8;
 
-    dtVec2: Result := 2 * 4;
-    dtVec3: Result := 3 * 4;
-    dtVec4: Result := 4 * 4;
-    dtIVec2: Result := 2 * 4;
-    dtIVec3: Result := 3 * 4;
-    dtIVec4: Result := 4 * 4;
-    dtBoolean: Result := 4;
-    dtBVec2: Result := 2 * 4;
-    dtBVec3: Result := 3 * 4;
-    dtBVec4: Result := 4 * 4;
-    dtMat2: Result := 2 * 2 * 4;
-    dtMat3: Result := 3 * 3 * 4;
-    dtMat4: Result := 4 * 4 * 4;
+    dtVec2:
+      Result := 2 * 4;
+    dtVec3:
+      Result := 3 * 4;
+    dtVec4:
+      Result := 4 * 4;
+    dtIVec2:
+      Result := 2 * 4;
+    dtIVec3:
+      Result := 3 * 4;
+    dtIVec4:
+      Result := 4 * 4;
+    dtBoolean:
+      Result := 4;
+    dtBVec2:
+      Result := 2 * 4;
+    dtBVec3:
+      Result := 3 * 4;
+    dtBVec4:
+      Result := 4 * 4;
+    dtMat2:
+      Result := 2 * 2 * 4;
+    dtMat3:
+      Result := 3 * 3 * 4;
+    dtMat4:
+      Result := 4 * 4 * 4;
 
-    dtMat2x3: Result := 2 * 3 * 4;
-    dtMat2x4: Result := 2 * 4 * 4;
-    dtMat3x2: Result := 3 * 2 * 4;
-    dtMat3x4: Result := 3 * 4 * 4;
-    dtMat4x2: Result := 4 * 2 * 4;
-    dtMat4x3: Result := 4 * 3 * 4;
+    dtMat2x3:
+      Result := 2 * 3 * 4;
+    dtMat2x4:
+      Result := 2 * 4 * 4;
+    dtMat3x2:
+      Result := 3 * 2 * 4;
+    dtMat3x4:
+      Result := 3 * 4 * 4;
+    dtMat4x2:
+      Result := 4 * 2 * 4;
+    dtMat4x3:
+      Result := 4 * 3 * 4;
 
-    dtUVec2: Result := 2 * 4;
-    dtUVec3: Result := 3 * 4;
-    dtUVec4: Result := 4 * 4;
+    dtUVec2:
+      Result := 2 * 4;
+    dtUVec3:
+      Result := 3 * 4;
+    dtUVec4:
+      Result := 4 * 4;
 
-    dtDMat2: Result := 2 * 2 * 8;
-    dtDMat3: Result := 3 * 3 * 8;
-    dtDMat4: Result := 4 * 4 * 8;
-    dtDMat2x3: Result := 2 * 3 * 8;
-    dtDMat2x4: Result := 2 * 4 * 8;
-    dtDMat3x2: Result := 3 * 2 * 8;
-    dtDMat3x4: Result := 3 * 4 * 8;
-    dtDMat4x2: Result := 4 * 2 * 8;
-    dtDMat4x3: Result := 4 * 3 * 8;
+    dtDMat2:
+      Result := 2 * 2 * 8;
+    dtDMat3:
+      Result := 3 * 3 * 8;
+    dtDMat4:
+      Result := 4 * 4 * 8;
+    dtDMat2x3:
+      Result := 2 * 3 * 8;
+    dtDMat2x4:
+      Result := 2 * 4 * 8;
+    dtDMat3x2:
+      Result := 3 * 2 * 8;
+    dtDMat3x4:
+      Result := 3 * 4 * 8;
+    dtDMat4x2:
+      Result := 4 * 2 * 8;
+    dtDMat4x3:
+      Result := 4 * 3 * 8;
 
-    dtDVec2: Result := 2 * 8;
-    dtDVec3: Result := 3 * 8;
-    dtDVec4: Result := 4 * 8;
+    dtDVec2:
+      Result := 2 * 8;
+    dtDVec3:
+      Result := 3 * 8;
+    dtDVec4:
+      Result := 4 * 8;
 
   else
     if GLDataTypeIsSampler(ADataType) then
@@ -586,91 +635,176 @@ end;
 function GLDataTypeName(ADataType: TGLDataType): string;
 begin
   case ADataType of
-    dtByte: Result := 'byte';
-    dtUByte: Result := 'ubyte';
-    dtShort: Result := 'short';
-    dtUShort: Result := 'ushort';
-    dtInt: Result := 'int';
-    dtUInt: Result := 'uint';
-    dtFloat: Result := 'float';
-    dt2Bytes: Result := 'byte[2]';
-    dt3Bytes: Result := 'byte[3]';
-    dt4Bytes: Result := 'byte[4]';
-    dtDouble: Result := 'double';
-    dtVec2: Result := 'vec2';
-    dtVec3: Result := 'vec3';
-    dtVec4: Result := 'vec4';
-    dtIVec2: Result := 'ivec2';
-    dtIVec3: Result := 'ivec3';
-    dtIVec4: Result := 'ivec4';
-    dtBoolean: Result := 'bool';
-    dtBVec2: Result := 'bvec2';
-    dtBVec3: Result := 'bvec3';
-    dtBVec4: Result := 'bvec4';
-    dtMat2: Result := 'mat2';
-    dtMat3: Result := 'mat2';
-    dtMat4: Result := 'mat4';
-    dtSampler1D: Result := 'sampler1D';
-    dtSampler2D: Result := 'sampler2D';
-    dtSampler3D: Result := 'sampler3D';
-    dtSamplerCube: Result := 'samplerCube';
-    dtSampler1DShadow: Result := 'sampler1DShadow';
-    dtSampler2DShadow: Result := 'sampler2DShadow';
-    dtSampler2DRect: Result := 'sampler2DRect';
-    dtSampler2DRectShadow: Result := 'sampler2DRectShadow';
-    dtMat2x3: Result := 'mat2x3';
-    dtMat2x4: Result := 'mat2x4';
-    dtMat3x2: Result := 'mat3x2';
-    dtMat3x4: Result := 'mat3x4';
-    dtMat4x2: Result := 'mat4x2';
-    dtMat4x3: Result := 'mat4x3';
-    dtSampler1DArray: Result := 'sampler1DArray';
-    dtSampler2DArray: Result := 'sampler2DArray';
-    dtSamplerBuffer: Result := 'samplerBuffer';
-    dtSampler1DArrayShadow: Result := 'sampler1DArrayShadow';
-    dtSampler2DArrayShadow: Result := 'sampler2DArrayShadow';
-    dtSamplerCubeShadow: Result := 'samplerCubeShadow';
-    dtUVec2: Result := 'uvec2';
-    dtUVec3: Result := 'uvec3';
-    dtUVec4: Result := 'uvec4';
-    dtISampler1D: Result := 'isampler1D';
-    dtISampler2D: Result := 'isampler2D';
-    dtISampler3D: Result := 'isampler3D';
-    dtISamplerCube: Result := 'isamplerCube';
-    dtISampler2DRect: Result := 'isampler2DRect';
-    dtISampler1DArray: Result := 'isampler1DArray';
-    dtISampler2DArray: Result := 'isampler2DArray';
-    dtISamplerBuffer: Result := 'isamplerBuffer';
-    dtUSampler1D: Result := 'usampler1D';
-    dtUSampler2D: Result := 'usampler2D';
-    dtUSampler3D: Result := 'usampler3D';
-    dtUSamplerCube: Result := 'usamplerCube';
-    dtUSampler2DRect: Result := 'usampler2DRect';
-    dtUSampler1DArray: Result := 'usampler1DArray';
-    dtUSampler2DArray: Result := 'usampler2DArray';
-    dtUSamplerBuffer: Result := 'usamplerBuffer';
-    dtDMat2: Result := 'dmat2';
-    dtDMat3: Result := 'dmat3';
-    dtDMat4: Result := 'dmat4';
-    dtDMat2x3: Result := 'dmat2x3';
-    dtDMat2x4: Result := 'dmat2x4';
-    dtDMat3x2: Result := 'dmat3x2';
-    dtDMat3x4: Result := 'dmat3x4';
-    dtDMat4x2: Result := 'dmat4x2';
-    dtDMat4x3: Result := 'dmat4x3';
-    dtDVec2: Result := 'dvec2';
-    dtDVec3: Result := 'dvec3';
-    dtDVec4: Result := 'dvec4';
-    dtSamplerCubeMapArray: Result := 'samplerCubeArray';
-    dtSamplerCubeMapArrayShadow: Result := 'samplerCubeArrayShadow';
-    dtISamplerCubeMapArray: Result := 'isamplerCubeArray';
-    dtUSamplerCubeMapArray: Result := 'usamplerCubeArray';
-    dtSampler2DMS: Result := 'sampler2DMS';
-    dtISampler2DMS: Result := 'isampler2DMS';
-    dtUSampler2DMS: Result := 'usampler2DMS';
-    dtSampler2DMSArray: Result := 'sampler2DMSArray';
-    dtISampler2DMSArray: Result := 'isampler2DMSArray';
-    dtUSampler2DMSArray: Result := 'usampler2DMSArray';
+    dtByte:
+      Result := 'byte';
+    dtUByte:
+      Result := 'ubyte';
+    dtShort:
+      Result := 'short';
+    dtUShort:
+      Result := 'ushort';
+    dtInt:
+      Result := 'int';
+    dtUInt:
+      Result := 'uint';
+    dtFloat:
+      Result := 'float';
+    dt2Bytes:
+      Result := 'byte[2]';
+    dt3Bytes:
+      Result := 'byte[3]';
+    dt4Bytes:
+      Result := 'byte[4]';
+    dtDouble:
+      Result := 'double';
+    dtVec2:
+      Result := 'vec2';
+    dtVec3:
+      Result := 'vec3';
+    dtVec4:
+      Result := 'vec4';
+    dtIVec2:
+      Result := 'ivec2';
+    dtIVec3:
+      Result := 'ivec3';
+    dtIVec4:
+      Result := 'ivec4';
+    dtBoolean:
+      Result := 'bool';
+    dtBVec2:
+      Result := 'bvec2';
+    dtBVec3:
+      Result := 'bvec3';
+    dtBVec4:
+      Result := 'bvec4';
+    dtMat2:
+      Result := 'mat2';
+    dtMat3:
+      Result := 'mat2';
+    dtMat4:
+      Result := 'mat4';
+    dtSampler1D:
+      Result := 'sampler1D';
+    dtSampler2D:
+      Result := 'sampler2D';
+    dtSampler3D:
+      Result := 'sampler3D';
+    dtSamplerCube:
+      Result := 'samplerCube';
+    dtSampler1DShadow:
+      Result := 'sampler1DShadow';
+    dtSampler2DShadow:
+      Result := 'sampler2DShadow';
+    dtSampler2DRect:
+      Result := 'sampler2DRect';
+    dtSampler2DRectShadow:
+      Result := 'sampler2DRectShadow';
+    dtMat2x3:
+      Result := 'mat2x3';
+    dtMat2x4:
+      Result := 'mat2x4';
+    dtMat3x2:
+      Result := 'mat3x2';
+    dtMat3x4:
+      Result := 'mat3x4';
+    dtMat4x2:
+      Result := 'mat4x2';
+    dtMat4x3:
+      Result := 'mat4x3';
+    dtSampler1DArray:
+      Result := 'sampler1DArray';
+    dtSampler2DArray:
+      Result := 'sampler2DArray';
+    dtSamplerBuffer:
+      Result := 'samplerBuffer';
+    dtSampler1DArrayShadow:
+      Result := 'sampler1DArrayShadow';
+    dtSampler2DArrayShadow:
+      Result := 'sampler2DArrayShadow';
+    dtSamplerCubeShadow:
+      Result := 'samplerCubeShadow';
+    dtUVec2:
+      Result := 'uvec2';
+    dtUVec3:
+      Result := 'uvec3';
+    dtUVec4:
+      Result := 'uvec4';
+    dtISampler1D:
+      Result := 'isampler1D';
+    dtISampler2D:
+      Result := 'isampler2D';
+    dtISampler3D:
+      Result := 'isampler3D';
+    dtISamplerCube:
+      Result := 'isamplerCube';
+    dtISampler2DRect:
+      Result := 'isampler2DRect';
+    dtISampler1DArray:
+      Result := 'isampler1DArray';
+    dtISampler2DArray:
+      Result := 'isampler2DArray';
+    dtISamplerBuffer:
+      Result := 'isamplerBuffer';
+    dtUSampler1D:
+      Result := 'usampler1D';
+    dtUSampler2D:
+      Result := 'usampler2D';
+    dtUSampler3D:
+      Result := 'usampler3D';
+    dtUSamplerCube:
+      Result := 'usamplerCube';
+    dtUSampler2DRect:
+      Result := 'usampler2DRect';
+    dtUSampler1DArray:
+      Result := 'usampler1DArray';
+    dtUSampler2DArray:
+      Result := 'usampler2DArray';
+    dtUSamplerBuffer:
+      Result := 'usamplerBuffer';
+    dtDMat2:
+      Result := 'dmat2';
+    dtDMat3:
+      Result := 'dmat3';
+    dtDMat4:
+      Result := 'dmat4';
+    dtDMat2x3:
+      Result := 'dmat2x3';
+    dtDMat2x4:
+      Result := 'dmat2x4';
+    dtDMat3x2:
+      Result := 'dmat3x2';
+    dtDMat3x4:
+      Result := 'dmat3x4';
+    dtDMat4x2:
+      Result := 'dmat4x2';
+    dtDMat4x3:
+      Result := 'dmat4x3';
+    dtDVec2:
+      Result := 'dvec2';
+    dtDVec3:
+      Result := 'dvec3';
+    dtDVec4:
+      Result := 'dvec4';
+    dtSamplerCubeMapArray:
+      Result := 'samplerCubeArray';
+    dtSamplerCubeMapArrayShadow:
+      Result := 'samplerCubeArrayShadow';
+    dtISamplerCubeMapArray:
+      Result := 'isamplerCubeArray';
+    dtUSamplerCubeMapArray:
+      Result := 'usamplerCubeArray';
+    dtSampler2DMS:
+      Result := 'sampler2DMS';
+    dtISampler2DMS:
+      Result := 'isampler2DMS';
+    dtUSampler2DMS:
+      Result := 'usampler2DMS';
+    dtSampler2DMSArray:
+      Result := 'sampler2DMSArray';
+    dtISampler2DMSArray:
+      Result := 'isampler2DMSArray';
+    dtUSampler2DMSArray:
+      Result := 'usampler2DMSArray';
   else
     Result := 'unknown';
   end;
@@ -716,39 +850,73 @@ end;
 function GLDebugSourceName(ASource: TGLDebugSource): string;
 begin
   case ASource of
-    dmsAPI: Result := 'API';
-    dmsWindowSystem: Result := 'Windows System';
-    dmsShaderCompiler: Result := 'Shader Compiler';
-    dmsThirdParty: Result := 'Third Party';
-    dmsApplication: Result := 'Application';
-    dmsOther: Result := 'Unknown';
+    dmsAPI:
+      Result := 'API';
+    dmsWindowSystem:
+      Result := 'Windows System';
+    dmsShaderCompiler:
+      Result := 'Shader Compiler';
+    dmsThirdParty:
+      Result := 'Third Party';
+    dmsApplication:
+      Result := 'Application';
+    dmsOther:
+      Result := 'Unknown';
   end;
 end;
 
 function GLDebugTypeName(AType: TGLDebugType): string;
 begin
   case AType of
-    dmtError: Result := 'Error';
-    dmtDeprecatedBehaviour: Result := 'Deprecated Behaviour';
-    dmtUndefinedBehaviour: Result := 'Undefined Behaviour';
-    dmtPortability: Result := 'Portability';
-    dmtPerformance: Result := 'Performance';
-    dmtOther: Result := 'Unknown';
-    dmtMarker: Result := 'Marker';
-    dmtPushGroup: Result := 'Push Group';
-    dmtPopGroup: Result := 'Pop Group';
+    dmtError:
+      Result := 'Error';
+    dmtDeprecatedBehaviour:
+      Result := 'Deprecated Behaviour';
+    dmtUndefinedBehaviour:
+      Result := 'Undefined Behaviour';
+    dmtPortability:
+      Result := 'Portability';
+    dmtPerformance:
+      Result := 'Performance';
+    dmtOther:
+      Result := 'Unknown';
+    dmtMarker:
+      Result := 'Marker';
+    dmtPushGroup:
+      Result := 'Push Group';
+    dmtPopGroup:
+      Result := 'Pop Group';
   end;
 end;
 
 function GLDebugSeverityToEnum(ASeverity: GLenum): TGLDebugSeverity;
 begin
   case ASeverity of
-    GL_DEBUG_SEVERITY_NOTIFICATION: Exit(dmsNotification);
-    GL_DEBUG_SEVERITY_LOW: Exit(dmsLow);
-    GL_DEBUG_SEVERITY_MEDIUM: Exit(dmsMedium);
-    GL_DEBUG_SEVERITY_HIGH: Exit(dmsHigh);
+    GL_DEBUG_SEVERITY_NOTIFICATION:
+      Exit(dmsNotification);
+    GL_DEBUG_SEVERITY_LOW:
+      Exit(dmsLow);
+    GL_DEBUG_SEVERITY_MEDIUM:
+      Exit(dmsMedium);
+    GL_DEBUG_SEVERITY_HIGH:
+      Exit(dmsHigh);
   end;
   raise Exception.Create('Invalid GLDebugMessageSeverity');
+end;
+
+function GLInternalFormat(APixelFormat: TGLPixelFormat): TGLenum;
+begin
+  case APixelFormat of
+    pfStencilIndex .. pfRGBA,
+    pfDepthComponent16 .. pfDepthComponent32:
+      Result := Ord(APixelFormat);
+    pfBGR:
+      Result := Ord(pfRGB);
+    pfBGRA:
+      Result := Ord(pfRGBA);
+  else
+    Assert(False);
+  end;
 end;
 
 procedure GLErrorMessage;

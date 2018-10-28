@@ -169,22 +169,33 @@ type
     /// <summary>A value for a property of a block state.</summary>
     TPropertyValue = class
     private
-      FProperty: string;
+      FName: string;
       FValue: string;
 
     public
-      constructor Create(AProperty, AValue: string);
+      constructor Create(AName, AValue: string);
 
-      property Prop: string read FProperty write FProperty;
+      property Name: string read FName write FName;
       property Value: string read FValue write FValue;
 
       function Format: string;
+
+      function Equals(Obj: TObject): Boolean; override;
 
     end;
 
     TProperties = class(TObjectArray<TPropertyValue>)
     public
       function Format: string;
+
+      function Equals(Obj: TObject): Boolean; override;
+
+    end;
+
+    TPropertiesHasher = class(THasher<TProperties>)
+    public
+      class function Equal(const AValue1, AValue2: TProperties): Boolean; override;
+      class function GetHash(const AValue: TProperties): Cardinal; override;
 
     end;
 
@@ -198,7 +209,7 @@ type
       function Parse: Boolean; override;
 
     public
-      constructor Create(AInfo: TParseInfo; ABlockTypes: TBlockTypes.TReader; ARequired: Boolean);
+      constructor Create(AInfo: TParseInfo; ABlockTypes: TBlockTypes.TReader; ARequired: Boolean); overload;
 
       class function Optional(AInfo: TParseInfo; ABlockTypes: TBlockTypes.TReader): TProperties; reintroduce;
 
@@ -316,7 +327,7 @@ type
   TBlockTagSettings = class(TSettings)
   public const
 
-    DefaultPath = 'Data\data\minecraft\tags\blocks';
+    DefaultPath = 'Data\tags\blocks';
 
   private
     FBlockTags: TBlockTagCollection;
@@ -600,15 +611,25 @@ end;
 
 { TBlockState.TPropertyValue }
 
-constructor TBlockState.TPropertyValue.Create(AProperty, AValue: string);
+constructor TBlockState.TPropertyValue.Create(AName, AValue: string);
 begin
-  FProperty := AProperty;
+  FName := AName;
   FValue := AValue;
+end;
+
+function TBlockState.TPropertyValue.Equals(Obj: TObject): Boolean;
+var
+  Other: TPropertyValue;
+begin
+  if not(Self is TPropertyValue) then
+    Exit(inherited);
+  Other := TPropertyValue(Obj);
+  Result := (Name = Other.Name) and (Value = Other.Value);
 end;
 
 function TBlockState.TPropertyValue.Format: string;
 begin
-  Result := Prop + '=' + Value;
+  Result := Name + '=' + Value;
 end;
 
 { TBlockSettings }
@@ -670,8 +691,8 @@ end;
 
 procedure TBlockSettings.SetDefaults;
 begin
-  Path := DefaultPath;
-  NamespacePrefix := True;
+  FPath := DefaultPath;
+  FNamespacePrefix := True;
 end;
 
 procedure TBlockSettings.SetPath(const Value: string);
@@ -852,6 +873,32 @@ end;
 
 { TBlockState.TProperties }
 
+function TBlockState.TProperties.Equals(Obj: TObject): Boolean;
+var
+  Other: TProperties;
+  OtherProp, SelfProp: TPropertyValue;
+  Found: Boolean;
+begin
+  if not(Obj is TProperties) then
+    Exit(inherited);
+  Other := TProperties(Obj);
+  for OtherProp in Other do
+  begin
+    Found := False;
+    for SelfProp in Self do
+    begin
+      if SelfProp.Equals(OtherProp) then
+      begin
+        Found := True;
+        Break;
+      end;
+    end;
+    if not Found then
+      Exit(False);
+  end;
+  Result := True;
+end;
+
 function TBlockState.TProperties.Format: string;
 var
   I: Integer;
@@ -984,7 +1031,7 @@ begin
   NSPath := ChangeFileExt(ExtractFileName(AFileName), '');
   if Get(NSPath, Result) then
     Exit;
-  JObject := TJObject.Parse(TFile.ReadAllText(AFileName));
+  JObject := TJObject.CreateFromFile(AFileName);
   try
     Result := TBlockTag.Create(Self, NSPath, JObject);
     FMap[NSPath] := Result;
@@ -1040,8 +1087,8 @@ end;
 
 procedure TBlockTagSettings.SetDefaults;
 begin
-  Path := DefaultPath;
-  NamespacePrefix := True;
+  FPath := DefaultPath;
+  FNamespacePrefix := True;
 end;
 
 procedure TBlockTagSettings.SetPath(const Value: string);
@@ -1117,6 +1164,22 @@ begin
   AddSuggestion(ParseSuggestion(TNSPath.Empty, TNSPath.Empty));
   for Tag in Settings.BlockTags.Tags do
     AddSuggestion(ParseSuggestion(Tag.NSPath, Tag.NSPath));
+end;
+
+{ TBlockState.TPropertiesHasher }
+
+class function TBlockState.TPropertiesHasher.Equal(const AValue1, AValue2: TProperties): Boolean;
+begin
+  Result := AValue1.Equals(AValue2);
+end;
+
+class function TBlockState.TPropertiesHasher.GetHash(const AValue: TProperties): Cardinal;
+var
+  Prop: TPropertyValue;
+begin
+  Result := 0;
+  for Prop in AValue do
+    Result := Result xor HashOf(Prop.Name) xor HashOf(Prop.Value);
 end;
 
 end.

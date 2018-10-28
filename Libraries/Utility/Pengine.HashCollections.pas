@@ -905,8 +905,6 @@ begin
 end;
 
 procedure THashBase.Assign(AHashBase: THashBase);
-var
-  I: Integer;
 begin
   Clear;
   FCount := AHashBase.Count;

@@ -90,6 +90,11 @@ type
     /// <returns>A <see cref="Pengine.Vector|TVector2"/>, with a specified <see cref="Pengine.Vector|TVector2.Slope"/>.</returns>
     class function FromSlope(ASlope: Single): TVector2; static;
 
+    /// <returns>A vector at the center of the three given circle points.</returns>
+    class function CircleCenter(const A, B, C: TVector2): TVector2; overload; static;
+    /// <returns>A vector at the center of the three given circle points.</returns>
+    class function CircleCenter(const A, B, C: TVector2; out ARadius: Single): TVector2; overload; static;
+
     /// <returns>A normlaized <see cref="Pengine.Vector|TVector2"/>, with a specified angle in radians.</returns>
     class function FromAngleRad(AAngle: Single): TVector2; static;
     /// <returns>A normlaized <see cref="Pengine.Vector|TVector2"/>, with a specified angle in degrees.</returns>
@@ -106,15 +111,13 @@ type
     class operator Implicit(V: Single): TVector2;
     class operator Implicit(const AVector: TIntVector2): TVector2;
 
-    {$REGION 'All versions of rearrangement TVector2'}
-
+{$REGION 'All versions of rearrangement TVector2'}
     property XX: TVector2 read GetXX;
     property XY: TVector2 read GetXY write SetXY;
     property YX: TVector2 read GetYX write SetYX;
     property YY: TVector2 read GetYY;
 
-    {$ENDREGION}
-
+{$ENDREGION}
     class operator Add(const A, B: TVector2): TVector2;
     class operator Subtract(const A, B: TVector2): TVector2;
     class operator Multiply(const A, B: TVector2): TVector2;
@@ -149,7 +152,8 @@ type
     function VectorTo(const A: TVector2): TVector2; inline;
 
     /// <returns>A vector, which is Rotate by 90° counter-clockwise.</returns>
-    function Cross: TVector2;
+    function Cross: TVector2; overload;
+    function Cross(const A: TVector2): Single; overload;
     /// <returns>The dot-product with another vector.</returns>
     function Dot(const A: TVector2): Single;
     /// <returns>The dot-product with the vector itself.</returns>
@@ -288,8 +292,7 @@ type
     class operator Implicit(V: Single): TVector3;
     class operator Implicit(const A: TIntVector3): TVector3;
 
-    {$REGION 'All versions of rearrangement TIntVector2'}
-
+{$REGION 'All versions of rearrangement TIntVector2'}
     property XX: TVector2 read GetXX;
     property XY: TVector2 read GetXY write SetXY;
     property XZ: TVector2 read GetXZ write SetXZ;
@@ -300,9 +303,8 @@ type
     property ZY: TVector2 read GetZY write SetZY;
     property ZZ: TVector2 read GetZZ;
 
-    {$ENDREGION}
-    {$REGION 'All versions of rearrangement TIntVector3'}
-
+{$ENDREGION}
+{$REGION 'All versions of rearrangement TIntVector3'}
     property XXX: TVector3 read GetXXX;
     property XXY: TVector3 read GetXXY;
     property XXZ: TVector3 read GetXXZ;
@@ -331,8 +333,7 @@ type
     property ZZY: TVector3 read GetZZY;
     property ZZZ: TVector3 read GetZZZ;
 
-    {$ENDREGION}
-
+{$ENDREGION}
     class operator Add(const A, B: TVector3): TVector3;
     class operator Subtract(const A, B: TVector3): TVector3;
     class operator Multiply(const A, B: TVector3): TVector3;
@@ -813,6 +814,8 @@ type
 
     function GetCorner(AIndex: TCornerIndex): TVector3;
     procedure SetCorner(AIndex: TCornerIndex; const Value: TVector3);
+    function GetPlane(ADir: TBasicDir3): TBounds2;
+    procedure SetPlane(ADir: TBasicDir3; const Value: TBounds2);
 
   public
     /// <summary>The (usually) lower values of the bounds.</summary>
@@ -873,6 +876,9 @@ type
     /// <summary>Resembles an XZ-Plane of the bounds as a <see cref="Pengine.Vector|TBounds2"/>.</summary>
     /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneXZ: TBounds2 read GetPlaneXZ write SetPlaneXZ;
+
+    /// <summary>Gets a plane of the specified side.</summary>
+    property Plane[ADir: TBasicDir3]: TBounds2 read GetPlane write SetPlane;
 
     /// <returns>The horizontal length of the bounds.</returns>
     /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
@@ -1278,7 +1284,7 @@ type
     /// <summary>Gets where a point lies on the plane, where <c>[S, S + X + Y]</c> turns into <c>[0, 1]</c></summary>
     property InvPoint[APos: TVector2]: TVector2 read GetInvPoint;
 
-    class operator in(const A: TVector2; const B: TAxisSystem2): Boolean;
+    class operator in (const A: TVector2; const B: TAxisSystem2): Boolean;
 
     class operator Equal(const A, B: TAxisSystem2): Boolean;
     class operator NotEqual(const A, B: TAxisSystem2): Boolean;
@@ -1305,7 +1311,7 @@ type
     /// <summary>Gets where a point lies in the axis system, where <c>[S, S + X + Y]</c> turns into <c>[0, 1]</c></summary>
     property InvPoint[APos: TVector3]: TVector3 read GetInvPoint;
 
-    class operator in(const A: TVector3; const B: TAxisSystem3): Boolean;
+    class operator in (const A: TVector3; const B: TAxisSystem3): Boolean;
 
     class operator Equal(const A, B: TAxisSystem3): Boolean;
     class operator NotEqual(const A, B: TAxisSystem3): Boolean;
@@ -1385,7 +1391,7 @@ type
     procedure Changed(AChange: TChange);
 
     procedure ParentChanged(AInfo: TChangeEventInfo);
-    
+
   public
     constructor Create;
     destructor Destroy; override;
@@ -1712,7 +1718,7 @@ type
     function AnyVisible(APoints: IIterable<TVector3>): Boolean;
     function SphereVisible(const ACenter: TVector3; ARadius: Single): Boolean;
 
-    class operator in(APoint: TVector3; const AHexahedron: THexahedron): Boolean;
+    class operator in (APoint: TVector3; const AHexahedron: THexahedron): Boolean;
 
     property FaceNormals[ADir: TBasicDir3]: TLine3 read GetFaceNormal write SetFaceNormal; default;
 
@@ -1739,9 +1745,10 @@ const
   InfVec3: TVector3 = (X: Infinity; Y: Infinity; Z: Infinity);
   NaNVec3: TVector3 = (X: NaN; Y: NaN; Z: NaN);
 
-  InfBounds1: TBounds1 = (C1: -Infinity; C2: +Infinity);
-  InfBounds2: TBounds2 = (C1: (X: -Infinity; Y: -Infinity); C2: (X: Infinity; Y: Infinity));
-  InfBounds3: TBounds3 = (C1: (X: -Infinity; Y: -Infinity; Z: -Infinity); C2: (X: Infinity; Y: Infinity; Z: Infinity));
+  InfBounds1: TBounds1 = (C1: - Infinity; C2: + Infinity);
+  InfBounds2: TBounds2 = (C1: (X: - Infinity; Y: - Infinity); C2: (X: Infinity; Y: Infinity));
+  InfBounds3: TBounds3 = (C1: (X: - Infinity; Y: - Infinity; Z: - Infinity);
+    C2: (X: Infinity; Y: Infinity; Z: Infinity));
 
   CubePlanes: array [TBasicDir3] of TPlane3 = (
     (S: (X: 0; Y: 0; Z: 0); DX: (X: 0; Y: 0; Z: 1); DY: (X: 0; Y: 1; Z: 0)),
@@ -1799,7 +1806,7 @@ implementation
 const
   RotationLimit: TBounds1 = (C1: - 180; C2: + 180);
 
-{ EAxisError }
+  { EAxisError }
 
 constructor EAxisSystemError.Create;
 begin
@@ -1869,6 +1876,25 @@ end;
 class function TVector2.FromSlope(ASlope: Single): TVector2;
 begin
   Result.Create(1, ASlope);
+end;
+
+class function TVector2.CircleCenter(const A, B, C: TVector2): TVector2;
+var
+  CBX, BCY, Divisor: Single;
+begin
+  CBX := C.X - B.X;
+  BCY := B.Y - C.Y;
+  Divisor := (A.X * BCY + A.Y * CBX + B.Cross(C)) * 2;
+  if IsZero(Divisor) then
+    Exit(NaNVec2);
+  Result.X := (A.SqrDot * BCY + B.SqrDot * (C.Y - A.Y) + C.SqrDot * (A.Y - B.Y)) / Divisor;
+  Result.Y := (A.SqrDot * CBX + B.SqrDot * (A.X - C.X) + C.SqrDot * (B.X - A.X)) / Divisor;
+end;
+
+class function TVector2.CircleCenter(const A, B, C: TVector2; out ARadius: Single): TVector2;
+begin
+  Result := CircleCenter(A, B, C);
+  ARadius := Result.DistanceTo(A);
 end;
 
 class function TVector2.FromAngleRad(AAngle: Single): TVector2;
@@ -2025,6 +2051,11 @@ begin
   Result.Y := +X;
 end;
 
+function TVector2.Cross(const A: TVector2): Single;
+begin
+  Result := X * A.Y - Y * A.X;
+end;
+
 function TVector2.Dot(const A: TVector2): Single;
 begin
   Result := X * A.X + Y * A.Y;
@@ -2124,6 +2155,7 @@ end;
 
 {$REGION 'All versions of rearrangement TIntVector2'}
 
+
 function TVector3.GetXX: TVector2;
 begin
   Result.X := X;
@@ -2216,6 +2248,7 @@ end;
 
 {$ENDREGION}
 {$REGION 'All versions of rearrangement TIntVector3'}
+
 
 function TVector3.GetXXX: TVector3;
 begin
@@ -2449,6 +2482,7 @@ begin
 end;
 
 {$ENDREGION}
+
 
 constructor TVector3.Create(X, Y, Z: Single);
 begin
@@ -3342,6 +3376,18 @@ begin
   C2.Z := Value.C2;
 end;
 
+function TBounds3.GetPlane(ADir: TBasicDir3): TBounds2;
+begin
+  case ADir of
+    bdLeft, bdRight:
+      Result := PlaneZY;
+    bdDown, bdUp:
+      Result := PlaneXZ;
+    bdBack, bdFront:
+      Result := PlaneXY;
+  end;
+end;
+
 function TBounds3.GetPlaneXY: TBounds2;
 begin
   Result.LineX := LineX;
@@ -3376,6 +3422,11 @@ function TBounds3.GetPlaneXZ: TBounds2;
 begin
   Result.LineX := LineX;
   Result.LineY := LineZ;
+end;
+
+procedure TBounds3.SetPlane(ADir: TBasicDir3; const Value: TBounds2);
+begin
+
 end;
 
 procedure TBounds3.SetPlaneXY(const Value: TBounds2);
@@ -3928,7 +3979,7 @@ begin
 begin
   Result := D.Cross(A.VectorTo(S)).Length / D.Length;
 
-  {$ENDIF}
+{$ENDIF}
 
 end;
 
@@ -4360,12 +4411,12 @@ begin
     FMatrix.LoadIdentity;
   if FInverted then
   begin
-    FreeTranslate( -FOffset);
+    FreeTranslate(-FOffset);
     FreeScale(1 / FScale);
-    FreeRoll( -RollAngle);
-    FreePitch( -PitchAngle);
-    FreeTurn( -TurnAngle);
-    FreeTranslate( -FPos);
+    FreeRoll(-RollAngle);
+    FreePitch(-PitchAngle);
+    FreeTurn(-TurnAngle);
+    FreeTranslate(-FPos);
   end
   else
   begin
@@ -4532,6 +4583,7 @@ end;
 
 constructor TLocation3.Create(AInverted: Boolean);
 begin
+  FMatrixChanged := True;
   FInverted := AInverted;
   FPos := 0;
   FOffset := 0;
@@ -4923,7 +4975,7 @@ function TBasicAxisSystem.Matrix: TMatrix3;
     if A then
       Exit(1);
     if B then
-      Exit( -1);
+      Exit(-1);
     Result := 0;
   end;
 
@@ -5056,7 +5108,7 @@ begin
   FLine.D := FLocation.InvRotMatrix * ALine.D;
 
   FDirections := FLine.D.Dirs;
-  InvDirections := ( -FLine.D).Dirs;
+  InvDirections := (-FLine.D).Dirs;
 
   NormalizedLine.S := FLine.S / FSize;
   NormalizedLine.D := FLine.D / FSize;

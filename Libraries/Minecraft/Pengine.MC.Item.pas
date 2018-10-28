@@ -208,7 +208,7 @@ type
   TItemTagSettings = class(TSettings)
   public const
 
-    DefaultPath = 'Data\data\minecraft\tags\items';
+    DefaultPath = 'Data\tags\items';
 
   private
     FItemTags: TItemTagCollection;
@@ -564,8 +564,8 @@ end;
 
 procedure TItemSettings.SetDefaults;
 begin
-  Path := DefaultPath;
-  NamespacePrefix := True;
+  FPath := DefaultPath;
+  FNamespacePrefix := True;
 end;
 
 procedure TItemSettings.SetPath(const Value: string);
@@ -818,8 +818,8 @@ end;
 
 procedure TItemTagSettings.SetDefaults;
 begin
-  Path := DefaultPath;
-  NamespacePrefix := True;
+  FPath := DefaultPath;
+  FNamespacePrefix := True;
 end;
 
 procedure TItemTagSettings.SetPath(const Value: string);

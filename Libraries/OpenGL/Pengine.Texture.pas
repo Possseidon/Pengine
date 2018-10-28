@@ -12,7 +12,8 @@ uses
   System.Classes,
 
   Vcl.Graphics,
-  Vcl.Imaging.pngimage,
+
+  GdiPlus,
 
   Winapi.Windows,
 
@@ -40,8 +41,8 @@ type
     procedure SetPixel(APos: TIntVector2; const Value: TColorRGBA); overload;
     procedure SetPixelB(APos: TIntVector2; const Value: TColorRGBA.TBytes);
 
-    procedure SetSubDataPointer(ABounds: TIntBounds2; const Value: PByte); 
-    
+    procedure SetSubDataPointer(ABounds: TIntBounds2; const Value: PByte);
+
     function GetData: TArray<TColorRGBA.TBytes>;
     procedure SetData(const Value: TArray<TColorRGBA.TBytes>);
     function GetSubData(ABounds: TIntBounds2): TArray<TColorRGBA.TBytes>;
@@ -56,6 +57,10 @@ type
     constructor Create(ASize: TIntVector2; AColor: TColorRGBA); overload;
     /// <summary>Creates a TTextureData object of a specific size and fills it with a solid color.</summary>
     constructor Create(ASize: TIntVector2; AColor: TColorRGBA.TBytes); overload;
+    /// <summary>Creates a TTextureData object from size and data.</summary>
+    constructor Create(ASize: TIntVector2; AData: PByte); overload;
+    /// <summary>Creates a TTextureData object from an image.</summary>
+    constructor Create(AImage: IGPBitmap); overload;
     destructor Destroy; override;
 
     /// <summary>Creates a new texture directly from a file.</summary>
@@ -69,8 +74,15 @@ type
     procedure LoadFromFile(AFileName: string);
     /// <summary>Loads a texture from a resource.</summary>
     procedure LoadFromResource(AResource: string);
-    /// <summary>Loads a texture from a TPngImage object.</summary>
-    procedure LoadFromPngImage(AImage: TPngImage);
+    /// <summary>Loads a texture from a gdiplus bitmap object.</summary>
+    procedure LoadFromImage(AImage: IGPBitmap);
+
+    /// <summary>Saves a texture to a file with the specified format.</summary>
+    procedure SaveToFile(AFileName: string; AFormat: IGPImageFormat); overload;
+    /// <summary>Saves a texture to a file as png.</summary>
+    procedure SaveToFile(AFileName: string); overload;
+    /// <summary>Converts a texture to a gdiplus bitmap object.</summary>
+    function ToImage: IGPBitmap;
 
     /// <summary>If present, frees all memory for the pixel-data and sets its pointer to nil.</summary>
     procedure FreeData;
@@ -117,7 +129,7 @@ type
   TTexture = class abstract(TGLObject)
   public type
 
-    TUnit = type Integer;
+    TUnit = Integer;
 
     TBinding = class(TGLObjectBinding<TTexture>)
     private
@@ -168,12 +180,13 @@ type
     FWrapT: TGLTextureWrap;
     FWrapR: TGLTextureWrap;
 
-    // Fields for glTexImage        
+    // Fields for glTexImage
     FUpdateCount: Integer;
     FUpdateChanged: Boolean;
 
     FPixelFormat: TGLPixelFormat;
-    
+    // FPixelFormatInternal: TGLPixelFormatInternal;
+
     procedure SetDepthStencilMode(const Value: TGLDepthStencilTextureMode);
 
     procedure SetBorderColor(const Value: TColorRGBA);
@@ -201,9 +214,9 @@ type
     procedure SetWrapR(const Value: TGLTextureWrap);
 
     procedure SetPixelFormat(const Value: TGLPixelFormat);
-    
+
     procedure InitTexParams;
-    
+
   protected
     procedure GenObject(out AGLName: GLuint); override;
     procedure DeleteObject(const AGLName: GLuint); override;
@@ -215,7 +228,7 @@ type
 
     procedure Changed; inline;
 
-    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA);
+    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfBGRA);
 
   public
     destructor Destroy; override;
@@ -280,8 +293,8 @@ type
     procedure SetWidth(const Value: Integer);
 
   public
-    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA); overload;
-    constructor Create(AGLState: TGLState; AWidth: Integer; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfBGRA); overload;
+    constructor Create(AGLState: TGLState; AWidth: Integer; APixelFormat: TGLPixelFormat = pfBGRA); overload;
 
     function TargetType: Cardinal; override;
 
@@ -309,8 +322,8 @@ type
     procedure SetSubDataArray(ABounds: TIntBounds2; const Value: TArray<TColorRGBA.TBytes>);
 
   public
-    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA); overload;
-    constructor Create(AGLState: TGLState; ASize: TIntVector2; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfBGRA); overload;
+    constructor Create(AGLState: TGLState; ASize: TIntVector2; APixelFormat: TGLPixelFormat = pfBGRA); overload;
 
     function TargetType: Cardinal; override;
 
@@ -329,6 +342,7 @@ type
     procedure Fill(ABounds: TIntBounds2; AColor: TColorRGBA); overload;
 
     procedure LoadTexture(ATexture: TTextureData);
+    function ToTextureData: TTextureData;
 
   end;
 
@@ -342,8 +356,8 @@ type
     procedure SetDepth(const Value: Integer);
 
   public
-    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA); overload;
-    constructor Create(AGLState: TGLState; ASize: TIntVector3; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfBGRA); overload;
+    constructor Create(AGLState: TGLState; ASize: TIntVector3; APixelFormat: TGLPixelFormat = pfBGRA); overload;
 
     function TargetType: Cardinal; override;
 
@@ -371,8 +385,8 @@ type
     procedure SetLayers(const Value: Integer);
 
   public
-    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA); overload;
-    constructor Create(AGLState: TGLState; ASize: TIntVector3; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfBGRA); overload;
+    constructor Create(AGLState: TGLState; ASize: TIntVector3; APixelFormat: TGLPixelFormat = pfBGRA); overload;
 
     function TargetType: Cardinal; override;
 
@@ -406,8 +420,9 @@ type
     procedure SetLayer(const Value: Integer);
 
   public
-    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA); overload;
-    constructor Create(AGLState: TGLState; ASize: Integer; ALayers: Integer; APixelFormat: TGLPixelFormat = pfRGBA); overload;
+    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfBGRA); overload;
+    constructor Create(AGLState: TGLState; ASize: Integer; ALayers: Integer;
+      APixelFormat: TGLPixelFormat = pfBGRA); overload;
 
     function TargetType: Cardinal; override;
 
@@ -427,18 +442,19 @@ type
   TTexture2DMS = class(TTexture2D)
   private
     FSamples: Integer;
-    
+
     procedure SetSamples(const Value: Integer);
 
   public
-    constructor Create(AGLState: TGLState; ASize: TIntVector2; ASamples: Integer; APixelFormat: TGLPixelFormat = pfRGBA);
-  
+    constructor Create(AGLState: TGLState; ASize: TIntVector2; ASamples: Integer;
+      APixelFormat: TGLPixelFormat = pfBGRA);
+
     function TargetType: Cardinal; override;
 
     procedure Generate; override;
 
     property Samples: Integer read FSamples write SetSamples;
-    
+
   end;
 
   TTexture2DMSArray = class(TTexture2DArray)
@@ -448,7 +464,8 @@ type
     procedure SetSamples(const Value: Integer);
 
   public
-    constructor Create(AGLState: TGLState; ASize: TIntVector3; ASamples: Integer; APixelFormat: TGLPixelFormat = pfRGBA);
+    constructor Create(AGLState: TGLState; ASize: TIntVector3; ASamples: Integer;
+      APixelFormat: TGLPixelFormat = pfBGRA);
 
     function TargetType: Cardinal; override;
 
@@ -459,7 +476,7 @@ type
   end;
 
 implementation
-                   
+
 { TTextureData }
 
 function TTextureData.GetPixelCount: Integer;
@@ -499,10 +516,21 @@ begin
   ABounds.LineY := (Height - ABounds.LineY).Normalize;
   for Y := 0 to ABounds.Height - 1 do
     Move(
-    (TColorRGBA.PBytes(Value) + Y * ABounds.Width)^,
-    (TColorRGBA.PBytes(FData) + Y * Size.X)^,
-    ABounds.Width * SizeOf(TColorRGBA.TBytes)
-    );  
+      (TColorRGBA.PBytes(Value) + Y * ABounds.Width)^,
+      (TColorRGBA.PBytes(FData) + Y * Size.X)^,
+      ABounds.Width * SizeOf(TColorRGBA.TBytes)
+      );
+end;
+
+function TTextureData.ToImage: IGPBitmap;
+var
+  BitmapData: TGPBitmapData;
+begin
+  Result := TGPBitmap.Create(Width, Height);
+  BitmapData := Result.LockBits(TGPRect.Create(0, 0, Width, Height), [ImageLockModeWrite], PixelFormat32bppARGB);
+  Move(FData^, BitmapData.Scan0^, DataSize);
+  Result.UnlockBits(BitmapData);
+  Result.RotateFlip(RotateNoneFlipY);
 end;
 
 function TTextureData.GetData: TArray<TColorRGBA.TBytes>;
@@ -514,10 +542,20 @@ begin
   Result.ForceCount(PixelCount);
   for Y := 0 to Size.Y - 1 do
     Move(
-    (TColorRGBA.PBytes(FData) + Y * Size.X)^,
-    (TColorRGBA.PBytes(Result.DataPointer) + Y * Size.X)^,
-    Size.X * SizeOf(TColorRGBA.TBytes)
-    );
+      (TColorRGBA.PBytes(FData) + Y * Size.X)^,
+      (TColorRGBA.PBytes(Result.DataPointer) + Y * Size.X)^,
+      Size.X * SizeOf(TColorRGBA.TBytes)
+      );
+end;
+
+procedure TTextureData.SaveToFile(AFileName: string; AFormat: IGPImageFormat);
+begin
+  ToImage.Save(AFileName, AFormat);
+end;
+
+procedure TTextureData.SaveToFile(AFileName: string);
+begin
+  SaveToFile(AFileName, TGPImageFormat.Png);
 end;
 
 procedure TTextureData.SetData(const Value: TArray<TColorRGBA.TBytes>);
@@ -526,10 +564,10 @@ var
 begin
   for Y := 0 to Size.Y - 1 do
     Move(
-    (TColorRGBA.PBytes(Value.DataPointer) + Y * Size.X)^,
-    (TColorRGBA.PBytes(FData) + Y * Size.X)^,
-    Size.X * SizeOf(TColorRGBA.TBytes)
-    );
+      (TColorRGBA.PBytes(Value.DataPointer) + Y * Size.X)^,
+      (TColorRGBA.PBytes(FData) + Y * Size.X)^,
+      Size.X * SizeOf(TColorRGBA.TBytes)
+      );
 end;
 
 function TTextureData.GetSubData(ABounds: TIntBounds2): TArray<TColorRGBA.TBytes>;
@@ -542,10 +580,10 @@ begin
   Result.ForceCount(Result.Capacity);
   for Y := 0 to ABounds.Height - 1 do
     Move(
-    (TColorRGBA.PBytes(FData) + ABounds.C1.X + (ABounds.C1.Y + Y) * Size.X)^,
-    (TColorRGBA.PBytes(Result.DataPointer) + Y * ABounds.Width)^,
-    ABounds.Width * SizeOf(TColorRGBA.TBytes)
-    );
+      (TColorRGBA.PBytes(FData) + ABounds.C1.X + (ABounds.C1.Y + Y) * Size.X)^,
+      (TColorRGBA.PBytes(Result.DataPointer) + Y * ABounds.Width)^,
+      ABounds.Width * SizeOf(TColorRGBA.TBytes)
+      );
 end;
 
 procedure TTextureData.SetSubData(ABounds: TIntBounds2; const Value: TArray<TColorRGBA.TBytes>);
@@ -602,28 +640,27 @@ begin
 end;
 
 procedure TTextureData.LoadFromStream(AStream: TStream);
-var
-  Image: TPngImage;
 begin
-  Image := TPngImage.Create;
-  try
-    Image.LoadFromStream(AStream);
-    LoadFromPngImage(Image);
-  finally
-    Image.Free;
-  end;
+  LoadFromImage(TGPBitmap.Create(TStreamAdapter.Create(AStream)));
 end;
 
 procedure TTextureData.LoadFromFile(AFileName: string);
-var
-  Stream: TFileStream;
 begin
-  Stream := TFileStream.Create(AFileName, fmOpenRead);
-  try
-    LoadFromStream(Stream);
-  finally
-    Stream.Free;
-  end;
+  LoadFromImage(TGPBitmap.Create(AFileName));
+end;
+
+procedure TTextureData.LoadFromImage(AImage: IGPBitmap);
+var
+  BitmapData: TGPBitmapData;
+begin
+  FreeData;
+  AImage := AImage.Clone;
+  AImage.RotateFlip(RotateNoneFlipY);
+  FSize := IVec2(AImage.Width, AImage.Height);
+  GetMem(FData, DataSize);
+  BitmapData := AImage.LockBits(TGPRect.Create(0, 0, Width, Height), [ImageLockModeRead], PixelFormat32bppARGB);
+  Move(BitmapData.Scan0^, FData^, DataSize);
+  AImage.UnlockBits(BitmapData);
 end;
 
 procedure TTextureData.LoadFromResource(AResource: string);
@@ -635,42 +672,6 @@ begin
     LoadFromStream(Stream);
   finally
     Stream.Free;
-  end;
-end;
-
-procedure TTextureData.LoadFromPngImage(AImage: TPngImage);
-var
-  X, Y, Color: Integer;
-  Res: PByte;
-begin
-  FreeData;
-
-  FSize := IVec2(AImage.Width, AImage.Height);
-
-  GetMem(FData, DataSize);
-  Res := FData;
-
-  for Y := AImage.Height - 1 downto 0 do
-  begin
-    for X := 0 to Width - 1 do
-    begin
-      // Color := ByteSwap(AImage.Pixels[X, Y]) shr 8;
-      Color := AImage.Pixels[X, Y];
-      Move(Color, Res^, 3);
-      Inc(Res, 3);
-      case AImage.TransparencyMode of
-        ptmNone:
-          Res^ := $FF;
-        ptmBit:
-          if Color = AImage.TransparentColor then
-            Res^ := 0
-          else
-            Res^ := $FF;
-        ptmPartial:
-          Res^ := AImage.AlphaScanline[Y]^[X];
-      end;
-      Inc(Res, 1);
-    end;
   end;
 end;
 
@@ -702,7 +703,18 @@ var
   ResultSize: TIntVector2;
 begin
   ResultSize := Size div ADivisions;
-  Result  := CreateSubTexture(IBounds2(ResultSize) + ASelected * ResultSize);
+  Result := CreateSubTexture(IBounds2(ResultSize) + ASelected * ResultSize);
+end;
+
+constructor TTextureData.Create(ASize: TIntVector2; AData: PByte);
+begin
+  FSize := ASize;
+  FData := AData;
+end;
+
+constructor TTextureData.Create(AImage: IGPBitmap);
+begin
+  LoadFromImage(AImage);
 end;
 
 { ETextureTooManyUnits }
@@ -999,7 +1011,7 @@ begin
 end;
 
 procedure TTexture.InitTexParams;
-begin      
+begin
   FDepthStencilMode := tmDepthComponent;
   FBorderColor := 0;
 
@@ -1024,7 +1036,7 @@ begin
 
   FWrapS := twRepeat;
   FWrapT := twRepeat;
-  FWrapR := twRepeat;   
+  FWrapR := twRepeat;
 end;
 
 class function TTexture.GetBindingClass: TGLObjectBindingClass;
@@ -1054,7 +1066,7 @@ end;
 
 procedure TTexture.Uniform(AUniform: TGLProgram.TUniformSampler);
 begin
-  Activate;
+  Bind;
   AUniform.Value := FUnitID;
 end;
 
@@ -1073,7 +1085,7 @@ begin
   inherited;
 end;
 
-constructor TTexture1D.Create(AGLState: TGLState; AWidth: Integer; APixelFormat: TGLPixelFormat = pfRGBA);
+constructor TTexture1D.Create(AGLState: TGLState; AWidth: Integer; APixelFormat: TGLPixelFormat);
 begin
   inherited Create(AGLState, APixelFormat);
   FWidth := AWidth;
@@ -1088,7 +1100,7 @@ end;
 procedure TTexture1D.Generate;
 begin
   Bind;
-  glTexImage1D(TargetType, 0, Ord(PixelFormat), Width, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
+  glTexImage1D(TargetType, 0, GLInternalFormat(PixelFormat), Width, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
 end;
 
 { TTexture2D }
@@ -1122,7 +1134,7 @@ begin
   inherited;
 end;
 
-constructor TTexture2D.Create(AGLState: TGLState; ASize: TIntVector2; APixelFormat: TGLPixelFormat = pfRGBA);
+constructor TTexture2D.Create(AGLState: TGLState; ASize: TIntVector2; APixelFormat: TGLPixelFormat);
 begin
   inherited Create(AGLState, APixelFormat);
   FSize := ASize;
@@ -1134,10 +1146,15 @@ begin
   Result := GL_TEXTURE_2D;
 end;
 
+function TTexture2D.ToTextureData: TTextureData;
+begin
+  Result := TTextureData.Create(Size, Data);
+end;
+
 procedure TTexture2D.Generate;
 begin
   Bind;
-  glTexImage2D(TargetType, 0, Ord(PixelFormat), Width, Height, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
+  glTexImage2D(TargetType, 0, GLInternalFormat(PixelFormat), Width, Height, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
 end;
 
 function TTexture2D.GetData: PByte;
@@ -1168,7 +1185,7 @@ begin
       (TColorRGBA.PBytes(All) + ABounds.C1.X + (ABounds.C1.Y + Y) * ABounds.Width)^,
       (TColorRGBA.PBytes(Result) + Y * ABounds.Width)^,
       SizeOf(TColorRGBA.TBytes) * ABounds.Width
-    );
+      );
   FreeMem(All);
 end;
 
@@ -1186,31 +1203,34 @@ begin
       (TColorRGBA.PBytes(All) + ABounds.C1.X + (ABounds.C1.Y + Y) * ABounds.Width)^,
       (TColorRGBA.PBytes(Result.DataPointer) + Y * ABounds.Width)^,
       SizeOf(TColorRGBA.TBytes) * ABounds.Width
-    );
+      );
 end;
 
 procedure TTexture2D.SetData(const Value: PByte);
 begin
   Bind;
-  glTexImage2D(TargetType, 0, Ord(PixelFormat), Width, Height, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, Value);
+  glTexImage2D(TargetType, 0, GLInternalFormat(PixelFormat), Width, Height, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, Value);
 end;
 
 procedure TTexture2D.SetDataArray(const Value: TArray<TColorRGBA.TBytes>);
 begin
   Bind;
-  glTexImage2D(TargetType, 0, Ord(PixelFormat), Width, Height, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, Value.DataPointer);
+  glTexImage2D(TargetType, 0, GLInternalFormat(PixelFormat), Width, Height, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE,
+    Value.DataPointer);
 end;
 
 procedure TTexture2D.SetSubData(ABounds: TIntBounds2; const Value: PByte);
 begin
   Bind;
-  glTexSubImage2D(TargetType, 0, ABounds.C1.X, ABounds.C1.Y, ABounds.Width, ABounds.Height, Ord(PixelFormat), GL_UNSIGNED_BYTE, Value);
+  glTexSubImage2D(TargetType, 0, ABounds.C1.X, ABounds.C1.Y, ABounds.Width, ABounds.Height, Ord(PixelFormat),
+    GL_UNSIGNED_BYTE, Value);
 end;
 
 procedure TTexture2D.SetSubDataArray(ABounds: TIntBounds2; const Value: TArray<TColorRGBA.TBytes>);
 begin
   Bind;
-  glTexSubImage2D(TargetType, 0, ABounds.C1.X, ABounds.C1.Y, ABounds.Width, ABounds.Height, Ord(PixelFormat), GL_UNSIGNED_BYTE, Value.DataPointer);
+  glTexSubImage2D(TargetType, 0, ABounds.C1.X, ABounds.C1.Y, ABounds.Width, ABounds.Height, Ord(PixelFormat),
+    GL_UNSIGNED_BYTE, Value.DataPointer);
 end;
 
 procedure TTexture2D.Fill(AColor: TColorRGBA);
@@ -1279,12 +1299,12 @@ begin
   Changed;
 end;
 
-constructor TTexture3D.Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfRGBA);
+constructor TTexture3D.Create(AGLState: TGLState; APixelFormat: TGLPixelFormat);
 begin
   inherited;
 end;
 
-constructor TTexture3D.Create(AGLState: TGLState; ASize: TIntVector3; APixelFormat: TGLPixelFormat = pfRGBA);
+constructor TTexture3D.Create(AGLState: TGLState; ASize: TIntVector3; APixelFormat: TGLPixelFormat);
 begin
   inherited Create(AGLState, APixelFormat);
   FSize := ASize;
@@ -1299,7 +1319,7 @@ end;
 procedure TTexture3D.Generate;
 begin
   Bind;
-  glTexImage3D(TargetType, 0, Ord(PixelFormat), Width, Height, Depth, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
+  glTexImage3D(TargetType, 0, GLInternalFormat(PixelFormat), Width, Height, Depth, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
 end;
 
 { TTexture1DArray }
@@ -1363,7 +1383,7 @@ end;
 procedure TTexture2DArray.Generate;
 begin
   Bind;
-  glTexImage3D(TargetType, 0, Ord(PixelFormat), Width, Height, Layers, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
+  glTexImage3D(TargetType, 0, GLInternalFormat(PixelFormat), Width, Height, Layers, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
 end;
 
 { TTextureRectangle }
@@ -1418,7 +1438,7 @@ end;
 
 procedure TTextureCubeMapArray.Generate;
 begin
-  glTexImage3D(TargetType, 0, Ord(PixelFormat), Size, Size, Layers * 6, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
+  glTexImage3D(TargetType, 0, GLInternalFormat(PixelFormat), Size, Size, Layers * 6, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
 end;
 
 { TTextureBuffer }
@@ -1443,12 +1463,13 @@ begin
   Result := GL_TEXTURE_2D_MULTISAMPLE;
 end;
 
-constructor TTexture2DMS.Create(AGLState: TGLState; ASize: TIntVector2; ASamples: Integer; APixelFormat: TGLPixelFormat);
+constructor TTexture2DMS.Create(AGLState: TGLState; ASize: TIntVector2; ASamples: Integer;
+  APixelFormat: TGLPixelFormat);
 begin
   inherited Create(AGLState, APixelFormat);
   FSize := ASize;
   FSamples := ASamples;
-  Generate;    
+  Generate;
 end;
 
 procedure TTexture2DMS.Generate;
@@ -1467,7 +1488,8 @@ begin
   Changed;
 end;
 
-constructor TTexture2DMSArray.Create(AGLState: TGLState; ASize: TIntVector3; ASamples: Integer; APixelFormat: TGLPixelFormat);
+constructor TTexture2DMSArray.Create(AGLState: TGLState; ASize: TIntVector3; ASamples: Integer;
+  APixelFormat: TGLPixelFormat);
 begin
   inherited Create(AGLState, APixelFormat);
   FSize := ASize;

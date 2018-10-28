@@ -8,30 +8,33 @@ uses
   System.Classes,
   System.SysUtils,
 
-  Vcl.Imaging.pngimage,
+  GdiPlus,
 
   Pengine.Settings,
   Pengine.HashCollections,
-  Pengine.Collections, // remove me
   Pengine.JSON,
   Pengine.Utility,
+  Pengine.IntMaths,
+  Pengine.GLFormless,
 
+  Pengine.MC.BlockRenderer,
+  Pengine.MC.Assets,
   Pengine.MC.Item,
   Pengine.MC.BlockState,
-  Pengine.MC.Namespace;
+  Pengine.MC.Namespace,
+  Pengine.Light,
+  Pengine.Vector;
 
 type
 
   TItemIconSettings = class(TSettings)
   public type
 
-    TIcons = TRefObjectMap<TItemType, TPngImage>;
+    TIcons = TRefMap<TItemType, IGPBitmap>;
 
   private
-    FPath: string;
     FIcons: TIcons;
 
-    procedure SetPath(const Value: string);
     function GetIcons: TIcons.TReader;
 
   protected
@@ -44,16 +47,11 @@ type
   public
     destructor Destroy; override;
 
+    class function SkipSave: Boolean; override;
+
     class function GetTitle: string; override;
-    class function DefaultPath: string; static;
-
-    procedure SetDefaults; override;
-
-    property Path: string read FPath write SetPath;
 
     property Icons: TIcons.TReader read GetIcons;
-
-    procedure DefineJStorage(ASerializer: TJSerializer); override;
 
   end;
 
@@ -65,21 +63,8 @@ constructor TItemIconSettings.Create(ARoot: TRootSettings);
 begin
   inherited;
   FIcons := TIcons.Create;
-  AddDependent(RootSettingsG.Get<TItemSettings>);
-end;
-
-class function TItemIconSettings.DefaultPath: string;
-begin
-  Result := '%appdata%\.minecraft\versions\1.13.1\1.13.1.jar';
-end;
-
-procedure TItemIconSettings.DefineJStorage(ASerializer: TJSerializer);
-begin
-  inherited;
-  with ASerializer do
-  begin
-    Define('path', FPath);
-  end;
+  AddDependent(Root.Get<TItemSettings>);
+  AddDependent(Root.Get<TAssetsSettings>);
 end;
 
 destructor TItemIconSettings.Destroy;
@@ -90,47 +75,100 @@ end;
 
 procedure TItemIconSettings.DoReload;
 var
-  Jar: TZipFile;
-  Items: TItemTypeCollection;
+  Item: TItemType;
+  Assets: TAssetsSettings;
+  ItemModel: TItemModel;
+  Icon, Missing: IGPBitmap;
   I: Integer;
-  FileName, ItemName: string;
-  Found, Missing: Integer;
-  Blocks: TBlockTypeCollection;
-  MissingBlocks: TMap<TNSPath, TBlockType, TNSPathHasher>;
-  M: TArray<TNSPath>;
+  P: TIntVector2;
+  BlockRenderer: TModelRenderer;
+  ModelRenderable: TModelRenderable;
+  Light: TDirectionalLight;
+  ColorMatrix: TGPColorMatrix;
+  Attributes: IGPImageAttributes;
+  Texture: TTexture;
+
+  procedure Blt(AImage: IGPBitmap);
+  var
+    Graphics: IGPGraphics;
+  begin
+    if Icon = nil then
+      Icon := TGPBitmap.Create(Integer(AImage.Width), Integer(AImage.Height));
+
+    Graphics := TGPGraphics.Create(Icon);
+    Graphics.DrawImage(
+      AImage,
+      TGPRect.Create(0, 0, Icon.Width, Icon.Height),
+      0, 0, Icon.Width, Icon.Height,
+      TGPUnit.UnitPixel, Attributes);
+    Graphics.Flush;
+  end;
+
 begin
   FIcons.Clear;
 
-  Jar := TZipFile.Create;
-  try
-    Jar.Open(ExpandEnvVars(Path), zmRead);
+  Attributes := TGPImageAttributes.Create;
+  ColorMatrix.SetToIdentity;
 
-    Items := RootSettingsG.Get<TItemSettings>.Items;
-    Blocks := RootSettingsG.Get<TBlockSettings>.Blocks;
+  Missing := TGPBitmap.Create(4, 4);
+  for P in IVec2(Missing.Width, Missing.Height) do
+    Missing.Pixels[P.X, P.Y] := $FF000000 or not(Cardinal(P.X xor P.Y)) and 1 * $FF00FF;
 
-    MissingBlocks := Blocks.Map.Copy;
+  BlockRenderer := TModelRenderer.Create;
+  BlockRenderer.Camera.FOV := 15;
+  BlockRenderer.Camera.Location.Pos := 0.5;
+  BlockRenderer.Camera.Location.OffsetZ := 6;
+  BlockRenderer.Camera.Location.TurnAngle := 215;
+  BlockRenderer.Camera.Location.PitchAngle := -27;
 
-    Found := 0;
-    for I := 0 to Jar.FileCount - 1 do
+  BlockRenderer.LightSystem.Ambient := $444444;
+  Light := TDirectionalLight.Create(BlockRenderer.LightSystem);
+  Light.Direction := Vec3(-1, -2, 1.35);
+
+  ModelRenderable := TModelRenderable.Create(BlockRenderer.GL.Context);
+  BlockRenderer.Renderable := ModelRenderable;
+
+  Assets := RootSettingsG.Get<TAssetsSettings>;
+  for Item in RootSettingsG.Get<TItemSettings>.Items.Order do
+  begin
+    Icon := nil;
+    ColorMatrix.SetToIdentity;
+    if Assets.ModelCollection.ItemModels.Get(Item.NSPath.Path, ItemModel) then
     begin
-      FileName := Jar.FileName[I];
-      if not FileName.StartsWith('assets/minecraft/blockstates/') or not FileName.EndsWith('.json') then
-        Continue;
-      ItemName := ChangeFileExt(FileName.Substring(FileName.LastIndexOf('/') + 1), '');
-      if Blocks.Exists(ItemName) then
+      if ItemModel.IsBuiltinType(btGenerated) then
       begin
-        Inc(Found);
-        MissingBlocks.TryRemove(ItemName);
+        if ItemModel.LayerCount = 0 then
+          Blt(Missing)
+        else
+        begin
+          for I := 0 to ItemModel.LayerCount - 1 do
+            if ItemModel.Layers[I] is TTextureVariableDirect then
+            begin
+              Texture := TTextureVariableDirect(ItemModel.Layers[I]).Texture;
+              ColorMatrix.M[0, 0] := Texture.TintColor.R;
+              ColorMatrix.M[1, 1] := Texture.TintColor.G;
+              ColorMatrix.M[2, 2] := Texture.TintColor.B;
+              Attributes.SetColorMatrix(ColorMatrix);
+              Blt(Texture.Image);
+              ColorMatrix.SetToIdentity;
+              Attributes.SetColorMatrix(ColorMatrix);
+            end;
+        end;
+      end
+      else
+      begin
+        ModelRenderable.Model := ItemModel;
+        Blt(BlockRenderer.RenderImage(128));
       end;
-    end;
-
-    M := MissingBlocks.Keys.ToArray;
-    Missing := Blocks.Count - Found;
-
-  finally
-    Jar.Free;
-
+    end
+    else
+      Blt(Missing);
+    FIcons[Item] := Icon;
   end;
+
+  Light.Free;
+  ModelRenderable.Free;
+  BlockRenderer.Free;
 end;
 
 function TItemIconSettings.GetIcons: TIcons.TReader;
@@ -138,25 +176,22 @@ begin
   Result := FIcons.Reader;
 end;
 
-class function TItemIconSettings.GetNameForVersion(AVersion: Integer): string;
+class
+  function TItemIconSettings.GetNameForVersion(AVersion: Integer): string;
 begin
   Result := 'mc_itemicons';
 end;
 
-class function TItemIconSettings.GetTitle: string;
+class
+  function TItemIconSettings.GetTitle: string;
 begin
   Result := 'Item-Icons';
 end;
 
-procedure TItemIconSettings.SetDefaults;
+class
+  function TItemIconSettings.SkipSave: Boolean;
 begin
-  Path := DefaultPath;
-end;
-
-procedure TItemIconSettings.SetPath(const Value: string);
-begin
-  FPath := Value;
-  Reload;
+  Result := True;
 end;
 
 end.

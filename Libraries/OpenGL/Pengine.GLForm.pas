@@ -22,7 +22,6 @@ uses
   Pengine.IntMaths,
   Pengine.ResourceManager;
 
-
 type
 
   TGLForm = class(TForm)
@@ -65,7 +64,7 @@ type
 
     property Game: TGLGame read FGame;
     property Input: TInputHandler read FInput;
-    
+
     procedure Start;
     procedure Pause;
     procedure Resume;

@@ -19,7 +19,8 @@ uses
   Pengine.FBO,
   Pengine.VAO,
   Pengine.GLState,
-  Pengine.GLGame;
+  Pengine.GLGame,
+  Pengine.GLContext, Pengine.IntMaths;
 
 type
 
@@ -29,10 +30,9 @@ type
 
   TBaseLight = class abstract
   private
+    FLightSystem: TLightSystem;
     FIndex: Integer;
     FUBOOffset: Integer;
-    FLightSystem: TLightSystem;
-
     FColor: TColorRGB;
     FIntensity: Single;
 
@@ -44,7 +44,7 @@ type
     property Index: Integer read FIndex write SetIndex;
 
   protected
-    procedure Send(ASingleOffset: Integer; ASingleCount: Integer; const AData);
+    procedure Send(AOffset: Pointer; ASize: Integer; const AData);
 
     property LightSystem: TLightSystem read FLightSystem;
 
@@ -52,31 +52,39 @@ type
     constructor Create(ALightSystem: TLightSystem);
     destructor Destroy; override;
 
-    class function MaxLights: Integer; virtual; abstract;
-    class function MajorOffset: Integer; virtual; abstract;
-    class function CalcMajorOffset: Integer; virtual; abstract;
-    class function DataSize: Integer; virtual; abstract;
+    class function GetMaxLights: Integer; virtual; abstract;
+    class function GetDataOffset: Integer; virtual; abstract;
+    class function GetDataSize: Integer; virtual; abstract;
 
     procedure DecIndexAndSendAll;
 
     procedure SendAllData; virtual;
-
     procedure SendColor;
 
     property Color: TColorRGB read FColor write SetColor;
     property Intensity: Single read FIntensity write SetIntensity;
+
   end;
 
   { TDirectionalLight }
 
   TDirectionalLight = class(TBaseLight)
+  public const
+
+    MaxLights = 4;
+
+  public type
+
+    TData = record
+      Color: TColorRGB;
+      Unused: Integer;
+      Direction: TVector3;
+      Shadowed: LongBool;
+      Matrix: TMatrix4;
+    end;
+
   private
     FDirection: TVector3;
-
-    class var
-      FMajorOffset: Integer;
-
-    class constructor Create;
 
   protected
     procedure SetDirection(AValue: TVector3); virtual;
@@ -84,30 +92,39 @@ type
   public
     constructor Create(ALightSystem: TLightSystem);
 
-    class function MaxLights: Integer; override;
-    class function CalcMajorOffset: Integer; override;
-    class function MajorOffset: Integer; override;
-    class function DataSize: Integer; override;
+    class function GetMaxLights: Integer; override;
+    class function GetDataOffset: Integer; override;
+    class function GetDataSize: Integer; override;
 
     property Direction: TVector3 read FDirection write SetDirection;
 
     procedure SendAllData; override;
-
     procedure SendDirection;
   end;
 
   { TPointLight }
 
   TPointLight = class(TBaseLight)
+  public const
+
+    MaxLights = 16;
+
+  public type
+
+    TData = record
+      Color: TColorRGB;
+      Attenuation: Single;
+      Position: TVector3;
+      Shadowed: LongBool;
+      NearClip: Single;
+      FarClip: Single;
+      Unused: array [0 .. 1] of Integer;
+    end;
+
   private
     FAttenuation: Single;
 
-    class var
-      FMajorOffset: Integer;
-
     procedure SetAttenuation(AValue: Single);
-
-    class constructor Create;
 
   protected
     FPosition: TVector3;
@@ -117,10 +134,9 @@ type
   public
     constructor Create(ALightSystem: TLightSystem);
 
-    class function MaxLights: Integer; override;
-    class function CalcMajorOffset: Integer; override;
-    class function MajorOffset: Integer; override;
-    class function DataSize: Integer; override;
+    class function GetMaxLights: Integer; override;
+    class function GetDataOffset: Integer; override;
+    class function GetDataSize: Integer; override;
 
     property Position: TVector3 read FPosition write SetPosition;
     property Attenuation: Single read FAttenuation write SetAttenuation;
@@ -129,19 +145,33 @@ type
 
     procedure SendPosition;
     procedure SendAttenuation;
+
   end;
 
   { TSpotLight }
 
   TSpotLight = class(TPointLight)
+  public const
+
+    MaxLights = 16;
+
+  public type
+
+    TData = record
+      Color: TColorRGB;
+      Attenuation: Single;
+      Position: TVector3;
+      Cutoff: Single;
+      Direction: TVector3;
+      CutoffBonus: Single;
+      Shadowed: WordBool;
+      FOV: Single;
+      Unused: array [0 .. 1] of Integer;
+      Matrix: TMatrix4;
+    end;
+
   private
-
-    class var
-      FMajorOffset: Integer;
-
     function GetFullCutoff: Single;
-
-    class constructor Create;
 
   protected
     FDirection: TVector3;
@@ -155,10 +185,9 @@ type
   public
     constructor Create(ALightSystem: TLightSystem);
 
-    class function MaxLights: Integer; override;
-    class function CalcMajorOffset: Integer; override;
-    class function MajorOffset: Integer; override;
-    class function DataSize: Integer; override;
+    class function GetMaxLights: Integer; override;
+    class function GetDataOffset: Integer; override;
+    class function GetDataSize: Integer; override;
 
     property Direction: TVector3 read FDirection write SetDirection;
     property Cutoff: Single read FCutoff write SetCutoff;
@@ -259,10 +288,10 @@ type
     FCamera: TCamera;
     FCameraChanged: Boolean;
 
-    //function GetFarClip: Single;
-    //function GetNearClip: Single;
-    //procedure SetFarClip(AValue: Single);
-    //procedure SetNearClip(AValue: Single);
+    // function GetFarClip: Single;
+    // function GetNearClip: Single;
+    // procedure SetFarClip(AValue: Single);
+    // procedure SetNearClip(AValue: Single);
 
     procedure SendCamera;
 
@@ -284,15 +313,31 @@ type
 
     procedure RenderShadows;
 
-    //property NearClip: Single read GetNearClip write SetNearClip;
-    //property FarClip: Single read GetFarClip write SetFarClip;
+    // property NearClip: Single read GetNearClip write SetNearClip;
+    // property FarClip: Single read GetFarClip write SetFarClip;
 
   end;
 
   // make sure to create before camera, so that shadows get rendered first
   TLightSystem = class
+  public type
+
+    TLightData = record
+      Ambient: TColorRGB;
+      DirectionalLightCount: Integer;
+      DirectionalLights: array [0 .. TDirectionalLight.MaxLights - 1] of TDirectionalLight.TData;
+      PointLightCount: Integer;
+      Unused1: array [0 .. 2] of Integer;
+      PointLights: array [0 .. TPointLight.MaxLights - 1] of TPointLight.TData;
+      SpotLightCount: Integer;
+      Unused2: array [0 .. 2] of Integer;
+      SpotLights: array [0 .. TSpotLight.MaxLights - 1] of TSpotLight.TData;
+    end;
+
+    TUBO = TUBO<TLightData>;
+
   private
-    FGame: TGLGame;
+    FContext: TGLContext;
     FGLProgram: TGLProgram;
 
     FAmbient: TColorRGB;
@@ -321,13 +366,11 @@ type
     procedure SendSpotLightCount;
     function GetGLState: TGLState;
 
-    procedure RenderShadows;
-
   public
-    constructor Create(AGame: TGLGame);
+    constructor Create(AContext: TGLContext);
     destructor Destroy; override;
 
-    property Game: TGLGame read FGame;
+    property Context: TGLContext read FContext;
     property GLState: TGLState read GetGLState;
 
     property UBO: TUBO read FUBO;
@@ -342,12 +385,11 @@ type
 
     procedure BindToGLProgram(AGLProgram: TGLProgram);
 
+    procedure RenderShadows;
+
   end;
 
 implementation
-
-uses
-  Pengine.IntMaths;
 
 { TDirectionalLightShaded }
 
@@ -376,7 +418,7 @@ var
   M: TMatrix4;
 begin
   M := FCamera.Matrix[mtProjection] * FCamera.Location.Matrix;
-  Send(8, 16, M);
+  Send(@TData(nil^).Matrix, SizeOf(TData(nil^).Matrix), M);
   FCameraChanged := False;
 end;
 
@@ -425,7 +467,7 @@ end;
 
 constructor TDirectionalLightShaded.Create(ALightSystem: TLightSystem);
 const
-  ShadedBool: Integer = 1;
+  ShadedBool: LongBool = True;
 begin
   FCamera := TCamera.Create(0, 1, -50, 50);
   inherited Create(ALightSystem);
@@ -434,7 +476,7 @@ begin
   FFBO.GLLabel := AnsiString(Format('Directional-Light %d Shadow-FBO', [Index]));
   FFBO.Add(TTextureLayerAttachment.Create(TDepthAttachment.Create, ALightSystem.DirectionalLightTexArray, Index));
   FFBO.Complete;
-  Send(7, 1, ShadedBool);
+  Send(@TData(nil^).Shadowed, SizeOf(TData(nil^).Shadowed), ShadedBool);
 end;
 
 destructor TDirectionalLightShaded.Destroy;
@@ -509,8 +551,8 @@ end;
 
 procedure TPointLightShaded.SendClip;
 begin
-  Send(8, 1, FCameras[cmsPosX].NearClip);
-  Send(9, 1, FCameras[cmsPosX].FarClip);
+  Send(@TData(nil^).NearClip, SizeOf(TData(nil^).NearClip), FCameras[cmsPosX].NearClip);
+  Send(@TData(nil^).FarClip, SizeOf(TData(nil^).FarClip), FCameras[cmsPosX].FarClip);
   FClipChanged := False;
 end;
 
@@ -538,26 +580,27 @@ begin
   for Side := Low(TGLCubeMapSide) to High(TGLCubeMapSide) do
   begin
     FFBOs[Side] := TFBO.Create(ALightSystem.GLState, IVec2(1024, 1024));
-    FFBOs[Side].Add(TCubeMapLayerAttachment.Create(TDepthAttachment.Create, ALightSystem.PointLightTexArray, Side, Index));
+    FFBOs[Side].Add(TCubeMapLayerAttachment.Create(TDepthAttachment.Create, ALightSystem.PointLightTexArray,
+      Side, Index));
     FFBOs[Side].Complete;
   end;
-  Send(7, 1, ShadedBool);
+  Send(@TData(nil^).Shadowed, SizeOf(TData(nil^).Shadowed), ShadedBool);
 
   FCameras[cmsPosX].Location.Look := Vec3(+1, 0, 0);
-  FCameras[cmsPosX].Location.RollAngle := 180;//Scale := TGVector3.Create(-1, -1, 1);
+  FCameras[cmsPosX].Location.RollAngle := 180; // Scale := TGVector3.Create(-1, -1, 1);
 
   FCameras[cmsNegX].Location.Look := Vec3(-1, 0, 0);
-  FCameras[cmsNegX].Location.RollAngle := 180;//Scale := TGVector3.Create(-1, -1, 1);
+  FCameras[cmsNegX].Location.RollAngle := 180; // Scale := TGVector3.Create(-1, -1, 1);
 
   FCameras[cmsPosY].Location.Look := Vec3(0, +1, 0);
 
   FCameras[cmsNegY].Location.Look := Vec3(0, -1, 0);
 
   FCameras[cmsPosZ].Location.Look := Vec3(0, 0, +1);
-  FCameras[cmsPosZ].Location.RollAngle := 180;//Scale := TGVector3.Create(-1, -1, 1);
+  FCameras[cmsPosZ].Location.RollAngle := 180; // Scale := TGVector3.Create(-1, -1, 1);
 
   FCameras[cmsNegZ].Location.Look := Vec3(0, 0, -1);
-  FCameras[cmsNegZ].Location.RollAngle := 180;//Scale := TGVector3.Create(-1, -1, 1);
+  FCameras[cmsNegZ].Location.RollAngle := 180; // Scale := TGVector3.Create(-1, -1, 1);
 
   FClipChanged := True;
 end;
@@ -673,7 +716,7 @@ begin
   FFBO := TFBO.Create(ALightSystem.GLState, IVec2(1024, 1024));
   FFBO.Add(TTextureLayerAttachment.Create(TDepthAttachment.Create, LightSystem.SpotLightTexArray, Index));
   FFBO.Complete;
-  Send(12, 1, ShadedBool);
+  Send(@TData(nil^).Shadowed, SizeOf(TData(nil^).Shadowed), ShadedBool);
 end;
 
 destructor TSpotLightShaded.Destroy;
@@ -707,40 +750,40 @@ procedure TSpotLightShaded.SendCamera;
 var
   M: TMatrix4;
 begin
-  Send(13, 1, FCamera.FOV);
-  //Send(14, 1, FCamera.NearClip);
-  //Send(15, 1, FCamera.FarClip);
+  Send(@TData(nil^).FOV, SizeOf(TData(nil^).FOV), FCamera.FOV);
+  // Send(14, 1, FCamera.NearClip);
+  // Send(15, 1, FCamera.FarClip);
   M := FCamera.Matrix[mtProjection] * FCamera.Location.Matrix;
-  Send(16, 16, M);
+  Send(@TData(nil^).Matrix, SizeOf(TData(nil^).Matrix), M);
   FCameraChanged := False;
 end;
 
 {
-function TSpotLightShaded.GetFarClip: Single;
-begin
+  function TSpotLightShaded.GetFarClip: Single;
+  begin
   Result := FCamera.FarClip;
-end;
+  end;
 
-function TSpotLightShaded.GetNearClip: Single;
-begin
+  function TSpotLightShaded.GetNearClip: Single;
+  begin
   Result := FCamera.NearClip;
-end;
+  end;
 
-procedure TSpotLightShaded.SetFarClip(AValue: Single);
-begin
+  procedure TSpotLightShaded.SetFarClip(AValue: Single);
+  begin
   if FarClip = AValue then
-    Exit;
+  Exit;
   FCamera.FarClip := AValue;
   FCameraChanged := True;
-end;
+  end;
 
-procedure TSpotLightShaded.SetNearClip(AValue: Single);
-begin
+  procedure TSpotLightShaded.SetNearClip(AValue: Single);
+  begin
   if NearClip = AValue then
-    Exit;
+  Exit;
   FCamera.NearClip := AValue;
   FCameraChanged := True;
-end;
+  end;
 }
 procedure TSpotLightShaded.RenderShadows;
 begin
@@ -783,11 +826,6 @@ begin
   SendDirection;
 end;
 
-class constructor TSpotLight.Create;
-begin
-  FMajorOffset := CalcMajorOffset;
-end;
-
 constructor TSpotLight.Create(ALightSystem: TLightSystem);
 begin
   inherited;
@@ -809,37 +847,30 @@ end;
 
 procedure TSpotLight.SendDirection;
 begin
-  Send(8, 3, Direction);
+  Send(@TData(nil^).Direction, SizeOf(TData(nil^).Direction), Direction);
 end;
 
 procedure TSpotLight.SendCutoff;
 begin
-  Send(7, 1, Cutoff);
+  Send(@TData(nil^).Cutoff, SizeOf(TData(nil^).Cutoff), Cutoff);
 end;
 
 procedure TSpotLight.SendCutoffBonus;
 begin
-  Send(11, 1, CutoffBonus);
+  Send(@TData(nil^).CutoffBonus, SizeOf(TData(nil^).CutoffBonus), CutoffBonus);
 end;
 
-class function TSpotLight.MaxLights: Integer;
+class function TSpotLight.GetMaxLights: Integer;
 begin
-  Result := 16;
+  Result := MaxLights;
 end;
 
-class function TSpotLight.CalcMajorOffset: Integer;
+class function TSpotLight.GetDataOffset: Integer;
 begin
-  Result := TPointLight.CalcMajorOffset +
-    16 +
-    TPointLight.MaxLights * TPointLight.DataSize;
+  Result := Integer(@TLightSystem.TLightData(nil^).SpotLights[0]);
 end;
 
-class function TSpotLight.MajorOffset: Integer;
-begin
-  Result := FMajorOffset;
-end;
-
-class function TSpotLight.DataSize: Integer;
+class function TSpotLight.GetDataSize: Integer;
 begin
   Result := 32 * SizeOf(Single);
 end;
@@ -862,11 +893,6 @@ begin
   SendPosition;
 end;
 
-class constructor TPointLight.Create;
-begin
-  FMajorOffset := CalcMajorOffset;
-end;
-
 constructor TPointLight.Create(ALightSystem: TLightSystem);
 begin
   inherited;
@@ -883,32 +909,25 @@ end;
 
 procedure TPointLight.SendPosition;
 begin
-  Send(4, 3, Position);
+  Send(@TData(nil^).Position, SizeOf(TData(nil^).Position), Position);
 end;
 
 procedure TPointLight.SendAttenuation;
 begin
-  Send(3, 1, Attenuation);
+  Send(@TData(nil^).Attenuation, SizeOf(TData(nil^).Attenuation), Attenuation);
 end;
 
-class function TPointLight.MaxLights: Integer;
+class function TPointLight.GetMaxLights: Integer;
 begin
   Result := 16;
 end;
 
-class function TPointLight.CalcMajorOffset: Integer;
+class function TPointLight.GetDataOffset: Integer;
 begin
-  Result := TDirectionalLight.CalcMajorOffset +
-    16 +
-    TDirectionalLight.MaxLights * TDirectionalLight.DataSize;
+  Result := Integer(@TLightSystem.TLightData(nil^).PointLights[0]);
 end;
 
-class function TPointLight.MajorOffset: Integer;
-begin
-  Result := FMajorOffset;
-end;
-
-class function TPointLight.DataSize: Integer;
+class function TPointLight.GetDataSize: Integer;
 begin
   Result := 12 * SizeOf(Single);
 end;
@@ -922,11 +941,6 @@ begin
     Exit;
   FDirection := AValue;
   SendDirection;
-end;
-
-class constructor TDirectionalLight.Create;
-begin
-  FMajorOffset := CalcMajorOffset;
 end;
 
 constructor TDirectionalLight.Create(ALightSystem: TLightSystem);
@@ -944,27 +958,22 @@ end;
 
 procedure TDirectionalLight.SendDirection;
 begin
-  Send(4, 3, Direction);
+  Send(@TData(nil^).Direction, SizeOf(TData(nil^).Direction), Direction);
 end;
 
-class function TDirectionalLight.MaxLights: Integer;
+class function TDirectionalLight.GetMaxLights: Integer;
 begin
-  Result := 4;
+  Result := MaxLights;
 end;
 
-class function TDirectionalLight.CalcMajorOffset: Integer;
+class function TDirectionalLight.GetDataOffset: Integer;
 begin
-  Result := 0;
+  Result := Integer(@TLightSystem.TLightData(nil^).DirectionalLights[0]);
 end;
 
-class function TDirectionalLight.MajorOffset: Integer;
+class function TDirectionalLight.GetDataSize: Integer;
 begin
-  Result := FMajorOffset;
-end;
-
-class function TDirectionalLight.DataSize: Integer;
-begin
-  Result := 24 * SizeOf(Single);
+  Result := SizeOf(TData);
 end;
 
 { TBaseLight }
@@ -992,19 +1001,19 @@ begin
   SendColor;
 end;
 
-procedure TBaseLight.Send(ASingleOffset: Integer; ASingleCount: Integer; const AData);
+procedure TBaseLight.Send(AOffset: Pointer; ASize: Integer; const AData);
 begin
-  FLightSystem.UBO.SubData(FUBOOffset + 16 + ASingleOffset * SizeOf(Single), ASingleCount * SizeOf(Single), AData);
+  FLightSystem.UBO.SubData(FUBOOffset + Integer(AOffset), ASize, AData);
 end;
 
 constructor TBaseLight.Create(ALightSystem: TLightSystem);
 begin
   FLightSystem := ALightSystem;
   Index := ALightSystem.AddLight(Self);
-  if Index >= MaxLights then
+  if Index >= GetMaxLights then
     raise Exception.Create('Too many ' + ClassName + ' lights!');
 
-  FUBOOffset := MajorOffset + Index * DataSize;
+  FUBOOffset := GetDataOffset + Index * GetDataSize;
   FColor := ColorWhite;
   FIntensity := 1;
   SendColor;
@@ -1032,7 +1041,7 @@ var
   Value: TColorRGB;
 begin
   Value := Color * Intensity;
-  Send(0, 3, Value);
+  Send(nil, SizeOf(Value), Value);
 end;
 
 { TLightSystem }
@@ -1055,7 +1064,7 @@ var
   LightCount: Integer;
 begin
   LightCount := FDirectionalLights.Count;
-  UBO.SubData(TDirectionalLight.MajorOffset + SizeOf(Single) * 3, SizeOf(Integer), LightCount);
+  UBO.SubData(Integer(@TLightData(nil^).DirectionalLightCount), SizeOf(Integer), LightCount);
 end;
 
 procedure TLightSystem.SendPointLightCount;
@@ -1063,7 +1072,7 @@ var
   LightCount: Integer;
 begin
   LightCount := FPointLights.Count;
-  UBO.SubData(TPointLight.MajorOffset, SizeOf(Integer), LightCount);
+  UBO.SubData(Integer(@TLightData(nil^).PointLightCount), SizeOf(Integer), LightCount);
 end;
 
 procedure TLightSystem.SendSpotLightCount;
@@ -1071,19 +1080,19 @@ var
   LightCount: Integer;
 begin
   LightCount := FSpotLights.Count;
-  UBO.SubData(TSpotLight.MajorOffset, SizeOf(Integer), LightCount);
+  UBO.SubData(Integer(@TLightData(nil^).SpotLightCount), SizeOf(Integer), LightCount);
 end;
 
-constructor TLightSystem.Create(AGame: TGLGame);
+constructor TLightSystem.Create(AContext: TGLContext);
 begin
-  FGame := AGame;
-  FGame.OnRender.Add(RenderShadows);
-
+  FContext := AContext;
+  
   FDirectionalLights := TRefArray<TDirectionalLight>.Create;
   FPointLights := TRefArray<TPointLight>.Create;
   FSpotLights := TRefArray<TSpotLight>.Create;
 
-  FDirectionalLightTexArray := TTexture2DArray.Create(GLState, IVec3(1024, 1024, TDirectionalLight.MaxLights), pfDepthComponent);
+  FDirectionalLightTexArray := TTexture2DArray.Create(GLState, IVec3(1024, 1024, TDirectionalLight.MaxLights),
+    pfDepthComponent);
   FDirectionalLightTexArray.GLLabel := 'Directional-Light Texture-Array';
   FDirectionalLightTexArray.MinFilter := minLinear;
   FDirectionalLightTexArray.CompareMode := tcmCompareRefToTexture;
@@ -1098,9 +1107,8 @@ begin
   FSpotLightTexArray.MinFilter := minLinear;
   FSpotLightTexArray.CompareMode := tcmCompareRefToTexture;
 
-  FUBO := TUBO.Create(GLState);
+  FUBO := TUBO.Create(GLState, buStreamDraw);
   FUBO.GLLabel := 'Light-Data';
-  FUBO.Generate(TSpotLight.MajorOffset + 16 + TSpotLight.DataSize * TSpotLight.MaxLights, buStreamDraw);
 
   FFBOBinding := GLState.GLObjectBindings.Get<TFBO>;
 
@@ -1121,7 +1129,7 @@ end;
 
 function TLightSystem.GetGLState: TGLState;
 begin
-  Result := Game.GLState;
+  Result := Context.GLState;
 end;
 
 function TLightSystem.AddLight(ALight: TBaseLight): Integer;

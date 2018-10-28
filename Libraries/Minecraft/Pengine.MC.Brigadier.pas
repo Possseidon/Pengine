@@ -1095,7 +1095,7 @@ end;
 
 procedure TBrigadierSettings.SetDefaults;
 begin
-  Path := DefaultPath;
+  FPath := DefaultPath;
 end;
 
 procedure TBrigadierSettings.SetPath(const Value: string);

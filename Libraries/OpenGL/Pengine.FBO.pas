@@ -196,7 +196,7 @@ end;
 procedure TFBO.BindGLObject;
 begin
   glBindFramebuffer(GL_FRAMEBUFFER, GLName);
-  glViewport(Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y);
+  glViewport(Viewport.C1.X, Viewport.C1.Y, Viewport.Width, Viewport.Height);
 end;
 
 procedure TFBO.UnbindGLObject;
@@ -236,7 +236,7 @@ end;
 class procedure TFBO.BindScreen(AViewport: TIntBounds2; AFBOBinding: TGLObjectBinding<TFBO>);
 begin
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glViewport(AViewport.C1.X, AViewport.C1.Y, AViewport.C2.X, AViewport.C2.Y);
+  glViewport(AViewport.C1.X, AViewport.C1.Y, AViewport.Width, AViewport.Height);
   AFBOBinding.BoundObject := nil;
 end;
 
@@ -266,8 +266,8 @@ begin
   Binding.BoundObject := AFBO;
 
   glBlitFramebuffer(
-    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y,
-    AFBO.Viewport.C1.X, AFBO.Viewport.C1.Y, AFBO.Viewport.C2.X, AFBO.Viewport.C2.Y,
+    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X + 1, Viewport.C2.Y + 1,
+    AFBO.Viewport.C1.X, AFBO.Viewport.C1.Y, AFBO.Viewport.C2.X + 1, AFBO.Viewport.C2.Y + 1,
     ToGLBitfield(AMask), GL_NEAREST);
 end;
 
@@ -277,7 +277,7 @@ begin
     Exit;
   FViewport := Value;
   if Bound then
-    glViewport(Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y);
+    glViewport(Viewport.C1.X, Viewport.C1.Y, Viewport.Width, Viewport.Height);
 end;
 
 procedure TFBO.StretchTo(AFBO: TFBO; AMask: TGLAttribMaskFlags);
@@ -287,8 +287,8 @@ begin
   Binding.BoundObject := AFBO;
 
   glBlitFramebuffer(
-    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y,
-    AFBO.Viewport.C1.X, AFBO.Viewport.C1.Y, AFBO.Viewport.C2.X, AFBO.Viewport.C2.Y,
+    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X + 1, Viewport.C2.Y + 1,
+    AFBO.Viewport.C1.X, AFBO.Viewport.C1.Y, AFBO.Viewport.C2.X + 1, AFBO.Viewport.C2.Y + 1,
     ToGLBitfield(AMask), GL_NEAREST);
 end;
 
@@ -299,8 +299,8 @@ begin
   Binding.BoundObject := nil;
 
   glBlitFramebuffer(
-    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y,
-    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y,
+    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X + 1, Viewport.C2.Y + 1,
+    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X + 1, Viewport.C2.Y + 1,
     ToGLBitfield(AMask), GL_NEAREST);
 end;
 
@@ -311,60 +311,11 @@ begin
   Binding.BoundObject := nil;
 
   glBlitFramebuffer(
-    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X, Viewport.C2.Y,
+    Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X + 1, Viewport.C2.Y + 1,
     0, 0, ASize.X, ASize.Y,
     ToGLBitfield(AMask), GL_NEAREST);
 end;
- {
-procedure TFBO.Resize(ASize: TIntVector2);
-var
-  I: TGLFBOAttachment;
-  F: TGLPixelFormat;
-  S: Cardinal;
-begin
-  FSize := ASize;
-  for I := Low(TGLFBOAttachment) to High(TGLFBOAttachment) do
-  begin
-    if FOutputs[I] is TTexture2D then
-    begin
-      TTexture2D(FOutputs[I]).Size := FSize;
-    end
-    else if FOutputs[I] is TRenderbufferMS then
-    begin
-      F := TRenderbufferMS(FOutputs[I]).Format;
-      S := TRenderbufferMS(FOutputs[I]).Samples;
-      FreeAndNil(FOutputs[I]);
-      EnableRenderBufferMS(I, F, S);
-    end
-    else if FOutputs[I] is TRenderbuffer then
-    begin
-      F := TRenderbuffer(FOutputs[I]).Format;
-      FreeAndNil(FOutputs[I]);
-      EnableRenderBuffer(I, F);
-    end
-  end;
-end;
-
-procedure TFBO.SetSamples(ASamples: Integer);
-var
-  Attachment: TGLFBOAttachment;
-  PixelFormat: TGLPixelFormat;
-begin
-  for Attachment := Low(TGLFBOAttachment) to High(TGLFBOAttachment) do
-  begin
-    if FOutputs[Attachment] is TTexture2DMS then
-    begin
-      TTexture2DMS(FOutputs[Attachment]).Samples := ASamples;
-    end
-    else if FOutputs[Attachment] is TRenderbufferMS then
-    begin
-      PixelFormat := TRenderbufferMS(FOutputs[Attachment]).Format;
-      FreeAndNil(FOutputs[Attachment]);
-      EnableRenderBufferMS(Attachment, PixelFormat, ASamples);
-    end;
-  end;
-end; }
-
+ 
 { TColorAttachment }
 
 constructor TColorAttachment.Create(AIndex: Integer);

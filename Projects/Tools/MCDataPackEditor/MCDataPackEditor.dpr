@@ -1,5 +1,7 @@
 program MCDataPackEditor;
 
+{$R *.dres}
+
 uses
   Vcl.Forms,
   Main in 'Main.pas' {frmMain} ,
@@ -34,10 +36,10 @@ uses
 
 {$R *.res}
 
-
 begin
   // ChDir(ExtractFilePath(Application.ExeName));
 
+  RootSettingsG := TRootSettings.Create;
   RootSettingsG.Path := TPath.Combine(TPath.GetHomePath, '.mcdpe\settings.json');
 
   TStyleManager.Engine.RegisterStyleHook(TCustomSynEdit, TMemoStyleHook);
@@ -52,5 +54,6 @@ begin
 
   // TODO: Remove, as just for debugging
   RootSettingsG.Save;
+  RootSettingsG.Free;
 
 end.

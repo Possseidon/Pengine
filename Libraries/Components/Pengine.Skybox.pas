@@ -21,28 +21,6 @@ uses
 
 type
 
-  TStripeData = record
-    Color: TColorRGB;
-    Pitch: Single;
-  end;
-
-  TStripeDataAll = array [0 .. 15] of TStripeData;
-
-  TStripe = class
-  private
-    FIndex: Integer;
-    FColor: TColorRGB;
-    FAngle: Single;
-    FUBO: TUBO<TStripeDataAll>;
-  public
-    constructor Create(AColor: TColorRGB; AAngle: Single; AIndex: Integer; AUBO: TUBO<TStripeData>);
-
-    procedure SendAll;
-
-    property Angle: Single read FAngle;
-    property Color: TColorRGB read FColor;
-  end;
-
   TSkyboxGLProgramBase = class(TGLProgramResource)
   public type
 
@@ -61,20 +39,55 @@ type
   public const
 
     MaxStripes = 16;
-    UBOSize = SizeOf(TStripeData) * MaxStripes + SizeOf(Integer);
 
   private type
+
+    TUBO = class;
+
+    TStripe = class
+    public type
+
+      TData = packed record
+        Color: TColorRGB;
+        Pitch: Single;
+      end;
+
+    private
+      FIndex: Integer;
+      FColor: TColorRGB;
+      FAngle: Single;
+      FUBO: TUBO;
+
+    public
+      constructor Create(AColor: TColorRGB; AAngle: Single; AIndex: Integer; AUBO: TUBO);
+
+      procedure SendAll;
+
+      property Angle: Single read FAngle;
+      property Color: TColorRGB read FColor;
+
+    end;
+
+    TData = packed record
+      Stripes: array [0 .. MaxStripes - 1] of TStripe.TData;
+      Count: Integer;
+    end;
+
+    TUBO = class(TUBO<TData>);
 
     TSkyboxVAO = class(TVAOMutable<TSkyboxGLProgramBase.TData>)
     protected
       procedure BeforeRender; override;
       procedure AfterRender; override;
+
     end;
+
+    TStripes = TObjectArray<TStripe>;
 
   private
     FVAO: TSkyboxVAO;
-    FUBO: TUBO<TStripeData>;
-    FStripes: TRefArray<TStripe>;
+    FUBO: TUBO;
+    FStripes: TStripes;
 
     procedure BuildVAO;
 
@@ -96,9 +109,9 @@ type
 
 implementation
 
-{ TStripe }
+{ TSkybox.TStripe }
 
-constructor TStripe.Create(AColor: TColorRGB; AAngle: Single; AIndex: Integer; AUBO: TUBO<TStripeData>);
+constructor TSkybox.TStripe.Create(AColor: TColorRGB; AAngle: Single; AIndex: Integer; AUBO: TUBO);
 begin
   FColor := AColor;
   FAngle := AAngle;
@@ -107,13 +120,13 @@ begin
   SendAll;
 end;
 
-procedure TStripe.SendAll;
+procedure TSkybox.TStripe.SendAll;
 var
-  Data: TStripeData;
+  Data: TData;
 begin
   Data.Color := FColor;
   Data.Pitch := (FAngle + 90) / 180 * Pi;
-  FUBO.SubData(SizeOf(TStripeData) * FIndex, SizeOf(TStripeData), Data);
+  FUBO.SubData(SizeOf(TData) * FIndex, SizeOf(TData), Data);
 end;
 
 { TSkyboxGLProgramBase }
@@ -124,44 +137,6 @@ begin
 end;
 
 { TSkybox }
-
-{
-procedure TSkybox.BuildVAO;
-const
-  PitchSteps = 30; // min 1
-  TurnSteps = 120; // min 3
-
-  procedure AddData(T, P: Single);
-  var
-    Data: TSkyboxGLProgramBase.TData;
-  begin
-    P := P * 90 / PitchSteps;
-    T := T * 360 / TurnSteps;
-    Data.Pos := TVectorDir.Create(T, P);
-    Data.Pitch := P;
-    AddVertex(Data);
-  end;
-
-var
-  P, T: Integer;
-begin
-  Generate(12 * PitchSteps * TurnSteps, buStaticDraw);
-  Map(baWriteOnly);
-
-  for P := -PitchSteps to PitchSteps - 1 do
-    for T := 0 to TurnSteps - 1 do
-    begin
-      AddData(T + 0, P + 1);
-      AddData(T + 1, P + 1);
-      AddData(T + 0, P + 0);
-      AddData(T + 1, P + 0);
-      AddData(T + 0, P + 0);
-      AddData(T + 1, P + 1);
-    end;
-
-  Unmap;
-end;
-}
 
 procedure TSkybox.BuildVAO;
 var
@@ -180,7 +155,6 @@ begin
         AddToBuffer(Data);
       end;
     end;
-
     Free;
   end;
 end;
@@ -192,12 +166,12 @@ begin
   FVAO := TSkyboxVAO.Create(ASkyboxGLProgram);
   FVAO.GLLabel := 'Skybox';
 
-  FUBO := TUBO<TStripeData>.Create(FVAO.GLState, buStaticDraw);
+  FUBO := TUBO.Create(ASkyboxGLProgram.GLState, buStaticDraw);
   FUBO.GLLabel := 'Skybox Stripe-Data';
-  FUBO.SubData(SizeOf(TStripeData) * MaxStripes, SizeOf(Integer), Zero);
+  FUBO.SubData(SizeOf(TData) - SizeOf(Integer), SizeOf(Integer), Zero);
   FUBO.BindToGLProgram(FVAO.GLProgram, 'stripedata');
 
-  FStripes := TRefArray<TStripe>.Create(True);
+  FStripes := TStripes.Create;
 
   BuildVAO;
 end;
@@ -233,7 +207,7 @@ begin
     raise Exception.Create('Angles of Skybox Stripes must be ascending!');
   FStripes.Add(TStripe.Create(AColor, AAngle, FStripes.Count, FUBO));
   StripeCount := FStripes.Count;
-  FUBO.SubData(SizeOf(TStripeData) * MaxStripes, SizeOf(Integer), StripeCount);
+  FUBO.SubData(SizeOf(TData) - SizeOf(Integer), SizeOf(Integer), StripeCount);
 end;
 
 { TSkybox.TSkyboxVAO }

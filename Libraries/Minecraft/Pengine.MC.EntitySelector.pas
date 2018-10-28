@@ -2366,8 +2366,8 @@ end;
 
 procedure TEntitySelectorSettings.SetDefaults;
 begin
-  EntityNamespacePrefix := True;
-  SpaceAfterComma := True;
+  FEntityNamespacePrefix := True;
+  FSpaceAfterComma := True;
 end;
 
 end.
