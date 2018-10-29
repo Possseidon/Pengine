@@ -590,7 +590,7 @@ end;
 
 procedure TfrmMain.pbIconsPaint(Sender: TObject);
 const
-  IconSize = 128;
+  IconSize = 96;
 
 var
   Graphics: IGPGraphics;

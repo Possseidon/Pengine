@@ -128,7 +128,7 @@ void main()
   outcolor = vec4(ambient * fcolor * texture(diffusemap, ctexcoord).rgb, texture(diffusemap, ctexcoord).a);
   if (outcolor.a == 0)
     discard;
-
+  
   if (depthonly)
     return;
   

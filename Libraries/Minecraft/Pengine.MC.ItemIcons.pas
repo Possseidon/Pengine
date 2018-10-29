@@ -63,8 +63,8 @@ constructor TItemIconSettings.Create(ARoot: TRootSettings);
 begin
   inherited;
   FIcons := TIcons.Create;
-  AddDependent(Root.Get<TItemSettings>);
-  AddDependent(Root.Get<TAssetsSettings>);
+  Root.Get<TItemSettings>.AddDependent(Self);
+  Root.Get<TAssetsSettings>.AddDependent(Self);
 end;
 
 destructor TItemIconSettings.Destroy;
@@ -116,16 +116,15 @@ begin
 
   BlockRenderer := TModelRenderer.Create;
   BlockRenderer.Camera.FOV := 15;
-  BlockRenderer.Camera.Location.Pos := 0.5;
-  BlockRenderer.Camera.Location.OffsetZ := 6;
-  BlockRenderer.Camera.Location.TurnAngle := 215;
-  BlockRenderer.Camera.Location.PitchAngle := -27;
+  BlockRenderer.Camera.Location.OffsetZ := 4;
+  BlockRenderer.Camera.Location.TurnAngle := 0;
 
-  BlockRenderer.LightSystem.Ambient := $444444;
+  BlockRenderer.LightSystem.Ambient := 0.25; // $444444;
   Light := TDirectionalLight.Create(BlockRenderer.LightSystem);
-  Light.Direction := Vec3(-1, -2, 1.35);
+  Light.Direction := Vec3(0, -2, -1.2);
 
   ModelRenderable := TModelRenderable.Create(BlockRenderer.GL.Context);
+  ModelRenderable.Location.Offset := -0.5;
   BlockRenderer.Renderable := ModelRenderable;
 
   Assets := RootSettingsG.Get<TAssetsSettings>;
@@ -157,6 +156,15 @@ begin
       end
       else
       begin
+        if ItemModel.GUIDisplay <> nil then
+        begin
+          ModelRenderable.Location.TurnAngle := -ItemModel.GUIDisplay.Rotation.Y + 15;
+          //ModelRenderable.Location.TurnAngle := 135;
+          BlockRenderer.Camera.Location.PitchAngle := -ItemModel.GUIDisplay.Rotation.X;
+          BlockRenderer.Camera.Location.RollAngle := -ItemModel.GUIDisplay.Rotation.Z;
+          ModelRenderable.Location.Pos := ItemModel.GUIDisplay.Translation / 16;
+          ModelRenderable.Location.Scale := ItemModel.GUIDisplay.Scale;
+        end;
         ModelRenderable.Model := ItemModel;
         Blt(BlockRenderer.RenderImage(128));
       end;

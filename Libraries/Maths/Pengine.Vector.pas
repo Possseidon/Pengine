@@ -551,6 +551,8 @@ type
     function Normalized: Boolean; inline;
     /// <returns>The normalized version of the bounds.</summary>
     function Normalize: TBounds1;
+    /// <returns>A flipped version of the bounds.</summary>
+    function Flip: TBounds1; inline;
 
     /// <returns>The bounds with C1 being increased and C2 being decreased by the specified amount.</summary>
     function Inset(AAmount: Single): TBounds1;
@@ -716,6 +718,8 @@ type
     function Normalized: Boolean; inline;
     /// <returns>The normalized version of the bounds.</summary>
     function Normalize: TBounds2;
+    /// <returns>A flipped version of the bounds.</summary>
+    function Flip: TBounds2; inline;
 
     /// <returns>The bounds with C1 being increased and C2 being decreased by the specified amount.</summary>
     function Inset(AAmount: TVector2): TBounds2;
@@ -1273,7 +1277,9 @@ type
     DY: TVector2;
 
     /// <summary>Creates a plane with the given support vector and direction vectors.</summary>
-    constructor Create(const S, X, Y: TVector2);
+    constructor Create(const S, X, Y: TVector2); overload;
+    /// <summary>Creates a plane from the given bounds.</summary>
+    constructor Create(const ABounds: TBounds2); overload;
 
     /// <returns>The area of the paralellogram.</returns>
     function Area: Single; inline;
@@ -1283,6 +1289,8 @@ type
     property Point[APos: TVector2]: TVector2 read GetPoint; default;
     /// <summary>Gets where a point lies on the plane, where <c>[S, S + X + Y]</c> turns into <c>[0, 1]</c></summary>
     property InvPoint[APos: TVector2]: TVector2 read GetInvPoint;
+
+    function RotateCorners(ACount: Integer): TAxisSystem2;
 
     class operator in (const A: TVector2; const B: TAxisSystem2): Boolean;
 
@@ -1295,6 +1303,7 @@ type
   private
     function GetPoint(APos: TVector3): TVector3;
     function GetInvPoint(APos: TVector3): TVector3;
+    function GetPlane(ADir: TBasicDir3): TPlane3;
 
   public
     S: TVector3;
@@ -1303,13 +1312,19 @@ type
     DZ: TVector3;
 
     /// <summary>Creates an axis system with the given support vector and direction vectors.</summary>
-    constructor Create(const S, X, Y, Z: TVector3);
+    constructor Create(const S, X, Y, Z: TVector3); overload;
+    /// <summary>Creates an axis system from the given bounds.</summary>
+    constructor Create(const ABounds: TBounds3); overload;
 
     /// <summary>Gets a point in axis system, where <c>[0, 1]</c> turns into <c>[S, S + X + Y + Z]</c></summary>
     /// <remarks>Default property.</remarks>
     property Point[APos: TVector3]: TVector3 read GetPoint; default;
     /// <summary>Gets where a point lies in the axis system, where <c>[S, S + X + Y]</c> turns into <c>[0, 1]</c></summary>
     property InvPoint[APos: TVector3]: TVector3 read GetInvPoint;
+
+    property Plane[ADir: TBasicDir3]: TPlane3 read GetPlane;
+
+    function Rotate(const AOrigin, ANormal: TVector3; AAngle: Single): TAxisSystem3;
 
     class operator in (const A: TVector3; const B: TAxisSystem3): Boolean;
 
@@ -1514,6 +1529,7 @@ type
     procedure SetScaleY(AValue: Single);
     procedure SetScaleZ(AValue: Single);
 
+    procedure SetRotation(const Value: TVector3);
     procedure SetPitch(AValue: Single);
     procedure SetRoll(AValue: Single);
     procedure SetTurn(AValue: Single);
@@ -1564,6 +1580,8 @@ type
     procedure Slide(ADistance: Single; AHorizontal: Boolean = False);
     procedure Lift(ADistance: Single; AYOnly: Boolean = False);
     procedure Move(ADistance: Single; AHorizontal: Boolean = False);
+
+    property Rotation: TVector3 read FRotation write SetRotation;
 
     property TurnAngle: Single read FRotation.Y write SetTurn;
     property PitchAngle: Single read FRotation.X write SetPitch;
@@ -1761,6 +1779,7 @@ const
 
 function FlipDir(ADir: TBasicDir): TBasicDir; inline;
 function AbsDir(ADir: TBasicDir): TBasicDir; inline;
+function IsPosDir(ADir: TBasicDir): Boolean; inline;
 function RotateDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer = 1): TBasicDir; overload;
 function RotateDir(ADir: TBasicDir2; ASteps: Integer): TBasicDir2; overload;
 
@@ -2715,13 +2734,13 @@ var
   VX, VY, UXSqr, ASqr: Single;
 begin
   UZ := Self.Cross(AAxis);
-  UX := AAxis.Cross(UZ);
+  UX := UZ.Cross(AAxis);
 
   UXSqr := UX.SqrDot;
   ASqr := AAxis.SqrDot;
 
   if (UXSqr = 0) or (ASqr = 0) then
-    Exit(AAxis);
+    Exit(Self);
 
   VX := UX.Dot(Self) / UXSqr;
   VY := AAxis.Dot(Self) / ASqr;
@@ -2942,8 +2961,7 @@ function TBounds1.Normalize: TBounds1;
 begin
   if Normalized then
     Exit(Self);
-  Result.C1 := C2;
-  Result.C2 := C1;
+  Result := Flip;
 end;
 
 function TBounds1.Inset(AAmount: Single): TBounds1;
@@ -2995,6 +3013,12 @@ end;
 class operator TBounds1.Equal(const A, B: TBounds1): Boolean;
 begin
   Result := (A.C1 = B.C1) and (A.C2 = B.C2);
+end;
+
+function TBounds1.Flip: TBounds1;
+begin
+  Result.C1 := C2;
+  Result.C2 := C1;
 end;
 
 function TBounds1.Floor: TIntBounds1;
@@ -3270,6 +3294,12 @@ begin
   Result := (A.C1 = B.C1) and (A.C2 = B.C2);
 end;
 
+function TBounds2.Flip: TBounds2;
+begin
+  Result.LineX := LineX.Flip;
+  Result.LineY := LineY.Flip;
+end;
+
 function TBounds2.Floor: TIntBounds2;
 begin
   Result.C1 := C1.Floor;
@@ -3380,7 +3410,7 @@ function TBounds3.GetPlane(ADir: TBasicDir3): TBounds2;
 begin
   case ADir of
     bdLeft, bdRight:
-      Result := PlaneZY;
+      Result := PlaneYZ;
     bdDown, bdUp:
       Result := PlaneXZ;
     bdBack, bdFront:
@@ -3965,7 +3995,6 @@ end;
 function TLine3.Height(const A: TVector3): Single;
 
 {$IFDEF CPUX86}
-
 var
   B: TVector3;
   C: Single;
@@ -3975,12 +4004,10 @@ begin
   Result := Sqrt(Abs(B.SqrDot * C - Sqr(B.Dot(D)) / C));
 
 {$ELSE}
-
 begin
   Result := D.Cross(A.VectorTo(S)).Length / D.Length;
 
 {$ENDIF}
-
 end;
 
 function TLine3.Mirror(APoint: TVector3): TVector3;
@@ -4026,6 +4053,14 @@ begin
   Result := Vec3(DX.X, DX.Y, 0).Cross(Vec3(DY.X, DY.Y, 0)).Z;
 end;
 
+constructor TAxisSystem2.Create(const ABounds: TBounds2);
+begin
+  Create(
+    ABounds.C1,
+    Vec2(ABounds.C2.X - ABounds.C1.X, 0),
+    Vec2(0, ABounds.C2.Y - ABounds.C1.Y));
+end;
+
 class operator TAxisSystem2.Equal(const A, B: TAxisSystem2): Boolean;
 begin
   Result := (A.S = B.S) and (A.DX = B.DX) and (A.DY = B.DY);
@@ -4034,6 +4069,33 @@ end;
 class operator TAxisSystem2.NotEqual(const A, B: TAxisSystem2): Boolean;
 begin
   Result := (A.S <> B.S) or (A.DX <> B.DX) or (A.DY <> B.DY);
+end;
+
+function TAxisSystem2.RotateCorners(ACount: Integer): TAxisSystem2;
+begin
+  ACount := IBounds1(4).RangedMod(ACount);
+  case ACount of
+    0:
+      Result := Self;
+    1:
+      begin
+        Result.S := Point[Vec2(1, 0)];
+        Result.DX := DY;
+        Result.DY := -DX;
+      end;
+    2:
+      begin
+        Result.S := Point[1];
+        Result.DX := -DX;
+        Result.DY := -DY;
+      end;
+    3:
+      begin
+        Result.S := Point[Vec2(0, 1)];
+        Result.DX := -DY;
+        Result.DY := DX;
+      end;
+  end;
 end;
 
 { TPlane3 }
@@ -4545,6 +4607,13 @@ begin
     Exit;
   FRotation.Z := AValue;
   Changed(lcRoll);
+end;
+
+procedure TLocation3.SetRotation(const Value: TVector3);
+begin
+  PitchAngle := Value.X;
+  TurnAngle := Value.Y;
+  RollAngle := Value.Z;
 end;
 
 procedure TLocation3.SetTurn(AValue: Single);
@@ -5244,6 +5313,11 @@ begin
   Result := AbsBasicDirs[ADir];
 end;
 
+function IsPosDir(ADir: TBasicDir): Boolean;
+begin
+  Result := ADir in [bdRight, bdUp, bdFront];
+end;
+
 function RotateDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer): TBasicDir;
 begin
   ASteps := IBounds1(4).RangedMod(ASteps);
@@ -5252,7 +5326,7 @@ begin
   Result := BasicDirRotations[ADir, AAxis, ASteps];
 end;
 
-function RotateDir(ADir: TBasicDir2; ASteps: Integer): TBasicDir2; overload;
+function RotateDir(ADir: TBasicDir2; ASteps: Integer): TBasicDir2;
 begin
   ASteps := IBounds1(4).RangedMod(ASteps);
   if ASteps = 0 then
@@ -5334,6 +5408,32 @@ end;
 
 { TAxisSystem }
 
+function TAxisSystem3.GetPlane(ADir: TBasicDir3): TPlane3;
+begin
+{
+    (S: (X: 0; Y: 0; Z: 0); DX: (X: 0; Y: 0; Z: 1); DY: (X: 0; Y: 1; Z: 0)),
+    (S: (X: 1; Y: 0; Z: 1); DX: (X: 0; Y: 0; Z: - 1); DY: (X: 0; Y: 1; Z: 0)),
+    (S: (X: 0; Y: 0; Z: 0); DX: (X: 1; Y: 0; Z: 0); DY: (X: 0; Y: 0; Z: 1)),
+    (S: (X: 0; Y: 1; Z: 1); DX: (X: 1; Y: 0; Z: 0); DY: (X: 0; Y: 0; Z: - 1)),
+    (S: (X: 1; Y: 0; Z: 0); DX: (X: - 1; Y: 0; Z: 0); DY: (X: 0; Y: 1; Z: 0)),
+    (S: (X: 0; Y: 0; Z: 1); DX: (X: 1; Y: 0; Z: 0); DY: (X: 0; Y: 1; Z: 0))
+}
+  case ADir of
+    bdLeft:
+      Result.Create(S, DZ, DY);
+    bdRight:
+      Result.Create(S + DX + DZ, -DZ, DY);
+    bdDown:
+      Result.Create(S, DX, DZ);
+    bdUp:
+      Result.Create(S + DY + DZ, DX, -DZ);
+    bdBack:
+      Result.Create(S + DX, -DX, DY);
+    bdFront:
+      Result.Create(S + DZ, DX, DY);
+  end;
+end;
+
 function TAxisSystem3.GetPoint(APos: TVector3): TVector3;
 begin
   Result := S + APos.X * DX + APos.Y * DY + APos.Z * DZ;
@@ -5376,6 +5476,15 @@ begin
   Result := B.InvPoint[A] in Bounds3(0, 1);
 end;
 
+constructor TAxisSystem3.Create(const ABounds: TBounds3);
+begin
+  Create(
+    ABounds.C1,
+    Vec3(ABounds.C2.X - ABounds.C1.X, 0, 0),
+    Vec3(0, ABounds.C2.Y - ABounds.C1.Y, 0),
+    Vec3(0, 0, ABounds.C2.Z - ABounds.C1.Z));
+end;
+
 class operator TAxisSystem3.Equal(const A, B: TAxisSystem3): Boolean;
 begin
   Result := (A.S = B.S) and (A.DX = B.DX) and (A.DY = B.DY) and (A.DZ = B.DZ);
@@ -5384,6 +5493,19 @@ end;
 class operator TAxisSystem3.NotEqual(const A, B: TAxisSystem3): Boolean;
 begin
   Result := (A.S <> B.S) or (A.DX <> B.DX) or (A.DY = B.DY) or (A.DZ = B.DZ);
+end;
+
+function TAxisSystem3.Rotate(const AOrigin, ANormal: TVector3; AAngle: Single): TAxisSystem3;
+var
+  Rad: Single;
+begin
+  Rad := DegToRad(AAngle);
+  Result.S := S - AOrigin;
+  Result.S := Result.S.RotateRad(ANormal, Rad);
+  Result.S := Result.S + AOrigin;
+  Result.DX := DX.RotateRad(ANormal, Rad);
+  Result.DY := DY.RotateRad(ANormal, Rad);
+  Result.DZ := DZ.RotateRad(ANormal, Rad);
 end;
 
 { TLocation2.TChangeEventInfo }

@@ -18,9 +18,9 @@ uses
   Pengine.Interfaces,
   Pengine.TimeManager;
 
-  // TODO: TGameCamera, that adds aspect change already
+// TODO: TGameCamera, that adds aspect change already
 
-  // TODO: Instead of a renderlist per camera, add a scene class, that you can reference the camera to
+// TODO: Instead of a renderlist per camera, add a scene class, that you can reference the camera to
 
 const
   RotMin = -180;
@@ -555,6 +555,7 @@ var
 
 begin
   Frustum := GetViewFrustum;
+  FMat[mtModel].Invalidate;
   SendAllMatrices;
   RenderList(FRenderObjects);
 end;
@@ -872,4 +873,3 @@ begin
 end;
 
 end.
-

@@ -72,7 +72,7 @@ type
   protected
     function GetLocation: TLocation3; override;
 
-    procedure AddModelData(ADataArray: TModelRenderableBase.TDataArray; AModel: TModel);
+    procedure AddModelData(ADataArray: TDataArray; AModel: TModel);
     procedure AddData(ADataArray: TDataArray); virtual; abstract;
 
   public
@@ -159,7 +159,7 @@ end;
 
 { TBlockRenderer }
 
-procedure TModelRenderableBase.AddModelData(ADataArray: TModelRenderableBase.TDataArray; AModel: TModel);
+procedure TModelRenderableBase.AddModelData(ADataArray: TDataArray; AModel: TModel);
 var
   Elements: TModel.TElements.TReader;
   Element: TModel.TElement;
@@ -178,11 +178,11 @@ begin
   begin
     for Dir := Low(TBasicDir3) to High(TBasicDir3) do
     begin
-      Plane := CubePlanes[Dir];
       if not Element.FaceExists(Dir) then
         Continue;
       if not Element.Faces[Dir].ResolveTexture(AModel, TextureName) then
         Continue;
+      Plane := Element.Bounds.Plane[Dir];
       TexTile := FTextureAtlas[TextureName];
       Bounds.C1 := Bounds2(0, 1).Convert(Element.Faces[Dir].UV.C1, TexTile.Bounds);
       Bounds.C2 := Bounds2(0, 1).Convert(Element.Faces[Dir].UV.C2, TexTile.Bounds);
@@ -194,8 +194,8 @@ begin
         Data.Color := ColorWhite;
       for TexCoord in QuadTexCoords do
       begin
-        Data.Pos := Bounds3(0, 1).Convert(Plane[TexCoord], Element.Size);
-        Data.TexCoord := Bounds[Vec2(TexCoord.X, 1 - TexCoord.Y)];
+        Data.Pos := Plane[TexCoord];
+        Data.TexCoord := Bounds2(0, 1).Convert(Element.Faces[Dir].UVRotated[TexCoord], TexTile.Bounds);
         ADataArray.Add(Data);
       end;
     end;

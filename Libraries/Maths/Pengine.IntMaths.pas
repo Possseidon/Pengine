@@ -816,7 +816,7 @@ const
     (X: 0; Y: + 1)
     );
 
-  Vec3Dir: array [TBasicDir] of TIntVector3 = (
+  Vec3Dir: array [TBasicDir3Nonable] of TIntVector3 = (
     (X: 0; Y: 0; Z: 0),
     (X: - 1; Y: 0; Z: 0),
     (X: + 1; Y: 0; Z: 0),
@@ -825,6 +825,24 @@ const
     (X: 0; Y: 0; Z: - 1),
     (X: 0; Y: 0; Z: + 1)
     );
+
+  Vec1Axis: array [TCoordAxis1Nonable] of Single = (
+    0,
+    1
+  );
+
+  Vec2Axis: array [TCoordAxis2Nonable] of TIntVector2 = (
+    (X: 0; Y: 0),
+    (X: 1; Y: 0),
+    (X: 0; Y: 1)
+  );
+
+  Vec3Axis: array [TCoordAxis3Nonable] of TIntVector3 = (
+    (X: 0; Y: 0; Z: 0),
+    (X: 1; Y: 0; Z: 0),
+    (X: 0; Y: 1; Z: 0),
+    (X: 0; Y: 0; Z: 1)
+  );
 
   FlippedBasicDirs: array [TBasicDir] of TBasicDir = (
     bdNone,

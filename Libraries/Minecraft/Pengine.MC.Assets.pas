@@ -18,7 +18,9 @@ uses
 
   Pengine.MC.Item,
   Pengine.MC.BlockState,
-  Pengine.Vector, Pengine.Color;
+  Pengine.Vector,
+  Pengine.Color,
+  System.Math;
 
 type
 
@@ -134,9 +136,13 @@ type
       FTexture: TTextureVariablePlaceholder;
       FCullFace: TBasicDir3;
       FUVPx: TBounds2;
-        FTintindex: Boolean;
+      FUV: TBounds2;
+      FUVRotated: TAxisSystem2;
+      FTintindex: Boolean;
+      FRotation: Integer;
 
-      function GetUV: TBounds2;
+      function CalcUV: TBounds2;
+      function CalcUVRotated: TAxisSystem2;
 
     public
       constructor Create(AElement: TElement; ADir: TBasicDir3; AJObject: TJObject);
@@ -144,12 +150,22 @@ type
 
       property Element: TElement read FElement;
 
+      /// <summary>Resolves this faces texture name for a given model.</summary>
       function ResolveTexture(AModel: TModel; out AResolved: string): Boolean;
 
+      /// <summary>The texture placeholder for this face.</summary>
       property Texture: TTextureVariablePlaceholder read FTexture;
+      /// <summary>The side to use for culling.</summary>
       property CullFace: TBasicDir3 read FCullFace;
+      /// <summary>UV-Coordinates in Pixels in top-bottom order. <c>[0, 16]</c></summary>
       property UVPx: TBounds2 read FUVPx;
-      property UV: TBounds2 read GetUV;
+      /// <summary>UV-Coordinates in bottom-top order. <c>[0, 1]</c></summary>
+      property UV: TBounds2 read FUV;
+      /// <summary>UV-Coordinates in bottom-top order with c>Rotation</c> applied. <c>[0, 1]</c></summary>
+      property UVRotated: TAxisSystem2 read FUVRotated;
+      /// <summary>The count of counter-clockwise UV-Rotations.</summary>
+      property Rotation: Integer read FRotation;
+      /// <summaryWether to tint this tile like grass or water.</summary>
       property Tintindex: Boolean read FTintindex;
 
     end;
@@ -167,16 +183,44 @@ type
         'south'
         );
 
+    public type
+
+      TRotation = class
+      private
+        FOriginPx: TVector3;
+        FOrigin: TVector3;
+        FAxis: TCoordAxis3;
+        FAngle: Single;
+        FRescale: Boolean;
+
+        class function AxisFromName(AName: string): TCoordAxis3;
+
+      public
+        constructor Create(AJObject: TJObject);
+
+        property OriginPx: TVector3 read FOriginPx;
+        property Origin: TVector3 read FOrigin;
+        property Axis: TCoordAxis3 read FAxis;
+        property Angle: Single read FAngle;
+        property Rescale: Boolean read FRescale;
+
+      end;
+
     private
       FModel: TModel;
       FSizePx: TBounds3;
+      FSize: TBounds3;
+      FBounds: TAxisSystem3;
       FFaces: array [TBasicDir3] of TFace;
+      FRotation: TRotation;
       FShade: Boolean;
 
       function GetFace(ADir: TBasicDir3): TFace;
 
       class function DirFromName(AName: string): TBasicDir3;
-      function GetSize: TBounds3;
+
+      function CalcSize: TBounds3;
+      function CalcBounds: TAxisSystem3;
 
     public
       constructor Create(AModel: TModel; AJObject: TJObject);
@@ -184,8 +228,12 @@ type
 
       property Model: TModel read FModel;
 
+      /// <summary>The size of this element in Pixels. <c>[0, 16]</c></summary>
       property SizePx: TBounds3 read FSizePx;
-      property Size: TBounds3 read GetSize;
+      /// <summary>The size of this element. <c>[0, 1]</c></summary>
+      property Size: TBounds3 read FSize;
+      property Bounds: TAxisSystem3 read FBounds;
+      property Rotation: TRotation read FRotation;
 
       property Faces[ADir: TBasicDir3]: TFace read GetFace;
       function FaceExists(ADir: TBasicDir3): Boolean;
@@ -193,6 +241,21 @@ type
       function FaceCount: Integer;
 
       property Shade: Boolean read FShade;
+
+    end;
+
+    TDisplay = class
+    private
+      FRotation: TVector3;
+      FTranslation: TVector3;
+      FScale: TVector3;
+
+    public
+      constructor Create(AJObject: TJObject);
+
+      property Rotation: TVector3 read FRotation;
+      property Translation: TVector3 read FTranslation;
+      property Scale: TVector3 read FScale;
 
     end;
 
@@ -216,10 +279,12 @@ type
     FBuiltinType: TBuiltinType;
     FElements: TElements;
     FTextures: TTextures;
+    FGUIDisplay: TDisplay;
 
     function GetTextures: TTextures.TReader;
     function GetElements: TElements.TReader;
     function GetTexturesRecursive: TTextures.TReader;
+    function GetGUIDisplay: TDisplay;
 
   public
     constructor Create(AAssets: TAssetsSettings; AJObject: TJObject);
@@ -232,6 +297,8 @@ type
     property Elements: TElements.TReader read GetElements;
     property Textures: TTextures.TReader read GetTextures;
     property TexturesRecursive: TTextures.TReader read GetTexturesRecursive;
+
+    property GUIDisplay: TDisplay read GetGUIDisplay;
 
     function ResolveTexture(var AName: string; out AResolved: string): Boolean;
 
@@ -317,19 +384,17 @@ type
   TVariant = class
   private
     FModel: TModel;
-    FX: TBasicDir2;
-    FY: TBasicDir2;
+    FX: Integer;
+    FY: Integer;
     FUVLock: Boolean;
     FWeight: Integer;
-
-    class function RotToDir(AInteger: Integer): TBasicDir2;
 
   public
     constructor Create(AAssets: TAssetsSettings; AJObject: TJObject);
 
     property Model: TModel read FModel;
-    property X: TBasicDir2 read FX;
-    property Y: TBasicDir2 read FY;
+    property X: Integer read FX;
+    property Y: Integer read FY;
     property UVLock: Boolean read FUVLock;
     property Weight: Integer read FWeight;
 
@@ -770,6 +835,8 @@ var
   ParentName: string;
   Found: Boolean;
   JElement: TJValue;
+  JDisplay: TJObject;
+  JGUIDisplay: TJObject;
 begin
   FAssets := AAssets;
 
@@ -809,10 +876,19 @@ begin
     for JElement in JElements.AsArray do
       FElements.Add(TElement.Create(Self, JElement.AsObject));
   end;
+
+  JDisplay := AJObject['display'].AsObject;
+  if JDisplay.Exists then
+  begin
+    JGUIDisplay := JDisplay['gui'].AsObject;
+    if JGUIDisplay.Exists then
+      FGUIDisplay := TDisplay.Create(JDisplay['gui'].AsObject);
+  end;
 end;
 
 destructor TModel.Destroy;
 begin
+  FGUIDisplay.Free;
   FElements.Free;
   FTextures.Free;
   inherited;
@@ -824,6 +900,15 @@ begin
     Exit(FElements.Reader);
   if Parent <> nil then
     Exit(Parent.Elements);
+  Result := nil;
+end;
+
+function TModel.GetGUIDisplay: TDisplay;
+begin
+  if FGUIDisplay <> nil then
+    Exit(FGUIDisplay);
+  if FParent <> nil then
+    Exit(Parent.GUIDisplay);
   Result := nil;
 end;
 
@@ -856,16 +941,13 @@ function TModel.ResolveTexture(var AName: string; out AResolved: string): Boolea
 var
   Variable: TTextureVariable;
 begin
+  Result := False;
   if Parent <> nil then
-  begin
     Result := Parent.ResolveTexture(AName, AResolved);
-    if Result then
-      Exit(True);
-  end;
   if Textures = nil then
-    Exit(False);
+    Exit;
   if not Textures.Get(AName, Variable) then
-    Exit(False);
+    Exit;
   if Variable is TTextureVariableDirect then
   begin
     AResolved := TTextureVariableDirect(Variable).Texture.Name;
@@ -882,25 +964,37 @@ var
   JVec: TJWrapper;
   JPair: TJPair;
   FaceDir: TBasicDir3;
+  JRotation: TJObject;
 begin
   FModel := AModel;
+
   JVec := AJObject['from'];
   FSizePx.C1 := Vec3(JVec[0], JVec[1], JVec[2]);
+
   JVec := AJObject['to'];
   FSizePx.C2 := Vec3(JVec[0], JVec[1], JVec[2]);
-  // TODO: Rotation
+
+  JRotation := AJObject['rotation'].AsObject;
+  if JRotation.Exists then
+    FRotation := TRotation.Create(JRotation);
+
   FShade := AJObject['shade'] or True;
+
   for JPair in AJObject['faces'] do
   begin
     FaceDir := DirFromName(JPair.Key);
     FFaces[FaceDir] := TFace.Create(Self, FaceDir, JPair.Value.AsObject);
   end;
+
+  FSize := CalcSize;
+  FBounds := CalcBounds;
 end;
 
 destructor TModel.TElement.Destroy;
 var
   Face: TFace;
 begin
+  FRotation.Free;
   for Face in FFaces do
     Face.Free;
   inherited;
@@ -934,7 +1028,26 @@ begin
   Result := FFaces[ADir];
 end;
 
-function TModel.TElement.GetSize: TBounds3;
+function TModel.TElement.CalcBounds: TAxisSystem3;
+begin
+  Result.Create(Size);
+  if Rotation = nil then
+    Exit;
+  Result := Result.Rotate(Rotation.Origin, Vec3Axis[Rotation.Axis], Rotation.Angle);
+  if Rotation.Rescale then
+  begin
+    Result.S := Result[0.5];
+    if Rotation.Axis <> caX then
+      Result.DX := Result.DX / Cos(DegToRad(Rotation.Angle));
+    if Rotation.Axis <> caY then
+      Result.DY := Result.DY / Cos(DegToRad(Rotation.Angle));
+    if Rotation.Axis <> caZ then
+      Result.DZ := Result.DZ / Cos(DegToRad(Rotation.Angle));
+    Result.S := Result.Point[-0.5];
+  end;
+end;
+
+function TModel.TElement.CalcSize: TBounds3;
 begin
   Result := SizePx / 16;
 end;
@@ -1079,26 +1192,10 @@ end;
 constructor TVariant.Create(AAssets: TAssetsSettings; AJObject: TJObject);
 begin
   FModel := AAssets.ModelCollection.Models[AJObject['model']];
-  FX := RotToDir(AJObject['x'] or 0);
-  FY := RotToDir(AJObject['y'] or 0);
+  FX := (AJObject['x'] or 0) div 90;
+  FY := (AJObject['y'] or 0) div 90;
   FUVLock := AJObject['uvlock'] or False;
   FWeight := AJObject['weight'] or 1;
-end;
-
-class function TVariant.RotToDir(AInteger: Integer): TBasicDir2;
-begin
-  case AInteger of
-    0:
-      Result := bdLeft;
-    90:
-      Result := bdDown;
-    180:
-      Result := bdRight;
-    270:
-      Result := bdUp;
-  else
-    raise Exception.Create('Invalid model variant rotation.');
-  end;
 end;
 
 { TModel.TFace }
@@ -1120,10 +1217,15 @@ begin
     FCullFace := TElement.DirFromName(JCullFace)
   else
     FCullFace := ADir;
+
   FTexture := TTextureVariablePlaceholder.Create(AJObject['texture'].AsString.Substring(1));
-  // TODO: Rotation
+
+  FRotation := (AJObject['rotation'] or 0) div 90;
 
   FTintindex := AJObject['tintindex'].Exists;
+
+  FUV := CalcUV;
+  FUVRotated := CalcUVRotated;
 end;
 
 destructor TModel.TFace.Destroy;
@@ -1132,10 +1234,16 @@ begin
   inherited;
 end;
 
-function TModel.TFace.GetUV: TBounds2;
+function TModel.TFace.CalcUV: TBounds2;
 begin
-  Result := FUVPx / 16;
-  Result.LineY := 1 - Result.LineY;
+  Result := UVPx / 16;
+  Result.LineY := (1 - Result.LineY).Flip;
+end;
+
+function TModel.TFace.CalcUVRotated: TAxisSystem2;
+begin
+  Result.Create(UV);
+  Result := Result.RotateCorners(Rotation);
 end;
 
 function TModel.TFace.ResolveTexture(AModel: TModel; out AResolved: string): Boolean;
@@ -1144,6 +1252,46 @@ var
 begin
   Name := Texture.Name;
   Result := AModel.ResolveTexture(Name, AResolved);
+end;
+
+{ TModel.TElement.TRotation }
+
+class function TModel.TElement.TRotation.AxisFromName(AName: string): TCoordAxis3;
+begin
+  for Result := caX to caZ do
+    if AName = CoordAxisNamesLow[Result] then
+      Exit;
+  raise Exception.CreateFmt('Unknown axis "%s".', [AName]);
+end;
+
+constructor TModel.TElement.TRotation.Create(AJObject: TJObject);
+var
+  JOrigin: TJArray;
+begin
+  JOrigin := AJObject['origin'].AsArray;
+  FOriginPx := Vec3(JOrigin[0], JOrigin[1], JOrigin[2]);
+  FOrigin := FOriginPx / 16;
+  FAxis := AxisFromName(AJObject['axis']);
+  FAngle := AJObject['angle'];
+  FRescale := AJObject['rescale'] or False;
+end;
+
+{ TModel.TDisplay }
+
+constructor TModel.TDisplay.Create(AJObject: TJObject);
+
+  function GetVec(AName: string): TVector3;
+  var
+    JVec: TJArray;
+  begin
+    JVec := AJObject[AName].AsArray;
+    Result.Create(JVec[0], JVec[1], JVec[2]);
+  end;
+
+begin
+  FRotation := GetVec('rotation');
+  FTranslation := GetVec('translation');
+  FScale := GetVec('scale');
 end;
 
 end.
