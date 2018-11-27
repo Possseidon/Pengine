@@ -625,10 +625,10 @@ begin
     Result := Location.AxisSystem;
     Result.S := Result.S - Aspect * 0.5 * Result.DX - 0.5 * Result.DY;
     Result.DX := Result.DX * Aspect;
-    FBounds.Value := Result;
+    FBounds := Result;
   end
   else
-    Result := FBounds.Value;
+    Result := FBounds;
 end;
 
 function TSprite.GetFadeSubTextureIndex: Integer;
@@ -736,7 +736,6 @@ constructor TSprite.Create(ASpriteSystem: TSpriteSystem; ATextureTile: TTextureA
 begin
   FSpriteSystem := ASpriteSystem;
   FBehaviors := TBehaviors.Create;
-  FBounds := TOpt<TAxisSystem2>.Create;
   FLocation := TLocation2.Create;
   FColor := ColorWhite;
   ResetBorder;
@@ -750,7 +749,6 @@ var
   I: Integer;
 begin
   FLocation.Free;
-  FBounds.Free;
   for Behavior in FBehaviors.InReverse do
     Behavior.Free;
   FBehaviors.Free;

@@ -284,7 +284,7 @@ type
 
       Parsers: array [0 .. 9] of TParserClass = (
         TBrigadierComponentParser,
-        TJValue.TParser,
+        TJBase.TParser,
         TJObject.TParser,
         TJArray.TParser,
         TJString.TParser,

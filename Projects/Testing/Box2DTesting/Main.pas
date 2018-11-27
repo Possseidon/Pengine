@@ -103,12 +103,13 @@ begin
   Behavior := TPhysicBehaivor.Create(Sprite, FWorld, TBody.TDef.Create(btDynamic, APos));
 
   Shape := TCircle.Create;
+  // Shape.SetBox(Sprite.Location.Scale.X * 0.49);
   Shape.Radius := Sprite.Location.Scale.X * 0.49;
 
   FixtureDef := TFixture.TDef.Create(Shape);
   FixtureDef.Density := 20;
   FixtureDef.Friction := 0.1;
-  FixtureDef.Restitution := 0.3;
+  FixtureDef.Restitution := 0.9;
 
   Behavior.Body.Fixtures.Add(FixtureDef);
   // Behavior.Body.FixedRotation := True;
@@ -251,7 +252,7 @@ begin
   FixtureDef := TFixture.TDef.Create(Chain);
   FixtureDef.Density := 1.0;
   FixtureDef.Friction := 0.3;
-  FixtureDef.Restitution := 0.1;
+  FixtureDef.Restitution := 0.3;
 
   FFloor.Fixtures.Add(FixtureDef);
 

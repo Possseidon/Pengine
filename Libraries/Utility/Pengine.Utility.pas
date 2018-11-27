@@ -26,10 +26,11 @@ type
   end;
 
   /// <summary>A wrapper, to make any type optional.</summary>
-  TOpt<T> = class
+  TOpt<T> = record
   public type
 
-    TReader = class
+    PReader = ^TReader;
+    TReader = record
     private
       function GetHasValue: Boolean;
       function GetValue: T;
@@ -41,20 +42,18 @@ type
     end;
 
   private
-    FHasValue: Boolean;
+    FHasValue: IInterface;
     FValue: T;
 
     function GetValue: T;
     procedure SetValue(const Value: T);
 
   public
-    /// <summary>Creates a new object without value.</summary>
-    constructor Create; overload;
     /// <summary>Creates a new object with value.</summary>
     constructor Create(AValue: T); overload;
 
-    /// <summary>Wether there currently is a valid value.</summary>
-    property HasValue: Boolean read FHasValue;
+    /// <returns>Wether there currently is a valid value.</returns>
+    function HasValue: Boolean;
     /// <summary>The value.</summary>
     /// <exception><see cref="Pengine.Collections|EOptWrapperNoValue"/> if there is no value.</exception>
     property Value: T read GetValue write SetValue;
@@ -64,59 +63,39 @@ type
 
     function Reader: TReader;
 
-    function Copy: TOpt<T>;
+    class operator Implicit(AValue: T): TOpt<T>;
+    class operator Implicit(AOpt: TOpt<T>): T;
+    class operator LogicalOr(AOpt: TOpt<T>; ADefault: T): T;
 
-  end;
-
-  /// <summary>A wrapper, that allows value types of any size.</summary>
-  TOptRef<T> = class
-  private
-    FValueRef: TRef<T>;
-
-    function GetHasValue: Boolean;
-
-    function GetValue: T;
-    procedure SetValue(const Value: T);
-
-  public
-    /// <summary>Creates a new object without value.</summary>
-    constructor Create; overload;
-    /// <summary>Creates a new object with value.</summary>
-    constructor Create(AValue: T); overload;
-    destructor Destroy; override;
-
-    /// <summary>Wether there currently is a valid value.</summary>
-    property HasValue: Boolean read GetHasValue;
-    /// <summary>The value.</summary>
-    /// <exception><see cref="Pengine.Collections|EOptWrapperNoValue"/> if there is no value.</exception>
-    property Value: T read GetValue write SetValue;
-
-    /// <summary>Removes the value.</summary>
-    procedure Clear;
+    class operator Equal(A, B: TOpt<T>): Boolean;
+    class operator NotEqual(A, B: TOpt<T>): Boolean;
 
   end;
 
   /// <summary>Wraps an optional owned object, which can be changed to a new instance publicly.</summary>
   /// <remarks>Useful to replace expensive object assignments with simply recreating a new object.</remarks>
-  TOwned<T: class> = class
+  TOwned<T: class> = record
   private
-    FValue: T;
+    FValue: IOwningInterface;
 
     procedure SetValue(const Value: T);
+    function GetValue: T;
 
   public
     /// <summary>Initialized the owned object with the given instance.</summary>
     constructor Create(AValue: T); overload;
-    destructor Destroy; override;
 
     /// <returns>True, if an object is currently owned.</returns>
     function HasValue: Boolean;
     /// <summary>The current object.</summary>
-    property Value: T read FValue write SetValue;
+    property Value: T read GetValue write SetValue;
     /// <summary>Frees the current object and sets the reference to nil.</summary>
     procedure Reset;
     /// <returns>The current owned object and resets itself, without freeing said object.</returns>
     function Own: T;
+
+    class operator Implicit(AValue: T): TOwned<T>;
+    class operator Implicit(AValue: TOwned<T>): T;
 
   end;
 
@@ -198,28 +177,42 @@ begin
   Result := FValue;
 end;
 
+function TOpt<T>.HasValue: Boolean;
+begin
+  Result := FHasValue <> nil;
+end;
+
+class operator TOpt<T>.Implicit(AOpt: TOpt<T>): T;
+begin
+  Result := AOpt.Value;
+end;
+
+class operator TOpt<T>.Implicit(AValue: T): TOpt<T>;
+begin
+  Result.Value := AValue;
+end;
+
+class operator TOpt<T>.LogicalOr(AOpt: TOpt<T>; ADefault: T): T;
+begin
+  if AOpt.HasValue then
+    Exit(AOpt.Value);
+  Result := ADefault;
+end;
+
+class operator TOpt<T>.NotEqual(A, B: TOpt<T>): Boolean;
+begin
+  Result := not (A = B);
+end;
+
 function TOpt<T>.Reader: TReader;
 begin
-  Result := TReader(Self);
+  Result := PReader(@Self)^;
 end;
 
 procedure TOpt<T>.SetValue(const Value: T);
 begin
-  FHasValue := True;
+  FHasValue := DummyInterface;
   FValue := Value;
-end;
-
-constructor TOpt<T>.Create;
-begin
-  // nothing
-end;
-
-function TOpt<T>.Copy: TOpt<T>;
-begin
-  if HasValue then
-    Result := TOpt<T>.Create(Value)
-  else
-    Result := TOpt<T>.Create;
 end;
 
 constructor TOpt<T>.Create(AValue: T);
@@ -227,82 +220,53 @@ begin
   Value := AValue;
 end;
 
+class operator TOpt<T>.Equal(A, B: TOpt<T>): Boolean;
+begin
+  Result := A.HasValue = B.HasValue and (not A.HasValue or CompareMem(@A.FValue, @B.FValue, SizeOf(T)));
+end;
+
 procedure TOpt<T>.Clear;
 begin
-  FHasValue := False;
-end;
-
-{ TOptRef<T> }
-
-function TOptRef<T>.GetHasValue: Boolean;
-begin
-  Result := FValueRef <> nil;
-end;
-
-function TOptRef<T>.GetValue: T;
-begin
-  if not HasValue then
-    raise EOptWrapperNoValue.Create;
-  Result := FValueRef.Value;
-end;
-
-procedure TOptRef<T>.SetValue(const Value: T);
-begin
-  if FValueRef = nil then
-    FValueRef := TRef<T>.Create(Value)
-  else
-    FValueRef.Value := Value;
-end;
-
-constructor TOptRef<T>.Create;
-begin
-  // nothing
-end;
-
-constructor TOptRef<T>.Create(AValue: T);
-begin
-  Value := AValue;
-end;
-
-destructor TOptRef<T>.Destroy;
-begin
-  FValueRef.Free;
-  inherited;
-end;
-
-procedure TOptRef<T>.Clear;
-begin
-  FValueRef := nil;
+  FHasValue := nil;
 end;
 
 { TOpt<T>.TReader }
 
 function TOpt<T>.TReader.GetHasValue: Boolean;
 begin
-  Result := TOpt<T>(Self).HasValue;
+  Result := TOpt<T>(Pointer(@Self)^).HasValue;
 end;
 
 function TOpt<T>.TReader.GetValue: T;
 begin
-  Result := TOpt<T>(Self).Value;
+  Result := TOpt<T>(Pointer(@Self)^).Value;
 end;
 
 { TOwned<T> }
 
 constructor TOwned<T>.Create(AValue: T);
 begin
-  FValue := AValue;
+  Value := AValue;
 end;
 
-destructor TOwned<T>.Destroy;
+function TOwned<T>.GetValue: T;
 begin
-  FValue.Free;
-  inherited;
+  Result := T(FValue.Value);
 end;
 
 function TOwned<T>.HasValue: Boolean;
 begin
   Result := FValue <> nil;
+end;
+
+class operator TOwned<T>.Implicit(AValue: TOwned<T>): T;
+begin
+  Result := AValue.Value;
+end;
+
+class operator TOwned<T>.Implicit(AValue: T): TOwned<T>;
+begin
+  Result.Value := AValue;
 end;
 
 procedure TOwned<T>.Reset;
@@ -312,14 +276,15 @@ end;
 
 procedure TOwned<T>.SetValue(const Value: T);
 begin
-  FValue.Free;
-  FValue := Value;
+  if Value = nil then
+    FValue := nil
+  else
+    FValue := TOwningInterface.Create(Value);
 end;
 
 function TOwned<T>.Own: T;
 begin
-  Result := FValue;
-  FValue := nil;
+  Result := T(FValue.Own);
 end;
 
 end.

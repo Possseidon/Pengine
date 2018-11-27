@@ -894,7 +894,6 @@ type
   public
     constructor Create(AArgument: TBrigadierArgument); overload; override;
     constructor Create(AArgument: TBrigadierArgument; APredicate: TItemStack); reintroduce; overload;
-    destructor Destroy; override;
 
     /// <summary>Either an item stack or an item tag.</summary>
     property Predicate: TOwned<TItemStack> read FPredicate;
@@ -920,9 +919,7 @@ type
     FPredicate: TOwned<TBlockState>;
 
   public
-    constructor Create(AArgument: TBrigadierArgument); overload; override;
     constructor Create(AArgument: TBrigadierArgument; APredicate: TBlockState); reintroduce; overload;
-    destructor Destroy; override;
 
     /// <summary>Either a block state or a block tag.</summary>
     property Predicate: TOwned<TBlockState> read FPredicate;
@@ -1064,14 +1061,13 @@ type
   /// <summary>A json text component used in commands like tellraw and such.</summary>
   TBrigadierComponent = class(TBrigadierArgumentParameter)
   private
-    FJSON: TOwned<TJValue>;
+    FJSON: TOwned<TJBase>;
 
   public
     constructor Create(AArgument: TBrigadierArgument); overload; override;
-    constructor Create(AArgument: TBrigadierArgument; AJSON: TJValue); reintroduce; overload;
-    destructor Destroy; override;
+    constructor Create(AArgument: TBrigadierArgument; AJSON: TJBase); reintroduce; overload;
 
-    property JSON: TOwned<TJValue> read FJSON;
+    property JSON: TOwned<TJBase> read FJSON;
 
     function Format: string; override;
 
@@ -1258,7 +1254,6 @@ type
   public
     constructor Create(AArgument: TBrigadierArgument); overload; override;
     constructor Create(AArgument: TBrigadierArgument; ASlot: TItemSlot); reintroduce; overload;
-    destructor Destroy; override;
 
     property Slot: TOwned<TItemSlot> read FSlot;
 
@@ -1282,9 +1277,7 @@ type
     FCriteria: TOwned<TScoreboardCriteria>;
 
   public
-    constructor Create(AArgument: TBrigadierArgument); overload; override;
     constructor Create(AArgument: TBrigadierArgument; ACriteria: TScoreboardCriteria); reintroduce; overload;
-    destructor Destroy; override;
 
     property Criteria: TOwned<TScoreboardCriteria> read FCriteria;
 
@@ -1365,8 +1358,8 @@ end;
 constructor TBrigadierIntegerProperties.Create(AProperties: TJObject);
 begin
   inherited;
-  Min := AProperties['min'].IntOrDefault(Integer.MinValue);
-  Max := AProperties['max'].IntOrDefault(Integer.MaxValue);
+  Min := AProperties['min'] or Integer.MinValue;
+  Max := AProperties['max'] or Integer.MaxValue;
 end;
 
 { TBrigadierIntegerParser }
@@ -1632,8 +1625,8 @@ end;
 constructor TBrigadierFloatProperties.Create(AProperties: TJObject);
 begin
   inherited;
-  Min := AProperties['min'].FloatOrDefault(-Infinity);
-  Max := AProperties['max'].FloatOrDefault(+Infinity);
+  Min := AProperties['min'] or -Infinity;
+  Max := AProperties['max'] or +Infinity;
 end;
 
 { TBrigadierFloatParser }
@@ -1686,8 +1679,8 @@ end;
 constructor TBrigadierDoubleProperties.Create(AProperties: TJObject);
 begin
   inherited;
-  Min := AProperties['min'].FloatOrDefault(-Infinity);
-  Max := AProperties['max'].FloatOrDefault(+Infinity);
+  Min := AProperties['min'] or -Infinity;
+  Max := AProperties['max'] or +Infinity;
 end;
 
 { TBrigadierDoubleParser }
@@ -2369,18 +2362,6 @@ begin
   FPredicate := TOwned<TBlockState>.Create(APredicate);
 end;
 
-constructor TBrigadierBlockPredicate.Create(AArgument: TBrigadierArgument);
-begin
-  inherited;
-  FPredicate := TOwned<TBlockState>.Create;
-end;
-
-destructor TBrigadierBlockPredicate.Destroy;
-begin
-  FPredicate.Free;
-  inherited;
-end;
-
 function TBrigadierBlockPredicate.Format: string;
 begin
   Result := Predicate.Value.Format;
@@ -2789,19 +2770,13 @@ end;
 constructor TBrigadierComponent.Create(AArgument: TBrigadierArgument);
 begin
   inherited;
-  FJSON := TOwned<TJValue>.Create(TJObject.Create);
+  FJSON := TJObject.Create;
 end;
 
-constructor TBrigadierComponent.Create(AArgument: TBrigadierArgument; AJSON: TJValue);
+constructor TBrigadierComponent.Create(AArgument: TBrigadierArgument; AJSON: TJBase);
 begin
   inherited Create(AArgument);
-  FJSON := TOwned<TJValue>.Create(AJSON);
-end;
-
-destructor TBrigadierComponent.Destroy;
-begin
-  FJSON.Free;
-  inherited;
+  FJSON := AJSON;
 end;
 
 function TBrigadierComponent.Format: string;
@@ -2823,9 +2798,9 @@ end;
 
 function TBrigadierComponentParser.Parse: Boolean;
 var
-  Parser: TJValue.TParser;
+  Parser: TJBase.TParser;
 begin
-  Parser := TJValue.TParser.Create(Info, False);
+  Parser := TJBase.TParser.Create(Info, False);
   Result := Parser.Success;
   if Result then
     SetParseResult(TBrigadierComponent.Create(Argument, Parser.OwnParseResult));
@@ -3209,19 +3184,13 @@ end;
 constructor TBrigadierItemPredicate.Create(AArgument: TBrigadierArgument);
 begin
   inherited;
-  FPredicate := TOwned<TItemStack>.Create(TItemStack.Create);
+  FPredicate := TItemStack.Create;
 end;
 
 constructor TBrigadierItemPredicate.Create(AArgument: TBrigadierArgument; APredicate: TItemStack);
 begin
   inherited Create(AArgument);
-  FPredicate := TOwned<TItemStack>.Create(APredicate);
-end;
-
-destructor TBrigadierItemPredicate.Destroy;
-begin
-  FPredicate.Free;
-  inherited;
+  FPredicate := APredicate;
 end;
 
 function TBrigadierItemPredicate.Format: string;
@@ -3269,20 +3238,14 @@ end;
 constructor TBrigadierItemSlot.Create(AArgument: TBrigadierArgument);
 begin
   inherited;
-  FSlot := TOwned<TItemSlot>.Create(TItemSlotContainer.Create);
+  FSlot := TItemSlotContainer.Create;
   FSlot.Value.SetIndex(0);
 end;
 
 constructor TBrigadierItemSlot.Create(AArgument: TBrigadierArgument; ASlot: TItemSlot);
 begin
   inherited Create(AArgument);
-  FSlot := TOwned<TItemSlot>.Create(ASlot);
-end;
-
-destructor TBrigadierItemSlot.Destroy;
-begin
-  FSlot.Free;
-  inherited;
+  FSlot := ASlot;
 end;
 
 function TBrigadierItemSlot.Format: string;
@@ -3315,22 +3278,10 @@ end;
 
 { TBrigadierObjectiveCriteria }
 
-constructor TBrigadierObjectiveCriteria.Create(AArgument: TBrigadierArgument);
-begin
-  inherited;
-  FCriteria := TOwned<TScoreboardCriteria>.Create;
-end;
-
 constructor TBrigadierObjectiveCriteria.Create(AArgument: TBrigadierArgument; ACriteria: TScoreboardCriteria);
 begin
   inherited Create(AArgument);
-  FCriteria := TOwned<TScoreboardCriteria>.Create(ACriteria);
-end;
-
-destructor TBrigadierObjectiveCriteria.Destroy;
-begin
-  FCriteria.Free;
-  inherited;
+  FCriteria := ACriteria;
 end;
 
 function TBrigadierObjectiveCriteria.Format: string;

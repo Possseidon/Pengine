@@ -197,6 +197,11 @@ type
     class function CanIndex(const AValue: T): Boolean; override;
   end;
 
+  TCharHasher = class(THasher<Char, TCharEqualler>)
+  public
+    class function GetHash(const AValue: Char): Cardinal; override;
+  end;
+
   // Hashers end, everything else in other units!
   {
   // TODO: XmlDoc
@@ -875,6 +880,13 @@ var
   AsClass: TClass absolute AValue;
 begin
   Result := TClassHasher.GetHash(AsClass);
+end;
+
+{ TCharHasher }
+
+class function TCharHasher.GetHash(const AValue: Char): Cardinal;
+begin
+  Result := Ord(AValue);
 end;
 
 end.

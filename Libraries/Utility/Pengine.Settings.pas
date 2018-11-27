@@ -111,6 +111,7 @@ type
     FJObject: TJObject;
     FVersion: Integer;
     FLock: TCriticalSection;
+    FLoadCanceled: Boolean;
 
     procedure SetPath(const Value: string);
 
@@ -118,6 +119,8 @@ type
     constructor Create; reintroduce;
     destructor Destroy; override;
 
+    property LoadCanceled: Boolean read FLoadCanceled;
+    
     property Version: Integer read FVersion;
 
     property Path: string read FPath write SetPath;
@@ -210,10 +213,24 @@ end;
 
 procedure TSettings.Reload;
 var
+  DependentSet: TRefSet<TSettings>;
   Dependent: TSettings;
+
+  procedure Add(ASettings: TSettings);
+  var
+    Dependent: TSettings;
+  begin
+    for Dependent in ASettings.FDependents do
+    begin
+      DependentSet.TryAdd(Dependent);
+      Add(Dependent);
+    end;
+  end;
+
 begin
   DoReload;
-  for Dependent in FDependents do
+  Add(Self);
+  for Dependent in DependentSet do
     Dependent.Reload;
   FOnReload.Execute(TEventInfo.Create(Self));
 end;
@@ -241,6 +258,7 @@ var
   SubSettings: TSettings;
 begin
   FLock.Enter;
+  FLoadCanceled := True;
   for SubSettings in FSubSettings.Values do
   begin
     TMonitor.Enter(SubSettings);
@@ -266,7 +284,7 @@ begin
     TMonitor.Enter(Result);
     FLock.Leave;
     Result.SetDefaults;
-    if not Result.SkipSave and FJObject.Get<TJObject>(Result.GetName(Version), JSettings) then
+    if not Result.SkipSave and FJObject.Get(Result.GetName(Version), JSettings) then
       TJSerializer.Unserialize(Result, JSettings);
     Result.DoReload;
     TMonitor.Exit(Result);

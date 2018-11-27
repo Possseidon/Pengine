@@ -445,7 +445,7 @@ end;
 
 constructor TBrigadierLiteral.Create(ARoot: TBrigadierRoot; AJPair: TJPair);
 begin
-  inherited Create(ARoot, AJPair.AsObject);
+  inherited Create(ARoot, AJPair.Value);
   FLiteral := AJPair.Key;
 end;
 
@@ -465,14 +465,14 @@ constructor TBrigadierArgument.Create(ARoot: TBrigadierRoot; AJPair: TJPair);
 var
   ParserName: string;
 begin
-  inherited Create(ARoot, AJPair.AsObject);
+  inherited Create(ARoot, AJPair.Value);
   FName := AJPair.Key;
-  ParserName := AJPair.AsObject['parser'].AsString;
+  ParserName := AJPair.Value['parser'].AsString;
   FParserClass := TBrigadierParser.GetParserClass(ParserName);
   if ParserClass <> nil then
   begin
     if ParserClass.GetPropertiesClass <> nil then
-      FParserProperties := ParserClass.GetPropertiesClass.Create(AJPair.AsObject['properties'].AsObject);
+      FParserProperties := ParserClass.GetPropertiesClass.Create(AJPair.Value['properties']);
   end
   else
   begin
@@ -521,7 +521,7 @@ class function TBrigadierChild.CreateTyped(ARoot: TBrigadierRoot; AJPair: TJPair
 var
   ChildType: string;
 begin
-  ChildType := AJPair.AsObject['type'].AsString;
+  ChildType := AJPair.Value['type'];
   if ChildType = TBrigadierLiteral.GetTypeString then
     Result := TBrigadierLiteral.Create(ARoot, AJPair)
   else if ChildType = TBrigadierArgument.GetTypeString then
@@ -620,31 +620,26 @@ end;
 
 procedure TBrigadierChild.LoadChildren(AJObject: TJObject);
 var
-  JChildren: TJObject;
   JChild: TJPair;
   Child: TBrigadierChild;
 begin
   FLiterals := TLiterals.Create;
   FArguments := TArguments.Create;
-  JChildren := AJObject['children'].AsObject;
-  if JChildren.Exists then
+  for JChild in AJObject['children'].AsObject do
   begin
-    for JChild in JChildren do
-    begin
-      Child := TBrigadierChild.CreateTyped(Root, JChild);
-      if Child is TBrigadierLiteral then
-        FLiterals.Add(TBrigadierLiteral(Child))
-      else if Child is TBrigadierArgument then
-        FArguments.Add(TBrigadierArgument(Child))
-      else
-        raise EBrigadierUnknownChildType.Create;
-    end;
+    Child := TBrigadierChild.CreateTyped(Root, JChild);
+    if Child is TBrigadierLiteral then
+      FLiterals.Add(TBrigadierLiteral(Child))
+    else if Child is TBrigadierArgument then
+      FArguments.Add(TBrigadierArgument(Child))
+    else
+      raise EBrigadierUnknownChildType.Create;
   end;
 end;
 
 procedure TBrigadierChild.LoadExecutable(AJObject: TJObject);
 begin
-  FExecutable := AJObject['executable'].BoolOrDefault;
+  FExecutable := AJObject['executable'] or False;
 end;
 
 procedure TBrigadierChild.LoadRedirect(AJObject: TJObject);

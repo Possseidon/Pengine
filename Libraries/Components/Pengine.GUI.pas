@@ -66,10 +66,8 @@ type
       function GetOldColor: TOpt<TColorRGBA>.TReader;
 
     public
-      constructor Create(ASender: TControl); overload;
       constructor Create(ASender: TControl; AOldColor: TColorRGBA); overload;
       constructor Create(ASender: TControl; AOldColor: TOpt<TColorRGBA>); overload;
-      destructor Destroy; override;
 
       property OldColor: TOpt<TColorRGBA>.TReader read GetOldColor;
 
@@ -306,7 +304,6 @@ begin
   end;
   FSprites := TSprites.Create;
   FCharSprites := TCharSprites.Create;
-  FFontColor := TOpt<TColorRGBA>.Create;
   FOrigin := TOrigin.Create(oxCenter, oyCenter);
   OnOriginChanged.Add(SelfOriginChanged);
   OnAspectChanged.Add(SelfAspectChanged);
@@ -324,7 +321,6 @@ begin
   for Sprite in FCharSprites do
     Sprite.Remove;
 
-  FFontColor.Free;
   FCharSprites.Free;
   FSprites.Free;
   FLocation.Free;
@@ -357,10 +353,10 @@ end;
 function TControl.GetFontColor: TColorRGBA;
 begin
   if FFontColor.HasValue then
-    Exit(FFontColor.Value);
+    Exit(FFontColor);
   if Parent <> nil then
     Exit(Parent.FontColor);
-  FFontColor.Value := ColorWhite;
+  FFontColor := ColorWhite.ToRGBA;
   Result := FontColor;
 end;
 
@@ -480,16 +476,15 @@ var
   CharSprite: TCharSprite;
   OldColor: TOpt<TColorRGBA>;
 begin
-  if FFontColor.HasValue and (FFontColor.Value = Value) then
+  if FFontColor.HasValue and (FFontColor = Value) then
     Exit;
   if (Parent <> nil) and not FFontColor.HasValue then
     Parent.OnFontColorChanged.Remove(ParentFontColorChanged);
-  OldColor := FFontColor.Copy;
+  OldColor := FFontColor;
   FFontColor.Value := Value;
   for CharSprite in FCharSprites do
     CharSprite.Color := FontColor;
   FOnFontColorChanged.Execute(TFontColorChangeEventInfo.Create(Self, OldColor));
-  OldColor.Free;
 end;
 
 procedure TControl.SetFontTile(const Value: TTextureAtlas.TTile);
@@ -704,25 +699,13 @@ end;
 constructor TControl.TFontColorChangeEventInfo.Create(ASender: TControl; AOldColor: TOpt<TColorRGBA>);
 begin
   inherited Create(ASender);
-  FOldColor := AOldColor.Copy;
-end;
-
-constructor TControl.TFontColorChangeEventInfo.Create(ASender: TControl);
-begin
-  inherited Create(ASender);
-  FOldColor := TOpt<TColorRGBA>.Create;
+  FOldColor := AOldColor;
 end;
 
 constructor TControl.TFontColorChangeEventInfo.Create(ASender: TControl; AOldColor: TColorRGBA);
 begin
   inherited Create(ASender);
   FOldColor := TOpt<TColorRGBA>.Create(AOldColor);
-end;
-
-destructor TControl.TFontColorChangeEventInfo.Destroy;
-begin
-  FOldColor.Free;
-  inherited;
 end;
 
 function TControl.TFontColorChangeEventInfo.GetOldColor: TOpt<TColorRGBA>.TReader;

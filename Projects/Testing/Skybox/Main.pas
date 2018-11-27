@@ -156,16 +156,16 @@ begin
 
   Context.VSync := False;
 
-  Context.GLDebugRaiseLevels := [dmsLow, dmsMedium, dmsHigh];
+  // Context.GLDebugRaiseLevels := [dmsLow, dmsMedium, dmsHigh];
 
-  Context.Samples := Context.MaxSamples;
+  // Context.Samples := Context.MaxSamples;
 
   RandSeed := 0;
 
   FSkyboxGLProgram := TSkyboxGLProgram.Make(GLState.ResParam);
   FModelGLProgram := TModelGLProgram.Make(GLState.ResParam);
 
-  FLightSystem := TLightSystem.Create(Game);
+  FLightSystem := TLightSystem.Create(Context);
   FLightSystem.BindToGLProgram(FModelGLProgram);
 
   FSun := TDirectionalLightShaded.Create(FLightSystem);
@@ -190,9 +190,9 @@ begin
 
   FCamera.AddRenderable(FSkybox);
 
-  for Pos in IBounds3I(-10, 10) do
+  for Pos in IBounds3I(-5, 5) do
   begin
-    if not (TVector3(Pos).Length in Bounds1(12, 13) + Random) then
+    if not (TVector3(Pos).Length in Bounds1(6, 7) + Random) then
       Continue;
 
     Cube := FCubes.Add(TCube.Create(GLState, TModelGLProgram));
@@ -203,6 +203,9 @@ begin
   end;
 
   FTextureAtlas := TTextureMap.Make(GLState.ResParam);
+
+  Game.OnRender.Add(FLightSystem.RenderShadows);
+
 end;
 
 procedure TfrmMain.UpdateFPS;
@@ -225,8 +228,6 @@ begin
 end;
 
 procedure TfrmMain.GameUpdate;
-var
-  Cube: TCube;
 begin
   if Input.KeyDown('A') then
     FCubes[Random(FCubes.Count)].Texture := 'stone_bricks';
@@ -272,7 +273,8 @@ var
 begin
   FVAO.VBO.Generate(6 * 2 * 3, buStaticDraw);
 
-  with FVAO.VBO.Map do try
+  var Buffer := FVAO.VBO.Map;
+  try
 
     Border := TextureTile.Bounds;
     Data.Border := TextureTile.BoundsHalfPixelInset;
@@ -287,12 +289,12 @@ begin
       begin
         Data.Pos := P[T] - 0.5 + Offset;
         Data.TexCoord := Border[T];
-        AddToBuffer(Data);
+        Buffer.AddToBuffer(Data);
       end;
     end;
 
   finally
-    Free;
+    Buffer.Free;
   end;
 
   FVAOChanged := False;
@@ -375,25 +377,25 @@ end;
 
 procedure TCube.UpdateVAO;
 var
-  D: TBasicDir3;
-  T: TTexCoord2;
   Border: TBounds2;
 begin
-  with FVAO.VBO.Map do try
+  var Buffer := FVAO.VBO.Map;
+  try
 
     Border := TextureTile.Bounds;
-    for D := Low(TBasicDir3) to High(TBasicDir3) do
+    for var D := Low(TBasicDir3) to High(TBasicDir3) do
     begin
-      for T in QuadTexCoords do
+      for var T in QuadTexCoords do
       begin
-        BufferData[BufferPos].Border := TextureTile.BoundsHalfPixelInset;
-        BufferData[BufferPos].TexCoord := Border[T];
-        NextBufferPos;
+        Buffer.Current.Border := TextureTile.BoundsHalfPixelInset;
+        Buffer.Current.TexCoord := Border[T];
+        Buffer.NextBufferPos;
       end;
     end;
 
   finally
-    Free;
+    Buffer.Free;
+
   end;
 
   FVAOChanged := False;

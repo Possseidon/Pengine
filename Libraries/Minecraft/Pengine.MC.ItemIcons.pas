@@ -28,28 +28,50 @@ uses
 type
 
   TItemIconSettings = class(TSettings)
+  public const
+
+    DefaultPath = 'Data\assets\itemicons';
+
   public type
 
     TIcons = TRefMap<TItemType, IGPBitmap>;
 
+    TGenerator = class
+    private
+      FIcons: TIcons;
+
+      function GetIcons: TIcons.TReader;
+
+    public
+      property Icons: TIcons.TReader read GetIcons;
+
+      procedure Generate;
+
+    end;
+
   private
     FIcons: TIcons;
+    FPath: string;
 
     function GetIcons: TIcons.TReader;
+    procedure SetPath(const Value: string);
 
   protected
     constructor Create(ARoot: TRootSettings); override;
 
-    procedure DoReload; override;
-
     class function GetNameForVersion(AVersion: Integer): string; override;
+
+    procedure DoReload; override;
 
   public
     destructor Destroy; override;
 
     class function SkipSave: Boolean; override;
-
     class function GetTitle: string; override;
+
+    property Path: string read FPath write SetPath;
+
+    procedure SetDefaults; override;
 
     property Icons: TIcons.TReader read GetIcons;
 
@@ -64,7 +86,6 @@ begin
   inherited;
   FIcons := TIcons.Create;
   Root.Get<TItemSettings>.AddDependent(Self);
-  Root.Get<TAssetsSettings>.AddDependent(Self);
 end;
 
 destructor TItemIconSettings.Destroy;
@@ -74,6 +95,51 @@ begin
 end;
 
 procedure TItemIconSettings.DoReload;
+var
+  Item: TItemType;
+begin
+  FIcons.Clear;
+  for Item in Root.Get<TItemSettings>.Items.Order do
+    FIcons[Item] := TGPBitmap.FromFile(TPath.Combine(Path, Item.NSPath.Path + '.png'));
+end;
+
+function TItemIconSettings.GetIcons: TIcons.TReader;
+begin
+  Result := FIcons.Reader;
+end;
+
+class
+  function TItemIconSettings.GetNameForVersion(AVersion: Integer): string;
+begin
+  Result := 'mc_itemicons';
+end;
+
+class
+  function TItemIconSettings.GetTitle: string;
+begin
+  Result := 'Item-Icons';
+end;
+
+procedure TItemIconSettings.SetDefaults;
+begin
+  FPath := DefaultPath;
+end;
+
+procedure TItemIconSettings.SetPath(const Value: string);
+begin
+  FPath := Value;
+  Reload;
+end;
+
+class
+  function TItemIconSettings.SkipSave: Boolean;
+begin
+  Result := True;
+end;
+
+{ TItemIconSettings.TGenerator }
+
+procedure TItemIconSettings.TGenerator.Generate;
 var
   Item: TItemType;
   Assets: TAssetsSettings;
@@ -159,7 +225,6 @@ begin
         if ItemModel.GUIDisplay <> nil then
         begin
           ModelRenderable.Location.TurnAngle := -ItemModel.GUIDisplay.Rotation.Y + 15;
-          //ModelRenderable.Location.TurnAngle := 135;
           BlockRenderer.Camera.Location.PitchAngle := -ItemModel.GUIDisplay.Rotation.X;
           BlockRenderer.Camera.Location.RollAngle := -ItemModel.GUIDisplay.Rotation.Z;
           ModelRenderable.Location.Pos := ItemModel.GUIDisplay.Translation / 16;
@@ -179,27 +244,9 @@ begin
   BlockRenderer.Free;
 end;
 
-function TItemIconSettings.GetIcons: TIcons.TReader;
+function TItemIconSettings.TGenerator.GetIcons: TIcons.TReader;
 begin
   Result := FIcons.Reader;
-end;
-
-class
-  function TItemIconSettings.GetNameForVersion(AVersion: Integer): string;
-begin
-  Result := 'mc_itemicons';
-end;
-
-class
-  function TItemIconSettings.GetTitle: string;
-begin
-  Result := 'Item-Icons';
-end;
-
-class
-  function TItemIconSettings.SkipSave: Boolean;
-begin
-  Result := True;
 end;
 
 end.

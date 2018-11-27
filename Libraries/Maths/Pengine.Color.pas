@@ -94,7 +94,7 @@ type
     class function Gray(V: Single): TColorRGB; static;
     class function Rainbow(H: Single): TColorRGB; static;
 
-    function ToRGBA(A: Single): TColorRGBA;
+    function ToRGBA(A: Single = 1): TColorRGBA;
 
     class operator Implicit(AValue: TColorRGBA): TColorRGB;
     class operator Implicit(AValue: TColorRGB): TColorRGBA;

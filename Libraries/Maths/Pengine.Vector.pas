@@ -198,6 +198,9 @@ type
     /// <remarks>Make sure to check, if X &lt; 0, which means that the line is flipped.</remarks>
     function Slope: Single;
 
+    /// <returns>True, if the point lies inside of a circumcircle, defined by A, B and C.</returns>
+    function InCircumcircle(const A, B, C: TVector2): Boolean;
+
   end;
 
   /// <summary>A three component vector of type <see cref="System|Single"/>.</summary>
@@ -2042,6 +2045,40 @@ end;
 class operator TVector2.Implicit(const A: TVector2): string;
 begin
   Result := A.ToString;
+end;
+
+function TVector2.InCircumcircle(const A, B, C: TVector2): Boolean;
+var
+  M: TMatrix3;
+  Clockwise: Single;
+  InCircle: Single;
+begin
+  // Test clockwise
+  M[0, 0] := A.X;
+  M[0, 1] := A.Y;
+  M[0, 2] := 1;
+  M[1, 0] := B.X;
+  M[1, 1] := B.Y;
+  M[1, 2] := 1;
+  M[2, 0] := C.X;
+  M[2, 1] := C.Y;
+  M[2, 2] := 1;
+  Clockwise := M.Determinant;
+  if Clockwise = 0 then
+    Exit(True);
+  M[0, 0] := A.X - X;
+  M[0, 1] := A.Y - Y;
+  M[0, 2] := Sqr(A.X - X) + Sqr(A.Y - Y);
+  M[1, 0] := B.X - X;
+  M[1, 1] := B.Y - Y;
+  M[1, 2] := Sqr(B.X - X) + Sqr(B.Y - Y);
+  M[2, 0] := C.X - X;
+  M[2, 1] := C.Y - Y;
+  M[2, 2] := Sqr(C.X - X) + Sqr(C.Y - Y);
+  InCircle := M.Determinant;
+  if InCircle = 0 then
+    Exit(True);
+  Result := (Clockwise > 0) = (M.Determinant > 0);
 end;
 
 function TVector2.Length: Single;
@@ -5637,10 +5674,10 @@ begin
       P := P.Parent;
     end;
     Result.S := Result.S + Result.DX * Offset.X + Result.DY * Offset.Y;
-    FAxisSystem.Value := Result;
+    FAxisSystem := Result;
   end
   else
-    Result := FAxisSystem.Value;
+    Result := FAxisSystem;
 end;
 
 function TLocation2.GetInvPoint(APoint: TVector2): TVector2;
@@ -5705,7 +5742,6 @@ end;
 
 constructor TLocation2.Create;
 begin
-  FAxisSystem := TOpt<TAxisSystem2>.Create;
   FScale := 1;
 end;
 
@@ -5713,7 +5749,6 @@ destructor TLocation2.Destroy;
 begin
   if Parent <> nil then
     Parent.OnChanged.Remove(ParentChanged);
-  FAxisSystem.Free;
   inherited;
 end;
 

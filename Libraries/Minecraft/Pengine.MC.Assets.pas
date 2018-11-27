@@ -608,8 +608,7 @@ begin
   for Path in TDirectory.GetFiles(APath, '*.png') do
   begin
     Name := AFilePrefix + ChangeFileExt(ExtractFileName(Path), '');
-    JTintIndex := AJTintIndex[Name].AsArray;
-    if JTintIndex.Exists then
+    if AJTintIndex.Get(Name, JTintIndex) then
     begin
       Color := TColorRGB.Create(JTintIndex[0], JTintIndex[1], JTintIndex[2]);
       FTextures[Name] := TTexture.Create(Name, TGPBitmap.Create(Path), Color);
@@ -804,15 +803,13 @@ begin
   JObject := TJObject.CreateFromFile(APath);
   Name := ChangeFileExt(ExtractFileName(APath), '');
   try
-    JVariants := JObject['variants'].AsObject;
-    if JVariants.Exists then
+    if JObject.Get('variants', JVariants) then
     begin
       Result := TVariantModel.Create(FAssets, JVariants);
       FModels[Name] := Result;
       Exit;
     end;
-    JMultipart := JObject['multipart'].AsArray;
-    if JMultipart.Exists then
+    if JObject.Get('multipart', JMultipart) then
     begin
       Result := TMultiPartModel.Create(FAssets, JMultipart);
       FModels[Name] := Result;
@@ -829,7 +826,9 @@ end;
 
 constructor TModel.Create(AAssets: TAssetsSettings; AJObject: TJObject);
 var
-  JParent, JTextures, JElements: TJWrapper;
+  JParent: TJString;
+  JElements: TJArray;
+  JTextures: TJObject;
   B: TBuiltinType;
   JPair: TJPair;
   ParentName: string;
@@ -840,10 +839,9 @@ var
 begin
   FAssets := AAssets;
 
-  JParent := AJObject['parent'];
-  if JParent.Exists then
+  if AJObject.Get('parent', JParent) then
   begin
-    ParentName := JParent;
+    ParentName := JParent.Text;
     Found := False;
     for B := Low(TBuiltinType) to High(TBuiltinType) do
     begin
@@ -861,28 +859,24 @@ begin
     end;
   end;
 
-  JTextures := AJObject['textures'];
-  if JTextures.Exists then
+  if AJObject.Get('textures', JTextures) then
   begin
     FTextures := TTextures.Create;
     for JPair in JTextures do
       FTextures[JPair.Key] := TTextureVariable.CreateTyped(Assets.Textures, JPair.Value.AsString);
   end;
 
-  JElements := AJObject['elements'];
-  if JElements.Exists then
+  if AJObject.Get('elements', JElements) then
   begin
     FElements := TElements.Create;
-    for JElement in JElements.AsArray do
+    for JElement in JElements do
       FElements.Add(TElement.Create(Self, JElement.AsObject));
   end;
 
-  JDisplay := AJObject['display'].AsObject;
-  if JDisplay.Exists then
+  if AJObject.Get('display', JDisplay) then
   begin
-    JGUIDisplay := JDisplay['gui'].AsObject;
-    if JGUIDisplay.Exists then
-      FGUIDisplay := TDisplay.Create(JDisplay['gui'].AsObject);
+    if JDisplay.Get('gui', JGUIDisplay) then
+      FGUIDisplay := TDisplay.Create(JGUIDisplay);
   end;
 end;
 
@@ -961,7 +955,7 @@ end;
 
 constructor TModel.TElement.Create(AModel: TModel; AJObject: TJObject);
 var
-  JVec: TJWrapper;
+  JVec: TJArray;
   JPair: TJPair;
   FaceDir: TBasicDir3;
   JRotation: TJObject;
@@ -974,13 +968,12 @@ begin
   JVec := AJObject['to'];
   FSizePx.C2 := Vec3(JVec[0], JVec[1], JVec[2]);
 
-  JRotation := AJObject['rotation'].AsObject;
-  if JRotation.Exists then
+  if AJObject.Get('rotation', JRotation) then
     FRotation := TRotation.Create(JRotation);
 
   FShade := AJObject['shade'] or True;
 
-  for JPair in AJObject['faces'] do
+  for JPair in AJObject['faces'].AsObject do
   begin
     FaceDir := DirFromName(JPair.Key);
     FFaces[FaceDir] := TFace.Create(Self, FaceDir, JPair.Value.AsObject);
@@ -1071,6 +1064,7 @@ var
   Properties: TBlockState.TProperties;
   Variants: TVariants;
   JVariant: TJValue;
+  JVariants: TJArray;
 begin
   FVariantMap := TVariantMap.Create;
   for Pair in AJObject do
@@ -1082,9 +1076,9 @@ begin
     Variants := TVariants.Create;
     FVariantMap[Properties] := Variants;
 
-    if Pair.Value is TJArray then
+    if Pair.Value.Cast(JVariants) then
     begin
-      for JVariant in TJArray(Pair.Value) do
+      for JVariant in JVariants do
         Variants.Add(TVariant.Create(AAssets, JVariant.AsObject));
     end
     else
@@ -1202,19 +1196,19 @@ end;
 
 constructor TModel.TFace.Create(AElement: TElement; ADir: TBasicDir3; AJObject: TJObject);
 var
-  JUV, JCullFace: TJWrapper;
+  JUV: TJArray;
+  JCullFace: TJString;
 begin
   FElement := AElement;
 
   JUV := AJObject['uv'];
-  if JUV.Exists then
+  if AJObject.Get('uv', JUV) then
     FUVPx := Bounds2(Vec2(JUV[0], JUV[1]), Vec2(JUV[2], JUV[3]))
   else
     FUVPx := AElement.SizePx.Plane[ADir];
 
-  JCullFace := AJObject['cullface'];
-  if JCullFace.Exists then
-    FCullFace := TElement.DirFromName(JCullFace)
+  if AJObject.Get('cullface', JCullFace) then
+    FCullFace := TElement.DirFromName(JCullFace.Text)
   else
     FCullFace := ADir;
 

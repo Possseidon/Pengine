@@ -117,9 +117,6 @@ type
       FOnFire: TOpt<Boolean>;
 
     public
-      constructor Create(AConditioned: TConditioned); override;
-      destructor Destroy; override;
-
       class function GetType: TCondition.TType; override;
 
       procedure Load(AValue: TJValue); override;
@@ -407,7 +404,6 @@ type
     public
       constructor Create(AFunction: TFunctionSetAttributes); overload;
       constructor Create(AFunction: TFunctionSetAttributes; AValue: TJValue); overload;
-      destructor Destroy; override;
 
       procedure Load(AValue: TJValue);
       procedure Save(AValue: TJObject);
@@ -807,19 +803,19 @@ implementation
 
 function LoadIntBounds(AValue: TJValue; ADefault: Integer = 0): TIntBounds1;
 begin
-  if AValue = nil then
+  if AValue.IsNull then
     Exit(ADefault);
-  if AValue is TJNumber then
+  if AValue.IsNumber then
     Exit(AValue.AsInt);
-  Result.C1 := AValue['min'].AsInt;
-  Result.C2 := AValue['max'].AsInt;
+  Result.C1 := AValue['min'];
+  Result.C2 := AValue['max'];
 end;
 
 function LoadBounds(AValue: TJValue; ADefault: Single = 0): TBounds1;
 begin
-  if AValue = nil then
+  if AValue.IsNull then
     Exit(ADefault);
-  if AValue is TJNumber then
+  if AValue.IsNumber then
     Exit(AValue.AsFloat);
   Result.C1 := AValue['min'].AsFloat;
   Result.C2 := AValue['max'].AsFloat;
@@ -830,12 +826,12 @@ var
   JBounds: TJObject;
 begin
   if AValue.C1 = AValue.C2 then
-    AObject.Add(AName, AValue.C1)
+    AObject[AName] := AValue.C1
   else
   begin
     JBounds := AObject.AddObject(AName);
-    JBounds.Add('min', AValue.C1);
-    JBounds.Add('max', AValue.C2);
+    JBounds['min'] := AValue.C1;
+    JBounds['max'] := AValue.C2;
   end;
 end;
 
@@ -930,18 +926,6 @@ end;
 
 { TLootTable.TConditionEntityProperties }
 
-constructor TLootTable.TConditionEntityProperties.Create(AConditioned: TConditioned);
-begin
-  inherited;
-  FOnFire := TOpt<Boolean>.Create;
-end;
-
-destructor TLootTable.TConditionEntityProperties.Destroy;
-begin
-  FOnFire.Free;
-  inherited;
-end;
-
 class function TLootTable.TConditionEntityProperties.GetType: TCondition.TType;
 begin
   Result := ctEntityProperties;
@@ -1000,7 +984,7 @@ var
   JScore: TJPair;
 begin
   inherited;
-  for JScore in AValue['scores'] do
+  for JScore in AValue['scores'].AsObject do
     AddScore(JScore.Key, LoadIntBounds(JScore.Value));
 end;
 
@@ -1030,7 +1014,7 @@ end;
 procedure TLootTable.TConditionKilledByPlayer.Load(AValue: TJValue);
 begin
   inherited;
-  Inverse := AValue['inverse'].BoolOrDefault;
+  Inverse := AValue['inverse'] or False;
 end;
 
 procedure TLootTable.TConditionKilledByPlayer.Save(AValue: TJObject);
@@ -1056,7 +1040,7 @@ end;
 procedure TLootTable.TConditionRandomChance.Load(AValue: TJValue);
 begin
   inherited;
-  Chance := AValue['chance'].FloatOrDefault;
+  Chance := AValue['chance'] or 0.0;
 end;
 
 procedure TLootTable.TConditionRandomChance.Save(AValue: TJObject);
@@ -1082,7 +1066,7 @@ end;
 procedure TLootTable.TConditionRandomChanceWithLooting.Load(AValue: TJValue);
 begin
   inherited;
-  LootingMultiplier := AValue['looting_multiplier'].FloatOrDefault;
+  LootingMultiplier := AValue['looting_multiplier'] or 0.0;
 end;
 
 procedure TLootTable.TConditionRandomChanceWithLooting.Save(AValue: TJObject);
@@ -1123,16 +1107,17 @@ procedure TLootTable.TFunctionEnchantRandomly.Load(AValue: TJValue);
 var
   JEnchantment: TJValue;
   Enchantment: TEnchantment;
+  JString: TJString;
 begin
   inherited;
   Enchantments := [];
   for JEnchantment in AValue['enchantments'].AsArray do
   begin
-    if JEnchantment is TJString then
+    if JEnchantment.Cast(JString) then
     begin
       for Enchantment := Low(TEnchantment) to High(TEnchantment) do
       begin
-        if JEnchantment.AsString = EnchantmentNames[Enchantment] then
+        if JString.Text = EnchantmentNames[Enchantment] then
         begin
           Include(FEnchantments, Enchantment);
           Break;
@@ -1153,7 +1138,7 @@ procedure TLootTable.TFunctionEnchantWithLevels.Load(AValue: TJValue);
 begin
   inherited;
   Levels := LoadIntBounds(AValue['levels']);
-  Treasure := AValue['treasure'].BoolOrDefault;
+  Treasure := AValue['treasure'] or False;
 end;
 
 procedure TLootTable.TFunctionEnchantWithLevels.Save(AValue: TJObject);
@@ -1209,11 +1194,11 @@ end;
 procedure TLootTable.TFunctionExplorationMap.Load(AValue: TJValue);
 begin
   inherited;
-  Destination := AValue['destination'].StringOrDefault;
-  Decoration := AValue['decoration'].StringOrDefault;
-  Zoom := AValue['zoom'].IntOrDefault(DefaultZoom);
-  SearchRadius := AValue['search_radius'].IntOrDefault(DefaultSearchRadius);
-  SkipExistingChunks := AValue['skip_existing_chunks'].BoolOrDefault(DefaultSkipExistingChunks);
+  Destination := AValue['destination'] or '';
+  Decoration := AValue['decoration'] or '';
+  Zoom := AValue['zoom'] or DefaultZoom;
+  SearchRadius := AValue['search_radius'] or DefaultSearchRadius;
+  SkipExistingChunks := AValue['skip_existing_chunks'] or DefaultSkipExistingChunks;
 end;
 
 procedure TLootTable.TFunctionExplorationMap.Save(AValue: TJObject);
@@ -1279,7 +1264,7 @@ procedure TLootTable.TFunctionLootingEnchant.Load(AValue: TJValue);
 begin
   inherited;
   Count := LoadIntBounds(AValue['count'], 1);
-  Limit := AValue['limit'].IntOrDefault;
+  Limit := AValue['limit'] or 0;
 end;
 
 procedure TLootTable.TFunctionLootingEnchant.Save(AValue: TJObject);
@@ -1548,7 +1533,7 @@ end;
 procedure TLootTable.TFunctionSetNBT.Load(AValue: TJValue);
 begin
   inherited;
-  TagString := AValue['tag'].StringOrDefault('{}');
+  TagString := AValue['tag'] or '{}';
 end;
 
 procedure TLootTable.TFunctionSetNBT.Save(AValue: TJObject);
@@ -1622,7 +1607,7 @@ var
   JFunction: TJValue;
 begin
   inherited;
-  Item := AValue['name'].StringOrDefault;
+  Item := AValue['name'] or '';
   ClearFunctions;
   for JFunction in AValue['functions'].AsArray do
     FFunctions.Add(TFunction.CreateTyped(Self, JFunction));
@@ -1670,7 +1655,7 @@ end;
 procedure TLootTable.TEntryLootTable.Load(AValue: TJValue);
 begin
   inherited;
-  LootTable := AValue['name'].StringOrDefault;
+  LootTable := AValue['name'] or '';
 end;
 
 procedure TLootTable.TEntryLootTable.Save(AValue: TJObject);
@@ -1959,8 +1944,8 @@ end;
 procedure TLootTable.TEntry.Load(AValue: TJValue);
 begin
   inherited;
-  Weight := AValue['weight'].IntOrDefault(1);
-  Quality := AValue['quality'].IntOrDefault;
+  Weight := AValue['weight'] or 1;
+  Quality := AValue['quality'] or 0;
 end;
 
 procedure TLootTable.TEntry.Save(AValue: TJObject);
@@ -2117,19 +2102,12 @@ end;
 constructor TLootTable.TModifier.Create(AFunction: TFunctionSetAttributes);
 begin
   FFunction := AFunction;
-  FUUID := TOpt<TGUID>.Create;
 end;
 
 constructor TLootTable.TModifier.Create(AFunction: TFunctionSetAttributes; AValue: TJValue);
 begin
   Create(AFunction);
   Load(AValue);
-end;
-
-destructor TLootTable.TModifier.Destroy;
-begin
-  FUUID.Free;
-  inherited;
 end;
 
 function TLootTable.TModifier.GetIndex: Integer;
@@ -2158,9 +2136,9 @@ begin
     UUID.Value := TGUID.Create('{' + JUUID.AsString + '}');
 
   JSlot := AValue['slot'];
-  if JSlot is TJString then
+  if JSlot.IsString then
   begin
-    if not AttributeSlotFromName(JSlot.AsString, Slot) then
+    if not AttributeSlotFromName(JSlot, Slot) then
       raise ELootTable.Create('Unknown attribute slot.');
     FSlots := [Slot];
   end
@@ -2169,7 +2147,7 @@ begin
     FSlots := [];
     for JSlot in JSlot.AsArray do
     begin
-      if not AttributeSlotFromName(JSlot.AsString, Slot) then
+      if not AttributeSlotFromName(JSlot, Slot) then
         raise ELootTable.Create('Unknown attribute slot.');
       Include(FSlots, Slot);
     end;
@@ -2189,7 +2167,7 @@ begin
   SaveBounds(AValue, 'amount', Amount);
   if UUID.HasValue then
   begin
-    UUIDString := UUID.ToString;
+    UUIDString := UUID.Value.ToString;
     AValue.Add('id', UUIDString.Substring(1, UUIDString.Length - 2));
   end;
   SlotCount := 0;

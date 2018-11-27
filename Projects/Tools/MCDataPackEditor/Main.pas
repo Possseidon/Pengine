@@ -43,6 +43,7 @@ uses
   Pengine.MC.BlockState,
   Pengine.MC.Assets,
   Pengine.MC.ItemIcons,
+  Pengine.MC.BlockRenderer,
 
   DatapackView,
   ToolFunctionPreferences,
@@ -51,7 +52,9 @@ uses
   LightThemePreset,
   SettingsForm,
   StartupView,
-  Pengine.MC.BlockRenderer;
+
+  // Pengine.MC.Recipe,
+  Pengine.JSON;
 
 type
 
@@ -132,8 +135,6 @@ type
     actFormatCurrent: TAction;
     actFormatAll: TAction;
     actFunctionPreferences: TAction;
-    ScrollBox1: TScrollBox;
-    pbIcons: TPaintBox;
     procedure actCollapseAllExecute(Sender: TObject);
     procedure actCopyNameExecute(Sender: TObject);
     procedure actCopyNameUpdate(Sender: TObject);
@@ -166,8 +167,6 @@ type
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure FormShow(Sender: TObject);
-    procedure pbIconsPaint(Sender: TObject);
     procedure pcTabsDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure pcTabsDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);
     procedure pcTabsMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -317,13 +316,14 @@ end;
 procedure TfrmMain.LoadSettings;
 const
 
-  SettingsClasses: array [0 .. 5] of TSettingsClass = (
+  SettingsClasses: array [0 .. 6] of TSettingsClass = (
+    TAssetsSettings,
     TItemSettings,
     TItemTagSettings,
     TBlockSettings,
     TBlockTagSettings,
     TBrigadierSettings,
-    TAssetsSettings
+    TItemIconSettings
     );
 
 var
@@ -351,14 +351,13 @@ begin
   // The first time, this exception is raised, the raising takes a little longer with the debugger...
   // So let's do it at the start so it's not anoying while typing.
 
-  {$IFDEF DEBUG}
-
+{$IFDEF DEBUG}
   try
     raise EParseError.Create('');
   except
   end;
 
-  {$ENDIF}
+{$ENDIF}
 
 end;
 
@@ -530,6 +529,11 @@ begin
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
+var
+  Path: string;
+  JObject: TJObject;
+  JPair: TJPair;
+  JIngredient: TJBase;
 begin
   // SHAutoComplete(edtTestInput.Handle, SHACF_AUTOAPPEND_FORCE_OFF or SHACF_AUTOSUGGEST_FORCE_OFF);
   InitDataTypes;
@@ -538,6 +542,34 @@ begin
   FDatapackTreeView := TDatapackTreeView.Create(tvNamespaces, pcTabs);
   CheckAppParams;
   Application.OnActivate := AppActivate;
+  LoadSettings;
+  {
+    for Path in TDirectory.GetFiles('C:\Users\Dominik\Documents\Test Datapack\data\minecraft\recipes') do
+    begin
+    JObject := TJObject.CreateFromFile(Path);
+    for JPair in JObject['key'] do
+    begin
+    if JPair.Value is TJArray then
+    begin
+    Sleep(1);
+    end;
+    end;
+
+    if JObject['ingredient'].Value is TJArray then
+    Sleep(1);
+
+    for JIngredient in JObject['ingredients'].AsArray do
+    begin
+    if JIngredient is TJArray then
+    begin
+    Sleep(1);
+    end;
+    end;
+
+
+    JObject.Free;
+    end;
+  }
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
@@ -545,11 +577,6 @@ begin
   FFunctionTheme.Free;
   FDatapackTreeView.Free;
   FDatapack.Free;
-end;
-
-procedure TfrmMain.FormShow(Sender: TObject);
-begin
-  LoadSettings;
 end;
 
 procedure TfrmMain.InitDataTypes;
@@ -586,47 +613,6 @@ procedure TfrmMain.InitTheme;
 begin
   FFunctionTheme := TFunctionTheme.Create;
   FFunctionTheme.LoadPreset(TLightTheme);
-end;
-
-procedure TfrmMain.pbIconsPaint(Sender: TObject);
-const
-  IconSize = 96;
-
-var
-  Graphics: IGPGraphics;
-  IconSettings: TItemIconSettings;
-  Item: TItemType;
-  Icon: IGPBitmap;
-  X, Y: Integer;
-begin
-  StartTimer;
-
-  Graphics := TGPGraphics.Create(pbIcons.Canvas.Handle);
-
-  Graphics.InterpolationMode := InterpolationModeNearestNeighbor;
-  Graphics.PixelOffsetMode := PixelOffsetModeHalf;
-
-  IconSettings := RootSettingsG.Get<TItemIconSettings>;
-
-  X := 0;
-  Y := 0;
-  for Item in RootSettingsG.Get<TItemSettings>.Items.Order do
-  begin
-    Icon := IconSettings.Icons[Item];
-    // Graphics.DrawRectangle(TGPPen.Create(TGPColor.Blue), X, Y, IconSize, IconSize);
-    Graphics.DrawImage(Icon, X, Y, IconSize, IconSize);
-    Inc(X, IconSize + 1);
-    if X > pbIcons.Width - IconSize then
-    begin
-      X := 0;
-      Inc(Y, IconSize + 1);
-    end;
-  end;
-
-  ScrollBox1.VertScrollBar.Range := Y + IconSize;
-
-  Caption := StopTimerGetString;
-
 end;
 
 procedure TfrmMain.pcTabsDragDrop(Sender, Source: TObject; X, Y: Integer);

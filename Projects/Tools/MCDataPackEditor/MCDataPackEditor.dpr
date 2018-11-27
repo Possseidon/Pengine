@@ -37,12 +37,15 @@ uses
 {$R *.res}
 
 begin
-  // ChDir(ExtractFilePath(Application.ExeName));
+  // I have know idea how this can even work, but it... does?
+  ChDir(ExtractFilePath(Application.ExeName));
 
   RootSettingsG := TRootSettings.Create;
   RootSettingsG.Path := TPath.Combine(TPath.GetHomePath, '.mcdpe\settings.json');
 
+  // fix for scrollbars not adapting to selected style
   TStyleManager.Engine.RegisterStyleHook(TCustomSynEdit, TMemoStyleHook);
+
   ReportMemoryLeaksOnShutdown := True;
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
@@ -52,8 +55,9 @@ begin
   Application.CreateForm(TfrmSettings, frmSettings);
   Application.Run;
 
-  // TODO: Remove, as just for debugging
+  // TODO: Probrably remove this, as just for debugging
   RootSettingsG.Save;
+
   RootSettingsG.Free;
 
 end.

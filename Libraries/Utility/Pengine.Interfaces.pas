@@ -12,7 +12,33 @@ type
     function QueryInterface(const IID: TGUID; out Obj): HRESULT; stdcall;
     function _AddRef: Integer; inline; stdcall;
     function _Release: Integer; inline; stdcall;
+
   end;
+
+  IOwningInterface = interface
+    function GetValue: TObject;
+    property Value: TObject read GetValue;
+    function Own: TObject;
+
+  end;
+
+  TOwningInterface = class(TInterfacedObject, IOwningInterface)
+  private
+    FValue: TObject;
+
+    function GetValue: TObject;
+
+  public
+    constructor Create(AValue: TObject);
+    destructor Destroy; override;
+
+    property Value: TObject read GetValue;
+    function Own: TObject;
+
+  end;
+
+var
+  DummyInterface: TInterfaceBase;
 
 implementation
 
@@ -35,5 +61,37 @@ function TInterfaceBase._Release: Integer;
 begin
   Result := -1;
 end;
+
+{ TOwningInterface }
+
+constructor TOwningInterface.Create(AValue: TObject);
+begin
+  FValue := AValue;
+end;
+
+destructor TOwningInterface.Destroy;
+begin
+  FValue.Free;
+  inherited;
+end;
+
+function TOwningInterface.GetValue: TObject;
+begin
+  Result := FValue;
+end;
+
+function TOwningInterface.Own: TObject;
+begin
+  Result := FValue;
+  FValue := nil;
+end;
+
+initialization
+
+DummyInterface := TInterfaceBase.Create;
+
+finalization
+
+DummyInterface.Free;
 
 end.

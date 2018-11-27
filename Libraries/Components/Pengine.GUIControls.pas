@@ -212,7 +212,6 @@ constructor TLabel.Create(AParent: TControl);
 begin
   inherited;
   FChars := TCharSprites.Create;
-  FWidth := TOpt<Single>.Create;
   OnFontChanged.Add(FontChanged);
   OnBoundsChanged.Add(BoundsChanged);
 end;
@@ -220,7 +219,6 @@ end;
 destructor TLabel.Destroy;
 begin
   FChars.Free;
-  FWidth.Free;
   inherited;
 end;
 
@@ -268,8 +266,8 @@ end;
 function TLabel.GetWidth: Single;
 begin
   if not FWidth.HasValue then
-    FWidth.Value := FontTile.TextWidth(Caption);
-  Result := FWidth.Value;
+    FWidth := FontTile.TextWidth(Caption);
+  Result := FWidth;
 end;
 
 procedure TLabel.SetCaption(const Value: string);

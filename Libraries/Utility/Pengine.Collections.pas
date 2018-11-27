@@ -424,7 +424,7 @@ type
     procedure Add(AItems: IIterable<T>); overload;
     // TODO: XmlDoc
     procedure Add(AItems: IEnumerable<T>); overload;
-    
+
     // TODO: XmlDoc: Remarks: Insert can also add item at the end
     function Insert(AItem: T; AIndex: Integer): T; virtual;
 
@@ -1396,10 +1396,10 @@ begin
   RangeCheckException(ADestination);
   Tmp := Items[ASource];
   if ASource < ADestination then
-    Move(FItems[ASource + SizeOf(T)], FItems[ASource], SizeOf(T) * (ADestination - ASource))
+    Move(FItems[ASource + 1], FItems[ASource], SizeOf(T) * (ADestination - ASource))
   else
-    Move(FItems[ADestination], FItems[ADestination + SizeOf(T)], SizeOf(T) * (ASource - ADestination));
-  Items[ADestination] := Tmp;
+    Move(FItems[ADestination], FItems[ADestination + 1], SizeOf(T) * (ASource - ADestination));
+  Move(Tmp, FItems[ADestination], SizeOf(T));
 end;
 
 procedure TArray<T>.SetItem(AIndex: Integer; AValue: T);
@@ -2752,7 +2752,7 @@ end;
 
 class function TArray<T>.TReader.ItemToString(AItem: T): string;
 begin
-  Result := TArray<T>(Self).ItemToString(AItem);
+  Result := TArray<T>(Pointer(Self)).ItemToString(AItem);
 end;
 
 procedure TArray<T>.TReader.SetFirst(const Value: T);

@@ -251,9 +251,7 @@ type
     FNBT: TOwned<TNBTCompound>;
 
   public
-    constructor Create; overload;
     constructor Create(ANSPath: TNSPath); overload;
-    destructor Destroy; override;
 
     property NSPath: TNSPath read FNSPath write FNSPath;
 
@@ -391,12 +389,10 @@ implementation
 { TBlockType.TProperty }
 
 constructor TBlockType.TProperty.Create(AJPair: TJPair);
-var
-  JValue: TJValue;
 begin
   FName := AJPair.Key;
   FValues := TValues.Create;
-  for JValue in AJPair.AsArray do
+  for var JValue in AJPair.Value.AsArray do
     FValues.Add(JValue.AsString);
 end;
 
@@ -488,21 +484,17 @@ end;
 
 constructor TBlockType.Create(AJPair: TJPair);
 var
-  JPair: TJPair;
   Prop: TProperty;
-  JProperties: TJObject;
+  JPair: TJPair;
 begin
   FNSPath := AJPair.Key;
   FMap := TMap.Create;
   FProperties := TProperties.Create;
-  if AJPair.AsObject.Get<TJObject>('properties', JProperties) then
+  for JPair in AJPair.Value['properties'].AsObject do
   begin
-    for JPair in JProperties do
-    begin
-      Prop := TProperty.Create(JPair);
-      FMap[Prop.Name] := Prop;
-      FProperties.Add(Prop);
-    end;
+    Prop := TProperty.Create(JPair);
+    FMap[Prop.Name] := Prop;
+    FProperties.Add(Prop);
   end;
 end;
 
@@ -532,21 +524,7 @@ end;
 
 constructor TBlockState.Create(ANSPath: TNSPath);
 begin
-  Create;
   FNSPath := ANSPath;
-end;
-
-constructor TBlockState.Create;
-begin
-  FProperties := TOwned<TProperties>.Create;
-  FNBT := TOwned<TNBTCompound>.Create;
-end;
-
-destructor TBlockState.Destroy;
-begin
-  FProperties.Free;
-  FNBT.Free;
-  inherited;
 end;
 
 function TBlockState.Format: string;

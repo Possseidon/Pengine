@@ -158,6 +158,11 @@ type
     class function Equal(const AValue1, AValue2: T): Boolean; override;
   end;
 
+  TCharEqualler = class(TEqualler<Char>)
+  public
+    class function Equal(const AValue1, AValue2: Char): Boolean; override;
+  end;
+
 implementation
 
 { TBoolEqualler }
@@ -357,6 +362,13 @@ var
   AsClass2: TClass absolute AValue2;
 begin
   Result := AsClass1 = AsClass2;
+end;
+
+{ TCharEqualler }
+
+class function TCharEqualler.Equal(const AValue1, AValue2: Char): Boolean;
+begin
+  Result := AValue1 = AValue2;
 end;
 
 end.

@@ -133,9 +133,7 @@ type
     FNBT: TOwned<TNBTCompound>;
 
   public
-    constructor Create; overload;
     constructor Create(ANSPath: TNSPath); overload;
-    destructor Destroy; override;
 
     property NSPath: TNSPath read FNSPath write FNSPath;
 
@@ -636,21 +634,9 @@ end;
 
 { TItemStack }
 
-constructor TItemStack.Create;
-begin
-  FNBT := TOwned<TNBTCompound>.Create;
-end;
-
 constructor TItemStack.Create(ANSPath: TNSPath);
 begin
-  Create;
   FNSPath := ANSPath;
-end;
-
-destructor TItemStack.Destroy;
-begin
-  FNBT.Free;
-  inherited;
 end;
 
 function TItemStack.Format: string;

@@ -90,7 +90,7 @@ type
   end;
 
   /// <summary>An abstract class for a specialized Vertex Buffer Object, that stores an array of the given record type.</summary>
-  TVBO<TData: record> = class abstract(TVBO)
+  TVBO<TData: record > = class abstract(TVBO)
   public type
 
     PData = ^TData;
@@ -133,6 +133,7 @@ type
 
       procedure SetPos(const Value: Integer);
       function GetBuffer(AOffset: Integer): PData;
+      function GetCurrent: PData;
 
     protected
       class function GetBufferAccess: TGLBufferAccess; override;
@@ -144,6 +145,7 @@ type
       /// <p>Default property.</p></summary>
       /// <remarks>/!\ Only allows write access.</remarks>
       property Buffer[AOffset: Integer]: PData read GetBuffer; default;
+      property Current: PData read GetCurrent;
 
       /// <summary>The current position, where Buffer points to.</summary>
       property BufferPos: Integer read FPos write SetPos;
@@ -184,7 +186,7 @@ type
   /// <summary>A class for immutable Vertex Buffer Objects. The size is set on construction and immutable for the
   /// lifetime of the object.</summary>
   /// <remarks>Uses <c>glBufferStorage()</c>.</remarks>
-  TVBOImmutable<TData: record> = class(TVBO<TData>)
+  TVBOImmutable<TData: record > = class(TVBO<TData>)
   public
     /// <summary>Create a VBO with a specified buffer size and optional data, to fill it with.</summary>
     constructor Create(AGLState: TGLState; ACount: Integer; AFlags: TGLBufferFlags; AData: Pointer = nil); overload;
@@ -196,7 +198,7 @@ type
   /// <summary>A class for mutable Vertex Buffer Objects. The size is set using the <c>generate</c> method and can be
   /// changed at any time, if neccessary. It is not possible to read from the buffer.</summary>
   /// <remarks>Uses <c>glBufferData()</c>.</remarks>
-  TVBOMutable<TData: record> = class(TVBO<TData>)
+  TVBOMutable<TData: record > = class(TVBO<TData>)
   private
     FUsageHint: TGLBufferUsage;
 
@@ -262,7 +264,7 @@ type
 
   end;
 
-  TVAO<T: record> = class(TVAO)
+  TVAO<T: record > = class(TVAO)
   public type
     TData = T;
 
@@ -274,7 +276,7 @@ type
 
   end;
 
-  TVAOImmutable<T: record> = class(TVAO<T>)
+  TVAOImmutable<T: record > = class(TVAO<T>)
   private
     function GetVBO: TVBOImmutable<T>;
 
@@ -288,7 +290,7 @@ type
 
   end;
 
-  TVAOMutable<T: record> = class(TVAO<T>)
+  TVAOMutable<T: record > = class(TVAO<T>)
   private
     function GetVBO: TVBOMutable<T>;
 
@@ -324,21 +326,21 @@ type
 
   // Automatically calls BuildVAO if NotifyChanges got called or CheckForChanges returns true
   {
-  TAutoUpdateVAO = class abstract(TVAO)
-  private
+    TAutoUpdateVAO = class abstract(TVAO)
+    private
     FChanged: Boolean;
     procedure Build;
-  protected
+    protected
     procedure BuildVAO; virtual; abstract;
     function CheckForChanges: Boolean; virtual;
-  public
+    public
     procedure NotifyChanges;
 
     procedure Render; override;
     procedure Render(const ABounds: TIntBounds1); override;
 
-  end;
- }
+    end;
+  }
 implementation
 
 { EVBOUnmappable }
@@ -563,29 +565,29 @@ end;
 
 { TAutoUpdateVAO }
 {
-procedure TAutoUpdateVAO.Build;
-begin
+  procedure TAutoUpdateVAO.Build;
+  begin
   if not CheckForChanges then
-    Exit;
+  Exit;
   BuildVAO;
   FChanged := False;
-end;
+  end;
 
-function TAutoUpdateVAO.CheckForChanges: Boolean;
-begin
+  function TAutoUpdateVAO.CheckForChanges: Boolean;
+  begin
   Result := FChanged;
-end;
+  end;
 
-procedure TAutoUpdateVAO.NotifyChanges;
-begin
+  procedure TAutoUpdateVAO.NotifyChanges;
+  begin
   FChanged := True;
-end;
+  end;
 
-procedure TAutoUpdateVAO.Render;
-begin
+  procedure TAutoUpdateVAO.Render;
+  begin
   Build;
   inherited;
-end;
+  end;
 }
 { TVAOProxy }
 
@@ -713,6 +715,11 @@ begin
   Result := baWriteOnly;
 end;
 
+function TVBO<TData>.TWriter.GetCurrent: PData;
+begin
+  Result := @FBufferData[BufferPos];
+end;
+
 procedure TVBO<TData>.TWriter.NextBufferPos;
 begin
   BufferPos := BufferPos + 1;
@@ -744,6 +751,7 @@ begin
 end;
 
 {$POINTERMATH ON}
+
 
 function TVBO<TData>.TMapping.GetData(APos: Integer): TData;
 begin
