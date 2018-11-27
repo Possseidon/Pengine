@@ -13,6 +13,28 @@ uses
 
 type
 
+  // TODO: Use interfaces for automatic cleanup
+  //
+  // Why?
+  // - Parsers are never class-members, always short-lived in method bodies.
+  // - Watching out for exceptions with try finally is obnoxious. That's why the initial version had the parsing
+  // . directly in the constructor, because that automatically calls the destructor in case of exception.
+  // - Having it in the constructor is okay, but you have to pass all parameters in the constructor.
+  // - This also makes virtual constructors not impossible but difficult.
+  //
+  // Move parsing from constructor to whenever ParseResult is requested.
+  //
+  // Used as follows:
+  // - MyResult := TMyParser.Get.ParseResult;
+  // Where "Get" returns an interface
+  //
+  // or used as follows:
+  // - MyParser := TMyParser.Get;
+  // - MyParser.Settings := 42;
+  // - MyResult := MyParser.ParseResult;
+  //
+  // Of course, OwnParseResult is still a very relevant option for objects.
+
   TLogMarker = record
   private
     Pos: Integer;
