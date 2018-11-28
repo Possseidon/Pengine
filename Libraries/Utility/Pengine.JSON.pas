@@ -285,7 +285,9 @@ type
 
     end;
 
-    TParser = class(TObjectParser<TJBase>)
+    IParser = IObjectParser<TJBase>;
+
+    TParser = class(TObjectParser<TJBase>, IParser)
     protected
       function Parse: Boolean; override;
 
@@ -311,6 +313,8 @@ type
 
     class function GetTypeName: string; virtual;
 
+    /// <summary>Creates a parser interface.</summary>
+    class function Parser: IParser;
     /// <summary>Parses any json value from the given string.</summary>
     class function Parse(AText: string): TJBase;
     /// <summary>Parses any json value from the given file.</summary>
@@ -393,6 +397,8 @@ type
 
     end;
 
+    IParser = IObjectParser<TJObject>;
+
     TParser = class(TObjectParser<TJObject>)
     public const
 
@@ -444,6 +450,7 @@ type
 
     class function GetTypeName: string; override;
 
+    class function Parser: IParser;
     class function Parse(AText: string): TJObject;
     class function CreateFromFile(APath: string): TJObject;
 
@@ -524,6 +531,8 @@ type
 
     end;
 
+    IParser = IObjectParser<TJArray>;
+
     TParser = class(TObjectParser<TJArray>)
     public const
 
@@ -567,6 +576,7 @@ type
 
     class function GetTypeName: string; override;
 
+    class function Parser: IParser;
     class function Parse(AText: string): TJArray;
     class function CreateFromFile(APath: string): TJArray;
 
@@ -619,6 +629,8 @@ type
   TJString = class(TJBase)
   public type
 
+    IStringParser = IParser<string>;
+
     TStringParser = class(TParser<string>)
     public const
 
@@ -646,7 +658,9 @@ type
 
     end;
 
-    TParser = class(TParser<TJString>)
+    IParser = IObjectParser<TJString>;
+
+    TParser = class(TObjectParser<TJString>)
     protected
       function Parse: Boolean; override;
 
@@ -664,6 +678,9 @@ type
     constructor Create(AText: string); reintroduce; overload;
 
     class function GetTypeName: string; override;
+
+    class function StringParser: IStringParser;
+    class function Parser: IParser;
 
     procedure Assign(AValue: TJBase); override;
 
@@ -695,7 +712,9 @@ type
 
   public type
 
-    TParser = class(TParser<TJNumber>)
+    IParser = IObjectParser<TJNumber>;
+
+    TParser = class(TObjectParser<TJNumber>)
     protected
       function Parse: Boolean; override;
 
@@ -714,6 +733,8 @@ type
     constructor Create(ANumber: TJBase.TNumber); reintroduce; overload;
 
     class function GetTypeName: string; override;
+
+    class function Parser: IParser;
 
     procedure Assign(AFrom: TJBase); override;
 
@@ -735,7 +756,9 @@ type
 
   public type
 
-    TParser = class(TParser<TJBool>)
+    IParser = IObjectParser<TJBool>;
+
+    TParser = class(TObjectParser<TJBool>)
     public const
 
       TokenFalse = 1;
@@ -767,6 +790,8 @@ type
 
     class function GetTypeName: string; override;
 
+    class function Parser: IParser;
+
     procedure Assign(AFrom: TJBase); override;
 
     /// <summary>The value of this JSON-Bool.</summary>
@@ -784,7 +809,9 @@ type
 
   public type
 
-    TParser = class(TParser<TJNull>)
+    IParser = IObjectParser<TJNull>;
+
+    TParser = class(TObjectParser<TJNull>)
     protected
       function Parse: Boolean; override;
 
@@ -798,6 +825,8 @@ type
 
   public
     class function GetTypeName: string; override;
+
+    class function Parser: IParser;
 
     function Equals(AObject: TObject): Boolean; override;
 
@@ -954,12 +983,13 @@ begin
 end;
 
 class function TJBase.Parse(AText: string): TJBase;
-var
-  Parser: TParser;
 begin
-  Parser := TParser.Create(AText, False);
   Result := Parser.OwnParseResult;
-  Parser.Free;
+end;
+
+class function TJBase.Parser: IParser;
+begin
+  Result := TParser.Create;
 end;
 
 function TJBase.Path(AFrom: TJParent): string;
@@ -1545,31 +1575,24 @@ begin
 end;
 
 function TJBase.TParser.Parse: Boolean;
-var
-  ParserClass: TParserClass;
-  Parser: TObjectParser<TJBase>;
 begin
   case First of
     '"':
-      ParserClass := TJString.TParser;
+      ParseResult := TJString.Parser.Require(Info);
     '0' .. '9', '-', '+', '.':
-      ParserClass := TJNumber.TParser;
+      ParseResult := TJNumber.Parser.Require(Info);
     '{':
-      ParserClass := TJObject.TParser;
+      ParseResult := TJObject.Parser.Require(Info);
     '[':
-      ParserClass := TJArray.TParser;
+      ParseResult := TJArray.Parser.Require(Info);
     't', 'f':
-      ParserClass := TJBool.TParser;
+      ParseResult := TJBool.Parser.Require(Info);
     'n':
-      ParserClass := TJNull.TParser;
+      ParseResult := TJNull.Parser.Require(Info);
   else
     Exit(False);
   end;
-  Parser := TObjectParser<TJBase>(ParserClass.Create(Info, False));
-  Result := Parser.Success;
-  if Result then
-    SetParseResult(Parser.OwnParseResult);
-  Parser.Free;
+  Result := True;
 end;
 
 { TJBase.TFormatter }
@@ -1850,18 +1873,13 @@ begin
 end;
 
 class function TJObject.Parse(AText: string): TJObject;
-var
-  Parser: TParser;
 begin
-  Parser := TParser.Create(AText, False);
-  try
-    if Parser.Success then
-      Result := Parser.OwnParseResult
-    else
-      raise EJSONError.Create('Could not parse json.');
-  finally
-    Parser.Free;
-  end;
+  Result := Parser.Require(AText);
+end;
+
+class function TJObject.Parser: IParser;
+begin
+  Result := TParser.Create;
 end;
 
 procedure TJObject.Remove(AKey: string);
@@ -2004,7 +2022,7 @@ begin
 
   SkipWhitespace;
 
-  SetParseResult(TJObject.Create);
+  ParseResult := TJObject.Create;
 
   Token := TokenBrackets;
   if StartsWith('}') then
@@ -2013,7 +2031,7 @@ begin
 
   while True do
   begin
-    Key := TJString.TStringParser.Require(Info);
+    Key := TJString.StringParser.Require(Info);
 
     SkipWhitespace;
 
@@ -2024,7 +2042,7 @@ begin
 
     SkipWhitespace;
 
-    ParseResult[Key] := TJBase.TParser.Require(Info);
+    ParseResult[Key] := TJBase.Parser.Require(Info);
 
     SkipWhitespace;
 
@@ -2264,12 +2282,13 @@ begin
 end;
 
 class function TJArray.Parse(AText: string): TJArray;
-var
-  Parser: TParser;
 begin
-  Parser := TParser.Create(AText, False);
-  Result := Parser.OwnParseResult;
-  Parser.Free;
+  Result := Parser.Require(AText);
+end;
+
+class function TJArray.Parser: IParser;
+begin
+  Result := TParser.Create;
 end;
 
 procedure TJArray.Remove(AIndex: Integer);
@@ -2357,7 +2376,7 @@ begin
 
   SkipWhitespace;
 
-  SetParseResult(TJArray.Create);
+  ParseResult := TJArray.Create;
 
   Token := TokenBrackets;
   if StartsWith(']') then
@@ -2367,7 +2386,7 @@ begin
   while True do
   begin
 
-    ParseResult.Add(TJBase.TParser.Require(Info));
+    ParseResult.Add(TJBase.Parser.Require(Info));
 
     SkipWhitespace;
 
@@ -2419,6 +2438,16 @@ end;
 class function TJString.GetTypeName: string;
 begin
   Result := 'JSON-String';
+end;
+
+class function TJString.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TJString.StringParser: IStringParser;
+begin
+  Result := TStringParser.Create;
 end;
 
 class function TJString.Escape(AText: string): string;
@@ -2536,7 +2565,7 @@ begin
       Token := TokenQuotes;
     end;
 
-    SetParseResult(Builder.ToString);
+    ParseResult := Builder.ToString;
     Result := True;
 
   finally
@@ -2549,7 +2578,7 @@ end;
 
 function TJString.TParser.Parse: Boolean;
 begin
-  SetParseResult(TJString.Create(TStringParser.Require(Info)));
+  ParseResult := TJString.Create(StringParser.Require(Info));
   Result := True;
 end;
 
@@ -2591,6 +2620,11 @@ begin
   Result := 'JSON-Number';
 end;
 
+class function TJNumber.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
 function TJNumber.TryGetInt(out AValue: Int64): Boolean;
 begin
   if Number.IsFloat then
@@ -2621,9 +2655,9 @@ begin
     Exit(False);
   NumText := ReadWhile(ValidChars);
   if TryStrToInt(NumText, IntValue) then
-    SetParseResult(TJNumber.Create(IntValue))
+    ParseResult := TJNumber.Create(IntValue)
   else if TryStrToFloat(NumText, FloatValue, TFormatSettings.Invariant) then
-    SetParseResult(TJNumber.Create(FloatValue))
+    ParseResult := TJNumber.Create(FloatValue)
   else
     Exit(False);
   Result := True;
@@ -2660,6 +2694,11 @@ begin
   Result := 'JSON-Bool';
 end;
 
+class function TJBool.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
 { TJBool.TParser }
 
 class function TJBool.TParser.GetResultName: string;
@@ -2688,7 +2727,7 @@ begin
     Token := BoolTokenIndex[Bool];
     if StartsWith(BoolStrings[Bool]) then
     begin
-      SetParseResult(TJBool.Create(Bool));
+      ParseResult := TJBool.Create(Bool);
       Exit(True);
     end;
   end;
@@ -2712,6 +2751,11 @@ begin
   Result := 'JSON-Null';
 end;
 
+class function TJNull.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
 { TJNull.TParser }
 
 class function TJNull.TParser.GetResultName: string;
@@ -2723,7 +2767,7 @@ function TJNull.TParser.Parse: Boolean;
 begin
   if not StartsWith(NullString) then
     Exit(False);
-  SetParseResult(TJNull.Create);
+  ParseResult := TJNull.Create;
   Result := True;
 end;
 

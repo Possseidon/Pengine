@@ -14,27 +14,6 @@ uses
 
 type
 
-  // TODO: Use interfaces for automatic cleanup
-  //
-  // Why?
-  // - Parsers are never class-members, always short-lived in method bodies.
-  // - Watching out for exceptions with try finally is obnoxious. That's why the initial version had the parsing
-  // . directly in the constructor, because that automatically calls the destructor in case of exception.
-  // - Having it in the constructor is okay, but you have to pass all parameters in the constructor.
-  // - This also makes virtual constructors difficult.
-  //
-  // Move parsing from constructor to whenever ParseResult is requested.
-  //
-  // Used as follows:
-  // - MyResult := TMyObject.Parser.Parse;
-  //
-  // or used as follows:
-  // - MyParser := TMyObject.Parser;
-  // - MyParser.Settings := 42;
-  // - MyResult := MyParser.Parse; // or MyParser.Parse.Own;
-  //
-  // Of course, OwnParseResult is still a very relevant option for objects.
-
   TLogMarker = record
   private
     Pos: Integer;
@@ -432,17 +411,29 @@ type
     function GetTokenCount: Integer;
     function GetTokenName(AIndex: Integer): string;
 
+    procedure Parse(AText: string; AGenerateInfo: Boolean); overload;
+    procedure Parse(AInfo: TParseInfo; ARequired: Boolean); overload;
+
     property Success: Boolean read GetSuccess;
     property Context: TOwned<TParseInfo.TContext> read GetContext;
 
     property TokenCount: Integer read GetTokenCount;
     property TokanName[AIndex: Integer]: string read GetTokenName;
 
-
   end;
 
   IParser<T> = interface(IParser)
-    function Parse: T;
+    function GetParseResult: T;
+
+    function Require(AText: string): T; overload;
+    function Require(AInfo: TParseInfo): T; overload;
+
+    property ParseResult: T read GetParseResult;
+
+  end;
+
+  IObjectParser<T: class> = interface(IParser<T>)
+    function OwnParseResult: T;
 
   end;
 
@@ -455,15 +446,22 @@ type
   private
     FInfo: TParseInfo;
     FSuccess: Boolean;
-    FContext: TParseInfo.TContext;
+    FContext: TOwned<TParseInfo.TContext>;
 
-    function GetContext: TParseInfo.TContext; inline;
+    function GetSuccess: Boolean;
+    function GetContext: TOwned<TParseInfo.TContext>;
+
     function GetToken: Integer; inline;
     procedure SetToken(AIndex: Integer); inline;
     function GetFirst: Char; inline;
 
+    function GetTokenCountIParser: Integer;
+    function GetTokenNameIParser(AIndex: Integer): string;
+    function IParser.GetTokenCount = GetTokenCountIParser;
+    function IParser.GetTokenName = GetTokenNameIParser;
+
   protected
-    function Parse: Boolean; virtual; abstract;
+    function Parse: Boolean; overload; virtual; abstract;
 
     property Info: TParseInfo read FInfo;
     property Token: Integer read GetToken write SetToken;
@@ -505,29 +503,23 @@ type
     class function KeepEndSuggestions: Boolean; virtual;
 
   public
-    /// <summary>Parses the given string using the Parse function.</summary>
-    /// <param name="AText">The text to parse.</param>
-    /// <param name="ANoContext">Disable context if not required to speed up parsing.</param>
-    constructor Create(AText: string; AGenerateEditInfo: Boolean); overload;
-    /// <summary>Parses using the given TParseInfo object.</summary>
-    /// <exception><see cref="Pengine.Parser|EParseError"/> if no success and ARequired is True.</exception>
-    constructor Create(AInfo: TParseInfo; ARequired: Boolean); overload; virtual;
-    destructor Destroy; override;
-
     class function GetResultName: string; virtual;
     class function IgnoreContext: Boolean; virtual;
-
-    /// <summary>Wether the parsing was successful.</summary>
-    /// <remarks>This will always be true, if ARequired was set to True in the constructor.</remarks>
-    property Success: Boolean read FSuccess;
-
-    property Context: TParseInfo.TContext read GetContext;
-    function OwnContext: TParseInfo.TContext;
 
     /// <summary>Returns the count of tokens for the parser.</summary>
     class function GetTokenCount: Integer; virtual;
     /// <summary>Get the name of a token starting from 1, as 0 is TokenNone, which does not have a name.</summary>
     class function GetTokenName(AIndex: Integer): string; virtual;
+
+    /// <summary>Wether the parsing was successful.</summary>
+    /// <remarks>This will always be true, if ARequired was set to True in the constructor.</remarks>
+    property Success: Boolean read FSuccess;
+
+    property Context: TOwned<TParseInfo.TContext> read GetContext;
+    function OwnContext: TParseInfo.TContext;
+
+    procedure Parse(AText: string; AGenerateInfo: Boolean); overload;
+    procedure Parse(AInfo: TParseInfo; ARequired: Boolean); overload;
 
   end;
 
@@ -536,47 +528,47 @@ type
   private
     FParseResult: T;
 
-  protected
     procedure SetParseResult(AResult: T);
+    function GetParseResult: T;
 
   public
-    property ParseResult: T read FParseResult;
+    property ParseResult: T read GetParseResult write SetParseResult;
 
-    class function Require(AInfo: TParseInfo): T;
+    function Require(AText: string): T; overload;
+    function Require(AInfo: TParseInfo): T; overload;
 
   end;
 
   /// <summary>Creates a new object, that can be taken ownage of by using OwnParseResult.</summary>
-  TObjectParser<T: class> = class abstract(TParser, IParser<T>)
+  TObjectParser<T: class> = class abstract(TParser, IObjectParser<T>)
   private
-    FParseResult: TOwned<T>;
+    FParseResult: T;
 
-  protected
-    function GetOptional: T;
+    procedure SetParseResult(const Value: T);
+    function GetParseResult: T;
 
   public
     destructor Destroy; override;
 
+    property ParseResult: T read GetParseResult write SetParseResult;
     function OwnParseResult: T;
 
-    class function Require(AInfo: TParseInfo): T; reintroduce;
-    class function Optional(AInfo: TParseInfo): T; reintroduce;
+    function Require(AText: string): T; overload;
+    function Require(AInfo: TParseInfo): T; overload;
 
   end;
 
   /// <summary>Adds information to an existing object, given in constructor.</summary>
-  TRefParser<T: class> = class abstract(TParser)
-  private
+  {
+    TRefParser<T: class> = class abstract(TParser)
+    private
     FParseObject: T;
 
-  public
-    constructor Create(AParseObject: T; AText: string; AGenerateEditInfo: Boolean); overload;
-    constructor Create(AParseObject: T; AInfo: TParseInfo; ARequired: Boolean = True); overload;
-
+    public
     property ParseObject: T read FParseObject;
 
-  end;
-
+    end;
+  }
 function ParseSuggestion(ADisplay, AInsert: string): TParseSuggestion;
 
 implementation
@@ -613,45 +605,12 @@ begin
   Info.BeginSuggestions(ASuggestions);
 end;
 
-constructor TParser.Create(AInfo: TParseInfo; ARequired: Boolean);
-var
-  OldPosition: TParsePosition;
-  OldErrorCount: Integer;
-begin
-  FInfo := AInfo;
-  OldPosition := Info.Position;
-  OldErrorCount := Info.FContext.Log.Count;
-  if not IgnoreContext then
-    Info.PushParser(TParserClass(ClassType));
-  FSuccess := Parse;
-  if not KeepEndSuggestions then
-    EndSuggestions;
-  if not Success then
-  begin
-    if ARequired then
-      raise EParseError.Create('Expected ' + GetResultName + '.');
-    Info.FPosition := OldPosition;
-    while Info.FContext.Log.Count > OldErrorCount do
-      Info.FContext.FLog.RemoveLast;
-    while Info.FContext.Length >= Info.Position.Pos do
-      Info.FContext.FCharInfo.RemoveLast;
-  end;
-  if not IgnoreContext then
-    Info.PopParser;
-end;
-
-destructor TParser.Destroy;
-begin
-  FContext.Free;
-  inherited;
-end;
-
 procedure TParser.EndSuggestions;
 begin
   Info.EndSuggestions;
 end;
 
-function TParser.GetContext: TParseInfo.TContext;
+function TParser.GetContext: TOwned<TParseInfo.TContext>;
 begin
   Result := FContext;
 end;
@@ -676,14 +635,29 @@ begin
   Result := ClassName;
 end;
 
+function TParser.GetSuccess: Boolean;
+begin
+  Result := FSuccess;
+end;
+
 class function TParser.GetTokenCount: Integer;
 begin
   Result := 0;
 end;
 
+function TParser.GetTokenCountIParser: Integer;
+begin
+  Result := GetTokenCount;
+end;
+
 class function TParser.GetTokenName(AIndex: Integer): string;
 begin
   raise ENotImplemented.Create('GetTokenName is not implemented.');
+end;
+
+function TParser.GetTokenNameIParser(AIndex: Integer): string;
+begin
+  Result := GetTokenName(AIndex);
 end;
 
 class function TParser.IgnoreContext: Boolean;
@@ -715,6 +689,48 @@ function TParser.OwnContext: TParseInfo.TContext;
 begin
   Result := Context;
   FContext := nil;
+end;
+
+procedure TParser.Parse(AInfo: TParseInfo; ARequired: Boolean);
+var
+  OldPosition: TParsePosition;
+  OldErrorCount: Integer;
+begin
+  FInfo := AInfo;
+  OldPosition := Info.Position;
+  OldErrorCount := Info.FContext.Log.Count;
+  if not IgnoreContext then
+    Info.PushParser(TParserClass(ClassType));
+  FSuccess := Parse;
+  if not KeepEndSuggestions then
+    EndSuggestions;
+  if not Success then
+  begin
+    if ARequired then
+      raise EParseError.Create('Expected ' + GetResultName + '.');
+    Info.FPosition := OldPosition;
+    while Info.FContext.Log.Count > OldErrorCount do
+      Info.FContext.FLog.RemoveLast;
+    while Info.FContext.Length >= Info.Position.Pos do
+      Info.FContext.FCharInfo.RemoveLast;
+  end;
+  if not IgnoreContext then
+    Info.PopParser;
+end;
+
+procedure TParser.Parse(AText: string; AGenerateInfo: Boolean);
+begin
+  try
+    Parse(TParseInfo.Create(AText, AGenerateInfo), True);
+  except
+    on E: EParseError do
+      Log(-E.Length, E.Message);
+  end;
+  if not Success and Info.FContext.Log.Empty then
+    Log(1, 'Expected ' + GetResultName + '.', elFatal);
+  FContext := Info.OwnContext;
+
+  FInfo.Free;
 end;
 
 procedure TParser.PopParser;
@@ -775,21 +791,6 @@ end;
 function TParser.StartsWith(AText: string; AAdvanceOnMatch: Boolean): Boolean;
 begin
   Result := Info.StartsWith(AText, AAdvanceOnMatch);
-end;
-
-constructor TParser.Create(AText: string; AGenerateEditInfo: Boolean);
-begin
-  try
-    Create(TParseInfo.Create(AText, AGenerateEditInfo), True);
-  except
-    on E: EParseError do
-      Log(-E.Length, E.Message);
-  end;
-  if not Success and Info.FContext.Log.Empty then
-    Log(1, 'Expected ' + GetResultName + '.', elFatal);
-  FContext := Info.OwnContext;
-
-  FInfo.Free;
 end;
 
 procedure TParser.Log(AMarker: TLogMarker; AMessage: string; const AFmt: array of const; ALevel: TParseError.TLevel);
@@ -1116,55 +1117,26 @@ end;
 
 { TParser<T> }
 
-class function TParser<T>.Require(AInfo: TParseInfo): T;
+function TParser<T>.GetParseResult: T;
 begin
-  with Self.Create(AInfo, True) do
-  begin
-    Result := ParseResult;
-    Free;
-  end;
+  Result := FParseResult;
+end;
+
+function TParser<T>.Require(AInfo: TParseInfo): T;
+begin
+  Parse(AInfo, True);
+  Result := ParseResult;
+end;
+
+function TParser<T>.Require(AText: string): T;
+begin
+  Parse(AText, False);
+  Result := ParseResult;
 end;
 
 procedure TParser<T>.SetParseResult(AResult: T);
 begin
   FParseResult := AResult;
-end;
-
-{ TObjectParser<T> }
-
-destructor TObjectParser<T>.Destroy;
-begin
-  ParseResult.Free;
-  inherited;
-end;
-
-function TObjectParser<T>.GetOptional: T;
-begin
-  if Success then
-    Result := OwnParseResult
-  else
-    Result := nil;
-  Free;
-end;
-
-class function TObjectParser<T>.Optional(AInfo: TParseInfo): T;
-begin
-  Result := Self.Create(AInfo, False).GetOptional;
-end;
-
-function TObjectParser<T>.OwnParseResult: T;
-begin
-  Result := ParseResult;
-  SetParseResult(nil);
-end;
-
-class function TObjectParser<T>.Require(AInfo: TParseInfo): T;
-begin
-  with Self.Create(AInfo, True) do
-  begin
-    Result := OwnParseResult;
-    Free;
-  end;
 end;
 
 { TParseInfo.TContext }
@@ -1346,20 +1318,6 @@ begin
   end;
 end;
 
-{ TRefParser<T> }
-
-constructor TRefParser<T>.Create(AParseObject: T; AText: string; AGenerateEditInfo: Boolean);
-begin
-  FParseObject := AParseObject;
-  inherited Create(AText, AGenerateEditInfo);
-end;
-
-constructor TRefParser<T>.Create(AParseObject: T; AInfo: TParseInfo; ARequired: Boolean);
-begin
-  FParseObject := AParseObject;
-  inherited Create(AInfo, ARequired);
-end;
-
 { TParseInfo.TContext.TCharInfo }
 
 procedure TParseInfo.TContext.TCharInfo.ItemRemoved(AIndex: Integer);
@@ -1535,6 +1493,44 @@ constructor TParseInfo.TParserInfo.Create(AParserClass: TParserClass; AIndex: In
 begin
   ParserClass := AParserClass;
   Index := AIndex;
+end;
+
+{ TObjectParser<T> }
+
+destructor TObjectParser<T>.Destroy;
+begin
+  FParseResult.Free;
+  inherited;
+end;
+
+function TObjectParser<T>.GetParseResult: T;
+begin
+  Result := FParseResult;
+end;
+
+function TObjectParser<T>.OwnParseResult: T;
+begin
+  Result := FParseResult;
+  FParseResult := nil;
+end;
+
+function TObjectParser<T>.Require(AInfo: TParseInfo): T;
+begin
+  Parse(AInfo, True);
+  Result := OwnParseResult;
+end;
+
+procedure TObjectParser<T>.SetParseResult(const Value: T);
+begin
+  if FParseResult <> nil then
+    FParseResult.Free;
+  FParseResult := Value;
+end;
+
+function TObjectParser<T>.Require(AText: string): T;
+begin
+  Parse(AText, False);
+  Result := OwnParseResult;
 end;
 
 end.
