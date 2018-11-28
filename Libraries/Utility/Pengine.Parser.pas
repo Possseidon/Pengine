@@ -9,7 +9,8 @@ uses
 
   Pengine.IntMaths,
   Pengine.Collections,
-  Pengine.CollectionInterfaces;
+  Pengine.CollectionInterfaces,
+  Pengine.Utility;
 
 type
 
@@ -20,18 +21,17 @@ type
   // - Watching out for exceptions with try finally is obnoxious. That's why the initial version had the parsing
   // . directly in the constructor, because that automatically calls the destructor in case of exception.
   // - Having it in the constructor is okay, but you have to pass all parameters in the constructor.
-  // - This also makes virtual constructors not impossible but difficult.
+  // - This also makes virtual constructors difficult.
   //
   // Move parsing from constructor to whenever ParseResult is requested.
   //
   // Used as follows:
-  // - MyResult := TMyParser.Get.ParseResult;
-  // Where "Get" returns an interface
+  // - MyResult := TMyObject.Parser.Parse;
   //
   // or used as follows:
-  // - MyParser := TMyParser.Get;
+  // - MyParser := TMyObject.Parser;
   // - MyParser.Settings := 42;
-  // - MyResult := MyParser.ParseResult;
+  // - MyResult := MyParser.Parse; // or MyParser.Parse.Own;
   //
   // Of course, OwnParseResult is still a very relevant option for objects.
 
@@ -97,10 +97,10 @@ type
 
     TLevel = (
       elNone,
-      elHint,
+      elHint, // something to note
       elWarning, // probably wrong
-      elError, // can't execute
-      elFatal // can't ececute and can't format (like exception)
+      elError, // can't execute, but can format
+      elFatal // can't ececute and can't format (used by exception)
       );
 
     TLevels = set of TLevel;
@@ -426,8 +426,28 @@ type
 
   end;
 
+  IParser = interface
+    function GetSuccess: Boolean;
+    function GetContext: TOwned<TParseInfo.TContext>;
+    function GetTokenCount: Integer;
+    function GetTokenName(AIndex: Integer): string;
+
+    property Success: Boolean read GetSuccess;
+    property Context: TOwned<TParseInfo.TContext> read GetContext;
+
+    property TokenCount: Integer read GetTokenCount;
+    property TokanName[AIndex: Integer]: string read GetTokenName;
+
+
+  end;
+
+  IParser<T> = interface(IParser)
+    function Parse: T;
+
+  end;
+
   /// <summary>A baseclass, which parses text using the protected parse function in its constructor.</summary>
-  TParser = class
+  TParser = class abstract(TInterfacedObject, IParser)
   public const
 
     TokenNone = 0;
@@ -511,7 +531,8 @@ type
 
   end;
 
-  TParser<T> = class(TParser)
+  /// <summary>A parser for a specific type.</summary>
+  TParser<T> = class abstract(TParser, IParser<T>)
   private
     FParseResult: T;
 
@@ -526,7 +547,10 @@ type
   end;
 
   /// <summary>Creates a new object, that can be taken ownage of by using OwnParseResult.</summary>
-  TObjectParser<T: class> = class(TParser<T>)
+  TObjectParser<T: class> = class abstract(TParser, IParser<T>)
+  private
+    FParseResult: TOwned<T>;
+
   protected
     function GetOptional: T;
 
@@ -541,7 +565,7 @@ type
   end;
 
   /// <summary>Adds information to an existing object, given in constructor.</summary>
-  TRefParser<T: class> = class(TParser)
+  TRefParser<T: class> = class abstract(TParser)
   private
     FParseObject: T;
 
