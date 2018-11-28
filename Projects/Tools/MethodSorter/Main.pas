@@ -20,19 +20,20 @@ uses
   Vcl.StdCtrls,
 
   Pengine.TimeManager,
-  Pengine.Vector;
+  Pengine.Hasher,
+  Pengine.HashCollections,
+  Pengine.Collections,
+  Pengine.IntMaths;
 
 type
 
   TPatternType = (
     ptInterface,
     ptImplementation,
-    ptClass,
-    ptRecord,
-    ptRecordHelper,
-    ptFunction,
-    ptProcedure
-  );
+    ptStructure,
+    ptEnd,
+    ptMethod
+    );
 
   TForm2 = class(TForm)
     btnOpen: TButton;
@@ -47,10 +48,11 @@ type
     procedure pnlMainResize(Sender: TObject);
     procedure spltMainMoved(Sender: TObject);
     procedure btnOpenClick(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
 
   private
     FSplitAspect: Single;
-
+    FSourceFile: TStringList;
     FPatterns: array [TPatternType] of TRegex;
 
     function MainWidth: Integer;
@@ -66,23 +68,18 @@ var
 
 const
 
-  TypePattern = '\w+(?:\.\w+)*(?:<(?R)>)';
-
   Patterns: array [TPatternType] of string = (
-    'interface',
-    'implementation',
-    'A(?R)?B',
-    //'\w+(?:<\w+ *(?:, *\w)*>)? *= *class(?:\((\w+(?:\.\w+)*(?:<(?1)>)?)\))?',
-    //'\w+(?:<\w+ *(?:, *\w)*>)? *= *class(?:\(' + TypePattern + '\))?',
-    '\w+(?:<\w+ *(?:, *\w)*>)? *= *record',
-    '\w+(?:<\w+ *(?:, *\w)*>)? *= *record +helper +for +' + TypePattern,
-    'function +(\w+(?:\w\.+)*)(?:\((.*)\))? *: *(\w+(?:\.\w+)*) *;',
-    'procedure +(\w+(?:\w\.+)*)(?:\((.*)\))? *;'
-  );
+    '^ *interface.*$',
+    '^ *implementation.*$',
+    '^ *(\w+) *= *(?:class|record).*$',
+    '^ *end;.*$',
+    '^ *(?:function|procedure|constructor|destructor) +([\w.]+).*$'
+    );
 
 implementation
 
 {$R *.dfm}
+
 
 function TForm2.MainWidth: Integer;
 begin
@@ -96,39 +93,127 @@ begin
 end;
 
 procedure TForm2.LoadFile(AFileName: string);
+type
+  TClassPath = TArray<string>;
+  TClassOrder = TArray<string>;
+  TMethods = TToObjectMap<string, TArray<string>, TStringHasher>;
+  TMethodBounds = TMap<string, TIntBounds1, TStringHasher>;
+  
 var
-  Line: string;
+  Line, Method: string;
   Match: TMatch;
   ImplementationReached: Boolean;
+  ClassPath: TClassPath;
+  ClassOrder: TClassOrder;
+  Methods: TMethods;
+  MethodBounds: TMethodBounds;
+  MethodSplit: Integer;
+  LastMethod: string;
+  I: Integer;
+  Pair: TMethodBounds.TPair;
+
+  function ClassPathToString: string;
+  var
+    I: Integer;
+  begin
+    if ClassPath.Empty then
+      Exit('');
+    Result := ClassPath[0];
+    for I := 1 to ClassPath.MaxIndex do
+      Result := Result + '.' + ClassPath[I];
+  end;
+
 begin
   // StartTimer;
 
   FSourceFile.LoadFromFile(AFileName);
-  lbInterface.Items.BeginUpdate; 
-  
-  ImplementationReached := False;
-  for Line in FSourceFile do
-  begin
-    if Line.Trim.ToLower.Equals('implementation') then
-    begin
-      ImplementationReached := True;
-      Continue;
-    end;
 
-    // Match := FMethodRegex.Match(Line.Trim);
-    if Match.Success then
+  ClassPath := TClassPath.Create;
+  ClassOrder := TClassOrder.Create;
+  MethodBounds := TMethodBounds.Create;
+
+  Methods := TMethods.Create;
+  Methods[ClassPathToString] := TArray<string>.Create;
+  ClassOrder.Add(ClassPathToString);
+
+  ImplementationReached := False;
+  for I := 0 to FSourceFile.Count - 1 do
+  begin
+    Line := FSourceFile[I];    
+    if Line.Trim.IsEmpty then
+      Continue;
+
+    if not ImplementationReached then
     begin
-      if ImplementationReached then
-        lbImplementation.Items.Add(Match.Value + ' ' + Match.Groups.Count.ToString)
-      else
-        lbInterface.Items.Add(Match.Value + ' ' + Match.Groups.Count.ToString);
+      if FPatterns[ptImplementation].IsMatch(Line) then
+      begin
+        ImplementationReached := True;
+        Continue;
+      end;
+
+      Match := FPatterns[ptMethod].Match(Line);
+      if Match.Success then
+      begin
+        Methods[ClassPathToString].Add(Match.Groups[1].Value);
+        Continue;
+      end;
+
+      Match := FPatterns[ptStructure].Match(Line);
+      if Match.Success then
+      begin
+        ClassPath.Add(Match.Groups[1].Value);
+        ClassOrder.Add(ClassPathToString);
+        Methods[ClassPathToString] := TArray<string>.Create;
+      end
+      else if FPatterns[ptEnd].IsMatch(Line) then
+        ClassPath.RemoveLast;
     end
-    //else if Line.Trim.StartsWith('function') or Line.Trim.StartsWith('procedure') then
-    //  raise Exception.Create(Line);
+    else
+    begin
+      Match := FPatterns[ptMethod].Match(Line);
+      if Match.Success then
+      begin
+        LastMethod := Match.Groups[1].Value;
+        MethodBounds[LastMethod] := IBounds1(I, I);
+      end;
+
+      if FPatterns[ptEnd].IsMatch(Line) then
+        MethodBounds[LastMethod] := IBounds1(MethodBounds[LastMethod].C1, I);
+    end;
   end;
+
+  lbInterface.Items.BeginUpdate;
+  lbImplementation.Items.BeginUpdate;
+
+  lbInterface.Clear;
+  lbImplementation.Clear;
+
+  for Line in ClassOrder do
+  begin
+    lbInterface.Items.Add('type ' + Line);
+    for Method in Methods[Line] do
+    begin
+      lbInterface.Items.Add('  ' + Method);
+    end;
+    lbInterface.Items.Add('end;');
+    lbInterface.Items.Add('');
+  end;
+
+  for Pair in MethodBounds do
+  begin
+    lbImplementation.Items.Add(Pair.Key + Pair.Value.ToString);
+  end;
+
   lbInterface.Items.EndUpdate;
+  lbImplementation.Items.EndUpdate;
+
+  ClassOrder.Free;
+  ClassPath.Free;
+  Methods.Free;
+  MethodBounds.Free;
 
   // ShowMessage(StopTimerGetString);
+
 end;
 
 procedure TForm2.btnOpenClick(Sender: TObject);
@@ -148,9 +233,12 @@ begin
   for PatternType := Low(TPatternType) to High(TPatternType) do
     FPatterns[PatternType] := TRegex.Create('^' + Patterns[PatternType] + '$');
 
-  ShowMessage(FPatterns[ptClass].Match('AAABBB').Value);
-    
   LoadFile('Data\TestFile.pas');
+end;
+
+procedure TForm2.FormDestroy(Sender: TObject);
+begin
+  FSourceFile.Free;
 end;
 
 procedure TForm2.pnlMainResize(Sender: TObject);

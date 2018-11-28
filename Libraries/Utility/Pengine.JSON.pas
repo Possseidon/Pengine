@@ -5,6 +5,7 @@ interface
 uses
   System.SysUtils,
   System.Math,
+  System.IOUtils,
 
   Pengine.IntMaths,
   Pengine.Collections,
@@ -13,8 +14,7 @@ uses
   Pengine.Parser,
   Pengine.CollectionInterfaces,
   Pengine.Utility,
-  Pengine.Interfaces,
-  System.IOUtils;
+  Pengine.Interfaces;
 
 type
 
@@ -61,6 +61,64 @@ type
           (AsInt: Int64);
         ntSingle, ntDouble:
           (AsFloat: Double);
+    end;
+
+    IFormatter = interface(IFormatter<TJBase>)
+      function GetPretty: Boolean;
+      procedure SetPretty(const Value: Boolean);
+      function GetIndentWidth: Integer;
+      procedure SetIndentWidth(const Value: Integer);
+      function GetArrayWrapThreshold: Integer;
+      procedure SetArrayWrapThreshold(const Value: Integer);
+
+      property Pretty: Boolean read GetPretty write SetPretty;
+      property IndentWidth: Integer read GetIndentWidth write SetIndentWidth;
+      property ArrayWrapTheshold: Integer read GetArrayWrapThreshold write SetArrayWrapThreshold;
+
+    end;
+
+    TFormatter = class(TFormatter<TJBase>, IFormatter)
+    public const
+
+      DefaultPretty = True;
+      DefaultArrayWrapThreshold = 3;
+      DefaultIndentWidth = 2;
+
+    private
+      FBuilder: TStringBuilder;
+      FIndentLevel: Integer;
+
+      // Format-Settings
+      FPretty: Boolean;
+      FArrayWrapThreshold: Integer;
+      FIndentWidth: Integer;
+
+      function GetPretty: Boolean;
+      procedure SetPretty(const Value: Boolean);
+      function GetIndentWidth: Integer;
+      procedure SetIndentWidth(const Value: Integer);
+      function GetArrayWrapThreshold: Integer;
+      procedure SetArrayWrapThreshold(const Value: Integer);
+
+    public
+      constructor Create; override;
+
+      function Format: string; override;
+
+      /// <summary>Wether to add line breaks and indentation.</summary>
+      property Pretty: Boolean read GetPretty write SetPretty;
+      /// <summary>How many spaces to use for indentation.</summary>
+      property IndentWidth: Integer read GetIndentWidth write SetIndentWidth;
+      /// <summary>How many primitive JSON-Values are allowed in an array without wrapping.</summary>
+      property ArrayWrapTheshold: Integer read GetArrayWrapThreshold write SetArrayWrapThreshold;
+
+      property Builder: TStringBuilder read FBuilder;
+      procedure Indent; inline;
+      procedure Unindent; inline;
+      procedure AddIndentation; inline;
+      procedure NewLine; inline;
+      property IndentLevel: Integer read FIndentLevel;
+
     end;
 
     /// <summary>A wrapper for any json value with implicit conversion and path information.</summary>
@@ -174,8 +232,8 @@ type
       property Name: string read GetName;
       function Path(AFrom: TJParent = nil): string; inline;
 
-      function Format(APretty: Boolean = True; AIndentWidth: Integer = 2;
-        AArrayWrapThreshold: Integer = 3): string; inline;
+      function Formatter: IFormatter; inline;
+      function Format: string; inline;
       function ToString: string; inline;
 
       function Equals(AOther: TJBase): Boolean; inline;
@@ -187,9 +245,9 @@ type
       property MaxIndex: Integer read GetMaxIndex;
       function Empty: Boolean; inline;
 
-      function AddObject(AKey: string): TJObject; inline;
-      function AddArray(AKey: string): TJArray; inline;
-      function AddNull(AKey: string): TJNull; inline;
+      function AddObject(AKey: string): TJObject; overload; inline;
+      function AddArray(AKey: string): TJArray; overload; inline;
+      function AddNull(AKey: string): TJNull; overload; inline;
 
       function Get(AKey: string; out AValue: TJBase): Boolean; overload; inline;
       function Get(AKey: string; out AValue: TJValue): Boolean; overload; inline;
@@ -200,8 +258,14 @@ type
       function Get(AKey: string; out AValue: TJNumber): Boolean; overload; inline;
       function Get(AKey: string; out AValue: TJBool): Boolean; overload; inline;
 
-      procedure Add(AValue: TJValue); inline;
-      procedure Insert(AValue: TJValue; AIndex: Integer = 0); inline;
+      function Add(AValue: TJValue): TJValue; inline;
+      function AddObject: TJObject; overload; inline;
+      function AddArray: TJArray; overload; inline;
+      function AddNull: TJNull; overload; inline;
+      function Insert(AValue: TJValue; AIndex: Integer = 0): TJValue; inline;
+      function InsertObject(AIndex: Integer = 0): TJObject; inline;
+      function InsertArray(AIndex: Integer = 0): TJArray; inline;
+      function InsertNull(AIndex: Integer = 0): TJNull; inline;
 
       function TryRemove(AKey: string): Boolean; inline;
       procedure Remove(AKey: string); overload; inline;
@@ -230,30 +294,6 @@ type
 
     end;
 
-  protected type
-
-    TJStringBuilder = class(TStringBuilder)
-    private
-      FPretty: Boolean;
-      FArrayWrapThreshold: Integer;
-      FIndentWidth: Integer;
-      FIndentLevel: Integer;
-
-    public
-      constructor Create(APretty: Boolean; AIndentWidth: Integer; AArrayWrapTheshold: Integer);
-
-      property Pretty: Boolean read FPretty;
-      property IndentWith: Integer read FIndentWidth;
-      property ArrayWrapTheshold: Integer read FArrayWrapThreshold;
-
-      procedure Indent; inline;
-      procedure Unindent; inline;
-      procedure AddIndentation; inline;
-      procedure NewLine; inline;
-      property IndentLevel: Integer read FIndentLevel;
-
-    end;
-
   private
     FParent: TJParent;
     FIndex: Integer;
@@ -263,7 +303,7 @@ type
     function GetName: string;
 
   protected
-    procedure FormatInternal(ABuilder: TJStringBuilder); virtual; abstract;
+    procedure FormatInternal(AFormatter: TFormatter); virtual; abstract;
 
   public
     constructor Create; overload; virtual;
@@ -293,11 +333,10 @@ type
     /// <returns>The path to this specific JSON-Value going from the given parent or root if omitted.</returns>
     function Path(AFrom: TJParent = nil): string;
 
-    /// <summary>Formats into a parseable string.</summary>
-    /// <param name="APretty">Wether to add line breaks and indentation.</param>
-    /// <param name="AIndentWidth">How many spaces to use to indent. (pretty only)</param>
-    /// <param name="AArrayWrapThreshold">How many primitives are allowed before arrays are forcibly wrapped. (pretty only)</param>
-    function Format(APretty: Boolean = True; AIndentWidth: Integer = 2; AArrayWrapThreshold: Integer = 3): string;
+    /// <returns>A formatter interface with settings.</returns>
+    function Formatter: IFormatter;
+    /// <summary>Formats into a parseable string with default formatting.</summary>
+    function Format: string;
     /// <summary>Formats into a parseable string without linebreaks.</summary>
     function ToString: string; override;
 
@@ -387,15 +426,14 @@ type
     FOrder: TOrder;
     FMap: TMap;
 
-    function GetCount: Integer; override;
-
     function GetValue(AKey: string): TJValue;
     procedure SetValue(AKey: string; const Value: TJValue); overload;
     function GetPair(AIndex: Integer): TJPair;
 
   protected
-    procedure FormatInternal(ABuilder: TJBase.TJStringBuilder); override;
+    procedure FormatInternal(AFormatter: TJBase.TFormatter); override;
 
+    function GetCount: Integer; override;
     procedure RemoveItem(AIndex: Integer); override;
     procedure ChangeIndex(AFrom, ATo: Integer); override;
     function NameOf(AIndex: Integer): string; override;
@@ -413,7 +451,8 @@ type
     procedure Assign(AFrom: TJBase); override;
 
     /// <summary>Used to read, append or modify the JSON-Values in this JSON-Object.</summary>
-    /// <remarks>Never returns nil, but appends JSON-Null objects for non-existent keys.</remarks>
+    /// <remarks>Never returns nil, but appends JSON-Null objects for non-existent keys.<p/>
+    /// Creates a copy if the value is already owned.</remarks>
     property Values[AKey: string]: TJValue read GetValue write SetValue; default;
     /// <summary>Used to read pairs of this JSON-Object by index.</summary>
     property Pairs[AIndex: Integer]: TJPair read GetPair;
@@ -511,14 +550,13 @@ type
   private
     FValues: TValues;
 
-    function GetCount: Integer; override;
-
     function GetValue(AIndex: Integer): TJValue;
     procedure SetValue(AIndex: Integer; const Value: TJValue);
 
   protected
-    procedure FormatInternal(ABuilder: TJBase.TJStringBuilder); override;
+    procedure FormatInternal(AFormatter: TJBase.TFormatter); override;
 
+    function GetCount: Integer; override;
     procedure RemoveItem(AIndex: Integer); override;
     procedure ChangeIndex(AFrom, ATo: Integer); override;
     function NameOf(AIndex: Integer): string; override;
@@ -536,15 +574,31 @@ type
     procedure Assign(AFrom: TJBase); override;
 
     /// <summary>Used to read, add or modify JSON-Values in this JSON-Array.</summary>
-    /// <remarks>Automatically fills up missing indices with JSON-Null objects.</summary>
+    /// <remarks>Automatically fills up missing indices with JSON-Null objects.<p/>
+    /// Creates a copy if the value is already owned.</remarks>
     property Values[AIndex: Integer]: TJValue read GetValue write SetValue; default;
     /// <returns>True, if this JSON-Array is empty.</returns>
     function Empty: Boolean; override;
 
     /// <summary>Appends a JSON-Value at the end of the JSON-Array.</summary>
-    procedure Add(AValue: TJValue);
+    /// <remarks>Creates a copy if the value is already owned.</remarks>
+    function Add(AValue: TJValue): TJValue;
+    /// <summary>Appends a JSON-Object at the end of the JSON-Array.</summary>
+    function AddObject: TJObject;
+    /// <summary>Appends a JSON-Array at the end of the JSON-Array.</summary>
+    function AddArray: TJArray;
+    /// <summary>Appends a JSON-Null object at the end of the JSON-Array.</summary>
+    function AddNull: TJNull;
+
     /// <summary>Inserts a JSON-Value at a given position or the start if omitted.</summary>
-    procedure Insert(AValue: TJValue; AIndex: Integer = 0);
+    /// <remarks>Creates a copy if the value is already owned.</remarks>
+    function Insert(AValue: TJValue; AIndex: Integer = 0): TJValue;
+    /// <summary>Inserts a JSON-Object at a given position or the start if omitted.</summary>
+    function InsertObject(AIndex: Integer = 0): TJObject;
+    /// <summary>Inserts a JSON-Array at a given position or the start if omitted.</summary>
+    function InsertArray(AIndex: Integer = 0): TJArray;
+    /// <summary>Inserts a JSON-Null object at a given position or the start if omitted.</summary>
+    function InsertNull(AIndex: Integer = 0): TJNull;
 
     /// <summary>Removes a JSON-Value at a given index.</summary>
     procedure Remove(AIndex: Integer);
@@ -604,7 +658,7 @@ type
     function GetEscaped: string;
 
   protected
-    procedure FormatInternal(ABuilder: TJBase.TJStringBuilder); override;
+    procedure FormatInternal(AFormatter: TJBase.TFormatter); override;
 
   public
     constructor Create(AText: string); reintroduce; overload;
@@ -654,7 +708,7 @@ type
     FNumber: TJBase.TNumber;
 
   protected
-    procedure FormatInternal(ABuilder: TJBase.TJStringBuilder); override;
+    procedure FormatInternal(AFormatter: TJBase.TFormatter); override;
 
   public
     constructor Create(ANumber: TJBase.TNumber); reintroduce; overload;
@@ -706,7 +760,7 @@ type
     FValue: Boolean;
 
   protected
-    procedure FormatInternal(ABuilder: TJBase.TJStringBuilder); override;
+    procedure FormatInternal(AFormatter: TJBase.TFormatter); override;
 
   public
     constructor Create(AValue: Boolean); reintroduce; overload;
@@ -740,7 +794,7 @@ type
     end;
 
   protected
-    procedure FormatInternal(ABuilder: TJBase.TJStringBuilder); override;
+    procedure FormatInternal(AFormatter: TJBase.TFormatter); override;
 
   public
     class function GetTypeName: string; override;
@@ -870,17 +924,14 @@ begin
   inherited;
 end;
 
-function TJBase.Format(APretty: Boolean; AIndentWidth, AArrayWrapThreshold: Integer): string;
-var
-  Builder: TJStringBuilder;
+function TJBase.Format: string;
 begin
-  Builder := TJStringBuilder.Create(APretty, AIndentWidth, AArrayWrapThreshold);
-  try
-    FormatInternal(Builder);
-    Result := Builder.ToString;
-  finally
-    Builder.Free;
-  end;
+  Result := Formatter.Format;
+end;
+
+function TJBase.Formatter: IFormatter;
+begin
+  Result := TFormatter.Create(Self);
 end;
 
 function TJBase.GetName: string;
@@ -931,7 +982,11 @@ end;
 
 function TJBase.ToString: string;
 begin
-  Result := Format(False);
+  with Formatter do
+  begin
+    Pretty := False;
+    Result := Format;
+  end;
 end;
 
 { TJBase.TNumber }
@@ -1037,9 +1092,9 @@ begin
   Result := AValue.AsInt;
 end;
 
-procedure TJBase.TJValue.Add(AValue: TJValue);
+function TJBase.TJValue.Add(AValue: TJValue): TJValue;
 begin
-  AsArray.Add(AValue);
+  Result := AsArray.Add(AValue);
 end;
 
 function TJBase.TJValue.AddArray(AKey: string): TJArray;
@@ -1114,9 +1169,14 @@ begin
   Result := AsArray.Extract<T>(AIndex);
 end;
 
-function TJBase.TJValue.Format(APretty: Boolean; AIndentWidth, AArrayWrapThreshold: Integer): string;
+function TJBase.TJValue.Format: string;
 begin
-  Result := FValue.Format(APretty, AIndentWidth, AArrayWrapThreshold);
+  Result := FValue.Format;
+end;
+
+function TJBase.TJValue.Formatter: IFormatter;
+begin
+  Result := Value.Formatter;
 end;
 
 procedure TJBase.TJValue.Free;
@@ -1250,9 +1310,24 @@ begin
   Result := AValue.AsBool;
 end;
 
-procedure TJBase.TJValue.Insert(AValue: TJValue; AIndex: Integer);
+function TJBase.TJValue.Insert(AValue: TJValue; AIndex: Integer = 0): TJValue;
 begin
-  AsArray.Insert(AValue, AIndex);
+  Result := AsArray.Insert(AValue, AIndex);
+end;
+
+function TJBase.TJValue.InsertArray(AIndex: Integer): TJArray;
+begin
+  Result := AsArray.InsertArray(AIndex);
+end;
+
+function TJBase.TJValue.InsertNull(AIndex: Integer): TJNull;
+begin
+  Result := AsArray.InsertNull(AIndex);
+end;
+
+function TJBase.TJValue.InsertObject(AIndex: Integer): TJObject;
+begin
+  Result := AsArray.InsertObject(AIndex);
 end;
 
 class operator TJBase.TJValue.Implicit(AValue: TJValue): TJParent;
@@ -1447,6 +1522,21 @@ begin
   Result := AValue;
 end;
 
+function TJBase.TJValue.AddArray: TJArray;
+begin
+  Result := AsArray.AddArray;
+end;
+
+function TJBase.TJValue.AddNull: TJNull;
+begin
+  Result := AsArray.AddNull;
+end;
+
+function TJBase.TJValue.AddObject: TJObject;
+begin
+  Result := AsArray.AddObject;
+end;
+
 { TJBase.TParser }
 
 class function TJBase.TParser.GetResultName: string;
@@ -1482,37 +1572,80 @@ begin
   Parser.Free;
 end;
 
-{ TJBase.TJStringBuilder }
+{ TJBase.TFormatter }
 
-procedure TJBase.TJStringBuilder.AddIndentation;
+procedure TJBase.TFormatter.AddIndentation;
 begin
-  Append(' ', IndentLevel * IndentWith);
+  Builder.Append(' ', IndentLevel * IndentWidth);
 end;
 
-constructor TJBase.TJStringBuilder.Create(APretty: Boolean; AIndentWidth: Integer; AArrayWrapTheshold: Integer);
+constructor TJBase.TFormatter.Create;
 begin
-  inherited Create;
-  FPretty := APretty;
-  FArrayWrapThreshold := AArrayWrapTheshold;
-  FIndentWidth := AIndentWidth;
+  inherited;
+  FPretty := DefaultPretty;
+  FArrayWrapThreshold := DefaultArrayWrapThreshold;
+  FIndentWidth := DefaultIndentWidth;
 end;
 
-procedure TJBase.TJStringBuilder.Indent;
+function TJBase.TFormatter.Format: string;
+begin
+  FBuilder := TStringBuilder.Create;
+  try
+    Value.FormatInternal(Self);
+    Result := FBuilder.ToString;
+
+  finally
+    Builder.Free;
+
+  end;
+end;
+
+function TJBase.TFormatter.GetArrayWrapThreshold: Integer;
+begin
+  Result := FArrayWrapThreshold;
+end;
+
+function TJBase.TFormatter.GetIndentWidth: Integer;
+begin
+  Result := FIndentWidth;
+end;
+
+function TJBase.TFormatter.GetPretty: Boolean;
+begin
+  Result := FPretty;
+end;
+
+procedure TJBase.TFormatter.Indent;
 begin
   Inc(FIndentLevel);
   NewLine;
 end;
 
-procedure TJBase.TJStringBuilder.NewLine;
+procedure TJBase.TFormatter.NewLine;
 begin
   if Pretty then
   begin
-    AppendLine;
+    Builder.AppendLine;
     AddIndentation;
   end;
 end;
 
-procedure TJBase.TJStringBuilder.Unindent;
+procedure TJBase.TFormatter.SetArrayWrapThreshold(const Value: Integer);
+begin
+  FArrayWrapThreshold := Value;
+end;
+
+procedure TJBase.TFormatter.SetIndentWidth(const Value: Integer);
+begin
+  FIndentWidth := Value;
+end;
+
+procedure TJBase.TFormatter.SetPretty(const Value: Boolean);
+begin
+  FPretty := Value;
+end;
+
+procedure TJBase.TFormatter.Unindent;
 begin
   Dec(FIndentLevel);
   NewLine;
@@ -1558,7 +1691,7 @@ begin
     raise EJSONError.Create('Cannot assign value to object.');
   Clear;
   for JPair in TJObject(AFrom) do
-    Self[JPair.Key] := JPair.Value.Copy;
+    Values[JPair.Key] := JPair.Value.Copy;
 end;
 
 procedure TJObject.ChangeIndex(AFrom, ATo: Integer);
@@ -1629,6 +1762,7 @@ end;
 function TJObject.Extract(AKey: string): TJValue;
 begin
   Result := Self[AKey];
+  Result.Value.FParent := nil;
   RemoveItem(Result.Index);
 end;
 
@@ -1637,35 +1771,35 @@ begin
   Result := Extract(AKey).Cast<T>;
 end;
 
-procedure TJObject.FormatInternal(ABuilder: TJBase.TJStringBuilder);
+procedure TJObject.FormatInternal(AFormatter: TJBase.TFormatter);
 
   procedure AppendIndex(I: Integer);
   begin
-    ABuilder.Append(TJString.Escape(FOrder[I].Key));
-    ABuilder.Append(': ');
-    FOrder[I].Value.FormatInternal(ABuilder);
+    AFormatter.Builder.Append(TJString.Escape(FOrder[I].Key));
+    AFormatter.Builder.Append(': ');
+    FOrder[I].Value.FormatInternal(AFormatter);
   end;
 
 var
   I: Integer;
 begin
-  ABuilder.Append('{');
+  AFormatter.Builder.Append('{');
   if not Empty then
   begin
-    ABuilder.Indent;
+    AFormatter.Indent;
     AppendIndex(0);
     for I := 1 to MaxIndex do
     begin
-      ABuilder.Append(',');
-      if not ABuilder.Pretty then
-        ABuilder.Append(' ')
+      AFormatter.Builder.Append(',');
+      if not AFormatter.Pretty then
+        AFormatter.Builder.Append(' ')
       else
-        ABuilder.NewLine;
+        AFormatter.NewLine;
       AppendIndex(I);
     end;
-    ABuilder.Unindent;
+    AFormatter.Unindent;
   end;
-  ABuilder.Append('}');
+  AFormatter.Builder.Append('}');
 end;
 
 function TJObject.Get(AKey: string; out AValue: TJBase): Boolean;
@@ -1743,24 +1877,30 @@ begin
   FMap.TryRemove(FOrder[AIndex].Key);
   FOrder.RemoveAt(AIndex);
   for I := AIndex to MaxIndex do
-    FOrder[I].Value.Index := I;
+    FOrder[I].Value.FIndex := I;
 end;
 
 procedure TJObject.SetValue(AKey: string; const Value: TJValue);
 var
   JValue, OldValue: TJBase;
 begin
-  JValue := Value.FValue;
+  if Value.Parent <> nil then
+    JValue := Value.Copy
+  else
+    JValue := Value.FValue;
   JValue.FParent := Self;
   if FMap.Get(AKey, OldValue) then
   begin
     FOrder[OldValue.Index] := TPair.Create(FOrder[OldValue.Index].Key, JValue);
+    FMap[AKey] := JValue;
     JValue.FIndex := OldValue.Index;
+    OldValue.FParent := nil;
+    OldValue.Free;
     Exit;
   end;
   FOrder.Add(TPair.Create(AKey, JValue));
   JValue.FIndex := FOrder.MaxIndex;
-  FMap[AKey] := Value;
+  FMap[AKey] := JValue;
 end;
 
 function TJObject.TryRemove(AKey: string): Boolean;
@@ -1904,19 +2044,39 @@ end;
 
 { TJArray }
 
-procedure TJArray.Add(AValue: TJValue);
-var
-  JValue: TJBase;
+function TJArray.Add(AValue: TJValue): TJValue;
 begin
-  JValue := AValue.FValue;
-  JValue.FParent := Self;
-  FValues.Add(AValue);
-  JValue.FIndex := MaxIndex;
+  if AValue.Parent <> nil then
+    Result := AValue.Copy
+  else
+    Result := AValue;
+  Result.FValue.FParent := Self;
+  FValues.Add(Result);
+  Result.FValue.FIndex := MaxIndex;
+end;
+
+function TJArray.AddArray: TJArray;
+begin
+  Result := TJArray.Create;
+  Add(Result);
+end;
+
+function TJArray.AddNull: TJNull;
+begin
+  Result := TJNull.Create;
+  Add(Result);
+end;
+
+function TJArray.AddObject: TJObject;
+begin
+  Result := TJObject.Create;
+  Add(Result);
 end;
 
 procedure TJArray.Assign(AFrom: TJBase);
 var
   I: Integer;
+  Value: TJBase;
 begin
   if not(AFrom is TJArray) then
     raise EJSONError.Create('Cannot assign value to array.');
@@ -1925,9 +2085,10 @@ begin
   FValues.ForceCount(FValues.Capacity);
   for I := 0 to TJArray(AFrom).FValues.MaxIndex do
   begin
-    Values[I] := TJArray(AFrom).Values[I].Copy;
-    Values[I].Value.FParent := Self;
-    Values[I].Value.FIndex := I;
+    Value := TJArray(AFrom).Values[I].Copy;
+    Value.FIndex := I;
+    Value.FParent := Self;
+    FValues[I] := Value;
   end;
 end;
 
@@ -1938,6 +2099,18 @@ begin
   FValues.SetIndex(AFrom, ATo);
   for I := Min(AFrom, ATo) to Max(AFrom, ATo) do
     FValues[I].FIndex := I;
+end;
+
+procedure TJArray.Clear;
+var
+  Value: TJBase;
+begin
+  for Value in FValues do
+  begin
+    Value.FParent := nil;
+    Value.Free;
+  end;
+  FValues.Clear;
 end;
 
 function TJArray.Copy: TJArray;
@@ -1984,6 +2157,7 @@ end;
 function TJArray.Extract(AIndex: Integer): TJValue;
 begin
   Result := Values[AIndex];
+  Result.Value.FParent := nil;
   Remove(AIndex);
 end;
 
@@ -1992,42 +2166,42 @@ begin
   Result := Extract(AIndex).Cast<T>;
 end;
 
-procedure TJArray.FormatInternal(ABuilder: TJBase.TJStringBuilder);
+procedure TJArray.FormatInternal(AFormatter: TJBase.TFormatter);
 var
   Wrapped: Boolean;
   I: Integer;
 begin
-  Wrapped := ABuilder.Pretty;
+  Wrapped := AFormatter.Pretty;
   if Wrapped then
   begin
-    Wrapped := Count > ABuilder.ArrayWrapTheshold;
+    Wrapped := Count > AFormatter.ArrayWrapTheshold;
     if not Wrapped then
-      for I := 0 to ABuilder.ArrayWrapTheshold - 1 do
+      for I := 0 to Min(AFormatter.ArrayWrapTheshold - 1, MaxIndex) do
         if Values[I].Value is TJParent then
         begin
           Wrapped := True;
           Break;
         end;
   end;
-  ABuilder.Append('[');
+  AFormatter.Builder.Append('[');
   if Wrapped then
-    ABuilder.Indent;
+    AFormatter.Indent;
   if not Empty then
   begin
-    FValues[0].FormatInternal(ABuilder);
+    FValues[0].FormatInternal(AFormatter);
     for I := 1 to MaxIndex do
     begin
-      ABuilder.Append(',');
+      AFormatter.Builder.Append(',');
       if not Wrapped then
-        ABuilder.Append(' ')
+        AFormatter.Builder.Append(' ')
       else if Wrapped then
-        ABuilder.NewLine;
-      FValues[I].FormatInternal(ABuilder);
+        AFormatter.NewLine;
+      FValues[I].FormatInternal(AFormatter);
     end;
   end;
   if Wrapped then
-    ABuilder.Unindent;
-  ABuilder.Append(']');
+    AFormatter.Unindent;
+  AFormatter.Builder.Append(']');
 end;
 
 function TJArray.GetCount: Integer;
@@ -2052,6 +2226,38 @@ begin
   Result := FValues[AIndex];
 end;
 
+function TJArray.Insert(AValue: TJValue; AIndex: Integer = 0): TJValue;
+var
+  I: Integer;
+begin
+  if AValue.Parent <> nil then
+    Result := AValue.Copy
+  else
+    Result := AValue;
+  FValues.Insert(Result, AIndex);
+  Result.Value.FParent := Self;
+  for I := AIndex to FValues.MaxIndex do
+    FValues[I].FIndex := I;
+end;
+
+function TJArray.InsertArray(AIndex: Integer): TJArray;
+begin
+  Result := TJArray.Create;
+  Insert(Result, AIndex);
+end;
+
+function TJArray.InsertNull(AIndex: Integer): TJNull;
+begin
+  Result := TJNull.Create;
+  Insert(Result, AIndex);
+end;
+
+function TJArray.InsertObject(AIndex: Integer): TJObject;
+begin
+  Result := TJObject.Create;
+  Insert(Result, AIndex);
+end;
+
 function TJArray.NameOf(AIndex: Integer): string;
 begin
   Result := '[' + AIndex.ToString + ']';
@@ -2067,6 +2273,11 @@ begin
 end;
 
 procedure TJArray.Remove(AIndex: Integer);
+begin
+  FValues[AIndex].Free;
+end;
+
+procedure TJArray.RemoveItem(AIndex: Integer);
 var
   I: Integer;
 begin
@@ -2075,30 +2286,28 @@ begin
     FValues[I].FIndex := I;
 end;
 
-procedure TJArray.RemoveItem(AIndex: Integer);
-begin
-  FValues.RemoveAt(AIndex);
-end;
-
 procedure TJArray.SetValue(AIndex: Integer; const Value: TJValue);
 var
   JValue: TJBase;
 begin
-  if Value.FValue = nil then
-    JValue := TJNull.Create
+  if Value.Parent <> nil then
+    JValue := Value.Copy
   else
     JValue := Value.FValue;
   JValue.FParent := Self;
   if FValues.RangeCheck(AIndex) then
   begin
+    FValues[AIndex].FParent := nil;
+    FValues[AIndex].Free;
     FValues[AIndex] := JValue;
     JValue.FIndex := AIndex;
   end
   else
   begin
     while MaxIndex < AIndex - 1 do
-      Add(TJNull.Create);
-    Add(Value);
+      AddNull;
+    FValues.Add(JValue);
+    JValue.FIndex := MaxIndex;
   end;
 end;
 
@@ -2197,9 +2406,9 @@ begin
   Result := Text = TJString(AObject).Text;
 end;
 
-procedure TJString.FormatInternal(ABuilder: TJBase.TJStringBuilder);
+procedure TJString.FormatInternal(AFormatter: TJBase.TFormatter);
 begin
-  ABuilder.Append(Escaped);
+  AFormatter.Builder.Append(Escaped);
 end;
 
 function TJString.GetEscaped: string;
@@ -2365,15 +2574,15 @@ begin
   Result := Number = TJNumber(AObject).Number;
 end;
 
-procedure TJNumber.FormatInternal(ABuilder: TJBase.TJStringBuilder);
+procedure TJNumber.FormatInternal(AFormatter: TJBase.TFormatter);
 begin
   case Number.NumType of
     ntInt:
-      ABuilder.Append(Number.AsInt);
+      AFormatter.Builder.Append(Number.AsInt);
     ntSingle:
-      ABuilder.Append(PrettyFloat(Single(Number.AsFloat)));
+      AFormatter.Builder.Append(PrettyFloat(Single(Number.AsFloat)));
     ntDouble:
-      ABuilder.Append(PrettyFloat(Number.AsFloat));
+      AFormatter.Builder.Append(PrettyFloat(Number.AsFloat));
   end;
 end;
 
@@ -2441,9 +2650,9 @@ begin
   Result := Value = TJBool(AObject).Value;
 end;
 
-procedure TJBool.FormatInternal(ABuilder: TJBase.TJStringBuilder);
+procedure TJBool.FormatInternal(AFormatter: TJBase.TFormatter);
 begin
-  ABuilder.Append(BoolStrings[Value]);
+  AFormatter.Builder.Append(BoolStrings[Value]);
 end;
 
 class function TJBool.GetTypeName: string;
@@ -2493,9 +2702,9 @@ begin
   Result := (AObject = nil) or (AObject is TJNull);
 end;
 
-procedure TJNull.FormatInternal(ABuilder: TJBase.TJStringBuilder);
+procedure TJNull.FormatInternal(AFormatter: TJBase.TFormatter);
 begin
-  ABuilder.Append(NullString);
+  AFormatter.Builder.Append(NullString);
 end;
 
 class function TJNull.GetTypeName: string;
