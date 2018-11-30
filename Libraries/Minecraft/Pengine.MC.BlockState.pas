@@ -11,7 +11,7 @@ uses
   Pengine.Collections,
   Pengine.Hasher,
   Pengine.HashCollections,
-  Pengine.Parser,
+  Pengine.Parsing,
   Pengine.Utility,
   Pengine.Settings,
   Pengine.JSON,
@@ -150,8 +150,10 @@ type
   TBlockState = class
   public type
 
+    IParser = IObjectParser<TBlockState>;
+
     /// <summary>Parses a whole block state.</summary>
-    TParser = class(TObjectParser<TBlockState>)
+    TParser = class(TObjectParser<TBlockState>, IParser)
     protected
       function Parse: Boolean; override;
 
@@ -199,19 +201,35 @@ type
 
     end;
 
+    IPropertiesParser = interface(IObjectParser<TProperties>)
+      function GetBlockTypes: TBlockTypes.TReader;
+      procedure SetBlockTypes(const Value: TBlockTypes.TReader);
+      function GetNoBrackets: Boolean;
+      procedure SetNoBrackets(const Value: Boolean);
+
+      property BlockTypes: TBlockTypes.TReader read GetBlockTypes write SetBlockTypes;
+      property NoBrackets: Boolean read GetNoBrackets write SetNoBrackets;
+
+    end;
+
     /// <summary>Parses the properties of a block state.</summary>
     /// <remarks>Context specific, on which properties are available for a certain block or a whole block tag.</remarks>
-    TPropertiesParser = class(TObjectParser<TProperties>)
+    TPropertiesParser = class(TObjectParser<TProperties>, IPropertiesParser)
     private
       FBlockTypes: TBlockTypes.TReader;
+      FNoBrackets: Boolean;
+
+      function GetBlockTypes: TBlockTypes.TReader;
+      procedure SetBlockTypes(const Value: TBlockTypes.TReader);
+      function GetNoBrackets: Boolean;
+      procedure SetNoBrackets(const Value: Boolean);
 
     protected
       function Parse: Boolean; override;
 
     public
-      constructor Create(AInfo: TParseInfo; ABlockTypes: TBlockTypes.TReader; ARequired: Boolean); overload;
-
-      class function Optional(AInfo: TParseInfo; ABlockTypes: TBlockTypes.TReader): TProperties; reintroduce;
+      property BlockTypes: TBlockTypes.TReader read GetBlockTypes write SetBlockTypes;
+      property NoBrackets: Boolean read GetNoBrackets write SetNoBrackets;
 
       class function GetResultName: string; override;
 
@@ -252,6 +270,9 @@ type
 
   public
     constructor Create(ANSPath: TNSPath); overload;
+
+    class function Parser: IParser;
+    class function PropertiesParser: IPropertiesParser;
 
     property NSPath: TNSPath read FNSPath write FNSPath;
 
@@ -536,6 +557,16 @@ begin
     Result := Result + NBT.Value.Format;
 end;
 
+class function TBlockState.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TBlockState.PropertiesParser: IPropertiesParser;
+begin
+  Result := TPropertiesParser.Create;
+end;
+
 { TBlockState.TParser }
 
 class function TBlockState.TParser.GetResultName: string;
@@ -551,6 +582,7 @@ var
   BlockType: TBlockType;
   BlockExists: Boolean;
   Blocks: TBlockTypes;
+  PropertiesParser: IPropertiesParser;
 begin
   Marker := GetMarker;
 
@@ -568,21 +600,26 @@ begin
   if not BlockExists then
     Log(Marker, '"%s" is not a valid block.', [NSPath.Format]);
 
-  SetParseResult(TBlockState.Create(NSPath));
+  ParseResult := TBlockState.Create(NSPath);
 
-  ParseResult.NBT.Value := TNBTCompound.TParser.Optional(Info, omReturnNil);
+  ParseResult.NBT.Value := TNBTCompound.Parser.Optional(Info);
 
   Blocks := TBlockTypes.Create;
   try
     if BlockExists then
       Blocks.Add(BlockType);
-    ParseResult.Properties.Value := TPropertiesParser.Optional(Info, Blocks.Reader);
+
+    PropertiesParser := TBlockState.PropertiesParser;
+    PropertiesParser.BlockTypes := Blocks.Reader;
+    ParseResult.Properties.Value := PropertiesParser.Optional(Info);
+
   finally
     Blocks.Free;
+
   end;
 
   if not ParseResult.NBT.HasValue then
-    ParseResult.NBT.Value := TNBTCompound.TParser.Optional(Info, omReturnNil);
+    ParseResult.NBT.Value := TNBTCompound.Parser.Optional(Info);
 
   Result := True;
 end;
@@ -748,21 +785,19 @@ end;
 
 { TBlockState.TPropertiesParser }
 
-constructor TBlockState.TPropertiesParser.Create(AInfo: TParseInfo; ABlockTypes: TBlockTypes.TReader;
-ARequired: Boolean);
+function TBlockState.TPropertiesParser.GetBlockTypes: TBlockTypes.TReader;
 begin
-  FBlockTypes := ABlockTypes;
-  inherited Create(AInfo, ARequired);
+  Result := FBlockTypes;
+end;
+
+function TBlockState.TPropertiesParser.GetNoBrackets: Boolean;
+begin
+  Result := FNoBrackets;
 end;
 
 class function TBlockState.TPropertiesParser.GetResultName: string;
 begin
   Result := 'Block-Properties';
-end;
-
-class function TBlockState.TPropertiesParser.Optional(AInfo: TParseInfo; ABlockTypes: TBlockTypes.TReader): TProperties;
-begin
-  Result := Create(AInfo, ABlockTypes, False).GetOptional;
 end;
 
 function TBlockState.TPropertiesParser.Parse: Boolean;
@@ -773,17 +808,17 @@ var
   Prop: TBlockType.TProperty;
   HasBlockTypes: Boolean;
 begin
-  if not StartsWith('[') then
+  if not NoBrackets and not StartsWith('[') then
     Exit(False);
 
-  SetParseResult(TProperties.Create);
+  ParseResult := TProperties.Create;
 
   HasBlockTypes := (FBlockTypes <> nil) and not FBlockTypes.Empty;
   if HasBlockTypes then
     BeginSuggestions(TPropertySuggestions.Create(FBlockTypes.Copy));
 
   SkipWhitespace;
-  if StartsWith(']', False) then
+  if not NoBrackets and StartsWith(']', False) then
   begin
     EndSuggestions;
     Advance;
@@ -834,7 +869,7 @@ begin
 
     SkipWhitespace;
 
-    if StartsWith(']') then
+    if not NoBrackets and StartsWith(']') then
       Break;
 
     if not StartsWith(',') then
@@ -847,6 +882,16 @@ begin
   end;
 
   Result := True;
+end;
+
+procedure TBlockState.TPropertiesParser.SetBlockTypes(const Value: TBlockTypes.TReader);
+begin
+  FBlockTypes := Value;
+end;
+
+procedure TBlockState.TPropertiesParser.SetNoBrackets(const Value: Boolean);
+begin
+  FNoBrackets := Value;
 end;
 
 { TBlockState.TProperties }
@@ -1090,6 +1135,7 @@ var
   TagExists: Boolean;
   BlockTag: TBlockTag;
   BlockTypes: TBlockTypes.TReader;
+  PropertiesParser: IPropertiesParser;
 begin
   Marker := GetMarker;
 
@@ -1109,22 +1155,24 @@ begin
   end;
   NSPath := NSPathString;
 
-  SetParseResult(TBlockStateTag.Create(NSPath));
+  ParseResult := TBlockStateTag.Create(NSPath);
   TagExists := RootSettingsG.Get<TBlockTagSettings>.BlockTags.Get(NSPath, BlockTag);
   if not TagExists then
     Log(Marker, '"%s" is not a valid block tag.', [NSPath.Format]);
 
-  ParseResult.NBT.Value := TNBTCompound.TParser.Optional(Info, omReturnNil);
+  ParseResult.NBT.Value := TNBTCompound.Parser.Optional(Info);
 
   if BlockTag <> nil then
     BlockTypes := BlockTag.BlockTypes
   else
     BlockTypes := nil;
 
-  ParseResult.Properties.Value := TPropertiesParser.Optional(Info, BlockTypes);
+  PropertiesParser := TBlockState.PropertiesParser;
+  PropertiesParser.BlockTypes := BlockTypes;
+  ParseResult.Properties.Value := PropertiesParser.Optional(Info);
 
   if not ParseResult.NBT.HasValue then
-    ParseResult.NBT.Value := TNBTCompound.TParser.Optional(Info, omReturnNil);
+    ParseResult.NBT.Value := TNBTCompound.Parser.Optional(Info);
 
   Result := True;
 end;

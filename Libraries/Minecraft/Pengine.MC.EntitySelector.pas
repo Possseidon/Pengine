@@ -8,10 +8,8 @@ uses
 
   Pengine.Vector,
   Pengine.IntMaths,
-  Pengine.Parser,
-  Pengine.ObservableCollections,
+  Pengine.Parsing,
   Pengine.Collections,
-  Pengine.Settings,
   Pengine.Utility,
   Pengine.JSON,
 
@@ -23,15 +21,16 @@ uses
 
 type
 
-  TEntitySelectorSettings = class(TSettings)
-  private
+  {
+    TEntitySelectorSettings = class(TSettings)
+    private
     FEntityNamespacePrefix: Boolean;
     FSpaceAfterComma: Boolean;
 
-  protected
+    protected
     class function GetNameForVersion(AVersion: Integer): string; override;
 
-  public
+    public
     property EntityNamespacePrefix: Boolean read FEntityNamespacePrefix write FEntityNamespacePrefix;
     property SpaceAfterComma: Boolean read FSpaceAfterComma write FSpaceAfterComma;
 
@@ -39,7 +38,8 @@ type
 
     procedure DefineJStorage(ASerializer: TJSerializer); override;
 
-  end;
+    end;
+  }
 
   TEntitySelector = class
   public type
@@ -79,7 +79,9 @@ type
 
   public type
 
-    TIntRangeParser = class(TParser<TIntBounds1>)
+    IIntRangeParser = IParser<TIntBounds1>;
+
+    TIntRangeParser = class(TParser<TIntBounds1>, IIntRangeParser)
     public const
 
       TokenValue = 1;
@@ -102,7 +104,9 @@ type
 
     end;
 
-    TRangeParser = class(TParser<TBounds1>)
+    IRangeParser = IParser<TBounds1>;
+
+    TRangeParser = class(TParser<TBounds1>, IRangeParser)
     public const
 
       TokenValue = 1;
@@ -159,7 +163,15 @@ type
         soLevel
         );
 
-      TParser = class(TObjectParser<TOption>)
+      IParser = interface(IObjectParser<TOption>)
+        function GetSelector: TEntitySelector;
+        procedure SetSelector(const Value: TEntitySelector);
+
+        property Selector: TEntitySelector read GetSelector write SetSelector;
+
+      end;
+
+      TParser = class(TObjectParser<TOption>, IParser)
       public const
 
         TokenOption = 1;
@@ -175,19 +187,24 @@ type
       private
         FSelector: TEntitySelector;
 
+        function GetSelector: TEntitySelector;
+        procedure SetSelector(const Value: TEntitySelector);
+
       protected
         function Parse: Boolean; override;
 
       public
-        constructor Create(AInfo: TParseInfo; ASelector: TEntitySelector; ARequired: Boolean = True);
-
         class function GetResultName: string; override;
         class function GetTokenCount: Integer; override;
         class function GetTokenName(AIndex: Integer): string; override;
 
-        property Selector: TEntitySelector read FSelector;
+        property Selector: TEntitySelector read GetSelector write SetSelector;
 
       end;
+
+      IDataParser = IDecorateParser<TOption>;
+
+      TDataParser<T: TOption> = class(TDecorateParser<T>);
 
       TSuggestions = class(TParseSuggestionsGenerated<TParser>)
       private
@@ -198,18 +215,6 @@ type
 
       public
         constructor Create(ASelector: TEntitySelector);
-
-      end;
-
-      TDataParser = class(TRefParser<TOption>);
-      TDataParserClass = class of TDataParser;
-
-      TDataParser<T: TOption> = class(TDataParser)
-      private
-        function GetParseObject: T;
-
-      public
-        property ParseObject: T read GetParseObject;
 
       end;
 
@@ -225,7 +230,10 @@ type
       class function GetClass(AName: string): TOptionClass; static;
       class function CreateTyped(ASelector: TEntitySelector; AName: string): TOption; static;
 
-      class function GetDataParserClass: TDataParserClass; virtual; abstract;
+      class function Parser: IParser;
+      class function DataParser: IDataParser;
+
+      class function GetDataParserClass: TParserClass; virtual; abstract;
       class function GetType: TType; virtual; abstract;
       class function GetName: string;
       class function IsApplicable(AVariable: TVariable): Boolean; virtual;
@@ -239,12 +247,12 @@ type
 
     end;
 
-    TOptions = TObservableObjectArray<TOption>;
+    TOptions = TObjectArray<TOption>;
 
     TOptionValueOrRange = class(TOption)
     public type
 
-      TParser = class(TDataParser<TOptionValueOrRange>)
+      TParser = class(TDecorateParser<TOptionValueOrRange>)
       protected
         function Parse: Boolean; override;
 
@@ -257,7 +265,7 @@ type
       FRange: TBounds1;
 
     public
-      class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetDataParserClass: TParserClass; override;
 
       class function MustBeNormalized: Boolean; virtual;
       class function GetMinimum(out AValue: Single): Boolean; virtual;
@@ -287,7 +295,7 @@ type
       FRange: TIntBounds1;
 
     public
-      class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetDataParserClass: TParserClass; override;
 
       class function MustBeNormalized: Boolean; virtual;
       class function GetMinimum(out AValue: Integer): Boolean; virtual;
@@ -328,7 +336,7 @@ type
       FValue: Integer;
 
     public
-      class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetDataParserClass: TParserClass; override;
       class function GetMinimum(out AValue: Integer): Boolean; virtual;
       class function GetMaximum(out AValue: Integer): Boolean; virtual;
 
@@ -354,7 +362,7 @@ type
       FValue: Single;
 
     public
-      class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetDataParserClass: TParserClass; override;
 
       property Value: Single read FValue write FValue;
 
@@ -379,7 +387,7 @@ type
       FText: string;
 
     public
-      class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetDataParserClass: TParserClass; override;
 
       property Text: string read FText write FText;
 
@@ -403,7 +411,7 @@ type
       FText: string;
 
     public
-      class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetDataParserClass: TParserClass; override;
 
       property Text: string read FText write FText;
 
@@ -462,7 +470,7 @@ type
     public
       class function GetType: TOption.TType; override;
       class function IsApplicable(AVariable: TVariable): Boolean; override;
-      class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetDataParserClass: TParserClass; override;
 
       property SortType: TSortType read FSortType write FSortType;
       property SortTypeName: string read GetSortTypeName;
@@ -558,7 +566,7 @@ type
 
       class function GetType: TOption.TType; override;
       class function GetQuantityType: TOption.TQuantityType; override;
-      class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetDataParserClass: TParserClass; override;
 
       property NBT: TNBTCompound read GetNBT;
 
@@ -605,7 +613,7 @@ type
       destructor Destroy; override;
 
       class function GetType: TOption.TType; override;
-      class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetDataParserClass: TParserClass; override;
 
       property Scores: TScores read FScores;
 
@@ -655,7 +663,7 @@ type
 
       property Entity: TEntity read FEntity write FEntity;
 
-      class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetDataParserClass: TParserClass; override;
 
       function FormatData: string; override;
 
@@ -702,7 +710,7 @@ type
       destructor Destroy; override;
 
       class function GetType: TOption.TType; override;
-      class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetDataParserClass: TParserClass; override;
 
       property Advancements: TAdvancements read FAdvancements;
 
@@ -735,7 +743,7 @@ type
       function GetGamemodeName: string;
 
     public
-      class function GetDataParserClass: TOption.TDataParserClass; override;
+      class function GetDataParserClass: TParserClass; override;
       class function GetType: TOption.TType; override;
 
       property Gamemode: TGamemode read FGamemode write FGamemode;
@@ -752,7 +760,9 @@ type
 
     end;
 
-    TParser = class(TObjectParser<TEntitySelector>)
+    IParser = IObjectParser<TEntitySelector>;
+
+    TParser = class(TObjectParser<TEntitySelector>, IParser)
     public const
 
       TokenPrefix = 1;
@@ -842,6 +852,10 @@ type
     constructor Create(AVariable: TVariable = svSender);
     destructor Destroy; override;
 
+    class function Parser: IParser;
+    class function IntRangeParser: IIntRangeParser;
+    class function RangeParser: IRangeParser;
+
     function AllowsMultiple: Boolean;
     function AllowsPlayersOnly: Boolean;
 
@@ -871,6 +885,11 @@ begin
   if OptionClass = nil then
     Exit(nil);
   Result := OptionClass.Create(ASelector);
+end;
+
+class function TEntitySelector.TOption.DataParser: IDataParser;
+begin
+  Result := TDataParser<TOption>(GetDataParserClass.Create);
 end;
 
 function TEntitySelector.TOption.Format: string;
@@ -908,6 +927,11 @@ begin
   Result := True;
 end;
 
+class function TEntitySelector.TOption.Parser: TEntitySelector.TOption.IParser;
+begin
+  Result := TParser.Create;
+end;
+
 procedure TEntitySelector.TOption.SetIndex(const Value: Integer);
 begin
   Selector.Options.SetIndex(Index, Value);
@@ -933,7 +957,7 @@ end;
 function TEntitySelector.TParser.Parse: Boolean;
 var
   Variable: TVariable;
-  OptionParser: TOption.TParser;
+  OptionParser: TOption.IParser;
   Required: Boolean;
 begin
   BeginSuggestions(TSuggestions);
@@ -954,7 +978,7 @@ begin
   begin
     if StartsWith(VariableChars[Variable]) then
     begin
-      SetParseResult(TEntitySelector.Create(Variable));
+      ParseResult := TEntitySelector.Create(Variable);
       Break;
     end;
   end;
@@ -969,18 +993,20 @@ begin
   if not StartsWith('[') then
     Exit;
 
+  OptionParser := TOption.Parser;
+  OptionParser.Selector := ParseResult;
+
   Required := False;
   while True do
   begin
     ResetToken;
 
-    OptionParser := TOption.TParser.Create(Info, ParseResult, Required);
+    OptionParser.Parse(Info, Required);
     if OptionParser.Success then
     begin
       ParseResult.Options.Add(OptionParser.OwnParseResult);
       Required := True;
     end;
-    OptionParser.Free;
 
     SkipWhitespace;
 
@@ -1038,7 +1064,7 @@ begin
   Result := SortTypeName;
 end;
 
-class function TEntitySelector.TOptionSort.GetDataParserClass: TOption.TDataParserClass;
+class function TEntitySelector.TOptionSort.GetDataParserClass: TParserClass;
 begin
   Result := TParser;
 end;
@@ -1162,7 +1188,7 @@ begin
   Result := inherited + NBT.Format;
 end;
 
-class function TEntitySelector.TOptionNBT.GetDataParserClass: TOption.TDataParserClass;
+class function TEntitySelector.TOptionNBT.GetDataParserClass: TParserClass;
 begin
   Result := TParser;
 end;
@@ -1212,7 +1238,7 @@ begin
   Result := Result + '}';
 end;
 
-class function TEntitySelector.TOptionScores.GetDataParserClass: TOption.TDataParserClass;
+class function TEntitySelector.TOptionScores.GetDataParserClass: TParserClass;
 begin
   Result := TParser;
 end;
@@ -1249,14 +1275,11 @@ end;
 { TEntitySelector.TOptionType }
 
 function TEntitySelector.TOptionType.FormatData: string;
-var
-  PrefixNamespace: Boolean;
 begin
-  PrefixNamespace := RootSettingsG.Get<TEntitySelectorSettings>.EntityNamespacePrefix;
-  Result := inherited + NSPath(EntityNames[Entity]).Format(PrefixNamespace);
+  Result := inherited + NSPath(EntityNames[Entity]).Format;
 end;
 
-class function TEntitySelector.TOptionType.GetDataParserClass: TOption.TDataParserClass;
+class function TEntitySelector.TOptionType.GetDataParserClass: TParserClass;
 begin
   Result := TParser;
 end;
@@ -1308,7 +1331,7 @@ begin
   Result := Result + '}';
 end;
 
-class function TEntitySelector.TOptionAdvancements.GetDataParserClass: TOption.TDataParserClass;
+class function TEntitySelector.TOptionAdvancements.GetDataParserClass: TParserClass;
 begin
   Result := TParser;
 end;
@@ -1325,7 +1348,7 @@ begin
   Result := inherited + GamemodeName;
 end;
 
-class function TEntitySelector.TOptionGamemode.GetDataParserClass: TOption.TDataParserClass;
+class function TEntitySelector.TOptionGamemode.GetDataParserClass: TParserClass;
 begin
   Result := TParser;
 end;
@@ -1405,9 +1428,7 @@ end;
 function TEntitySelector.Format: string;
 var
   Option: TOption;
-  SpaceAfterComma: Boolean;
 begin
-  SpaceAfterComma := RootSettingsG.Get<TEntitySelectorSettings>.SpaceAfterComma;
   Result := '@' + VariableChar;
   if Options.Empty then
     Exit;
@@ -1418,7 +1439,7 @@ begin
     if Option.Index <> Options.MaxIndex then
     begin
       Result := Result + ',';
-      if SpaceAfterComma then
+      if True then
         Result := Result + ' ';
     end;
   end;
@@ -1430,6 +1451,21 @@ begin
   Result := VariableChars[Variable];
 end;
 
+class function TEntitySelector.IntRangeParser: IIntRangeParser;
+begin
+  Result := TIntRangeParser.Create;
+end;
+
+class function TEntitySelector.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TEntitySelector.RangeParser: IRangeParser;
+begin
+  Result := TRangeParser.Create;
+end;
+
 { TEntitySelector.TOptionValueOrRange }
 
 function TEntitySelector.TOptionValueOrRange.FormatData: string;
@@ -1437,7 +1473,7 @@ begin
   Result := TRangeParser.Format(Range);
 end;
 
-class function TEntitySelector.TOptionValueOrRange.GetDataParserClass: TOption.TDataParserClass;
+class function TEntitySelector.TOptionValueOrRange.GetDataParserClass: TParserClass;
 begin
   Result := TParser;
 end;
@@ -1473,7 +1509,7 @@ begin
   Result := Value.ToString;
 end;
 
-class function TEntitySelector.TOptionInteger.GetDataParserClass: TOption.TDataParserClass;
+class function TEntitySelector.TOptionInteger.GetDataParserClass: TParserClass;
 begin
   Result := TParser;
 end;
@@ -1495,7 +1531,7 @@ begin
   Result := PrettyFloat(Value);
 end;
 
-class function TEntitySelector.TOptionFloat.GetDataParserClass: TOption.TDataParserClass;
+class function TEntitySelector.TOptionFloat.GetDataParserClass: TParserClass;
 begin
   Result := TParser;
 end;
@@ -1507,7 +1543,7 @@ begin
   Result := inherited + '"' + Text.Replace('\', '\\').Replace('"', '\"') + '"';
 end;
 
-class function TEntitySelector.TOptionString.GetDataParserClass: TOption.TDataParserClass;
+class function TEntitySelector.TOptionString.GetDataParserClass: TParserClass;
 begin
   Result := TParser;
 end;
@@ -1519,22 +1555,21 @@ begin
   Result := inherited + Text;
 end;
 
-class function TEntitySelector.TOptionIdentifier.GetDataParserClass: TOption.TDataParserClass;
+class function TEntitySelector.TOptionIdentifier.GetDataParserClass: TParserClass;
 begin
   Result := TParser;
 end;
 
 { TEntitySelector.TOption.TParser }
 
-constructor TEntitySelector.TOption.TParser.Create(AInfo: TParseInfo; ASelector: TEntitySelector; ARequired: Boolean);
-begin
-  FSelector := ASelector;
-  inherited Create(AInfo, ARequired);
-end;
-
 class function TEntitySelector.TOption.TParser.GetResultName: string;
 begin
   Result := 'Entity Selector Option';
+end;
+
+function TEntitySelector.TOption.TParser.GetSelector: TEntitySelector;
+begin
+  Result := FSelector;
 end;
 
 class function TEntitySelector.TOption.TParser.GetTokenCount: Integer;
@@ -1571,31 +1606,34 @@ begin
   if OptionClass = nil then
     raise EParseError.CreateFmt('Unknown entity selector option "%s".', [OptionName], OptionName.Length);
 
-  if not OptionClass.IsApplicable(Selector.Variable) then
-    Log(-OptionName.Length, '"%s" is not applicable for "@%s".',
-      [OptionClass.GetName, Selector.VariableChar]);
-
   FoundInverted := False;
-  case OptionClass.GetQuantityType of
-    qtSingle:
-      for Option in Selector.Options do
-        if Option is OptionClass then
-          Log(-OptionName.Length, 'Multiple occurences of "%s" are not valid.',
-            [OptionClass.GetName]);
-    qtMultipleInverted:
-      begin
+  if Selector <> nil then
+  begin
+    if not OptionClass.IsApplicable(Selector.Variable) then
+      Log(-OptionName.Length, '"%s" is not applicable for "@%s".',
+        [OptionClass.GetName, Selector.VariableChar]);
+
+    case OptionClass.GetQuantityType of
+      qtSingle:
         for Option in Selector.Options do
-        begin
           if Option is OptionClass then
+            Log(-OptionName.Length, 'Multiple occurences of "%s" are not valid.',
+              [OptionClass.GetName]);
+      qtMultipleInverted:
+        begin
+          for Option in Selector.Options do
           begin
-            if not TOptionInvertible(Option).Inverted then
-              Log(-OptionName.Length, 'Entity selector option "%s" got set already.',
-                [OptionClass.GetName])
-            else
-              FoundInverted := True;
+            if Option is OptionClass then
+            begin
+              if not TOptionInvertible(Option).Inverted then
+                Log(-OptionName.Length, 'Entity selector option "%s" got set already.',
+                  [OptionClass.GetName])
+              else
+                FoundInverted := True;
+            end;
           end;
         end;
-      end;
+    end;
   end;
 
   ResetToken;
@@ -1613,7 +1651,7 @@ begin
 
   SkipWhitespace;
 
-  SetParseResult(OptionClass.Create(Selector));
+  ParseResult := OptionClass.Create(Selector);
 
   Token := TokenInvert;
   if ParseResult is TOptionInvertible then
@@ -1632,16 +1670,14 @@ begin
 
   ResetToken;
 
-  ParseResult.GetDataParserClass.Create(ParseResult, Info).Free;
+  ParseResult.DataParser.Parse(ParseResult, Info, True);
 
   Result := True;
 end;
 
-{ TEntitySelector.TOption.TDataParser<T> }
-
-function TEntitySelector.TOption.TDataParser<T>.GetParseObject: T;
+procedure TEntitySelector.TOption.TParser.SetSelector(const Value: TEntitySelector);
 begin
-  Result := T(inherited ParseObject);
+  FSelector := Value;
 end;
 
 { TEntitySelector.TOptionValueOrRange.TParser }
@@ -1653,15 +1689,13 @@ end;
 
 function TEntitySelector.TOptionValueOrRange.TParser.Parse: Boolean;
 var
-  Parser: TRangeParser;
   Value: Single;
   Marker: TLogMarker;
   Range: TBounds1;
 begin
   Marker := GetMarker;
-  Parser := TRangeParser.Create(Info, True);
-  ParseObject.Range := Parser.ParseResult;
-  Range := Parser.ParseResult;
+  Range := RangeParser.Require(Info);
+  ParseObject.Range := Range;
 
   if ParseObject.MustBeNormalized and not Range.Normalized then
     Log(Marker, 'The minumum can''t be bigger than the maximum.');
@@ -1678,7 +1712,6 @@ begin
   if ParseObject.GetMaximum(Value) and not(Range <= Value) then
     Log(Marker, 'The value must be at most %f.', [Value]);
 
-  Parser.Free;
   Result := True;
 end;
 
@@ -1695,12 +1728,8 @@ begin
 end;
 
 function TEntitySelector.TOptionNBT.TParser.Parse: Boolean;
-var
-  Parser: TNBTCompound.TParser;
 begin
-  Parser := TNBTCompound.TParser.Create(Info, True);
-  ParseObject.FNBT := Parser.OwnParseResult;
-  Parser.Free;
+  ParseObject.FNBT := TNBTCompound.Parser.Require(Info);
   Result := True;
 end;
 
@@ -1717,12 +1746,8 @@ begin
 end;
 
 function TEntitySelector.TOptionString.TParser.Parse: Boolean;
-var
-  Parser: TNBTString.TStringOrIdentParser;
 begin
-  Parser := TNBTString.TStringOrIdentParser.Create(Info, True);
-  ParseObject.Text := Parser.ParseResult;
-  Parser.Free;
+  ParseObject.Text := TNBTString.StringOrIdentParser.Require(Info);
   Result := True;
 end;
 
@@ -1849,7 +1874,6 @@ end;
 function TEntitySelector.TOptionScores.TParser.Parse: Boolean;
 var
   Name: string;
-  Parser: TIntRangeParser;
 begin
   ParseObject.Scores.Clear;
 
@@ -1888,9 +1912,7 @@ begin
 
     SkipWhitespace;
 
-    Parser := TIntRangeParser.Create(Info, True);
-    ParseObject.Scores.Add(TScore.Create(Name, Parser.ParseResult));
-    Parser.Free;
+    ParseObject.Scores.Add(TScore.Create(Name, IntRangeParser.Require(Info)));
 
     SkipWhitespace;
 
@@ -2001,7 +2023,7 @@ begin
     Range.C1 := ParseInteger(RangeMin);
     Range.C2 := Range.C1;
   end;
-  SetParseResult(Range);
+  ParseResult := Range;
   Result := True;
 end;
 
@@ -2094,7 +2116,7 @@ begin
     Range.C1 := ParseFloat(RangeMin);
     Range.C2 := Range.C1;
   end;
-  SetParseResult(Range);
+  ParseResult := Range;
   Result := True;
 end;
 
@@ -2240,7 +2262,7 @@ var
 begin
   // TODO: More advanced checking, if the type would actually still make sense, like multiple limits
   for Option in OptionClasses do
-    if Option.IsApplicable(FSelector.Variable) then
+    if (FSelector = nil) or Option.IsApplicable(FSelector.Variable) then
       AddSuggestion(Option.GetName);
 end;
 
@@ -2251,7 +2273,7 @@ begin
   Result := TIntRangeParser.Format(Range);
 end;
 
-class function TEntitySelector.TOptionIntValueOrRange.GetDataParserClass: TOption.TDataParserClass;
+class function TEntitySelector.TOptionIntValueOrRange.GetDataParserClass: TParserClass;
 begin
   Result := TParser;
 end;
@@ -2280,15 +2302,13 @@ end;
 
 function TEntitySelector.TOptionIntValueOrRange.TParser.Parse: Boolean;
 var
-  Parser: TIntRangeParser;
   Value: Integer;
   Marker: TLogMarker;
   Range: TIntBounds1;
 begin
   Marker := GetMarker;
-  Parser := TIntRangeParser.Create(Info, True);
-  ParseObject.Range := Parser.ParseResult;
-  Range := Parser.ParseResult;
+  Range := IntRangeParser.Require(Info);
+  ParseObject.Range := Range;
 
   if ParseObject.MustBeNormalized and not Range.Normalized then
     Log(Marker, 'The minumum can''t be bigger than the maximum.');
@@ -2305,7 +2325,6 @@ begin
   if ParseObject.GetMaximum(Value) and not(Range <= Value) then
     Log(Marker, 'The value must be at most %d.', [Value]);
 
-  Parser.Free;
   Result := True;
 end;
 
@@ -2348,26 +2367,26 @@ begin
 end;
 
 { TEntitySelectorSettings }
-
-procedure TEntitySelectorSettings.DefineJStorage(ASerializer: TJSerializer);
-begin
+{
+  procedure TEntitySelectorSettings.DefineJStorage(ASerializer: TJSerializer);
+  begin
   inherited;
   with ASerializer do
   begin
-    Define('entity_namespace_prefix', FEntityNamespacePrefix);
-    Define('space_after_comma', FSpaceAfterComma);
+  Define('entity_namespace_prefix', FEntityNamespacePrefix);
+  Define('space_after_comma', FSpaceAfterComma);
   end;
-end;
+  end;
 
-class function TEntitySelectorSettings.GetNameForVersion(AVersion: Integer): string;
-begin
+  class function TEntitySelectorSettings.GetNameForVersion(AVersion: Integer): string;
+  begin
   Result := 'mc_entityselector';
-end;
+  end;
 
-procedure TEntitySelectorSettings.SetDefaults;
-begin
+  procedure TEntitySelectorSettings.SetDefaults;
+  begin
   FEntityNamespacePrefix := True;
   FSpaceAfterComma := True;
-end;
-
+  end;
+}
 end.

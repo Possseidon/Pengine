@@ -7,7 +7,7 @@ uses
   System.Character,
 
   Pengine.Utility,
-  Pengine.Parser,
+  Pengine.Parsing,
   Pengine.IntMaths,
   System.Math;
 
@@ -22,17 +22,28 @@ type
       vmLocal
       );
 
-    TParser = class(TRefParser<TMCVecValue>)
+    IParser = interface(IDecorateParser<TMCVecValue>)
+      function GetBlockPos: Boolean;
+      procedure SetBlockPos(const Value: Boolean);
+
+      property BlockPos: Boolean read GetBlockPos write SetBlockPos;
+
+    end;
+
+    TParser = class(TDecorateParser<TMCVecValue>, IParser)
     private
       FBlockPos: Boolean;
+
+      function GetBlockPos: Boolean;
+      procedure SetBlockPos(const Value: Boolean);
 
     protected
       function Parse: Boolean; override;
 
     public
-      constructor Create(AParseObject: TMCVecValue; AInfo: TParseInfo; ABlockPos, ARequired: Boolean);
-
       class function GetResultName: string; override;
+
+      property BlockPos: Boolean read GetBlockPos write SetBlockPos;
 
     end;
 
@@ -42,6 +53,8 @@ type
 
   public
     constructor Create(AValue: Single = 0; AMode: TMode = vmAbsolute);
+
+    class function Parser: IParser;
 
     property Value: Single read FValue write FValue;
     property Mode: TMode read FMode write FMode;
@@ -53,17 +66,28 @@ type
   TMCVec2 = class
   public type
 
-    TParser = class(TObjectParser<TMCVec2>)
+    IParser = interface(IObjectParser<TMCVec2>)
+      function GetChunkPos: Boolean;
+      procedure SetChunkPos(const Value: Boolean);
+
+      property ChunkPos: Boolean read GetChunkPos write SetChunkPos;
+
+    end;
+
+    TParser = class(TObjectParser<TMCVec2>, IParser)
     private
       FChunkPos: Boolean;
+
+      function GetChunkPos: Boolean;
+      procedure SetChunkPos(const Value: Boolean);
 
     protected
       function Parse: Boolean; override;
 
     public
-      constructor Create(AInfo: TParseInfo; AChunkPos, ARequired: Boolean);
-
       class function GetResultName: string; override;
+
+      property ChunkPos: Boolean read GetChunkPos write SetChunkPos;
 
     end;
 
@@ -76,6 +100,8 @@ type
     constructor Create;
     destructor Destroy; override;
 
+    class function Parser: IParser;
+
     property Values[AAxis: TCoordAxis2]: TMCVecValue read GetValue; default;
     property X: TMCVecValue index caX read GetValue;
     property Y: TMCVecValue index caY read GetValue;
@@ -87,17 +113,28 @@ type
   TMCVec3 = class
   public type
 
-    TParser = class(TObjectParser<TMCVec3>)
+    IParser = interface(IObjectParser<TMCVec3>)
+      function GetBlockPos: Boolean;
+      procedure SetBlockPos(const Value: Boolean);
+
+      property BlockPos: Boolean read GetBlockPos write SetBlockPos;
+
+    end;
+
+    TParser = class(TObjectParser<TMCVec3>, IParser)
     private
       FBlockPos: Boolean;
+
+      function GetBlockPos: Boolean;
+      procedure SetBlockPos(const Value: Boolean);
 
     protected
       function Parse: Boolean; override;
 
     public
-      constructor Create(AInfo: TParseInfo; ABlockPos, ARequired: Boolean);
-
       class function GetResultName: string; override;
+
+      property BlockPos: Boolean read GetBlockPos write SetBlockPos;
 
     end;
 
@@ -109,6 +146,8 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+
+    class function Parser: IParser;
 
     property Values[AAxis: TCoordAxis3]: TMCVecValue read GetValue; default;
     property X: TMCVecValue index caX read GetValue;
@@ -122,7 +161,9 @@ type
   TMCSwizzle = class
   public type
 
-    TParser = class(TObjectParser<TMCSwizzle>)
+    IParser = IObjectParser<TMCSwizzle>;
+
+    TParser = class(TObjectParser<TMCSwizzle>, IParser)
     protected
       function Parse: Boolean; override;
 
@@ -155,6 +196,8 @@ type
 
   public
     constructor Create(AAxes: TCoordAxes3 = []);
+
+    class function Parser: IParser;
 
     property Axes: TCoordAxes3 read FAxes write FAxes;
 
@@ -193,6 +236,11 @@ begin
   Result := FValues[AAxis];
 end;
 
+class function TMCVec2.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
 { TMCVec3 }
 
 constructor TMCVec3.Create;
@@ -222,12 +270,16 @@ begin
   Result := FValues[AAxis];
 end;
 
+class function TMCVec3.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
 { TMCVec3.TParser }
 
-constructor TMCVec3.TParser.Create(AInfo: TParseInfo; ABlockPos, ARequired: Boolean);
+function TMCVec3.TParser.GetBlockPos: Boolean;
 begin
-  FBlockPos := ABlockPos;
-  inherited Create(AInfo, ARequired);
+  Result := FBlockPos;
 end;
 
 class function TMCVec3.TParser.GetResultName: string;
@@ -238,35 +290,29 @@ end;
 function TMCVec3.TParser.Parse: Boolean;
 var
   Axis: TCoordAxis3;
-  Parser: TMCVecValue.TParser;
+  Parser: TMCVecValue.IParser;
   Local: Boolean;
   Marker: TLogMarker;
 begin
   Marker := GetMarker;
-  SetParseResult(TMCVec3.Create);
-  Parser := TMCVecValue.TParser.Create(ParseResult.X, Info, FBlockPos, False);
+  ParseResult := TMCVec3.Create;
+  Parser := TMCVecValue.Parser;
+  Parser.BlockPos := BlockPos;
+  Parser.Parse(ParseResult.X, Info, False);
   Local := ParseResult.X.Mode = vmLocal;
   if not Parser.Success then
-  begin
-    Parser.Free;
     Exit(False);
-  end;
-  Parser.Free;
   for Axis := Succ(Low(TCoordAxis3)) to High(TCoordAxis3) do
   begin
     if not ReachedEnd and not First.IsWhitespace then
       raise EParseError.Create('Expected whitespace.');
     Advance;
     SkipWhitespace;
-    Parser := TMCVecValue.TParser.Create(ParseResult[Axis], Info, FBlockPos, False);
-    try
-      if not Parser.Success then
-      begin
-        Log(1, 'Expected %s-Coordinate.', [CoordAxisNames[Axis]], elFatal);
-        Break;
-      end;
-    finally
-      Parser.Free;
+    Parser.Parse(ParseResult[Axis], Info, False);
+    if not Parser.Success then
+    begin
+      Log(1, 'Expected %s-Coordinate.', [CoordAxisNames[Axis]], elFatal);
+      Break;
     end;
   end;
   for Axis := Succ(Low(TCoordAxis3)) to High(TCoordAxis3) do
@@ -280,12 +326,16 @@ begin
   Result := True;
 end;
 
+procedure TMCVec3.TParser.SetBlockPos(const Value: Boolean);
+begin
+  FBlockPos := Value;
+end;
+
 { TMCVecValue.TParser }
 
-constructor TMCVecValue.TParser.Create(AParseObject: TMCVecValue; AInfo: TParseInfo; ABlockPos, ARequired: Boolean);
+function TMCVecValue.TParser.GetBlockPos: Boolean;
 begin
-  FBlockPos := ABlockPos;
-  inherited Create(AParseObject, AInfo, ARequired);
+  Result := FBlockPos;
 end;
 
 class function TMCVecValue.TParser.GetResultName: string;
@@ -324,12 +374,16 @@ begin
   Result := True;
 end;
 
+procedure TMCVecValue.TParser.SetBlockPos(const Value: Boolean);
+begin
+  FBlockPos := Value;
+end;
+
 { TMCVec2.TParser }
 
-constructor TMCVec2.TParser.Create(AInfo: TParseInfo; AChunkPos, ARequired: Boolean);
+function TMCVec2.TParser.GetChunkPos: Boolean;
 begin
-  FChunkPos := AChunkPos;
-  inherited Create(AInfo, ARequired);
+  Result := FChunkPos;
 end;
 
 class function TMCVec2.TParser.GetResultName: string;
@@ -339,16 +393,17 @@ end;
 
 function TMCVec2.TParser.Parse: Boolean;
 var
-  Parser: TMCVecValue.TParser;
+  Parser: TMCVecValue.IParser;
   Local: Boolean;
   Marker: TLogMarker;
 begin
   Marker := GetMarker;
-  SetParseResult(TMCVec2.Create);
-  Parser := TMCVecValue.TParser.Create(ParseResult.X, Info, FChunkPos, False);
+  ParseResult := TMCVec2.Create;
+  Parser := TMCVecValue.Parser;
+  Parser.BlockPos := ChunkPos;
+  Parser.Parse(ParseResult.X, Info, False);
   Local := ParseResult.X.Mode = vmLocal;
   Result := Parser.Success;
-  Parser.Free;
   if not Result then
     Exit;
 
@@ -356,15 +411,19 @@ begin
     raise EParseError.Create('Expected whitespace.');
   Advance;
   SkipWhitespace;
-  Parser := TMCVecValue.TParser.Create(ParseResult.Y, Info, FChunkPos, False);
+  Parser.Parse(ParseResult.Y, Info, False);
   if not Parser.Success then
     Log(1, 'Expected %s-Coordinate.', [CoordAxisNames[caY]], elFatal);
-  Parser.Free;
-
+  
   if (ParseResult.Y.Mode = vmLocal) <> Local then
     Log(Marker, 'Local coordinates (^) cannot be mixed with non-local coordinates.');
 
   Result := True;
+end;
+
+procedure TMCVec2.TParser.SetChunkPos(const Value: Boolean);
+begin
+  FChunkPos := Value;
 end;
 
 { TMCVecValue }
@@ -389,6 +448,11 @@ begin
     Result := Result + PrettyFloat(Value);
 end;
 
+class function TMCVecValue.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
 { TMCSwizzle }
 
 constructor TMCSwizzle.Create(AAxes: TCoordAxes3);
@@ -406,6 +470,11 @@ begin
       Result := Result + CoordAxisNamesLow[Axis];
 end;
 
+class function TMCSwizzle.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
 { TMCSwizzle.TParser }
 
 class function TMCSwizzle.TParser.GetResultName: string;
@@ -419,7 +488,7 @@ var
   Found: Boolean;
 begin
   BeginSuggestions(TSuggestions);
-  SetParseResult(TMCSwizzle.Create);
+  ParseResult := TMCSwizzle.Create;
   repeat
     Found := False;
     for Axis := Low(TCoordAxis3) to High(TCoordAxis3) do

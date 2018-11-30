@@ -105,8 +105,8 @@ type
     MaxCount = 3 * 3;
 
   end;
-
   /// <summary>A crafting recipe for which only the ingredients put not the positioning is relevant.</summary>
+
   TRecipeShapeless = class(TRecipeCrafting)
   public type
 

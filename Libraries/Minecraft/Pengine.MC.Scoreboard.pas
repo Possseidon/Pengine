@@ -7,7 +7,7 @@ uses
   System.Classes,
   System.IOUtils,
 
-  Pengine.Parser,
+  Pengine.Parsing,
   Pengine.HashCollections,
   Pengine.Hasher,
   Pengine.Collections,
@@ -24,7 +24,9 @@ type
   TScoreboardSlot = class
   public type
 
-    TParser = class(TObjectParser<TScoreboardSlot>)
+    IParser = IObjectParser<TScoreboardSlot>;
+
+    TParser = class(TObjectParser<TScoreboardSlot>, IParser)
     public type
 
       TSuggestions = class(TParseSuggestionsGenerated<TParser>)
@@ -39,6 +41,8 @@ type
     end;
 
   public
+    class function Parser: TParser;
+
     function GetName: string; virtual; abstract;
 
   end;
@@ -93,7 +97,9 @@ type
   TScoreboardCriteria = class
   public type
 
-    TParser = class(TObjectParser<TScoreboardCriteria>)
+    IParser = IObjectParser<TScoreboardCriteria>;
+
+    TParser = class(TObjectParser<TScoreboardCriteria>, IParser)
     public type
 
       TSuggestions = class(TParseSuggestionsGenerated<TParser>)
@@ -114,6 +120,8 @@ type
     end;
 
   public
+    class function Parser: IParser;
+
     function Format: string; virtual; abstract;
 
   end;
@@ -492,19 +500,19 @@ begin
 
   if Name = TScoreboardSlotBelowName.Name then
   begin
-    SetParseResult(TScoreboardSlotBelowName.Create);
+    ParseResult := TScoreboardSlotBelowName.Create;
     Exit(True);
   end;
 
   if Name = TScoreboardSlotList.Name then
   begin
-    SetParseResult(TScoreboardSlotList.Create);
+    ParseResult := TScoreboardSlotList.Create;
     Exit(True);
   end;
 
   if Name = TScoreboardSlotSidebar.Name then
   begin
-    SetParseResult(TScoreboardSlotSidebar.Create);
+    ParseResult := TScoreboardSlotSidebar.Create;
     Exit(True);
   end;
 
@@ -513,7 +521,7 @@ begin
     Name := Name.Substring(Length(TScoreboardSlotSidebarTeam.NamePrefix));
     if not MCColorFromNameNoReset(Name, Color) then
       Exit(False);
-    SetParseResult(TScoreboardSlotSidebarTeam.Create(Color));
+    ParseResult := TScoreboardSlotSidebarTeam.Create(Color);
     Exit(True);
   end;
 
@@ -925,7 +933,7 @@ begin
         Exit(True);
       end;
 
-      SetParseResult(ComplexClass.Create(SubType));
+      ParseResult := ComplexClass.Create(SubType);
       Exit(True);
     end;
   end;
@@ -934,7 +942,7 @@ begin
   begin
     if Name = TScoreboardCriteriaSimple.Names[CriteriaType] then
     begin
-      SetParseResult(TScoreboardCriteriaSimple.Create(CriteriaType));
+      ParseResult := TScoreboardCriteriaSimple.Create(CriteriaType);
       Exit(True);
     end;
   end;
@@ -1013,6 +1021,20 @@ end;
 class function TScoreboardCriteriaEntity.GetSubTypeName(ASubType: Integer): string;
 begin
   Result := EntityNames[TEntity(ASubType)];
+end;
+
+{ TScoreboardSlot }
+
+class function TScoreboardSlot.Parser: TParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TScoreboardCriteria }
+
+class function TScoreboardCriteria.Parser: IParser;
+begin
+  Result := TParser.Create;
 end;
 
 end.

@@ -13,7 +13,7 @@ uses
   Pengine.Collections,
   Pengine.HashCollections,
   Pengine.Hasher,
-  Pengine.Parser,
+  Pengine.Parsing,
   Pengine.Settings,
   Pengine.JSON,
 
@@ -84,9 +84,21 @@ type
   TBrigadierParserProperties = class abstract
   public
     constructor Create(AProperties: TJObject); virtual;
+
   end;
 
-  TBrigadierParser = class abstract(TObjectParser<TBrigadierArgumentParameter>)
+  IBrigadierParser = interface(IObjectParser<TBrigadierArgumentParameter>)
+    function GetArgument: TBrigadierArgument;
+    function GetProperties: TBrigadierParserProperties;
+    procedure SetArgument(const Value: TBrigadierArgument);
+    procedure SetProperties(const Value: TBrigadierParserProperties);
+
+    property Argument: TBrigadierArgument read GetArgument write SetArgument;
+    property Properties: TBrigadierParserProperties read GetProperties write SetProperties;
+
+  end;
+
+  TBrigadierParser = class abstract(TObjectParser<TBrigadierArgumentParameter>, IBrigadierParser)
   public type
 
     TLookup = TMap<string, TBrigadierParserClass, TStringHasher>;
@@ -98,8 +110,10 @@ type
     class var
       FLookup: TLookup;
 
-  protected
-    property Argument: TBrigadierArgument read FArgument;
+    function GetArgument: TBrigadierArgument;
+    function GetProperties: TBrigadierParserProperties;
+    procedure SetArgument(const Value: TBrigadierArgument);
+    procedure SetProperties(const Value: TBrigadierParserProperties);
 
   public
     class constructor Create;
@@ -112,19 +126,20 @@ type
     class function GetParameterClass: TBrigadierParameterClass; virtual; abstract;
     class function GetPropertiesClass: TBrigadierParserPropertiesClass; virtual;
 
-    constructor Create(AInfo: TParseInfo; AArgument: TBrigadierArgument;
-      AProperties: TBrigadierParserProperties); virtual;
+    property Argument: TBrigadierArgument read GetArgument write SetArgument;
+    property Properties: TBrigadierParserProperties read GetProperties write SetProperties;
 
     function ToString: string; override;
 
   end;
 
   TBrigadierParser<T: TBrigadierArgumentParameter> = class(TBrigadierParser)
-  protected
+  private
+    function GetParseResult: T;
     procedure SetParseResult(AResult: T);
 
   public
-    function ParseResult: T;
+    property ParseResult: T read GetParseResult write SetParseResult;
 
   end;
 
@@ -222,7 +237,7 @@ type
     property ParserClass: TBrigadierParserClass read FParserClass;
     property ParserProperties: TBrigadierParserProperties read FParserProperties;
 
-    function CreateParser(AInfo: TParseInfo): TBrigadierParser;
+    function Parser: IBrigadierParser;
 
     function ToString: string; override;
 
@@ -273,6 +288,93 @@ type
   TBrigadierCommand = class
   public type
 
+    TSlashMode = (
+      smNone,
+      smOptional,
+      smRequired
+      );
+
+    IParser = interface(IObjectParser<TBrigadierCommand>)
+      function GetSlashMode: TSlashMode;
+      procedure SetSlashMode(const Value: TSlashMode);
+      function GetAllowComment: Boolean;
+      procedure SetAllowComment(const Value: Boolean);
+      function GetAllowPreceedingSpace: Boolean;
+      procedure SetAllowPreceedingSpace(const Value: Boolean);
+      function GetAllowEmpty: Boolean;
+      procedure SetAllowEmpty(const Value: Boolean);
+
+      property SlashMode: TSlashMode read GetSlashMode write SetSlashMode;
+      property AllowComment: Boolean read GetAllowComment write SetAllowComment;
+      property AllowPreceedingSpace: Boolean read GetAllowPreceedingSpace write SetAllowPreceedingSpace;
+      property AllowEmpty: Boolean read GetAllowEmpty write SetAllowEmpty;
+
+    end;
+
+    TParser = class(TObjectParser<TBrigadierCommand>, IParser)
+    public type
+
+      TSuggestions = class(TParseSuggestionsGenerated)
+      private
+        FChild: TBrigadierChild;
+
+      protected
+        procedure Generate; override;
+
+      public
+        constructor Create(AChild: TBrigadierChild);
+
+        function GetTitle: string; override;
+        function GetBreakChars: TSysCharSet; override;
+
+      end;
+
+    public const
+
+      TokenMainCommand = 1;
+      TokenSubCommand = 2;
+      TokenComment = 3;
+      TokenSlash = 4;
+
+      TokenNames: array [TokenMainCommand .. TokenSlash] of string = (
+        'Main-Command',
+        'Sub-Command',
+        'Comment',
+        'Slash'
+        );
+
+    private
+      FSlashMode: TSlashMode;
+      FAllowComment: Boolean;
+      FAllowPreceedingSpace: Boolean;
+      FAllowEmpty: Boolean;
+
+      procedure RaiseExpectedError(AChild: TBrigadierChild);
+
+      function GetSlashMode: TSlashMode;
+      procedure SetSlashMode(const Value: TSlashMode);
+      function GetAllowComment: Boolean;
+      procedure SetAllowComment(const Value: Boolean);
+      function GetAllowPreceedingSpace: Boolean;
+      procedure SetAllowPreceedingSpace(const Value: Boolean);
+      function GetAllowEmpty: Boolean;
+      procedure SetAllowEmpty(const Value: Boolean);
+
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetTokenCount: Integer; override;
+      class function GetTokenName(AIndex: Integer): string; override;
+      class function GetResultName: string; override;
+
+      property SlashMode: TSlashMode read GetSlashMode write SetSlashMode;
+      property AllowComment: Boolean read GetAllowComment write SetAllowComment;
+      property AllowPreceedingSpace: Boolean read GetAllowPreceedingSpace write SetAllowPreceedingSpace;
+      property AllowEmpty: Boolean read GetAllowEmpty write SetAllowEmpty;
+
+    end;
+
     TParameters = TObjectArray<TBrigadierParameter>;
 
   private
@@ -315,80 +417,6 @@ type
 
   end;
 
-  TBrigadierCommandParser = class(TObjectParser<TBrigadierCommand>)
-  public type
-
-    TSettings = class
-    public type
-
-      TSlashMode = (
-        smNone,
-        smOptional,
-        smRequired
-        );
-
-    private
-      FSlashMode: TSlashMode;
-      FAllowComment: Boolean;
-      FAllowPreceedingSpace: Boolean;
-      FAllowEmpty: Boolean;
-
-    public
-      property SlashMode: TSlashMode read FSlashMode write FSlashMode;
-      property AllowComment: Boolean read FAllowComment write FAllowComment;
-      property AllowPreceedingSpace: Boolean read FAllowPreceedingSpace write FAllowPreceedingSpace;
-      property AllowEmpty: Boolean read FAllowEmpty write FAllowEmpty;
-
-    end;
-
-    TSuggestions = class(TParseSuggestionsGenerated)
-    private
-      FChild: TBrigadierChild;
-
-    protected
-      procedure Generate; override;
-
-    public
-      constructor Create(AChild: TBrigadierChild);
-
-      function GetTitle: string; override;
-      function GetBreakChars: TSysCharSet; override;
-
-    end;
-
-  public const
-
-    TokenMainCommand = 1;
-    TokenSubCommand = 2;
-    TokenComment = 3;
-    TokenSlash = 4;
-
-    TokenNames: array [TokenMainCommand .. TokenSlash] of string = (
-      'Main-Command',
-      'Sub-Command',
-      'Comment',
-      'Slash'
-      );
-
-  private
-    FSettings: TBrigadierCommandParser.TSettings;
-
-    procedure RaiseExpectedError(AChild: TBrigadierChild);
-
-  protected
-    function Parse: Boolean; override;
-
-    property Settings: TBrigadierCommandParser.TSettings read FSettings;
-
-  public
-    constructor Create(ASettings: TBrigadierCommandParser.TSettings; AText: string; AGenerateEditInfo: Boolean);
-
-    class function GetTokenCount: Integer; override;
-    class function GetTokenName(AIndex: Integer): string; override;
-    class function GetResultName: string; override;
-
-  end;
-
 implementation
 
 uses
@@ -409,7 +437,7 @@ begin
   else
   begin
     BrigadierJ := TJObject.Create;
-    BrigadierJ.Add('type', 'root');
+    BrigadierJ['type'] := 'root';
     BrigadierJ.AddObject('children');
   end;
 
@@ -481,11 +509,13 @@ begin
   end;
 end;
 
-function TBrigadierArgument.CreateParser(AInfo: TParseInfo): TBrigadierParser;
+function TBrigadierArgument.Parser: IBrigadierParser;
 begin
-  if ParserClass <> nil then
-    Exit(ParserClass.Create(AInfo, Self, ParserProperties));
-  Result := nil;
+  if ParserClass = nil then
+    Exit(nil);
+  Result := ParserClass.Create;
+  Result.Argument := Self;
+  Result.Properties := ParserProperties;
 end;
 
 destructor TBrigadierArgument.Destroy;
@@ -720,19 +750,14 @@ begin
   FLookup := TLookup.Create;
 end;
 
-constructor TBrigadierParser.Create(AInfo: TParseInfo; AArgument: TBrigadierArgument;
-  AProperties: TBrigadierParserProperties);
-begin
-  if (GetPropertiesClass <> nil) and not(AProperties is GetPropertiesClass) then
-    raise EBrigadierProperties.Create('Invalid brigadier property class.');
-  FProperties := AProperties;
-  FArgument := AArgument;
-  inherited Create(AInfo, False);
-end;
-
 class destructor TBrigadierParser.Destroy;
 begin
   FLookup.Free;
+end;
+
+function TBrigadierParser.GetArgument: TBrigadierArgument;
+begin
+  Result := FArgument;
 end;
 
 class function TBrigadierParser.GetParserClass(AName: string): TBrigadierParserClass;
@@ -745,6 +770,11 @@ begin
   // raise EBriadierParserNotRegistered.Create(AName);
 end;
 
+function TBrigadierParser.GetProperties: TBrigadierParserProperties;
+begin
+  Result := FProperties;
+end;
+
 class function TBrigadierParser.GetPropertiesClass: TBrigadierParserPropertiesClass;
 begin
   Result := nil;
@@ -755,20 +785,26 @@ begin
   FLookup[GetParserString] := Self;
 end;
 
+procedure TBrigadierParser.SetArgument(const Value: TBrigadierArgument);
+begin
+  FArgument := Value;
+end;
+
+procedure TBrigadierParser.SetProperties(const Value: TBrigadierParserProperties);
+begin
+  if (GetPropertiesClass <> nil) and not(Value is GetPropertiesClass) then
+    raise EBrigadierProperties.Create('Invalid brigadier property class.');
+  FProperties := Value;
+end;
+
 function TBrigadierParser.ToString: string;
 begin
   Result := GetParserString;
 end;
 
-{ TBrigadierCommandParser }
+{ TBrigadierCommand.TParser }
 
-constructor TBrigadierCommandParser.Create(ASettings: TSettings; AText: string; AGenerateEditInfo: Boolean);
-begin
-  FSettings := ASettings;
-  inherited Create(AText, AGenerateEditInfo);
-end;
-
-procedure TBrigadierCommandParser.RaiseExpectedError(AChild: TBrigadierChild);
+procedure TBrigadierCommand.TParser.RaiseExpectedError(AChild: TBrigadierChild);
 var
   Msg: string;
   EntryCount, I: Integer;
@@ -802,28 +838,68 @@ begin
     Log(1, Msg, elFatal);
 end;
 
-class function TBrigadierCommandParser.GetResultName: string;
+function TBrigadierCommand.TParser.GetAllowComment: Boolean;
+begin
+  Result := FAllowComment;
+end;
+
+function TBrigadierCommand.TParser.GetAllowEmpty: Boolean;
+begin
+  Result := FAllowEmpty;
+end;
+
+function TBrigadierCommand.TParser.GetAllowPreceedingSpace: Boolean;
+begin
+  Result := FAllowPreceedingSpace;
+end;
+
+procedure TBrigadierCommand.TParser.SetAllowComment(const Value: Boolean);
+begin
+  FAllowComment := Value;
+end;
+
+procedure TBrigadierCommand.TParser.SetAllowEmpty(const Value: Boolean);
+begin
+  FAllowEmpty := Value;
+end;
+
+procedure TBrigadierCommand.TParser.SetAllowPreceedingSpace(const Value: Boolean);
+begin
+  FAllowPreceedingSpace := Value;
+end;
+
+procedure TBrigadierCommand.TParser.SetSlashMode(const Value: TSlashMode);
+begin
+  FSlashMode := Value;
+end;
+
+class function TBrigadierCommand.TParser.GetResultName: string;
 begin
   Result := 'Minecraft Command';
 end;
 
-class function TBrigadierCommandParser.GetTokenCount: Integer;
+function TBrigadierCommand.TParser.GetSlashMode: TSlashMode;
+begin
+  Result := FSlashMode;
+end;
+
+class function TBrigadierCommand.TParser.GetTokenCount: Integer;
 begin
   Result := High(TokenNames);
 end;
 
-class function TBrigadierCommandParser.GetTokenName(AIndex: Integer): string;
+class function TBrigadierCommand.TParser.GetTokenName(AIndex: Integer): string;
 begin
   Result := TokenNames[AIndex];
 end;
 
-function TBrigadierCommandParser.Parse: Boolean;
+function TBrigadierCommand.TParser.Parse: Boolean;
 var
   CurrentChild: TBrigadierChild;
   Literal: TBrigadierLiteral;
   Argument: TBrigadierArgument;
   Found: Boolean;
-  ArgumentParser: TBrigadierParser;
+  ArgumentParser: IBrigadierParser;
   ScannedLiteral: string;
   LastIteration: Boolean;
   PreceedingWhitespace: Boolean;
@@ -831,7 +907,7 @@ var
   Brigadier: TBrigadierRoot;
 begin
   Result := True;
-  SetParseResult(TBrigadierCommand.Create);
+  ParseResult := TBrigadierCommand.Create;
   Brigadier := RootSettingsG.Get<TBrigadierSettings>.Brigadier;
   CurrentChild := Brigadier;
 
@@ -845,12 +921,12 @@ begin
   // Empty/Whitespace strings
   if ReachedEnd then
   begin
-    if not Settings.AllowEmpty then
+    if not AllowEmpty then
       Exit(False);
     BeginSuggestions(TSuggestions.Create(CurrentChild));
     Exit;
   end
-  else if PreceedingWhitespace and not Settings.AllowPreceedingSpace then
+  else if PreceedingWhitespace and not AllowPreceedingSpace then
     Log(StartMarker, 'Preceeding whitespaces are not allowed.');
 
   // Comments
@@ -858,14 +934,14 @@ begin
   begin
     Token := TokenComment;
     ParseResult.FComment := AllText;
-    if not Settings.AllowComment then
+    if not AllowComment then
       Log(ParseResult.FComment.Length, 'Comments are not allowed.');
     AdvanceToEnd;
     Exit;
   end;
 
   Token := TokenSlash;
-  if StartsWith('/') and (Settings.SlashMode = smNone) then
+  if StartsWith('/') and (SlashMode = smNone) then
     Log(-1, 'A preceeding slash is not allowed.');
 
   // Command
@@ -903,19 +979,16 @@ begin
     begin
       for Argument in CurrentChild.Arguments do
       begin
-        ArgumentParser := Argument.CreateParser(Info);
+        ArgumentParser := Argument.Parser;
         if ArgumentParser <> nil then
         begin
-          try
-            if ArgumentParser.Success then
-            begin
-              ParseResult.FParameters.Add(ArgumentParser.OwnParseResult);
-              Found := True;
-              CurrentChild := Argument;
-              Break;
-            end;
-          finally
-            ArgumentParser.Free;
+          ArgumentParser.Parse(Info, False);
+          if ArgumentParser.Success then
+          begin
+            ParseResult.FParameters.Add(ArgumentParser.OwnParseResult);
+            Found := True;
+            CurrentChild := Argument;
+            Break;
           end;
         end
         else
@@ -973,14 +1046,14 @@ end;
 
 { TBrigadierParser<T> }
 
-function TBrigadierParser<T>.ParseResult: T;
+function TBrigadierParser<T>.GetParseResult: T;
 begin
   Result := T(inherited ParseResult);
 end;
 
 procedure TBrigadierParser<T>.SetParseResult(AResult: T);
 begin
-  inherited SetParseResult(AResult);
+  inherited ParseResult := AResult;
 end;
 
 { TBrigadierParser<T, P> }
@@ -995,14 +1068,14 @@ begin
   Result := P(FProperties);
 end;
 
-{ TBrigadierCommandParser.TSuggestions }
+{ TBrigadierCommand.TParser.TSuggestions }
 
-constructor TBrigadierCommandParser.TSuggestions.Create(AChild: TBrigadierChild);
+constructor TBrigadierCommand.TParser.TSuggestions.Create(AChild: TBrigadierChild);
 begin
   FChild := AChild;
 end;
 
-procedure TBrigadierCommandParser.TSuggestions.Generate;
+procedure TBrigadierCommand.TParser.TSuggestions.Generate;
 var
   Literal: TBrigadierLiteral;
 begin
@@ -1010,13 +1083,13 @@ begin
     AddSuggestion(Literal.Literal);
 end;
 
-function TBrigadierCommandParser.TSuggestions.GetBreakChars: TSysCharSet;
+function TBrigadierCommand.TParser.TSuggestions.GetBreakChars: TSysCharSet;
 begin
   // Those exist in the execute command...
   Result := inherited - ['=', '<', '>'];
 end;
 
-function TBrigadierCommandParser.TSuggestions.GetTitle: string;
+function TBrigadierCommand.TParser.TSuggestions.GetTitle: string;
 begin
   if FChild is TBrigadierRoot then
     Result := TokenNames[TokenMainCommand]

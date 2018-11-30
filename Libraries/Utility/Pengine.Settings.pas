@@ -120,7 +120,7 @@ type
     destructor Destroy; override;
 
     property LoadCanceled: Boolean read FLoadCanceled;
-    
+
     property Version: Integer read FVersion;
 
     property Path: string read FPath write SetPath;
@@ -323,7 +323,7 @@ end;
 
 procedure TRootSettings.Load;
 var
-  Parser: TJObject.TParser;
+  Parser: TJObject.IParser;
 begin
   FLock.Enter;
   FSubSettings.Clear;
@@ -331,23 +331,20 @@ begin
     FJObject := TJObject.Create
   else
   begin
-    Parser := TJObject.TParser.Create(TFile.ReadAllText(Path), False);
-    try
-      if not Parser.Success then
-      begin
-        FJObject := TJObject.Create;
-        FVersion := LatestVersion;
-      end
-      else
-      begin
-        FJObject := Parser.OwnParseResult;
-        FVersion := FJObject['_VERSION'] or 0;
-      end;
+    Parser := TJObject.Parser;
+    Parser.Parse(TFile.ReadAllText(Path), False);
 
-    finally
-      Parser.Free;
-
+    if not Parser.Success then
+    begin
+      FJObject := TJObject.Create;
+      FVersion := LatestVersion;
+    end
+    else
+    begin
+      FJObject := Parser.OwnParseResult;
+      FVersion := FJObject['_VERSION'] or 0;
     end;
+
   end;
   FLock.Leave;
 end;

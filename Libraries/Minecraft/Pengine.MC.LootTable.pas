@@ -846,12 +846,12 @@ var
   JBounds: TJObject;
 begin
   if AValue.C1 = AValue.C2 then
-    AObject.Add(AName, AValue.C1)
+    AObject[AName] := AValue.C1
   else
   begin
     JBounds := AObject.AddObject(AName);
-    JBounds.Add('min', AValue.C1);
-    JBounds.Add('max', AValue.C2);
+    JBounds['min'] := AValue.C1;
+    JBounds['max'] := AValue.C2;
   end;
 end;
 
@@ -947,7 +947,7 @@ procedure TLootTable.TConditionEntityProperties.Save(AValue: TJObject);
 begin
   inherited;
   if OnFire.HasValue then
-    AValue.AddObject('properties').Add('on_fire', OnFire.Value);
+    AValue.AddObject('properties')['on_fire'] := OnFire.Value;
 end;
 
 { TLootTable.TConditionEntityScores }
@@ -1020,7 +1020,7 @@ end;
 procedure TLootTable.TConditionKilledByPlayer.Save(AValue: TJObject);
 begin
   inherited;
-  AValue.Add('inverse', Inverse);
+  AValue['inverse'] := Inverse;
 end;
 
 procedure TLootTable.TConditionKilledByPlayer.SetInverse(const Value: Boolean);
@@ -1046,7 +1046,7 @@ end;
 procedure TLootTable.TConditionRandomChance.Save(AValue: TJObject);
 begin
   inherited;
-  AValue.Add('chance', Chance);
+  AValue['chance'] := Chance;
 end;
 
 procedure TLootTable.TConditionRandomChance.SetChance(const Value: Single);
@@ -1072,7 +1072,7 @@ end;
 procedure TLootTable.TConditionRandomChanceWithLooting.Save(AValue: TJObject);
 begin
   inherited;
-  AValue.Add('looting_multiplier', LootingMultiplier);
+  AValue['looting_multiplier'] := LootingMultiplier;
 end;
 
 { TLootTable.TFunctionEnchantRandomly }
@@ -1145,7 +1145,7 @@ procedure TLootTable.TFunctionEnchantWithLevels.Save(AValue: TJObject);
 begin
   inherited;
   SaveIntBounds(AValue, 'levels', Levels);
-  AValue.Add('treasure', Treasure);
+  AValue['treasure'] := Treasure;
 end;
 
 procedure TLootTable.TFunctionEnchantWithLevels.SetLevels(const Value: TIntBounds1);
@@ -1204,11 +1204,11 @@ end;
 procedure TLootTable.TFunctionExplorationMap.Save(AValue: TJObject);
 begin
   inherited;
-  AValue.Add('destination', Destination);
-  AValue.Add('decoration', Decoration);
-  AValue.Add('zoom', Zoom);
-  AValue.Add('search_radius', SearchRadius);
-  AValue.Add('skip_existing_chunks', SkipExistingChunks);
+  AValue['destination'] := Destination;
+  AValue['decoration'] := Decoration;
+  AValue['zoom'] := Zoom;
+  AValue['search_radius'] := SearchRadius;
+  AValue['skip_existing_chunks'] := SkipExistingChunks;
 end;
 
 procedure TLootTable.TFunctionExplorationMap.SetDecoration(const Value: string);
@@ -1271,7 +1271,7 @@ procedure TLootTable.TFunctionLootingEnchant.Save(AValue: TJObject);
 begin
   inherited;
   SaveIntBounds(AValue, 'count', Count);
-  AValue.Add('limit', Limit);
+  AValue['limit'] := Limit;
 end;
 
 procedure TLootTable.TFunctionLootingEnchant.SetCount(const Value: TIntBounds1);
@@ -1539,20 +1539,20 @@ end;
 procedure TLootTable.TFunctionSetNBT.Save(AValue: TJObject);
 begin
   inherited;
-  AValue.Add('tag', TagString);
+  AValue['tag'] := TagString;
 end;
 
 procedure TLootTable.TFunctionSetNBT.SetTagString(const Value: string);
 var
-  Parser: TNBTCompound.TParser;
+  Parser: TNBTCompound.IParser;
 begin
-  Parser := TNBTCompound.TParser.Create(Value, False);
+  Parser := TNBTCompound.Parser;
+  Parser.Parse(Value, False);
   if Parser.Success then
   begin
     FTag.Free;
     FTag := Parser.OwnParseResult;
   end;
-  Parser.Free;
 end;
 
 { TLootTable.TEntryItem }
@@ -1624,7 +1624,7 @@ var
   Func: TFunction;
 begin
   inherited;
-  AValue.Add('name', Item);
+  AValue['name'] := Item;
   if not Functions.Empty then
   begin
     JFunctions := AValue.AddArray('functions');
@@ -1661,7 +1661,7 @@ end;
 procedure TLootTable.TEntryLootTable.Save(AValue: TJObject);
 begin
   inherited;
-  AValue.Add('name', LootTable);
+  AValue['name'] := LootTable;
 end;
 
 procedure TLootTable.TEntryLootTable.SetLootTable(const Value: string);
@@ -1857,7 +1857,7 @@ end;
 procedure TLootTable.TCondition.Save(AValue: TJObject);
 begin
   inherited;
-  AValue.Add('condition', GetName);
+  AValue['condition'] := GetName;
 end;
 
 procedure TLootTable.TCondition.SetIndex(const Value: Integer);
@@ -1890,7 +1890,7 @@ end;
 procedure TLootTable.TConditionEntity.Save(AValue: TJObject);
 begin
   inherited;
-  AValue.Add('entity', TargetNames[Target]);
+  AValue['entity'] := TargetNames[Target];
 end;
 
 procedure TLootTable.TConditionEntity.SetTarget(const Value: TTarget);
@@ -1951,10 +1951,10 @@ end;
 procedure TLootTable.TEntry.Save(AValue: TJObject);
 begin
   inherited;
-  AValue.Add('type', GetName);
-  AValue.Add('weight', Weight);
+  AValue['type'] := GetName;
+  AValue['weight'] := Weight;
   if Quality <> 0 then
-    AValue.Add('quality', Quality);
+    AValue['quality'] := Quality;
 end;
 
 procedure TLootTable.TEntry.SetIndex(const Value: Integer);
@@ -2089,7 +2089,7 @@ end;
 procedure TLootTable.TFunction.Save(AValue: TJObject);
 begin
   inherited;
-  AValue.Add('function', GetName);
+  AValue['function'] := GetName;
 end;
 
 procedure TLootTable.TFunction.SetIndex(const Value: Integer);
@@ -2161,14 +2161,14 @@ var
   SlotCount: Integer;
   JSlot: TJArray;
 begin
-  AValue.Add('name', Name);
-  AValue.Add('attribute', AttributeNames[Attribute]);
-  AValue.Add('operation', AttributeOperationNames[Operation]);
+  AValue['name'] := Name;
+  AValue['attribute'] := AttributeNames[Attribute];
+  AValue['operation'] := AttributeOperationNames[Operation];
   SaveBounds(AValue, 'amount', Amount);
   if UUID.HasValue then
   begin
     UUIDString := UUID.Value.ToString;
-    AValue.Add('id', UUIDString.Substring(1, UUIDString.Length - 2));
+    AValue['id'] := UUIDString.Substring(1, UUIDString.Length - 2);
   end;
   SlotCount := 0;
   for Slot in Slots do
@@ -2177,7 +2177,7 @@ begin
   begin
     // actually only ran once to find the element
     for Slot in Slots do
-      AValue.Add('slot', AttributeSlotNames[Slot]);
+      AValue['slot'] := AttributeSlotNames[Slot];
   end
   else
   begin

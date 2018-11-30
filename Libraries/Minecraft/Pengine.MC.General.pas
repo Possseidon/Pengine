@@ -3,9 +3,7 @@ unit Pengine.MC.General;
 interface
 
 uses
-  System.SysUtils,
-
-  Pengine.Parser;
+  System.SysUtils;
 
 const
 

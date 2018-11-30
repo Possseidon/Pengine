@@ -11,7 +11,7 @@ uses
   Pengine.Collections,
   Pengine.HashCollections,
   Pengine.Settings,
-  Pengine.Parser,
+  Pengine.Parsing,
   Pengine.Utility,
   Pengine.JSON,
 
@@ -112,8 +112,10 @@ type
   TItemStack = class
   public type
 
+    IParser = IObjectParser<TItemStack>;
+
     /// <summary>Parses a whole item stack.</summary>
-    TParser = class(TObjectParser<TItemStack>)
+    TParser = class(TObjectParser<TItemStack>, IParser)
     protected
       function Parse: Boolean; override;
 
@@ -134,6 +136,8 @@ type
 
   public
     constructor Create(ANSPath: TNSPath); overload;
+
+    class function Parser: IParser;
 
     property NSPath: TNSPath read FNSPath write FNSPath;
 
@@ -281,7 +285,9 @@ type
       stWeapon
       );
 
-    TParser = class(TObjectParser<TItemSlot>)
+    IParser = IObjectParser<TItemSlot>;
+
+    TParser = class(TObjectParser<TItemSlot>, IParser)
     public type
 
       TNameSuggestions = class(TParseSuggestionsSimple<TParser>)
@@ -318,6 +324,8 @@ type
 
   public
     constructor Create;
+
+    class function Parser: IParser;
 
     class function GetType: TType; virtual; abstract;
     class function GetName: string;
@@ -610,9 +618,9 @@ begin
   if not ItemExists then
     Log(Marker, '"%s" is not a valid item.', [NSPath.Format]);
 
-  SetParseResult(TItemStack.Create(NSPath));
+  ParseResult := TItemStack.Create(NSPath);
 
-  ParseResult.NBT.Value := TNBTCompound.TParser.Optional(Info, omReturnNil);
+  ParseResult.NBT.Value := TNBTCompound.Parser.Optional(Info);
 
   Result := True;
 end;
@@ -644,6 +652,11 @@ begin
   Result := NSPath.Format(RootSettingsG.Get<TItemSettings>.NamespacePrefix);
   if NBT.HasValue and not NBT.Value.Empty then
     Result := Result + NBT.Value.Format;
+end;
+
+class function TItemStack.Parser: IParser;
+begin
+  Result := TParser.Create;
 end;
 
 { TItemTag }
@@ -856,12 +869,12 @@ begin
   end;
   NSPath := NSPathString;
 
-  SetParseResult(TItemStackTag.Create(NSPath));
+  ParseResult := TItemStackTag.Create(NSPath);
   TagExists := RootSettingsG.Get<TItemTagSettings>.ItemTags.Get(NSPath, ItemTag);
   if not TagExists then
     Log(Marker, '"%s" is not a valid item tag.', [NSPath.Format]);
 
-  ParseResult.NBT.Value := TNBTCompound.TParser.Optional(Info, omReturnNil);
+  ParseResult.NBT.Value := TNBTCompound.Parser.Optional(Info);
 
   Result := True;
 end;
@@ -944,6 +957,11 @@ end;
 class function TItemSlot.IndexRequired: Boolean;
 begin
   Result := True;
+end;
+
+class function TItemSlot.Parser: IParser;
+begin
+  Result := TParser.Create;
 end;
 
 procedure TItemSlot.ResetIndex;
@@ -1110,7 +1128,7 @@ begin
     Exit(False);
   SlotClass := ItemSlotClasses[SlotType];
 
-  SetParseResult(SlotClass.Create);
+  ParseResult := SlotClass.Create;
   if not StartsWith('.') then
   begin
     if SlotClass.IndexRequired then

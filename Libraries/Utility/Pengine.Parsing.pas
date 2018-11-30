@@ -1,4 +1,4 @@
-unit Pengine.Parser;
+unit Pengine.Parsing;
 
 interface
 
@@ -405,20 +405,23 @@ type
 
   end;
 
-  IParser = interface
+  IParserBase = interface
     function GetSuccess: Boolean;
     function GetContext: TOwned<TParseInfo.TContext>;
     function GetTokenCount: Integer;
     function GetTokenName(AIndex: Integer): string;
 
-    procedure Parse(AText: string; AGenerateInfo: Boolean); overload;
-    procedure Parse(AInfo: TParseInfo; ARequired: Boolean); overload;
+    property TokenCount: Integer read GetTokenCount;
+    property TokanName[AIndex: Integer]: string read GetTokenName;
 
     property Success: Boolean read GetSuccess;
     property Context: TOwned<TParseInfo.TContext> read GetContext;
 
-    property TokenCount: Integer read GetTokenCount;
-    property TokanName[AIndex: Integer]: string read GetTokenName;
+  end;
+
+  IParser = interface(IParserBase)
+    procedure Parse(AText: string; AGenerateInfo: Boolean); overload;
+    procedure Parse(AInfo: TParseInfo; ARequired: Boolean); overload;
 
   end;
 
@@ -435,10 +438,22 @@ type
   IObjectParser<T: class> = interface(IParser<T>)
     function OwnParseResult: T;
 
+    function Optional(AText: string): T; overload;
+    function Optional(AInfo: TParseInfo): T; overload;
+
+  end;
+
+  IDecorateParser = interface(IParserBase)
+  end;
+
+  IDecorateParser<T: class> = interface(IDecorateParser)
+    procedure Parse(AObject: T; AText: string; AGenerateInfo: Boolean); overload;
+    procedure Parse(AObject: T; AInfo: TParseInfo; ARequired: Boolean); overload;
+
   end;
 
   /// <summary>A baseclass, which parses text using the protected parse function in its constructor.</summary>
-  TParser = class abstract(TInterfacedObject, IParser)
+  TParser = class abstract(TInterfacedObject, IParserBase)
   public const
 
     TokenNone = 0;
@@ -455,10 +470,10 @@ type
     procedure SetToken(AIndex: Integer); inline;
     function GetFirst: Char; inline;
 
-    function GetTokenCountIParser: Integer;
-    function GetTokenNameIParser(AIndex: Integer): string;
-    function IParser.GetTokenCount = GetTokenCountIParser;
-    function IParser.GetTokenName = GetTokenNameIParser;
+    function GetTokenCountIParserBase: Integer;
+    function GetTokenNameIParserBase(AIndex: Integer): string;
+    function IParserBase.GetTokenCount = GetTokenCountIParserBase;
+    function IParserBase.GetTokenName = GetTokenNameIParserBase;
 
   protected
     function Parse: Boolean; overload; virtual; abstract;
@@ -556,19 +571,25 @@ type
     function Require(AText: string): T; overload;
     function Require(AInfo: TParseInfo): T; overload;
 
+    function Optional(AText: string): T; overload;
+    function Optional(AInfo: TParseInfo): T; overload;
+
   end;
 
-  /// <summary>Adds information to an existing object, given in constructor.</summary>
-  {
-    TRefParser<T: class> = class abstract(TParser)
-    private
+  /// <summary>Decorates an existing object.</summary>
+  TDecorateParser<T: class> = class abstract(TParser, IDecorateParser<T>)
+  private
     FParseObject: T;
 
-    public
+  protected
     property ParseObject: T read FParseObject;
 
-    end;
-  }
+  public
+    procedure Parse(AObject: T; AText: string; AGenerateInfo: Boolean); overload;
+    procedure Parse(AObject: T; AInfo: TParseInfo; ARequired: Boolean); overload;
+
+  end;
+
 function ParseSuggestion(ADisplay, AInsert: string): TParseSuggestion;
 
 implementation
@@ -645,7 +666,7 @@ begin
   Result := 0;
 end;
 
-function TParser.GetTokenCountIParser: Integer;
+function TParser.GetTokenCountIParserBase: Integer;
 begin
   Result := GetTokenCount;
 end;
@@ -655,7 +676,7 @@ begin
   raise ENotImplemented.Create('GetTokenName is not implemented.');
 end;
 
-function TParser.GetTokenNameIParser(AIndex: Integer): string;
+function TParser.GetTokenNameIParserBase(AIndex: Integer): string;
 begin
   Result := GetTokenName(AIndex);
 end;
@@ -1508,6 +1529,22 @@ begin
   Result := FParseResult;
 end;
 
+function TObjectParser<T>.Optional(AInfo: TParseInfo): T;
+begin
+  Parse(AInfo, False);
+  if Success then
+    Exit(OwnParseResult);
+  Result := nil;
+end;
+
+function TObjectParser<T>.Optional(AText: string): T;
+begin
+  Parse(AText, False);
+  if Success then
+    Exit(OwnParseResult);
+  Result := nil;
+end;
+
 function TObjectParser<T>.OwnParseResult: T;
 begin
   Result := FParseResult;
@@ -1531,6 +1568,20 @@ function TObjectParser<T>.Require(AText: string): T;
 begin
   Parse(AText, False);
   Result := OwnParseResult;
+end;
+
+{ TDecorateParser<T> }
+
+procedure TDecorateParser<T>.Parse(AObject: T; AInfo: TParseInfo; ARequired: Boolean);
+begin
+  FParseObject := AObject;
+  Parse(AInfo, ARequired);
+end;
+
+procedure TDecorateParser<T>.Parse(AObject: T; AText: string; AGenerateInfo: Boolean);
+begin
+  FParseObject := AObject;
+  Parse(AText, AGenerateInfo);
 end;
 
 end.

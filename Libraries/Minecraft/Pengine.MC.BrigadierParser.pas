@@ -10,7 +10,7 @@ uses
 
   Pengine.IntMaths,
   Pengine.Vector,
-  Pengine.Parser,
+  Pengine.Parsing,
   Pengine.Utility,
   Pengine.Collections,
   Pengine.Settings,
@@ -1320,7 +1320,7 @@ begin
   begin
     if Ident = BoolStrings[B] then
     begin
-      SetParseResult(TBrigadierBool.Create(Argument, B));
+      ParseResult := TBrigadierBool.Create(Argument, B);
       Exit(True);
     end;
   end;
@@ -1389,7 +1389,7 @@ begin
   if Value > Properties.Max then
     Log(Marker, 'Value must be at most %s.', [PrettyFloat(Properties.Max)]);
 
-  SetParseResult(TBrigadierInteger.Create(Argument, Value));
+  ParseResult := TBrigadierInteger.Create(Argument, Value);
 
   Result := True;
 end;
@@ -1418,7 +1418,6 @@ end;
 
 function TBrigadierEntityParser.Parse: Boolean;
 var
-  SelectorParser: TEntitySelector.TParser;
   Name: string;
   Marker: TLogMarker;
   Selector: TEntitySelector;
@@ -1430,10 +1429,8 @@ begin
   begin
     Marker := GetMarker;
 
-    SelectorParser := TEntitySelector.TParser.Create(Info, True);
-    Selector := SelectorParser.OwnParseResult;
-    SetParseResult(TBrigadierEntitySelector.Create(Argument, Selector));
-    SelectorParser.Free;
+    Selector := TEntitySelector.Parser.Require(Info);
+    ParseResult := TBrigadierEntitySelector.Create(Argument, Selector);
 
     if (Properties.Amount = eaSingle) and Selector.AllowsMultiple then
       Log(Marker, 'The selector must not be able to match multiple entities.');
@@ -1467,7 +1464,7 @@ begin
         end;
       end;
 
-      SetParseResult(TBrigadierEntityUUID.Create(Argument, TGUID.Create(UUIDBytes, TEndian.Big)));
+      ParseResult := TBrigadierEntityUUID.Create(Argument, TGUID.Create(UUIDBytes, TEndian.Big));
       Exit(True);
     end;
 
@@ -1476,7 +1473,7 @@ begin
     if Name.IsEmpty then
       Exit(False);
 
-    SetParseResult(TBrigadierEntityPlayer.Create(Argument, Name));
+    ParseResult := TBrigadierEntityPlayer.Create(Argument, Name);
   end;
   Result := True;
 end;
@@ -1598,13 +1595,13 @@ end;
 
 function TBrigadierNBTParser.Parse: Boolean;
 var
-  Parser: TNBTCompound.TParser;
+  Parser: TNBTCompound.IParser;
 begin
-  Parser := TNBTCompound.TParser.Create(Info, False);
+  Parser := TNBTCompound.Parser;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
-    SetParseResult(TBrigadierNBT.Create(Argument, Parser.OwnParseResult));
-  Parser.Free;
+    ParseResult := TBrigadierNBT.Create(Argument, Parser.OwnParseResult);
 end;
 
 { TBrigadierFloat }
@@ -1656,7 +1653,7 @@ begin
   if Value > Properties.Max then
     Log(Marker, 'Value must be at most %s.', [PrettyFloat(Properties.Max)]);
 
-  SetParseResult(TBrigadierFloat.Create(Argument, Value));
+  ParseResult := TBrigadierFloat.Create(Argument, Value);
 
   Result := True;
 end;
@@ -1710,7 +1707,7 @@ begin
   if Value > Properties.Max then
     Log(Marker, 'Value must be at most %s.', [PrettyFloat(Properties.Max)]);
 
-  SetParseResult(TBrigadierDouble.Create(Argument, Value));
+  ParseResult := TBrigadierDouble.Create(Argument, Value);
 
   Result := True;
 end;
@@ -1769,7 +1766,7 @@ end;
 
 function TBrigadierStringParser.Parse: Boolean;
 var
-  Parser: TNBTString.TStringOrIdentParser;
+  Parser: TNBTString.IStringOrIdentParser;
   Text: string;
 begin
   case Properties.Mode of
@@ -1781,14 +1778,11 @@ begin
       end;
     smPhrase:
       begin
-        Parser := TNBTString.TStringOrIdentParser.Create(Info, False);
+        Parser := TNBTString.StringOrIdentParser;
+        Parser.Parse(Info, False);
         if not Parser.Success or Parser.IsIdent and Parser.ParseResult.IsEmpty then
-        begin
-          Parser.Free;
           Exit(False);
-        end;
         Text := Parser.ParseResult;
-        Parser.Free;
       end;
     smGreedy:
       begin
@@ -1798,7 +1792,7 @@ begin
         AdvanceToEnd;
       end;
   end;
-  SetParseResult(TBrigadierString.Create(Argument, Properties.Mode, Text));
+  ParseResult := TBrigadierString.Create(Argument, Properties.Mode, Text);
   Result := True;
 end;
 
@@ -1841,13 +1835,13 @@ end;
 
 function TBrigadierNBTPathParser.Parse: Boolean;
 var
-  Parser: TNBTPath.TParser;
+  Parser: TNBTPath.IParser;
 begin
-  Parser := TNBTPath.TParser.Create(Info, False);
+  Parser := TNBTPath.Parser;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
-    SetParseResult(TBrigadierNBTPath.Create(Argument, Parser.OwnParseResult));
-  Parser.Free;
+    ParseResult := TBrigadierNBTPath.Create(Argument, Parser.OwnParseResult);
 end;
 
 { TBrigadierVec2 }
@@ -1889,16 +1883,17 @@ end;
 
 function TBrigadierVec2Parser.Parse: Boolean;
 var
-  Parser: TMCVec2.TParser;
+  Parser: TMCVec2.IParser;
   Axis: TCoordAxis2;
   Marker: TLogMarker;
 begin
   Marker := GetMarker;
-  Parser := TMCVec2.TParser.Create(Info, False, False);
+  Parser := TMCVec2.Parser;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
   begin
-    SetParseResult(TBrigadierVec2.Create(Argument, Parser.OwnParseResult));
+    ParseResult := TBrigadierVec2.Create(Argument, Parser.OwnParseResult);
     for Axis := Low(TCoordAxis2) to High(TCoordAxis2) do
       if ParseResult.Vector.Values[Axis].Mode = vmLocal then
       begin
@@ -1906,7 +1901,6 @@ begin
         Break;
       end;
   end;
-  Parser.Free;
 end;
 
 { TBrigadierVec3 }
@@ -1948,13 +1942,13 @@ end;
 
 function TBrigadierVec3Parser.Parse: Boolean;
 var
-  Parser: TMCVec3.TParser;
+  Parser: TMCVec3.IParser;
 begin
-  Parser := TMCVec3.TParser.Create(Info, False, False);
+  Parser := TMCVec3.Parser;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
-    SetParseResult(TBrigadierVec3.Create(Argument, Parser.OwnParseResult));
-  Parser.Free;
+    ParseResult := TBrigadierVec3.Create(Argument, Parser.OwnParseResult);
 end;
 
 { TBrigadierEntityAnchor }
@@ -2005,7 +1999,7 @@ begin
   begin
     if Ident = TBrigadierEntityAnchor.PositionStrings[Position] then
     begin
-      SetParseResult(TBrigadierEntityAnchor.Create(Argument, Position));
+      ParseResult := TBrigadierEntityAnchor.Create(Argument, Position);
       Exit(True);
     end;
   end;
@@ -2063,13 +2057,13 @@ end;
 
 function TBrigadierSwizzleParser.Parse: Boolean;
 var
-  Parser: TMCSwizzle.TParser;
+  Parser: TMCSwizzle.IParser;
 begin
-  Parser := TMCSwizzle.TParser.Create(Info, False);
+  Parser := TMCSwizzle.Parser;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
-    SetParseResult(TBrigadierSwizzle.Create(Argument, Parser.OwnParseResult));
-  Parser.Free;
+    ParseResult := TBrigadierSwizzle.Create(Argument, Parser.OwnParseResult);
 end;
 
 { TBrigadierBlockPosParser }
@@ -2086,13 +2080,14 @@ end;
 
 function TBrigadierBlockPosParser.Parse: Boolean;
 var
-  Parser: TMCVec3.TParser;
+  Parser: TMCVec3.IParser;
 begin
-  Parser := TMCVec3.TParser.Create(Info, True, False);
+  Parser := TMCVec3.Parser;
+  Parser.BlockPos := True;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
-    SetParseResult(TBrigadierVec3.Create(Argument, Parser.OwnParseResult));
-  Parser.Free;
+    ParseResult := TBrigadierVec3.Create(Argument, Parser.OwnParseResult);
 end;
 
 { TBrigadierGameProfile }
@@ -2129,7 +2124,7 @@ begin
     Exit(False);
   if Name.Length > UsernameMaxLength then
     Log(-Name.Length, 'Usernames can only be %d characters long.', [UsernameMaxLength]);
-  SetParseResult(TBrigadierGameProfile.Create(Argument, Name));
+  ParseResult := TBrigadierGameProfile.Create(Argument, Name);
   Result := True;
 end;
 
@@ -2211,14 +2206,14 @@ end;
 function TBrigadierMessageParser.Parse: Boolean;
 var
   Text: string;
-  Parser: TEntitySelector.TParser;
+  Selector: TEntitySelector;
 begin
   BeginSuggestions(TEntitySelector.TSuggestions);
 
   if ReachedEnd then
     Exit(False);
 
-  SetParseResult(TBrigadierMessage.Create(Argument));
+  ParseResult := TBrigadierMessage.Create(Argument);
   repeat
     Text := ReadUntil(['@']);
     if Text.Length > 0 then
@@ -2227,9 +2222,8 @@ begin
     if ReachedEnd then
       Break;
 
-    Parser := TEntitySelector.TParser.Create(Info, True);
-    ParseResult.Sections.Add(TBrigadierMessage.TSelectorSection.Create(Parser.OwnParseResult));
-    Parser.Free;
+    Selector := TEntitySelector.Parser.Require(Info);
+    ParseResult.Sections.Add(TBrigadierMessage.TSelectorSection.Create(Selector));
 
     BeginSuggestions(TEntitySelector.TSuggestions);
 
@@ -2262,7 +2256,7 @@ begin
   if NSPath.IsEmpty or not MobEffectFromName(NSPath, Effect) then
     Exit(False);
 
-  SetParseResult(TBrigadierMobEffect.Create(Argument, Effect));
+  ParseResult := TBrigadierMobEffect.Create(Argument, Effect);
 
   Result := True;
 end;
@@ -2345,13 +2339,13 @@ end;
 
 function TBrigadierBlockStateParser.Parse: Boolean;
 var
-  Parser: TBlockState.TParser;
+  Parser: TBlockState.IParser;
 begin
-  Parser := TBlockState.TParser.Create(Info, False);
+  Parser := TBlockState.Parser;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
-    SetParseResult(TBrigadierBlockState.Create(Argument, Parser.OwnParseResult));
-  Parser.Free;
+    ParseResult := TBrigadierBlockState.Create(Argument, Parser.OwnParseResult);
 end;
 
 { TBrigadierBlockPredicate }
@@ -2381,24 +2375,24 @@ end;
 
 function TBrigadierBlockPredicateParser.Parse: Boolean;
 var
-  BlockTagParser: TBlockStateTag.TParser;
-  BlockStateParser: TBlockState.TParser;
+  BlockTagParser: TBlockStateTag.IParser;
+  BlockStateParser: TBlockState.IParser;
 begin
   if StartsWith('#', False) then
   begin
-    BlockTagParser := TBlockStateTag.TParser.Create(Info, False);
+    BlockTagParser := TBlockStateTag.Parser;
+    BlockTagParser.Parse(Info, False);
     Result := BlockTagParser.Success;
     if Result then
-      SetParseResult(TBrigadierBlockPredicate.Create(Argument, BlockTagParser.OwnParseResult));
-    BlockTagParser.Free;
+      ParseResult := TBrigadierBlockPredicate.Create(Argument, BlockTagParser.OwnParseResult);
   end
   else
   begin
-    BlockStateParser := TBlockState.TParser.Create(Info, False);
+    BlockStateParser := TBlockState.Parser;
+    BlockStateParser.Parse(Info, False);
     Result := BlockStateParser.Success;
     if Result then
-      SetParseResult(TBrigadierBlockPredicate.Create(Argument, BlockStateParser.OwnParseResult));
-    BlockStateParser.Free;
+      ParseResult := TBrigadierBlockPredicate.Create(Argument, BlockStateParser.OwnParseResult);
   end;
 end;
 
@@ -2439,7 +2433,7 @@ begin
   if NSPath.IsEmpty or not EntityFromName(NSPath, Entity) then
     Exit(False);
 
-  SetParseResult(TBrigadierEntitySummon.Create(Argument, Entity));
+  ParseResult := TBrigadierEntitySummon.Create(Argument, Entity);
 
   Result := True;
 end;
@@ -2481,7 +2475,7 @@ begin
   if NSPath.IsEmpty or not EnchantmentFromName(NSPath, Enchantment) then
     Exit(False);
 
-  SetParseResult(TBrigadierItemEnchantment.Create(Argument, Enchantment));
+  ParseResult := TBrigadierItemEnchantment.Create(Argument, Enchantment);
 
   Result := True;
 end;
@@ -2519,7 +2513,7 @@ begin
   if Name.IsEmpty then
     Exit(False);
 
-  SetParseResult(TBrigadierTeam.Create(Argument, Name));
+  ParseResult := TBrigadierTeam.Create(Argument, Name);
 
   Result := True;
 end;
@@ -2574,7 +2568,7 @@ begin
   if NSPath.IsEmpty or not DimensionFromName(NSPath, Dimension) then
     Exit(False);
 
-  SetParseResult(TBrigadierDimension.Create(Argument, Dimension));
+  ParseResult := TBrigadierDimension.Create(Argument, Dimension);
 
   Result := True;
 end;
@@ -2594,15 +2588,17 @@ end;
 function TBrigadierColumnPosParser.Parse: Boolean;
 var
   Marker: TLogMarker;
-  Parser: TMCVec2.TParser;
+  Parser: TMCVec2.IParser;
   Axis: TCoordAxis2;
 begin
   Marker := GetMarker;
-  Parser := TMCVec2.TParser.Create(Info, True, False);
+  Parser := TMCVec2.Parser;
+  Parser.ChunkPos := True;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
   begin
-    SetParseResult(TBrigadierVec2.Create(Argument, Parser.OwnParseResult));
+    ParseResult := TBrigadierVec2.Create(Argument, Parser.OwnParseResult);
     for Axis := Low(TCoordAxis2) to High(TCoordAxis2) do
       if ParseResult.Vector.Values[Axis].Mode <> vmAbsolute then
       begin
@@ -2610,7 +2606,6 @@ begin
         Break;
       end;
   end;
-  Parser.Free;
 end;
 
 { TBrigadierItemStack }
@@ -2652,13 +2647,13 @@ end;
 
 function TBrigadierItemStackParser.Parse: Boolean;
 var
-  Parser: TItemStack.TParser;
+  Parser: TItemStack.IParser;
 begin
-  Parser := TItemStack.TParser.Create(Info, False);
+  Parser := TItemStack.Parser;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
-    SetParseResult(TBrigadierItemStack.Create(Argument, Parser.OwnParseResult));
-  Parser.Free;
+    ParseResult := TBrigadierItemStack.Create(Argument, Parser.OwnParseResult);
 end;
 
 { TBrigadierScoreHolderParser }
@@ -2675,7 +2670,6 @@ end;
 
 function TBrigadierScoreHolderParser.Parse: Boolean;
 var
-  SelectorParser: TEntitySelector.TParser;
   Text: string;
   Marker: TLogMarker;
   Selector: TEntitySelector;
@@ -2685,12 +2679,8 @@ begin
 
   if StartsWith(TEntitySelector.Prefix, False) then
   begin
-
-    SelectorParser := TEntitySelector.TParser.Create(Info, True);
-    Selector := SelectorParser.OwnParseResult;
-    SetParseResult(TBrigadierScoreHolderSelector.Create(Argument, Selector));
-    SelectorParser.Free;
-
+    Selector := TEntitySelector.Parser.Require(Info);
+    ParseResult := TBrigadierScoreHolderSelector.Create(Argument, Selector);
     Exit(True);
   end;
 
@@ -2701,14 +2691,14 @@ begin
 
   if Text = '*' then
   begin
-    SetParseResult(TBrigadierScoreHolderAll.Create(Argument));
+    ParseResult := TBrigadierScoreHolderAll.Create(Argument);
     Exit(True);
   end;
 
   if Text.Length > 40 then
     Log(Marker, 'The score holder can be at most 40 characters long.');
 
-  SetParseResult(TBrigadierScoreHolderText.Create(Argument, Text));
+  ParseResult := TBrigadierScoreHolderText.Create(Argument, Text);
   Result := True;
 end;
 
@@ -2761,7 +2751,7 @@ begin
     Exit(False);
   if Name.Length > 16 then
     Log(-Name.Length, 'Objective names can be at most 16 characters long.');
-  SetParseResult(TBrigadierObjective.Create(Argument, Name));
+  ParseResult := TBrigadierObjective.Create(Argument, Name);
   Result := True;
 end;
 
@@ -2781,7 +2771,7 @@ end;
 
 function TBrigadierComponent.Format: string;
 begin
-  Result := JSON.Value.Format(False);
+  Result := JSON.Value.Format(jfInline);
 end;
 
 { TBrigadierComponentParser }
@@ -2798,13 +2788,13 @@ end;
 
 function TBrigadierComponentParser.Parse: Boolean;
 var
-  Parser: TJBase.TParser;
+  Parser: TJBase.IParser;
 begin
-  Parser := TJBase.TParser.Create(Info, False);
+  Parser := TJBase.Parser;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
-    SetParseResult(TBrigadierComponent.Create(Argument, Parser.OwnParseResult));
-  Parser.Free;
+    ParseResult := TBrigadierComponent.Create(Argument, Parser.OwnParseResult);
 end;
 
 { TBrigadierDimensionParser.TSuggestions }
@@ -2839,7 +2829,7 @@ begin
   Name := ReadWhile(NamespacePathChars);
   if Name.IsEmpty then
     Exit(False);
-  SetParseResult(TBrigadierResourceLocation.Create(Argument, Name));
+  ParseResult := TBrigadierResourceLocation.Create(Argument, Name);
   Result := True;
 end;
 
@@ -2862,7 +2852,7 @@ begin
   Name := ReadWhile(NamespacePathChars);
   if Name.IsEmpty then
     Exit(False);
-  SetParseResult(TBrigadierFunction.Create(Argument, Name));
+  ParseResult := TBrigadierFunction.Create(Argument, Name);
   Result := True;
 end;
 
@@ -2903,7 +2893,7 @@ begin
   if NSPath.IsEmpty or not ParticleFromName(NSPath, Particle) then
     Exit(False);
 
-  SetParseResult(TBrigadierParticle.Create(Argument, Particle));
+  ParseResult := TBrigadierParticle.Create(Argument, Particle);
 
   Result := True;
 end;
@@ -2983,7 +2973,7 @@ begin
 
   Token := Ord(Color) + 1;
   Advance(Name.Length);
-  SetParseResult(TBrigadierColor.Create(Argument, Color));
+  ParseResult := TBrigadierColor.Create(Argument, Color);
 
   Result := True;
 end;
@@ -3073,13 +3063,13 @@ end;
 
 function TBrigadierScoreboardSlotParser.Parse: Boolean;
 var
-  Parser: TScoreboardSlot.TParser;
+  Parser: TScoreboardSlot.IParser;
 begin
-  Parser := TScoreboardSlot.TParser.Create(Info, False);
+  Parser := TScoreboardSlot.Parser;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
-    SetParseResult(TBrigadierScoreboardSlot.Create(Argument, Parser.OwnParseResult));
-  Parser.Free;
+    ParseResult := TBrigadierScoreboardSlot.Create(Argument, Parser.OwnParseResult);
 end;
 
 { TBrigadierRange }
@@ -3109,13 +3099,13 @@ end;
 
 function TBrigadierIntRangeParser.Parse: Boolean;
 var
-  Parser: TEntitySelector.TIntRangeParser;
+  Parser: TEntitySelector.IIntRangeParser;
 begin
-  Parser := TEntitySelector.TIntRangeParser.Create(Info, False);
+  Parser := TEntitySelector.IntRangeParser;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
-    SetParseResult(TBrigadierIntRange.Create(Argument, Parser.ParseResult));
-  Parser.Free;
+    ParseResult := TBrigadierIntRange.Create(Argument, Parser.ParseResult);
 end;
 
 { TBrigadierOperation }
@@ -3155,7 +3145,7 @@ begin
   if Name.IsEmpty or not ScoreboardOperationFromName(Name, Operation) then
     Exit(False);
 
-  SetParseResult(TBrigadierOperation.Create(Argument, Operation));
+  ParseResult := TBrigadierOperation.Create(Argument, Operation);
 
   Result := True;
 end;
@@ -3212,24 +3202,24 @@ end;
 
 function TBrigadierItemPredicateParser.Parse: Boolean;
 var
-  ItemTagParser: TItemStackTag.TParser;
-  ItemStackParser: TItemStack.TParser;
+  ItemTagParser: TItemStackTag.IParser;
+  ItemStackParser: TItemStack.IParser;
 begin
   if StartsWith('#', False) then
   begin
-    ItemTagParser := TItemStackTag.TParser.Create(Info, False);
+    ItemTagParser := TItemStackTag.Parser;
+    ItemTagParser.Parse(Info, False);
     Result := ItemTagParser.Success;
     if Result then
-      SetParseResult(TBrigadierItemPredicate.Create(Argument, ItemTagParser.OwnParseResult));
-    ItemTagParser.Free;
+      ParseResult := TBrigadierItemPredicate.Create(Argument, ItemTagParser.OwnParseResult);
   end
   else
   begin
-    ItemStackParser := TItemStack.TParser.Create(Info, False);
+    ItemStackParser := TItemStack.Parser;
+    ItemStackParser.Parse(Info, False);
     Result := ItemStackParser.Success;
     if Result then
-      SetParseResult(TBrigadierItemPredicate.Create(Argument, ItemStackParser.OwnParseResult));
-    ItemStackParser.Free;
+      ParseResult := TBrigadierItemPredicate.Create(Argument, ItemStackParser.OwnParseResult);
   end;
 end;
 
@@ -3267,13 +3257,13 @@ end;
 
 function TBrigadierItemSlotParser.Parse: Boolean;
 var
-  Parser: TItemSlot.TParser;
+  Parser: TItemSlot.IParser;
 begin
-  Parser := TItemSlot.TParser.Create(Info, False);
+  Parser := TItemSlot.Parser;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
-    SetParseResult(TBrigadierItemSlot.Create(Argument, Parser.OwnParseResult));
-  Parser.Free;
+    ParseResult := TBrigadierItemSlot.Create(Argument, Parser.OwnParseResult);
 end;
 
 { TBrigadierObjectiveCriteria }
@@ -3303,13 +3293,13 @@ end;
 
 function TBrigadierObjectiveCriteriaParser.Parse: Boolean;
 var
-  Parser: TScoreboardCriteria.TParser;
+  Parser: TScoreboardCriteria.IParser;
 begin
-  Parser := TScoreboardCriteria.TParser.Create(Info, False);
+  Parser := TScoreboardCriteria.Parser;
+  Parser.Parse(Info, False);
   Result := Parser.Success;
   if Result then
-    SetParseResult(TBrigadierObjectiveCriteria.Create(Argument, Parser.OwnParseResult));
-  Parser.Free;
+    ParseResult := TBrigadierObjectiveCriteria.Create(Argument, Parser.OwnParseResult);
 end;
 
 { TBrigadierEntityUUID }

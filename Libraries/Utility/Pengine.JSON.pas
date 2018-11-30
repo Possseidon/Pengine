@@ -11,10 +11,10 @@ uses
   Pengine.Collections,
   Pengine.HashCollections,
   Pengine.Hasher,
-  Pengine.Parser,
+  Pengine.Parsing,
   Pengine.CollectionInterfaces,
-  Pengine.Utility,
-  Pengine.Interfaces;
+  Pengine.Formatting,
+  Pengine.Utility;
 
 type
 
@@ -32,6 +32,12 @@ type
   TJNull = class;
 
   TJBaseClass = class of TJBase;
+
+  TJFormatMode = (
+    jfPretty,
+    jfInline,
+    jfMinify
+    );
 
   /// <summary>A base class for all JSON-Values.</summary>
   TJBase = class abstract
@@ -64,14 +70,14 @@ type
     end;
 
     IFormatter = interface(IFormatter<TJBase>)
-      function GetPretty: Boolean;
-      procedure SetPretty(const Value: Boolean);
+      function GetMode: TJFormatMode;
+      procedure SetMode(const Value: TJFormatMode);
       function GetIndentWidth: Integer;
       procedure SetIndentWidth(const Value: Integer);
       function GetArrayWrapThreshold: Integer;
       procedure SetArrayWrapThreshold(const Value: Integer);
 
-      property Pretty: Boolean read GetPretty write SetPretty;
+      property Mode: TJFormatMode read GetMode write SetMode;
       property IndentWidth: Integer read GetIndentWidth write SetIndentWidth;
       property ArrayWrapTheshold: Integer read GetArrayWrapThreshold write SetArrayWrapThreshold;
 
@@ -80,7 +86,7 @@ type
     TFormatter = class(TFormatter<TJBase>, IFormatter)
     public const
 
-      DefaultPretty = True;
+      DefaultMode = jfPretty;
       DefaultArrayWrapThreshold = 3;
       DefaultIndentWidth = 2;
 
@@ -89,12 +95,12 @@ type
       FIndentLevel: Integer;
 
       // Format-Settings
-      FPretty: Boolean;
+      FMode: TJFormatMode;
       FArrayWrapThreshold: Integer;
       FIndentWidth: Integer;
 
-      function GetPretty: Boolean;
-      procedure SetPretty(const Value: Boolean);
+      function GetMode: TJFormatMode;
+      procedure SetMode(const Value: TJFormatMode);
       function GetIndentWidth: Integer;
       procedure SetIndentWidth(const Value: Integer);
       function GetArrayWrapThreshold: Integer;
@@ -105,8 +111,8 @@ type
 
       function Format: string; override;
 
-      /// <summary>Wether to add line breaks and indentation.</summary>
-      property Pretty: Boolean read GetPretty write SetPretty;
+      /// <summary>How to format the JSON-Value.</summary>
+      property Mode: TJFormatMode read GetMode write SetMode;
       /// <summary>How many spaces to use for indentation.</summary>
       property IndentWidth: Integer read GetIndentWidth write SetIndentWidth;
       /// <summary>How many primitive JSON-Values are allowed in an array without wrapping.</summary>
@@ -340,7 +346,7 @@ type
     /// <returns>A formatter interface with settings.</returns>
     function Formatter: IFormatter;
     /// <summary>Formats into a parseable string with default formatting.</summary>
-    function Format: string;
+    function Format(AMode: TJFormatMode = jfPretty): string;
     /// <summary>Formats into a parseable string without linebreaks.</summary>
     function ToString: string; override;
 
@@ -953,9 +959,13 @@ begin
   inherited;
 end;
 
-function TJBase.Format: string;
+function TJBase.Format(AMode: TJFormatMode): string;
 begin
-  Result := Formatter.Format;
+  with Formatter do
+  begin
+    Mode := AMode;
+    Result := Format;
+  end;
 end;
 
 function TJBase.Formatter: IFormatter;
@@ -1014,7 +1024,7 @@ function TJBase.ToString: string;
 begin
   with Formatter do
   begin
-    Pretty := False;
+    Mode := jfInline;
     Result := Format;
   end;
 end;
@@ -1605,7 +1615,7 @@ end;
 constructor TJBase.TFormatter.Create;
 begin
   inherited;
-  FPretty := DefaultPretty;
+  FMode := DefaultMode;
   FArrayWrapThreshold := DefaultArrayWrapThreshold;
   FIndentWidth := DefaultIndentWidth;
 end;
@@ -1633,9 +1643,9 @@ begin
   Result := FIndentWidth;
 end;
 
-function TJBase.TFormatter.GetPretty: Boolean;
+function TJBase.TFormatter.GetMode: TJFormatMode;
 begin
-  Result := FPretty;
+  Result := FMode;
 end;
 
 procedure TJBase.TFormatter.Indent;
@@ -1646,7 +1656,7 @@ end;
 
 procedure TJBase.TFormatter.NewLine;
 begin
-  if Pretty then
+  if Mode = jfPretty then
   begin
     Builder.AppendLine;
     AddIndentation;
@@ -1663,9 +1673,9 @@ begin
   FIndentWidth := Value;
 end;
 
-procedure TJBase.TFormatter.SetPretty(const Value: Boolean);
+procedure TJBase.TFormatter.SetMode(const Value: TJFormatMode);
 begin
-  FPretty := Value;
+  FMode := Value;
 end;
 
 procedure TJBase.TFormatter.Unindent;
@@ -1799,7 +1809,9 @@ procedure TJObject.FormatInternal(AFormatter: TJBase.TFormatter);
   procedure AppendIndex(I: Integer);
   begin
     AFormatter.Builder.Append(TJString.Escape(FOrder[I].Key));
-    AFormatter.Builder.Append(': ');
+    AFormatter.Builder.Append(':');
+    if AFormatter.Mode <> jfMinify then
+      AFormatter.Builder.Append(' ');
     FOrder[I].Value.FormatInternal(AFormatter);
   end;
 
@@ -1814,10 +1826,12 @@ begin
     for I := 1 to MaxIndex do
     begin
       AFormatter.Builder.Append(',');
-      if not AFormatter.Pretty then
-        AFormatter.Builder.Append(' ')
-      else
-        AFormatter.NewLine;
+      case AFormatter.Mode of
+        jfPretty:
+          AFormatter.NewLine;
+        jfInline:
+          AFormatter.Builder.Append(' ');
+      end;
       AppendIndex(I);
     end;
     AFormatter.Unindent;
@@ -2189,7 +2203,7 @@ var
   Wrapped: Boolean;
   I: Integer;
 begin
-  Wrapped := AFormatter.Pretty;
+  Wrapped := AFormatter.Mode = jfPretty;
   if Wrapped then
   begin
     Wrapped := Count > AFormatter.ArrayWrapTheshold;
@@ -2210,10 +2224,10 @@ begin
     for I := 1 to MaxIndex do
     begin
       AFormatter.Builder.Append(',');
-      if not Wrapped then
-        AFormatter.Builder.Append(' ')
-      else if Wrapped then
-        AFormatter.NewLine;
+      if Wrapped then
+        AFormatter.NewLine
+      else if AFormatter.Mode <> jfMinify then
+        AFormatter.Builder.Append(' ');
       FValues[I].FormatInternal(AFormatter);
     end;
   end;
