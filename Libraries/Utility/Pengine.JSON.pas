@@ -76,10 +76,13 @@ type
       procedure SetIndentWidth(const Value: Integer);
       function GetArrayWrapThreshold: Integer;
       procedure SetArrayWrapThreshold(const Value: Integer);
+      function GetIgnoreNull: Boolean;
+      procedure SetIgnoreNull(const Value: Boolean);
 
       property Mode: TJFormatMode read GetMode write SetMode;
       property IndentWidth: Integer read GetIndentWidth write SetIndentWidth;
       property ArrayWrapTheshold: Integer read GetArrayWrapThreshold write SetArrayWrapThreshold;
+      property IgnoreNull: Boolean read GetIgnoreNull write SetIgnoreNull;
 
     end;
 
@@ -98,6 +101,7 @@ type
       FMode: TJFormatMode;
       FArrayWrapThreshold: Integer;
       FIndentWidth: Integer;
+      FIgnoreNull: Boolean;
 
       function GetMode: TJFormatMode;
       procedure SetMode(const Value: TJFormatMode);
@@ -105,6 +109,8 @@ type
       procedure SetIndentWidth(const Value: Integer);
       function GetArrayWrapThreshold: Integer;
       procedure SetArrayWrapThreshold(const Value: Integer);
+      function GetIgnoreNull: Boolean;
+      procedure SetIgnoreNull(const Value: Boolean);
 
     public
       constructor Create; override;
@@ -117,6 +123,8 @@ type
       property IndentWidth: Integer read GetIndentWidth write SetIndentWidth;
       /// <summary>How many primitive JSON-Values are allowed in an array without wrapping.</summary>
       property ArrayWrapTheshold: Integer read GetArrayWrapThreshold write SetArrayWrapThreshold;
+      /// <summary>Wether to ignore JSON-Null values or implicitly created empty collections.</summary>
+      property IgnoreNull: Boolean read GetIgnoreNull write SetIgnoreNull;
 
       property Builder: TStringBuilder read FBuilder;
       procedure Indent; inline;
@@ -313,6 +321,9 @@ type
   protected
     procedure FormatInternal(AFormatter: TFormatter); virtual; abstract;
 
+    /// <summary>Wether this JSON-Value is JSON-Null or is an implicitly created still empty collection.</summary>
+    function IsOrWasNull: Boolean; virtual;
+
   public
     constructor Create; overload; virtual;
     destructor Destroy; override;
@@ -360,13 +371,19 @@ type
 
   /// <summary>A common base class for JSON-Values containing other JSON-Values.</summary>
   TJParent = class abstract(TJBase)
+  private
+    FWasNull: Boolean;
+
   protected
     procedure RemoveItem(AIndex: Integer); virtual; abstract;
     procedure ChangeIndex(AFrom, ATo: Integer); virtual; abstract;
+    procedure ReplaceItem(AIndex: Integer; AValue: TJBase); virtual; abstract;
     function NameOf(AIndex: Integer): string; virtual; abstract;
 
     function GetCount: Integer; virtual; abstract;
     function GetMaxIndex: Integer;
+
+    function IsOrWasNull: Boolean; override;
 
   public
     class function GetTypeName: string; override;
@@ -377,6 +394,9 @@ type
     property MaxIndex: Integer read GetMaxIndex;
     function Empty: Boolean; virtual; abstract;
     procedure Clear; virtual; abstract;
+
+    /// <summary>Wether this JSON-Parent got generated automatically by trying to index a JSON-Null value.</summary>
+    property WasNull: Boolean read FWasNull;
 
   end;
 
@@ -448,6 +468,7 @@ type
     function GetCount: Integer; override;
     procedure RemoveItem(AIndex: Integer); override;
     procedure ChangeIndex(AFrom, ATo: Integer); override;
+    procedure ReplaceItem(AIndex: Integer; AValue: TJBase); override;
     function NameOf(AIndex: Integer): string; override;
 
   public
@@ -574,6 +595,7 @@ type
     function GetCount: Integer; override;
     procedure RemoveItem(AIndex: Integer); override;
     procedure ChangeIndex(AFrom, ATo: Integer); override;
+    procedure ReplaceItem(AIndex: Integer; AValue: TJBase); override;
     function NameOf(AIndex: Integer): string; override;
 
   public
@@ -829,6 +851,8 @@ type
   protected
     procedure FormatInternal(AFormatter: TJBase.TFormatter); override;
 
+    function IsOrWasNull: Boolean; override;
+
   public
     class function GetTypeName: string; override;
 
@@ -992,6 +1016,11 @@ begin
   Result := 'JSON-Value';
 end;
 
+function TJBase.IsOrWasNull: Boolean;
+begin
+  Result := False;
+end;
+
 class function TJBase.Parse(AText: string): TJBase;
 begin
   Result := Parser.OwnParseResult;
@@ -1077,201 +1106,52 @@ end;
 
 { TJBase.TJValue }
 
-class operator TJBase.TJValue.Implicit(AText: string): TJValue;
+function TJBase.TJValue.GetAsObject: TJObject;
 begin
-  Result := TJString.Create(AText);
-end;
-
-class operator TJBase.TJValue.Implicit(AValue: TJValue): TJBase;
-begin
-  Result := AValue.Value;
-end;
-
-class operator TJBase.TJValue.Implicit(AValue: TJBase): TJValue;
-begin
-  Result.FValue := AValue;
-end;
-
-class operator TJBase.TJValue.Implicit(ANumber: TNumber): TJValue;
-begin
-  Result := TJNumber.Create(ANumber);
-end;
-
-class operator TJBase.TJValue.Implicit(AValue: Boolean): TJValue;
-begin
-  Result := TJBool.Create(AValue);
-end;
-
-class operator TJBase.TJValue.Implicit(ANumber: Int64): TJValue;
-begin
-  Result := TNumber(ANumber);
-end;
-
-class operator TJBase.TJValue.Implicit(AValue: TJValue): string;
-begin
-  Result := AValue.AsString;
-end;
-
-class operator TJBase.TJValue.Implicit(ANumber: Double): TJValue;
-begin
-  Result := TNumber(ANumber);
-end;
-
-class operator TJBase.TJValue.Implicit(ANumber: Single): TJValue;
-begin
-  Result := TNumber(ANumber);
-end;
-
-class operator TJBase.TJValue.Implicit(AValue: TJValue): TNumber;
-begin
-  Result := AValue.AsNumber;
-end;
-
-class operator TJBase.TJValue.Implicit(AValue: TJValue): Int64;
-begin
-  Result := AValue.AsInt;
-end;
-
-function TJBase.TJValue.Add(AValue: TJValue): TJValue;
-begin
-  Result := AsArray.Add(AValue);
-end;
-
-function TJBase.TJValue.AddArray(AKey: string): TJArray;
-begin
-  Result := AsObject.AddArray(AKey);
-end;
-
-function TJBase.TJValue.AddNull(AKey: string): TJNull;
-begin
-  Result := AsObject.AddNull(AKey);
-end;
-
-function TJBase.TJValue.AddObject(AKey: string): TJObject;
-begin
-  Result := AsObject.AddObject(AKey);
-end;
-
-procedure TJBase.TJValue.Assign(AFrom: TJBase);
-begin
-  FValue.Assign(AFrom);
-end;
-
-function TJBase.TJValue.Cast<T>: T;
-begin
-  if FValue is T then
-    Exit(T(FValue));
-  raise EJSONError.CreateFmt('Expected %s to be %s, got %s.', [Path, T.GetTypeName, GetTypeName]);
-end;
-
-procedure TJBase.TJValue.Clear;
-begin
-  Cast<TJParent>.Clear;
-end;
-
-function TJBase.TJValue.Copy: TJBase;
-begin
-  Result := FValue.Copy;
-end;
-
-function TJBase.TJValue.Empty: Boolean;
-begin
-  Result := Cast<TJParent>.Empty;
-end;
-
-function TJBase.TJValue.Equals(AOther: TJBase): Boolean;
-begin
-  Result := Value.Equals(AOther);
-end;
-
-function TJBase.TJValue.Exists: Boolean;
-begin
-  Result := not IsNull;
-end;
-
-function TJBase.TJValue.Extract(AKey: string): TJValue;
-begin
-  Result := AsObject.Extract(AKey);
-end;
-
-function TJBase.TJValue.Extract(AIndex: Integer): TJValue;
-begin
-  Result := AsArray.Extract(AIndex);
-end;
-
-function TJBase.TJValue.Extract<T>(AKey: string): T;
-begin
-  Result := AsObject.Extract<T>(AKey);
-end;
-
-function TJBase.TJValue.Extract<T>(AIndex: Integer): T;
-begin
-  Result := AsArray.Extract<T>(AIndex);
-end;
-
-function TJBase.TJValue.Format: string;
-begin
-  Result := FValue.Format;
-end;
-
-function TJBase.TJValue.Formatter: IFormatter;
-begin
-  Result := Value.Formatter;
-end;
-
-procedure TJBase.TJValue.Free;
-begin
-  FreeAndNil(FValue);
-end;
-
-function TJBase.TJValue.Get(AKey: string; out AValue: TJObject): Boolean;
-begin
-  Result := AsObject.Get(AKey, AValue);
-end;
-
-function TJBase.TJValue.Get(AKey: string; out AValue: TJValue): Boolean;
-begin
-  Result := AsObject.Get(AKey, AValue);
-end;
-
-function TJBase.TJValue.Get(AKey: string; out AValue: TJBase): Boolean;
-begin
-  Result := AsObject.Get(AKey, AValue);
-end;
-
-function TJBase.TJValue.Get(AKey: string; out AValue: TJArray): Boolean;
-begin
-  Result := AsObject.Get(AKey, AValue);
-end;
-
-function TJBase.TJValue.Get(AKey: string; out AValue: TJBool): Boolean;
-begin
-  Result := AsObject.Get(AKey, AValue);
-end;
-
-function TJBase.TJValue.Get(AKey: string; out AValue: TJNumber): Boolean;
-begin
-  Result := AsObject.Get(AKey, AValue);
-end;
-
-function TJBase.TJValue.Get(AKey: string; out AValue: TJString): Boolean;
-begin
-  Result := AsObject.Get(AKey, AValue);
+  if Value is TJObject then
+    Result := TJObject(Value)
+  else if IsNull then
+  begin
+    Result := TJObject.Create;
+    Result.FWasNull := True;
+    Parent.ReplaceItem(Index, Result);
+  end
+  else
+    raise EJSONError.CreateFmt('Expected "%s" to JSON-Object or JSON-NULL, got %s.', [Path, GetTypeName]);
 end;
 
 function TJBase.TJValue.GetAsArray: TJArray;
 begin
-  Result := Cast<TJArray>;
+  if Value is TJArray then
+    Result := TJArray(Value)
+  else if IsNull then
+  begin
+    Result := TJArray.Create;
+    Result.FWasNull := True;
+    Parent.ReplaceItem(Index, Result);
+  end
+  else
+    raise EJSONError.CreateFmt('Expected "%s" to JSON-Array or JSON-NULL, got %s.', [Path, GetTypeName]);
 end;
 
-function TJBase.TJValue.GetAsBool: Boolean;
+function TJBase.TJValue.GetAsString: string;
 begin
-  Result := Cast<TJBool>.Value;
+  Result := Cast<TJString>.Text;
 end;
 
-function TJBase.TJValue.GetAsFloat: Double;
+procedure TJBase.TJValue.SetAsString(const Value: string);
+begin
+  Cast<TJString>.Text := Value;
+end;
+
+function TJBase.TJValue.GetAsNumber: TNumber;
 begin
   Result := Cast<TJNumber>.Number;
+end;
+
+procedure TJBase.TJValue.SetAsNumber(const Value: TNumber);
+begin
+  Cast<TJNumber>.Number := Value;
 end;
 
 function TJBase.TJValue.GetAsInt: Int64;
@@ -1280,44 +1160,29 @@ begin
     raise EJSONError.Create('Number does not have an integer representation.');
 end;
 
-function TJBase.TJValue.GetAsNumber: TNumber;
+procedure TJBase.TJValue.SetAsInt(const Value: Int64);
+begin
+  Cast<TJNumber>.Number := Value;
+end;
+
+function TJBase.TJValue.GetAsFloat: Double;
 begin
   Result := Cast<TJNumber>.Number;
 end;
 
-function TJBase.TJValue.GetAsObject: TJObject;
+procedure TJBase.TJValue.SetAsFloat(const Value: Double);
 begin
-  Result := Cast<TJObject>;
+  Cast<TJNumber>.Number := Value;
 end;
 
-function TJBase.TJValue.GetAsString: string;
+function TJBase.TJValue.GetAsBool: Boolean;
 begin
-  Result := Cast<TJString>.Text;
+  Result := Cast<TJBool>.Value;
 end;
 
-function TJBase.TJValue.GetCount: Integer;
+procedure TJBase.TJValue.SetAsBool(const Value: Boolean);
 begin
-  Result := Cast<TJParent>.Count;
-end;
-
-function TJBase.TJValue.GetEscaped: string;
-begin
-  Result := Cast<TJString>.Escaped;
-end;
-
-function TJBase.TJValue.GetIndex: Integer;
-begin
-  Result := FValue.Index;
-end;
-
-function TJBase.TJValue.GetMaxIndex: Integer;
-begin
-  Result := Cast<TJParent>.MaxIndex;
-end;
-
-function TJBase.TJValue.GetName: string;
-begin
-  Result := FValue.Name;
+  Cast<TJBool>.Value := Value;
 end;
 
 function TJBase.TJValue.GetParent: TJParent;
@@ -1330,9 +1195,19 @@ begin
   Result := FValue.Root;
 end;
 
-function TJBase.TJValue.GetTypeName: string;
+function TJBase.TJValue.GetIndex: Integer;
 begin
-  Result := FValue.GetTypeName;
+  Result := FValue.Index;
+end;
+
+procedure TJBase.TJValue.SetIndex(const Value: Integer);
+begin
+  FValue.Index := Value;
+end;
+
+function TJBase.TJValue.GetName: string;
+begin
+  Result := FValue.Name;
 end;
 
 function TJBase.TJValue.GetValue(AKey: string): TJValue;
@@ -1340,34 +1215,39 @@ begin
   Result := AsObject[AKey];
 end;
 
+procedure TJBase.TJValue.SetValue(AKey: string; const Value: TJValue);
+begin
+  AsObject[AKey] := Value;
+end;
+
 function TJBase.TJValue.GetValue(AIndex: Integer): TJValue;
 begin
   Result := AsArray[AIndex];
 end;
 
-class operator TJBase.TJValue.Implicit(AValue: TJValue): Boolean;
+procedure TJBase.TJValue.SetValue(AIndex: Integer; const Value: TJValue);
 begin
-  Result := AValue.AsBool;
+  AsArray[AIndex] := Value;
 end;
 
-function TJBase.TJValue.Insert(AValue: TJValue; AIndex: Integer = 0): TJValue;
+function TJBase.TJValue.GetCount: Integer;
 begin
-  Result := AsArray.Insert(AValue, AIndex);
+  Result := Cast<TJParent>.Count;
 end;
 
-function TJBase.TJValue.InsertArray(AIndex: Integer): TJArray;
+function TJBase.TJValue.GetMaxIndex: Integer;
 begin
-  Result := AsArray.InsertArray(AIndex);
+  Result := Cast<TJParent>.MaxIndex;
 end;
 
-function TJBase.TJValue.InsertNull(AIndex: Integer): TJNull;
+function TJBase.TJValue.GetEscaped: string;
 begin
-  Result := AsArray.InsertNull(AIndex);
+  Result := Cast<TJString>.Escaped;
 end;
 
-function TJBase.TJValue.InsertObject(AIndex: Integer): TJObject;
+class operator TJBase.TJValue.Implicit(AValue: TJValue): TJBase;
 begin
-  Result := AsArray.InsertObject(AIndex);
+  Result := AValue.Value;
 end;
 
 class operator TJBase.TJValue.Implicit(AValue: TJValue): TJParent;
@@ -1377,12 +1257,12 @@ end;
 
 class operator TJBase.TJValue.Implicit(AValue: TJValue): TJObject;
 begin
-  Result := AValue.Cast<TJObject>;
+  Result := AValue.AsObject;
 end;
 
 class operator TJBase.TJValue.Implicit(AValue: TJValue): TJArray;
 begin
-  Result := AValue.Cast<TJArray>;
+  Result := AValue.AsArray;
 end;
 
 class operator TJBase.TJValue.Implicit(AValue: TJValue): TJString;
@@ -1400,135 +1280,49 @@ begin
   Result := AValue.Cast<TJBool>;
 end;
 
-function TJBase.TJValue.IsArray: Boolean;
+class operator TJBase.TJValue.Implicit(AValue: TJBase): TJValue;
 begin
-  Result := FValue is TJArray;
+  Result.FValue := AValue;
 end;
 
-function TJBase.TJValue.IsBool: Boolean;
+class operator TJBase.TJValue.Implicit(AText: string): TJValue;
 begin
-  Result := FValue is TJBool;
+  Result := TJString.Create(AText);
 end;
 
-function TJBase.TJValue.IsNull: Boolean;
+class operator TJBase.TJValue.Implicit(ANumber: TNumber): TJValue;
 begin
-  Result := FValue is TJNull;
+  Result := TJNumber.Create(ANumber);
 end;
 
-function TJBase.TJValue.IsNumber: Boolean;
+class operator TJBase.TJValue.Implicit(ANumber: Double): TJValue;
 begin
-  Result := FValue is TJNumber;
+  Result := TNumber(ANumber);
 end;
 
-function TJBase.TJValue.IsObject: Boolean;
+class operator TJBase.TJValue.Implicit(ANumber: Single): TJValue;
 begin
-  Result := FValue is TJObject;
+  Result := TNumber(ANumber);
 end;
 
-function TJBase.TJValue.IsString: Boolean;
+class operator TJBase.TJValue.Implicit(ANumber: Int64): TJValue;
 begin
-  Result := FValue is TJString;
+  Result := TNumber(ANumber);
 end;
 
-class operator TJBase.TJValue.LogicalOr(AValue1, AValue2: TJValue): TJValue;
+class operator TJBase.TJValue.Implicit(AValue: Boolean): TJValue;
 begin
-  if AValue1.Exists then
-    Exit(AValue1);
-  Result := AValue2;
+  Result := TJBool.Create(AValue);
 end;
 
-function TJBase.TJValue.Path(AFrom: TJParent): string;
+class operator TJBase.TJValue.Implicit(AValue: TJValue): string;
 begin
-  Result := FValue.Path(AFrom);
+  Result := AValue.AsString;
 end;
 
-procedure TJBase.TJValue.Remove(AKey: string);
+class operator TJBase.TJValue.Implicit(AValue: TJValue): TNumber;
 begin
-  AsObject.Remove(AKey);
-end;
-
-procedure TJBase.TJValue.Remove(AIndex: Integer);
-begin
-  AsArray.Remove(AIndex);
-end;
-
-class operator TJBase.TJValue.LogicalOr(AValue: TJValue; ADefault: Boolean): Boolean;
-begin
-  if AValue.IsNull then
-    Exit(ADefault);
-  Result := AValue;
-end;
-
-class operator TJBase.TJValue.LogicalOr(AValue: TJValue; ADefault: string): string;
-begin
-  if AValue.IsNull then
-    Exit(ADefault);
-  Result := AValue;
-end;
-
-procedure TJBase.TJValue.SetAsBool(const Value: Boolean);
-begin
-  Cast<TJBool>.Value := Value;
-end;
-
-procedure TJBase.TJValue.SetAsFloat(const Value: Double);
-begin
-  Cast<TJNumber>.Number := Value;
-end;
-
-procedure TJBase.TJValue.SetAsInt(const Value: Int64);
-begin
-  Cast<TJNumber>.Number := Value;
-end;
-
-procedure TJBase.TJValue.SetAsNumber(const Value: TNumber);
-begin
-  Cast<TJNumber>.Number := Value;
-end;
-
-procedure TJBase.TJValue.SetAsString(const Value: string);
-begin
-  Cast<TJString>.Text := Value;
-end;
-
-procedure TJBase.TJValue.SetIndex(const Value: Integer);
-begin
-  FValue.Index := Value;
-end;
-
-procedure TJBase.TJValue.SetValue(AIndex: Integer; const Value: TJValue);
-begin
-  AsArray[AIndex] := Value;
-end;
-
-procedure TJBase.TJValue.SetValue(AKey: string; const Value: TJValue);
-begin
-  AsObject[AKey] := Value;
-end;
-
-function TJBase.TJValue.ToString: string;
-begin
-  Result := FValue.ToString;
-end;
-
-function TJBase.TJValue.TryGetInt(out AValue: Int64): Boolean;
-begin
-  Result := Cast<TJNumber>.TryGetInt(AValue);
-end;
-
-function TJBase.TJValue.TryRemove(AKey: string): Boolean;
-begin
-  Result := AsObject.TryRemove(AKey);
-end;
-
-function TJBase.TJValue.Cast<T>(out AValue: T): Boolean;
-begin
-  if Value is T then
-  begin
-    AValue := T(Value);
-    Exit(True);
-  end;
-  Result := False;
+  Result := AValue.AsNumber;
 end;
 
 class operator TJBase.TJValue.Implicit(AValue: TJValue): Double;
@@ -1539,6 +1333,30 @@ end;
 class operator TJBase.TJValue.Implicit(AValue: TJValue): Single;
 begin
   Result := AValue.AsFloat;
+end;
+
+class operator TJBase.TJValue.Implicit(AValue: TJValue): Int64;
+begin
+  Result := AValue.AsInt;
+end;
+
+class operator TJBase.TJValue.Implicit(AValue: TJValue): Boolean;
+begin
+  Result := AValue.AsBool;
+end;
+
+class operator TJBase.TJValue.LogicalOr(AValue: TJValue; ADefault: string): string;
+begin
+  if AValue.IsNull then
+    Exit(ADefault);
+  Result := AValue;
+end;
+
+class operator TJBase.TJValue.LogicalOr(AValue: TJValue; ADefault: Boolean): Boolean;
+begin
+  if AValue.IsNull then
+    Exit(ADefault);
+  Result := AValue;
 end;
 
 class operator TJBase.TJValue.LogicalOr(AValue: TJValue; ADefault: Int64): Int64;
@@ -1562,6 +1380,175 @@ begin
   Result := AValue;
 end;
 
+class operator TJBase.TJValue.LogicalOr(AValue1, AValue2: TJValue): TJValue;
+begin
+  if AValue1.Exists then
+    Exit(AValue1);
+  Result := AValue2;
+end;
+
+function TJBase.TJValue.IsObject: Boolean;
+begin
+  Result := FValue is TJObject;
+end;
+
+function TJBase.TJValue.IsArray: Boolean;
+begin
+  Result := FValue is TJArray;
+end;
+
+function TJBase.TJValue.IsString: Boolean;
+begin
+  Result := FValue is TJString;
+end;
+
+function TJBase.TJValue.IsNumber: Boolean;
+begin
+  Result := FValue is TJNumber;
+end;
+
+function TJBase.TJValue.IsBool: Boolean;
+begin
+  Result := FValue is TJBool;
+end;
+
+function TJBase.TJValue.IsNull: Boolean;
+begin
+  Result := FValue is TJNull;
+end;
+
+function TJBase.TJValue.Exists: Boolean;
+begin
+  Result := not IsNull;
+end;
+
+function TJBase.TJValue.Cast<T>: T;
+begin
+  if FValue is T then
+    Exit(T(FValue));
+  raise EJSONError.CreateFmt('Expected "%s" to be %s, got %s.', [Path, T.GetTypeName, GetTypeName]);
+end;
+
+function TJBase.TJValue.Cast<T>(out AValue: T): Boolean;
+begin
+  if Value is T then
+  begin
+    AValue := T(Value);
+    Exit(True);
+  end;
+  Result := False;
+end;
+
+procedure TJBase.TJValue.Free;
+begin
+  FreeAndNil(FValue);
+end;
+
+function TJBase.TJValue.GetTypeName: string;
+begin
+  Result := FValue.GetTypeName;
+end;
+
+function TJBase.TJValue.Copy: TJBase;
+begin
+  Result := FValue.Copy;
+end;
+
+procedure TJBase.TJValue.Assign(AFrom: TJBase);
+begin
+  FValue.Assign(AFrom);
+end;
+
+function TJBase.TJValue.Path(AFrom: TJParent): string;
+begin
+  Result := FValue.Path(AFrom);
+end;
+
+function TJBase.TJValue.Formatter: IFormatter;
+begin
+  Result := Value.Formatter;
+end;
+
+function TJBase.TJValue.Format: string;
+begin
+  Result := FValue.Format;
+end;
+
+function TJBase.TJValue.ToString: string;
+begin
+  Result := FValue.ToString;
+end;
+
+function TJBase.TJValue.Equals(AOther: TJBase): Boolean;
+begin
+  Result := Value.Equals(AOther);
+end;
+
+function TJBase.TJValue.Empty: Boolean;
+begin
+  Result := Cast<TJParent>.Empty;
+end;
+
+function TJBase.TJValue.AddObject(AKey: string): TJObject;
+begin
+  Result := AsObject.AddObject(AKey);
+end;
+
+function TJBase.TJValue.AddArray(AKey: string): TJArray;
+begin
+  Result := AsObject.AddArray(AKey);
+end;
+
+function TJBase.TJValue.AddNull(AKey: string): TJNull;
+begin
+  Result := AsObject.AddNull(AKey);
+end;
+
+function TJBase.TJValue.Get(AKey: string; out AValue: TJBase): Boolean;
+begin
+  Result := AsObject.Get(AKey, AValue);
+end;
+
+function TJBase.TJValue.Get(AKey: string; out AValue: TJValue): Boolean;
+begin
+  Result := AsObject.Get(AKey, AValue);
+end;
+
+function TJBase.TJValue.Get(AKey: string; out AValue: TJObject): Boolean;
+begin
+  Result := AsObject.Get(AKey, AValue);
+end;
+
+function TJBase.TJValue.Get(AKey: string; out AValue: TJArray): Boolean;
+begin
+  Result := AsObject.Get(AKey, AValue);
+end;
+
+function TJBase.TJValue.Get(AKey: string; out AValue: TJString): Boolean;
+begin
+  Result := AsObject.Get(AKey, AValue);
+end;
+
+function TJBase.TJValue.Get(AKey: string; out AValue: TJNumber): Boolean;
+begin
+  Result := AsObject.Get(AKey, AValue);
+end;
+
+function TJBase.TJValue.Get(AKey: string; out AValue: TJBool): Boolean;
+begin
+  Result := AsObject.Get(AKey, AValue);
+end;
+
+function TJBase.TJValue.Add(AValue: TJValue): TJValue;
+begin
+  Result := AsArray.Add(AValue);
+end;
+
+function TJBase.TJValue.AddObject: TJObject;
+begin
+  Result := AsArray.AddObject;
+end;
+
 function TJBase.TJValue.AddArray: TJArray;
 begin
   Result := AsArray.AddArray;
@@ -1572,17 +1559,72 @@ begin
   Result := AsArray.AddNull;
 end;
 
-function TJBase.TJValue.AddObject: TJObject;
+function TJBase.TJValue.Insert(AValue: TJValue; AIndex: Integer = 0): TJValue;
 begin
-  Result := AsArray.AddObject;
+  Result := AsArray.Insert(AValue, AIndex);
+end;
+
+function TJBase.TJValue.InsertObject(AIndex: Integer): TJObject;
+begin
+  Result := AsArray.InsertObject(AIndex);
+end;
+
+function TJBase.TJValue.InsertArray(AIndex: Integer): TJArray;
+begin
+  Result := AsArray.InsertArray(AIndex);
+end;
+
+function TJBase.TJValue.InsertNull(AIndex: Integer): TJNull;
+begin
+  Result := AsArray.InsertNull(AIndex);
+end;
+
+function TJBase.TJValue.TryRemove(AKey: string): Boolean;
+begin
+  Result := AsObject.TryRemove(AKey);
+end;
+
+procedure TJBase.TJValue.Remove(AKey: string);
+begin
+  AsObject.Remove(AKey);
+end;
+
+procedure TJBase.TJValue.Remove(AIndex: Integer);
+begin
+  AsArray.Remove(AIndex);
+end;
+
+procedure TJBase.TJValue.Clear;
+begin
+  Cast<TJParent>.Clear;
+end;
+
+function TJBase.TJValue.Extract(AKey: string): TJValue;
+begin
+  Result := AsObject.Extract(AKey);
+end;
+
+function TJBase.TJValue.Extract<T>(AKey: string): T;
+begin
+  Result := AsObject.Extract<T>(AKey);
+end;
+
+function TJBase.TJValue.Extract(AIndex: Integer): TJValue;
+begin
+  Result := AsArray.Extract(AIndex);
+end;
+
+function TJBase.TJValue.Extract<T>(AIndex: Integer): T;
+begin
+  Result := AsArray.Extract<T>(AIndex);
+end;
+
+function TJBase.TJValue.TryGetInt(out AValue: Int64): Boolean;
+begin
+  Result := Cast<TJNumber>.TryGetInt(AValue);
 end;
 
 { TJBase.TParser }
-
-class function TJBase.TParser.GetResultName: string;
-begin
-  Result := TJBase.GetTypeName;
-end;
 
 function TJBase.TParser.Parse: Boolean;
 begin
@@ -1603,6 +1645,11 @@ begin
     Exit(False);
   end;
   Result := True;
+end;
+
+class function TJBase.TParser.GetResultName: string;
+begin
+  Result := TJBase.GetTypeName;
 end;
 
 { TJBase.TFormatter }
@@ -1638,6 +1685,11 @@ begin
   Result := FArrayWrapThreshold;
 end;
 
+function TJBase.TFormatter.GetIgnoreNull: Boolean;
+begin
+  Result := FIgnoreNull;
+end;
+
 function TJBase.TFormatter.GetIndentWidth: Integer;
 begin
   Result := FIndentWidth;
@@ -1668,6 +1720,11 @@ begin
   FArrayWrapThreshold := Value;
 end;
 
+procedure TJBase.TFormatter.SetIgnoreNull(const Value: Boolean);
+begin
+  FIgnoreNull := Value;
+end;
+
 procedure TJBase.TFormatter.SetIndentWidth(const Value: Integer);
 begin
   FIndentWidth := Value;
@@ -1694,6 +1751,11 @@ end;
 class function TJParent.GetTypeName: string;
 begin
   Result := 'JSON-Parent';
+end;
+
+function TJParent.IsOrWasNull: Boolean;
+begin
+  Result := WasNull and Empty;
 end;
 
 { TJObject }
@@ -1805,9 +1867,27 @@ begin
 end;
 
 procedure TJObject.FormatInternal(AFormatter: TJBase.TFormatter);
+var
+  First: Boolean;
 
   procedure AppendIndex(I: Integer);
   begin
+    if AFormatter.IgnoreNull and FOrder[I].Value.IsOrWasNull then
+      Exit;
+
+    if First then
+      First := False
+    else
+    begin
+      AFormatter.Builder.Append(',');
+      case AFormatter.Mode of
+        jfPretty:
+          AFormatter.NewLine;
+        jfInline:
+          AFormatter.Builder.Append(' ');
+      end;
+    end;
+
     AFormatter.Builder.Append(TJString.Escape(FOrder[I].Key));
     AFormatter.Builder.Append(':');
     if AFormatter.Mode <> jfMinify then
@@ -1822,18 +1902,9 @@ begin
   if not Empty then
   begin
     AFormatter.Indent;
-    AppendIndex(0);
-    for I := 1 to MaxIndex do
-    begin
-      AFormatter.Builder.Append(',');
-      case AFormatter.Mode of
-        jfPretty:
-          AFormatter.NewLine;
-        jfInline:
-          AFormatter.Builder.Append(' ');
-      end;
+    First := True;
+    for I := 0 to MaxIndex do
       AppendIndex(I);
-    end;
     AFormatter.Unindent;
   end;
   AFormatter.Builder.Append('}');
@@ -1910,6 +1981,11 @@ begin
   FOrder.RemoveAt(AIndex);
   for I := AIndex to MaxIndex do
     FOrder[I].Value.FIndex := I;
+end;
+
+procedure TJObject.ReplaceItem(AIndex: Integer; AValue: TJBase);
+begin
+  Values[Pairs[AIndex].Key] := AValue;
 end;
 
 procedure TJObject.SetValue(AKey: string; const Value: TJValue);
@@ -1991,15 +2067,15 @@ end;
 
 { TJObject.TIterator }
 
+function TJObject.TIterator.GetCurrent: TJPair;
+begin
+  Result := FJObject.Pairs[FCurrent];
+end;
+
 constructor TJObject.TIterator.Create(AJObject: TJObject);
 begin
   FJObject := AJObject;
   FCurrent := -1;
-end;
-
-function TJObject.TIterator.GetCurrent: TJPair;
-begin
-  Result := FJObject.Pairs[FCurrent];
 end;
 
 function TJObject.TIterator.MoveNext: Boolean;
@@ -2317,6 +2393,11 @@ begin
   FValues.RemoveAt(AIndex);
   for I := AIndex to MaxIndex do
     FValues[I].FIndex := I;
+end;
+
+procedure TJArray.ReplaceItem(AIndex: Integer; AValue: TJBase);
+begin
+  Values[AIndex] := AValue;
 end;
 
 procedure TJArray.SetValue(AIndex: Integer; const Value: TJValue);
@@ -2763,6 +2844,11 @@ end;
 class function TJNull.GetTypeName: string;
 begin
   Result := 'JSON-Null';
+end;
+
+function TJNull.IsOrWasNull: Boolean;
+begin
+  Result := True;
 end;
 
 class function TJNull.Parser: IParser;

@@ -5,7 +5,7 @@ interface
 uses
   Vcl.Graphics,
 
-  Pengine.Parser,
+  Pengine.Parsing,
 
   Pengine.MC.Brigadier,
   Pengine.MC.BrigadierParser,
@@ -45,10 +45,10 @@ begin
     SetError(clRed, clWhite, [fsItalic]);
 
     // Command
-    Text[TBrigadierCommandParser, TBrigadierCommandParser.TokenMainCommand].SetFg($DF1F7F, [fsBold]);
-    Text[TBrigadierCommandParser, TBrigadierCommandParser.TokenSubCommand].SetFg($DF1F1F);
-    Text[TBrigadierCommandParser, TBrigadierCommandParser.TokenComment].SetFg($007F00, [fsItalic]);
-    Text[TBrigadierCommandParser, TBrigadierCommandParser.TokenSlash].SetFg($DF1F1F, [fsBold]);
+    Text[TBrigadierCommand.TParser, TBrigadierCommand.TParser.TokenMainCommand].SetFg($DF1F7F, [fsBold]);
+    Text[TBrigadierCommand.TParser, TBrigadierCommand.TParser.TokenSubCommand].SetFg($DF1F1F);
+    Text[TBrigadierCommand.TParser, TBrigadierCommand.TParser.TokenComment].SetFg($007F00, [fsItalic]);
+    Text[TBrigadierCommand.TParser, TBrigadierCommand.TParser.TokenSlash].SetFg($DF1F1F, [fsBold]);
 
     // Basic Types
     Text[TBrigadierBoolParser, TBrigadierBoolParser.TokenNone].SetFg($BF0000, [fsBold]);
@@ -62,10 +62,10 @@ begin
     Text[TNBTCompound.TParser, TNBTCompound.TParser.TokenColon].SetFg($DF3F3F);
     Text[TNBTCompound.TParser, TNBTCompound.TParser.TokenComma].SetFg($DF3F3F);
 
-    Text[TNBTListOrArrayParser, TNBTListOrArrayParser.TokenBracket].SetFg($3FDF3F);
-    Text[TNBTListOrArrayParser, TNBTListOrArrayParser.TokenComma].SetFg($3FDF3F);
-    Text[TNBTListOrArrayParser, TNBTListOrArrayParser.TokenArrayType].SetFg($AF3F00, [fsBold]);
-    Text[TNBTListOrArrayParser, TNBTListOrArrayParser.TokenArraySeperator].SetFg($3FDF3F);
+    Text[TNBTListOrArray.TParser, TNBTListOrArray.TParser.TokenBracket].SetFg($3FDF3F);
+    Text[TNBTListOrArray.TParser, TNBTListOrArray.TParser.TokenComma].SetFg($3FDF3F);
+    Text[TNBTListOrArray.TParser, TNBTListOrArray.TParser.TokenArrayType].SetFg($AF3F00, [fsBold]);
+    Text[TNBTListOrArray.TParser, TNBTListOrArray.TParser.TokenArraySeperator].SetFg($3FDF3F);
 
     Text[TNBTString.TStringOrIdentParser, TNBTString.TStringOrIdentParser.TokenNone].SetFg($006FEF);
     Text[TNBTString.TStringParser, TNBTString.TStringParser.TokenQuotes].SetFg($AF0000);
@@ -73,8 +73,8 @@ begin
     Text[TNBTString.TStringParser, TNBTString.TStringParser.TokenBackslash].SetFg($FF8F3F);
     Text[TNBTString.TStringParser, TNBTString.TStringParser.TokenEscaped].SetFg($FF8F8F);
 
-    Text[TNBTNumberParser, TNBTNumberParser.TokenNumber].SetFg($004FDF);
-    Text[TNBTNumberParser, TNBTNumberParser.TokenSuffix].SetFg($0000DF);
+    Text[TNBTNumber.TParser, TNBTNumber.TParser.TokenNumber].SetFg($004FDF);
+    Text[TNBTNumber.TParser, TNBTNumber.TParser.TokenSuffix].SetFg($0000DF);
 
     Text[TNBTPath.TParser, TNBTPath.TParser.TokenKey].SetFg($006FEF);
     Text[TNBTPath.TParser, TNBTPath.TParser.TokenBrackets].SetFg($3FDF3F);

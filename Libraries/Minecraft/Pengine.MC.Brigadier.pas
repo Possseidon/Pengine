@@ -387,6 +387,8 @@ type
     constructor Create;
     destructor Destroy; override;
 
+    class function Parser: IParser;
+
     /// <summary>A list of all parsed parameters, used in the command.</summary>
     property Parameters: TParameters read FParameters;
     /// <returns>Wether the command is just a comment.</returns>
@@ -674,12 +676,10 @@ end;
 
 procedure TBrigadierChild.LoadRedirect(AJObject: TJObject);
 var
-  JRedirects: TJArray;
   JRedirect: TJValue;
 begin
   FRedirection := TRedirection.Create;
-  JRedirects := AJObject['redirect'].AsArray;
-  for JRedirect in JRedirects do
+  for JRedirect in AJObject['redirect'].AsArray do
     FRedirection.Add(JRedirect.AsString);
 end;
 
@@ -734,6 +734,11 @@ end;
 function TBrigadierCommand.IsComment: Boolean;
 begin
   Result := not FComment.IsEmpty;
+end;
+
+class function TBrigadierCommand.Parser: IParser;
+begin
+  Result := TParser.Create;
 end;
 
 { EBrigadierChildNotFound }

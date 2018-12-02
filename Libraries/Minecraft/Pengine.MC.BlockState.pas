@@ -384,8 +384,10 @@ type
   TBlockStateTag = class(TBlockState)
   public type
 
+    IParser = IObjectParser<TBlockStateTag>;
+
     /// <summary>Parses a whole block state.</summary>
-    TParser = class(TObjectParser<TBlockStateTag>)
+    TParser = class(TObjectParser<TBlockStateTag>, IParser)
     protected
       function Parse: Boolean; override;
 
@@ -401,6 +403,8 @@ type
     end;
 
   public
+    class function Parser: IParser;
+
     function Format: string; override;
 
   end;
@@ -869,11 +873,20 @@ begin
 
     SkipWhitespace;
 
-    if not NoBrackets and StartsWith(']') then
+    if not NoBrackets then
+    begin
+      if StartsWith(']') then
+        Break;
+    end
+    else if ReachedEnd then
       Break;
 
     if not StartsWith(',') then
+    begin
+      if NoBrackets then
+        raise EParseError.Create('Invalid character.');
       raise EParseError.Create('Expected "]" or ",".');
+    end;
 
     if HasBlockTypes then
       BeginSuggestions(TPropertySuggestions.Create(FBlockTypes.Copy));
@@ -950,6 +963,11 @@ begin
     Result := Result + Properties.Value.Format;
   if NBT.HasValue and not NBT.Value.Empty then
     Result := Result + NBT.Value.Format;
+end;
+
+class function TBlockStateTag.Parser: IParser;
+begin
+  Result := TParser.Create;
 end;
 
 { TBlockTag }

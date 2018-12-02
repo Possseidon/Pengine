@@ -170,6 +170,8 @@ type
     class procedure BindScreen(AViewport: TIntBounds2; AFBOBinding: TGLObjectBinding<TFBO>);
     class procedure ClearScreen(AViewport: TIntBounds2; AFBOBinding: TGLObjectBinding<TFBO>; AMask: TGLAttribMaskFlags);
 
+    function ToTextureData: TTextureData;
+
   end;
 
 implementation
@@ -263,7 +265,7 @@ begin
 
   glBindFramebuffer(GL_READ_FRAMEBUFFER, GLName);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, AFBO.GLName);
-  Binding.BoundObject := AFBO;
+  Binding.BoundObject := nil;
 
   glBlitFramebuffer(
     Viewport.C1.X, Viewport.C1.Y, Viewport.C2.X + 1, Viewport.C2.Y + 1,
@@ -316,6 +318,14 @@ begin
     ToGLBitfield(AMask), GL_NEAREST);
 end;
  
+function TFBO.ToTextureData: TTextureData;
+begin
+  Result := TTextureData.Create(Viewport.Size);
+  Bind;
+  glReadPixels(Viewport.C1.X, Viewport.C1.Y, Viewport.Width, Viewport.Height, Ord(pfBGRA), Ord(dtUByte),
+    Result.DataPointer);
+end;
+
 { TColorAttachment }
 
 constructor TColorAttachment.Create(AIndex: Integer);

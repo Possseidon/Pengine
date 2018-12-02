@@ -27,7 +27,7 @@ uses
   Pengine.Collections,
   Pengine.Hasher,
   Pengine.HashCollections,
-  Pengine.Parser,
+  Pengine.Parsing,
   Pengine.IntMaths,
   Pengine.Settings,
 
@@ -45,7 +45,6 @@ type
 
   private
     FMap: TMap;
-    FSettings: TBrigadierCommandParser.TSettings;
 
     function GetLine(AText: string): TLine;
 
@@ -53,7 +52,6 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    property Settings: TBrigadierCommandParser.TSettings read FSettings;
     property Lines[AText: string]: TLine read GetLine; default;
 
     procedure RemoveUnreferenced;
@@ -125,18 +123,12 @@ uses
 
 constructor TLinesMap.Create;
 begin
-  FSettings := TBrigadierCommandParser.TSettings.Create;
-  FSettings.SlashMode := smNone;
-  FSettings.AllowComment := True;
-  FSettings.AllowPreceedingSpace := False;
-  FSettings.AllowEmpty := True;
   FMap := TMap.Create;
 end;
 
 destructor TLinesMap.Destroy;
 begin
   FMap.Free;
-  FSettings.Free;
   inherited;
 end;
 
@@ -144,7 +136,7 @@ function TLinesMap.GetLine(AText: string): TLine;
 begin
   if not FMap.Get(AText, Result) then
   begin
-    Result := TLine.Create(FSettings, AText);
+    Result := TLine.Create(AText);
     FMap[AText] := Result;
   end;
   Result.AddRef;

@@ -233,6 +233,8 @@ type
   public
     destructor Destroy; override;
 
+    procedure AfterConstruction; override;
+
     class function GetObjectType: TGLObjectType; override;
     class function GetBindingClass: TGLObjectBindingClass; override;
 
@@ -284,6 +286,8 @@ type
 
     procedure Generate; virtual; abstract;
 
+    function IsMultisampled: Boolean; virtual;
+
   end;
 
   TTexture1D = class(TTexture)
@@ -312,7 +316,6 @@ type
     procedure SetWidth(const Value: Integer);
     procedure SetHeight(const Value: Integer);
 
-    function GetData: PByte;
     function GetSubData(ABounds: TIntBounds2): PByte;
     procedure SetData(const Value: PByte);
     procedure SetSubData(ABounds: TIntBounds2; const Value: PByte);
@@ -321,8 +324,11 @@ type
     procedure SetDataArray(const Value: TArray<TColorRGBA.TBytes>);
     procedure SetSubDataArray(ABounds: TIntBounds2; const Value: TArray<TColorRGBA.TBytes>);
 
+  protected
+    function GetData: PByte; virtual;
+
   public
-    constructor Create(AGLState: TGLState; APixelFormat: TGLPixelFormat = pfBGRA); overload;
+    constructor Create(AGL: TGLState; APixelFormat: TGLPixelFormat = pfBGRA); overload;
     constructor Create(AGLState: TGLState; ASize: TIntVector2; APixelFormat: TGLPixelFormat = pfBGRA); overload;
 
     function TargetType: Cardinal; override;
@@ -445,6 +451,9 @@ type
 
     procedure SetSamples(const Value: Integer);
 
+  protected
+    function GetData: PByte; override;
+
   public
     constructor Create(AGLState: TGLState; ASize: TIntVector2; ASamples: Integer;
       APixelFormat: TGLPixelFormat = pfBGRA);
@@ -454,6 +463,8 @@ type
     procedure Generate; override;
 
     property Samples: Integer read FSamples write SetSamples;
+
+    function IsMultisampled: Boolean; override;
 
   end;
 
@@ -472,6 +483,8 @@ type
     procedure Generate; override;
 
     property Samples: Integer read FSamples write SetSamples;
+
+    function IsMultisampled: Boolean; override;
 
   end;
 
@@ -1022,7 +1035,8 @@ begin
   FCompareMode := tcmNone;
 
   FMinFilter := minNearestMipmapLinear;
-  MinFilter := minLinear;
+  if not IsMultisampled then
+    MinFilter := minLinear;
   FMagFilter := magLinear;
 
   FMinLOD := -1000;
@@ -1039,6 +1053,11 @@ begin
   FWrapR := twRepeat;
 end;
 
+function TTexture.IsMultisampled: Boolean;
+begin
+  Result := False;
+end;
+
 class function TTexture.GetBindingClass: TGLObjectBindingClass;
 begin
   Result := TBinding;
@@ -1047,6 +1066,12 @@ end;
 function TTexture.Active: Boolean;
 begin
   Result := FUnitID <> -1;
+end;
+
+procedure TTexture.AfterConstruction;
+begin
+  inherited;
+  Generate;
 end;
 
 procedure TTexture.Activate;
@@ -1089,7 +1114,6 @@ constructor TTexture1D.Create(AGLState: TGLState; AWidth: Integer; APixelFormat:
 begin
   inherited Create(AGLState, APixelFormat);
   FWidth := AWidth;
-  Generate;
 end;
 
 function TTexture1D.TargetType: Cardinal;
@@ -1129,16 +1153,10 @@ begin
   Changed;
 end;
 
-constructor TTexture2D.Create(AGLState: TGLState; APixelFormat: TGLPixelFormat);
-begin
-  inherited;
-end;
-
 constructor TTexture2D.Create(AGLState: TGLState; ASize: TIntVector2; APixelFormat: TGLPixelFormat);
 begin
   inherited Create(AGLState, APixelFormat);
   FSize := ASize;
-  Generate;
 end;
 
 function TTexture2D.TargetType: Cardinal;
@@ -1209,7 +1227,8 @@ end;
 procedure TTexture2D.SetData(const Value: PByte);
 begin
   Bind;
-  glTexImage2D(TargetType, 0, GLInternalFormat(PixelFormat), Width, Height, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, Value);
+  glTexImage2D(TargetType, 0, GLInternalFormat(PixelFormat), Width, Height, 0, Ord(PixelFormat),
+    GL_UNSIGNED_BYTE, Value);
 end;
 
 procedure TTexture2D.SetDataArray(const Value: TArray<TColorRGBA.TBytes>);
@@ -1245,6 +1264,11 @@ begin
   for I := 1 to Length(PixelData) - 1 do
     PixelData[I] := PixelData[0];
   Data := @PixelData[0];
+end;
+
+constructor TTexture2D.Create(AGL: TGLState; APixelFormat: TGLPixelFormat);
+begin
+  inherited;
 end;
 
 procedure TTexture2D.Fill(ABounds: TIntBounds2; AColor: TColorRGBA);
@@ -1308,7 +1332,6 @@ constructor TTexture3D.Create(AGLState: TGLState; ASize: TIntVector3; APixelForm
 begin
   inherited Create(AGLState, APixelFormat);
   FSize := ASize;
-  Generate;
 end;
 
 function TTexture3D.TargetType: Cardinal;
@@ -1319,7 +1342,8 @@ end;
 procedure TTexture3D.Generate;
 begin
   Bind;
-  glTexImage3D(TargetType, 0, GLInternalFormat(PixelFormat), Width, Height, Depth, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
+  glTexImage3D(TargetType, 0, GLInternalFormat(PixelFormat), Width, Height, Depth, 0, Ord(PixelFormat),
+    GL_UNSIGNED_BYTE, nil);
 end;
 
 { TTexture1DArray }
@@ -1372,7 +1396,6 @@ constructor TTexture2DArray.Create(AGLState: TGLState; ASize: TIntVector3; APixe
 begin
   inherited Create(AGLState, APixelFormat);
   FSize := ASize;
-  Generate;
 end;
 
 function TTexture2DArray.TargetType: Cardinal;
@@ -1383,7 +1406,8 @@ end;
 procedure TTexture2DArray.Generate;
 begin
   Bind;
-  glTexImage3D(TargetType, 0, GLInternalFormat(PixelFormat), Width, Height, Layers, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
+  glTexImage3D(TargetType, 0, GLInternalFormat(PixelFormat), Width, Height, Layers, 0, Ord(PixelFormat),
+    GL_UNSIGNED_BYTE, nil);
 end;
 
 { TTextureRectangle }
@@ -1428,7 +1452,6 @@ begin
   inherited Create(AGLState, APixelFormat);
   FSize := ASize;
   FLayers := ALayers;
-  Generate;
 end;
 
 function TTextureCubeMapArray.TargetType: Cardinal;
@@ -1438,7 +1461,8 @@ end;
 
 procedure TTextureCubeMapArray.Generate;
 begin
-  glTexImage3D(TargetType, 0, GLInternalFormat(PixelFormat), Size, Size, Layers * 6, 0, Ord(PixelFormat), GL_UNSIGNED_BYTE, nil);
+  glTexImage3D(TargetType, 0, GLInternalFormat(PixelFormat), Size, Size, Layers * 6, 0, Ord(PixelFormat),
+    GL_UNSIGNED_BYTE, nil);
 end;
 
 { TTextureBuffer }
@@ -1469,13 +1493,22 @@ begin
   inherited Create(AGLState, APixelFormat);
   FSize := ASize;
   FSamples := ASamples;
-  Generate;
 end;
 
 procedure TTexture2DMS.Generate;
 begin
   Bind;
-  glTexImage2DMultisample(TargetType, Samples, Ord(PixelFormat), Width, Height, True);
+  glTexImage2DMultisample(TargetType, Samples, GLInternalFormat(PixelFormat), Width, Height, True);
+end;
+
+function TTexture2DMS.GetData: PByte;
+begin
+  raise Exception.Create('FBO with glReadPixels required for multisampled textures.');
+end;
+
+function TTexture2DMS.IsMultisampled: Boolean;
+begin
+  Result := True;
 end;
 
 { TTexture2DMSArray }
@@ -1494,7 +1527,6 @@ begin
   inherited Create(AGLState, APixelFormat);
   FSize := ASize;
   FSamples := ASamples;
-  Generate;
 end;
 
 function TTexture2DMSArray.TargetType: Cardinal;
@@ -1505,6 +1537,11 @@ end;
 procedure TTexture2DMSArray.Generate;
 begin
   glTexImage3DMultisample(TargetType, Samples, Ord(PixelFormat), Width, Height, Layers, True);
+end;
+
+function TTexture2DMSArray.IsMultisampled: Boolean;
+begin
+  Result := True;
 end;
 
 end.

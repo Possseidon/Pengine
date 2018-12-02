@@ -21,7 +21,8 @@ uses
 
   SynEditorFrame,
 
-  Pengine.Parser,
+  Pengine.Parsing,
+
   Pengine.MC.Brigadier,
   Pengine.MC.EntitySelector,
 

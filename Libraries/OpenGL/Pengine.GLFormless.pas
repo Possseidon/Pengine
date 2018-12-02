@@ -9,6 +9,7 @@ uses
 
   dglOpenGL,
 
+  Pengine.Color,
   Pengine.Settings,
   Pengine.GLEnums,
   Pengine.GLContext,
@@ -24,9 +25,11 @@ type
   private
     FForm: TForm;
     FContext: TGLContext;
-    FTexture: TTexture2D;
-    FDepthTexture: TTexture2D;
+    FTexture: TTexture2DMS;
+    FDepthTexture: TTexture2DMS;
     FFBO: TFBO;
+    FHelpTexture: TTexture2D;
+    FHelpFBO: TFBO;
 
     function GetSize: TIntVector2;
     procedure SetSize(const Value: TIntVector2);
@@ -78,6 +81,7 @@ end;
 procedure TGLFormless.Clear;
 begin
   FFBO.Bind;
+  glClearColor(0.5, 0.5, 0.5, 0);
   glClear(ToGLBitfield([amColor, amDepth]));
 end;
 
@@ -85,16 +89,24 @@ constructor TGLFormless.Create;
 begin
   FForm := TForm.Create(nil);
   FContext := TGLContext.Create(FForm.Canvas.Handle, 0, nil);
-  FTexture := TTexture2D.Create(GLState, 1);
-  FDepthTexture := TTexture2D.Create(GLState, Size, pfDepthComponent);
+
+  FTexture := TTexture2DMS.Create(GLState, 1, Context.MaxSamples);
+  FDepthTexture := TTexture2DMS.Create(GLState, 1, Context.MaxSamples, pfDepthComponent);
   FFBO := TFBO.Create(GLState, IBounds2(Size));
   FFBO.Add(TTexture2DAttachment.Create(TColorAttachment.Create, FTexture));
   FFBO.Add(TTexture2DAttachment.Create(TDepthAttachment.Create, FDepthTexture));
   FFBO.Complete;
+
+  FHelpTexture := TTexture2D.Create(GLState, 1);
+  FHelpFBO := TFBO.Create(GLState, IBounds2(Size));
+  FHelpFBO.Add(TTexture2DAttachment.Create(TColorAttachment.Create, FHelpTexture));
+  FHelpFBO.Complete;
 end;
 
 destructor TGLFormless.Destroy;
 begin
+  FHelpFBO.Free;
+  FHelpTexture.Free;
   FFBO.Free;
   FDepthTexture.Free;
   FTexture.Free;
@@ -123,13 +135,18 @@ begin
   FTexture.Size := Value;
   FDepthTexture.Size := Value;
   FFBO.Viewport := IBounds2(Value);
+  FHelpTexture.Size :=  Value;
+  FHelpFBO.Viewport := IBounds2(Value);
 end;
 
 function TGLFormless.ToImage: IGPBitmap;
 var
   TextureData: TTextureData;
 begin
-  TextureData := FTexture.ToTextureData;
+  FFBO.CopyTo(FHelpFBO, [amColor]);
+
+  TextureData := FHelpFBO.ToTextureData;
+  // TextureData := FTexture.ToTextureData;
   Result := TextureData.ToImage;
   TextureData.Free;
 end;

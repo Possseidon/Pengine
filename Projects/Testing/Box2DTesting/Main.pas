@@ -210,7 +210,7 @@ procedure TfrmMain.Init;
 begin
   GLState.State[stClearColor] := clSkyBlue;
   Context.VSync := False;
-  // Context.Samples := Context.MaxSamples;
+  Context.Samples := Context.MaxSamples;
 
   Game.Timer.OnFPSUpdate.Add(UpdateFPS);
   Game.OnUpdate.Add(GameUpdate);

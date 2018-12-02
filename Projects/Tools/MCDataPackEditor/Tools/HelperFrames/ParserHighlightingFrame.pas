@@ -16,7 +16,7 @@ uses
   Vcl.Dialogs,
   Vcl.StdCtrls,
 
-  Pengine.Parser,
+  Pengine.Parsing,
   Pengine.Collections,
 
   TextAttributeFrame;

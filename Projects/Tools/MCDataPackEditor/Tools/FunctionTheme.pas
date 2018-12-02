@@ -11,7 +11,7 @@ uses
   Pengine.Hasher,
   Pengine.Collections,
   Pengine.HashCollections,
-  Pengine.Parser,
+  Pengine.Parsing,
   Pengine.IntMaths,
   Pengine.Color, // TODO: Remove this
   Pengine.JSON,
@@ -156,7 +156,7 @@ type
     public const
 
       Parsers: array [0 .. 0] of TParserClass = (
-        TBrigadierCommandParser
+        TBrigadierCommand.TParser
         );
 
     public
@@ -263,10 +263,10 @@ type
       Parsers: array [0 .. 7] of TParserClass = (
         TBrigadierNBTParser,
         TNBTCompound.TParser,
-        TNBTListOrArrayParser,
+        TNBTListOrArray.TParser,
         TNBTString.TStringOrIdentParser,
         TNBTString.TStringParser,
-        TNBTNumberParser,
+        TNBTNumber.TParser,
 
         TBrigadierNBTPathParser,
         TNBTPath.TParser
@@ -459,14 +459,13 @@ type
     FText: string;
     FCommand: TBrigadierCommand;
     FContext: TParseInfo.TContext;
-    FSettings: TBrigadierCommandParser.TSettings;
     FReferences: Integer;
 
     procedure Compile;
     procedure SetText(Value: string);
 
   public
-    constructor Create(ASettings: TBrigadierCommandParser.TSettings; AText: string);
+    constructor Create(AText: string);
     destructor Destroy; override;
 
     property Text: string read FText write SetText;
@@ -499,7 +498,7 @@ type
     FDummyAttributes: TSynHighlighterAttributes;
     FCurrentAttributes: TSynHighlighterAttributes;
 
-{$MESSAGE WARN 'Attributes are never cleared, and will accumulate. Reset on Theme change to get rid of not more possible colors.'}
+    {$MESSAGE WARN 'Attributes are never cleared, and will accumulate. Reset on Theme change to get rid of not more possible colors.'}
     FAttributes: TAttributes;
 
     function GetAttributes: TSynHighlighterAttributes;
@@ -532,22 +531,27 @@ begin
 end;
 
 procedure TLine.Compile;
+var
+  Parser: TBrigadierCommand.IParser;
 begin
   FreeAndNil(FCommand);
   FreeAndNil(FContext);
 
-  with TBrigadierCommandParser.Create(FSettings, Text, True) do
-  begin
-    if Success then
-      FCommand := OwnParseResult;
-    FContext := OwnContext;
-    Free;
-  end;
+  Parser := TBrigadierCommand.Parser;
+
+  Parser.SlashMode := smNone;
+  Parser.AllowComment := True;
+  Parser.AllowPreceedingSpace := False;
+  Parser.AllowEmpty := True;
+
+  Parser.Parse(Text, True);
+  if Parser.Success then
+    FCommand := Parser.OwnParseResult;
+  FContext := Parser.Context.Own;
 end;
 
-constructor TLine.Create(ASettings: TBrigadierCommandParser.TSettings; AText: string);
+constructor TLine.Create(AText: string);
 begin
-  FSettings := ASettings;
   FText := AText;
   Compile;
 end;

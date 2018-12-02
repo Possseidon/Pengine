@@ -16,14 +16,14 @@ uses
   Pengine.Utility,
   Pengine.IntMaths,
   Pengine.GLFormless,
+  Pengine.Light,
+  Pengine.Vector,
 
   Pengine.MC.BlockRenderer,
   Pengine.MC.Assets,
   Pengine.MC.Item,
   Pengine.MC.BlockState,
-  Pengine.MC.Namespace,
-  Pengine.Light,
-  Pengine.Vector;
+  Pengine.MC.Namespace;
 
 type
 
@@ -43,6 +43,9 @@ type
       function GetIcons: TIcons.TReader;
 
     public
+      constructor Create;
+      destructor Destroy; override;
+
       property Icons: TIcons.TReader read GetIcons;
 
       procedure Generate;
@@ -97,10 +100,23 @@ end;
 procedure TItemIconSettings.DoReload;
 var
   Item: TItemType;
+  FilePath: string;
+  // Generator: TGenerator;
+  // Pair: TIcons.TPair;
 begin
+  {
+    Generator := TGenerator.Create;
+    Generator.Generate;
+    for Pair in Generator.Icons do
+    Pair.Value.Save(TPath.Combine(Path, Pair.Key.NSPath.Path + '.png'), TGPImageFormat.Png);
+    Generator.Free;
+  }
   FIcons.Clear;
   for Item in Root.Get<TItemSettings>.Items.Order do
-    FIcons[Item] := TGPBitmap.FromFile(TPath.Combine(Path, Item.NSPath.Path + '.png'));
+  begin
+    FilePath := TPath.Combine(Path, Item.NSPath.Path + '.png');
+    FIcons[Item] := TGPBitmap.FromFile(FilePath);
+  end;
 end;
 
 function TItemIconSettings.GetIcons: TIcons.TReader;
@@ -108,14 +124,12 @@ begin
   Result := FIcons.Reader;
 end;
 
-class
-  function TItemIconSettings.GetNameForVersion(AVersion: Integer): string;
+class function TItemIconSettings.GetNameForVersion(AVersion: Integer): string;
 begin
   Result := 'mc_itemicons';
 end;
 
-class
-  function TItemIconSettings.GetTitle: string;
+class function TItemIconSettings.GetTitle: string;
 begin
   Result := 'Item-Icons';
 end;
@@ -131,13 +145,23 @@ begin
   Reload;
 end;
 
-class
-  function TItemIconSettings.SkipSave: Boolean;
+class function TItemIconSettings.SkipSave: Boolean;
 begin
   Result := True;
 end;
 
 { TItemIconSettings.TGenerator }
+
+constructor TItemIconSettings.TGenerator.Create;
+begin
+  FIcons := TIcons.Create;
+end;
+
+destructor TItemIconSettings.TGenerator.Destroy;
+begin
+  FIcons.Free;
+  inherited;
+end;
 
 procedure TItemIconSettings.TGenerator.Generate;
 var

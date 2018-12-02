@@ -736,6 +736,10 @@ type
 
   // TODO: XmlDoc
   TBaseToRefPairArray<K; V: class> = class abstract(TArray<TPair<K, V>>)
+  public type
+
+    TPair = TPair<K, V>;
+
   protected
     function GetOwnsValues: Boolean; virtual; abstract;
 

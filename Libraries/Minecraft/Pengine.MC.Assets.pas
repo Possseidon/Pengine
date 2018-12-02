@@ -1060,7 +1060,7 @@ end;
 constructor TVariantModel.Create(AAssets: TAssetsSettings; AJObject: TJObject);
 var
   Pair: TJPair;
-  Parser: TBlockState.TPropertiesParser;
+  Parser: TBlockState.IPropertiesParser;
   Properties: TBlockState.TProperties;
   Variants: TVariants;
   JVariant: TJValue;
@@ -1069,9 +1069,10 @@ begin
   FVariantMap := TVariantMap.Create;
   for Pair in AJObject do
   begin
-    Parser := TBlockState.TPropertiesParser.Create('[' + Pair.Key + ']', False);
+    Parser := TBlockState.PropertiesParser;
+    Parser.NoBrackets := True;
+    Parser.Parse(Pair.Key, False);
     Properties := Parser.OwnParseResult;
-    Parser.Free;
 
     Variants := TVariants.Create;
     FVariantMap[Properties] := Variants;
@@ -1201,7 +1202,6 @@ var
 begin
   FElement := AElement;
 
-  JUV := AJObject['uv'];
   if AJObject.Get('uv', JUV) then
     FUVPx := Bounds2(Vec2(JUV[0], JUV[1]), Vec2(JUV[2], JUV[3]))
   else

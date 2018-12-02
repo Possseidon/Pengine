@@ -32,7 +32,7 @@ uses
   Pengine.HashCollections,
   Pengine.Hasher,
   Pengine.TimeManager,
-  Pengine.Parser,
+  Pengine.Parsing,
   Pengine.Settings,
 
   Pengine.MC.BrigadierParser,
@@ -53,7 +53,7 @@ uses
   SettingsForm,
   StartupView,
 
-  // Pengine.MC.Recipe,
+  Pengine.MC.Recipe,
   Pengine.JSON;
 
 type
@@ -351,13 +351,13 @@ begin
   // The first time, this exception is raised, the raising takes a little longer with the debugger...
   // So let's do it at the start so it's not anoying while typing.
 
-{$IFDEF DEBUG}
+  {$IFDEF DEBUG}
   try
     raise EParseError.Create('');
   except
   end;
 
-{$ENDIF}
+  {$ENDIF}
 
 end;
 
@@ -387,7 +387,7 @@ begin
     else
       AddRecursive(tvNamespaces.Selections[I]);
   end;
-  pcTabs.EnableAlign;
+  pcTabs.EnableAlign;    
 end;
 
 procedure TfrmMain.actExpandAllExecute(Sender: TObject);
@@ -529,11 +529,6 @@ begin
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
-var
-  Path: string;
-  JObject: TJObject;
-  JPair: TJPair;
-  JIngredient: TJBase;
 begin
   // SHAutoComplete(edtTestInput.Handle, SHACF_AUTOAPPEND_FORCE_OFF or SHACF_AUTOSUGGEST_FORCE_OFF);
   InitDataTypes;
@@ -543,32 +538,23 @@ begin
   CheckAppParams;
   Application.OnActivate := AppActivate;
   LoadSettings;
+
+  //for var S in TDirectory.GetFiles('C:\Users\Dominik\Documents\Test Datapack\data\minecraft\recipes') do
   {
-    for Path in TDirectory.GetFiles('C:\Users\Dominik\Documents\Test Datapack\data\minecraft\recipes') do
-    begin
-    JObject := TJObject.CreateFromFile(Path);
-    for JPair in JObject['key'] do
-    begin
-    if JPair.Value is TJArray then
-    begin
-    Sleep(1);
-    end;
-    end;
+  for var S in TDirectory.GetFiles('C:\Users\Dominik\Desktop\Server\Test\generated\data\minecraft\recipes') do
+  begin
+    var JRecipe := TJObject.CreateFromFile(S);
 
-    if JObject['ingredient'].Value is TJArray then
-    Sleep(1);
-
-    for JIngredient in JObject['ingredients'].AsArray do
-    begin
-    if JIngredient is TJArray then
-    begin
-    Sleep(1);
+    if JRecipe['type'] = RecipeNames[TRecipeSmelting.GetType] then
+      if JRecipe['group'].Exists then
+        raise Exception.Create('Yeah boi!');
+        
+    try
+      var Recipe := TRecipe.CreateTyped(JRecipe);
+    finally
+      JRecipe.Free;    
     end;
-    end;
-
-
-    JObject.Free;
-    end;
+  end;
   }
 end;
 
