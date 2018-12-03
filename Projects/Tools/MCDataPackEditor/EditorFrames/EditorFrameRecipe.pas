@@ -24,6 +24,7 @@ uses
   Pengine.JSON,
   Pengine.Settings,
   Pengine.IntMaths,
+  Pengine.Collections,
 
   Pengine.MC.Recipe,
   Pengine.MC.ItemIcons,

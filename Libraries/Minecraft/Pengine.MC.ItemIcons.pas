@@ -104,13 +104,13 @@ var
   // Generator: TGenerator;
   // Pair: TIcons.TPair;
 begin
-  {
-    Generator := TGenerator.Create;
+  { Generator := TGenerator.Create;
     Generator.Generate;
     for Pair in Generator.Icons do
     Pair.Value.Save(TPath.Combine(Path, Pair.Key.NSPath.Path + '.png'), TGPImageFormat.Png);
     Generator.Free;
   }
+
   FIcons.Clear;
   for Item in Root.Get<TItemSettings>.Items.Order do
   begin

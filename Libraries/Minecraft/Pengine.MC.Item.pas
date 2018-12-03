@@ -248,8 +248,10 @@ type
   TItemStackTag = class(TItemStack)
   public type
 
+    IParser = IObjectParser<TItemStackTag>;
+
     /// <summary>Parses a whole item state.</summary>
-    TParser = class(TObjectParser<TItemStackTag>)
+    TParser = class(TObjectParser<TItemStackTag>, IParser)
     protected
       function Parse: Boolean; override;
 
@@ -265,6 +267,8 @@ type
     end;
 
   public
+    class function Parser: TParser;
+
     function Format: string; override;
 
   end;
@@ -834,6 +838,11 @@ begin
   Result := '#' + NSPath.Format(RootSettingsG.Get<TItemTagSettings>.NamespacePrefix);
   if NBT.HasValue and not NBT.Value.Empty then
     Result := Result + NBT.Value.Format;
+end;
+
+class function TItemStackTag.Parser: TParser;
+begin
+  Result := TParser.Create;
 end;
 
 { TItemStackTag.TParser }

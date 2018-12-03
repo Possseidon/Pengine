@@ -53,6 +53,8 @@ type
 
   end;
 
+  /// <summary>A settings containing a GL-State using a hidden form.</summary>
+  /// <remarks>Do NOT preload this, as creating a form on a different thread is not a good idea.</remarks>
   TBackgroundGLSettings = class(TSettings)
   private
     FGL: TGLFormless;
