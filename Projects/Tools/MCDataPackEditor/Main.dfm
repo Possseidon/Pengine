@@ -116,6 +116,7 @@ object frmMain: TfrmMain
     Align = alClient
     Images = ilIcons
     ParentShowHint = False
+    PopupMenu = pmTabs
     ShowHint = False
     TabOrder = 2
     OnDragDrop = pcTabsDragDrop
@@ -265,6 +266,18 @@ object frmMain: TfrmMain
       Category = 'Functions'
       Caption = 'Preferences...'
       OnExecute = actFunctionPreferencesExecute
+    end
+    object actCloseTab: TAction
+      Category = 'Tabs'
+      Caption = 'Close tab'
+      ShortCut = 16499
+      OnExecute = actCloseTabExecute
+    end
+    object actCloseAllOtherTabs: TAction
+      Category = 'Tabs'
+      Caption = 'Close all other tabs'
+      ShortCut = 24691
+      OnExecute = actCloseAllOtherTabsExecute
     end
   end
   object mmMain: TMainMenu
@@ -803,6 +816,16 @@ object frmMain: TfrmMain
       object actCollapseTypes1: TMenuItem
         Action = actCollapseTypes
       end
+    end
+  end
+  object pmTabs: TPopupMenu
+    Left = 272
+    Top = 32
+    object Closetab1: TMenuItem
+      Action = actCloseTab
+    end
+    object Closeallothertabs1: TMenuItem
+      Action = actCloseAllOtherTabs
     end
   end
 end

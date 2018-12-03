@@ -132,6 +132,13 @@ type
     actFormatCurrent: TAction;
     actFormatAll: TAction;
     actFunctionPreferences: TAction;
+    pmTabs: TPopupMenu;
+    actCloseTab: TAction;
+    actCloseAllOtherTabs: TAction;
+    Closetab1: TMenuItem;
+    Closeallothertabs1: TMenuItem;
+    procedure actCloseAllOtherTabsExecute(Sender: TObject);
+    procedure actCloseTabExecute(Sender: TObject);
     procedure actCollapseAllExecute(Sender: TObject);
     procedure actCopyNameExecute(Sender: TObject);
     procedure actCopyNameUpdate(Sender: TObject);
@@ -211,6 +218,22 @@ implementation
 
 {$R *.dfm}
 
+
+procedure TfrmMain.actCloseAllOtherTabsExecute(Sender: TObject);
+var
+  I, ActivePage: Integer;
+begin
+  ActivePage := pcTabs.ActivePageIndex;
+  for I := pcTabs.PageCount - 1 downto 0 do
+    if I <> ActivePage then
+      pcTabs.Pages[I].Editor.Close;
+end;
+
+procedure TfrmMain.actCloseTabExecute(Sender: TObject);
+begin
+  if pcTabs.ActivePage <> nil then
+    pcTabs.ActivePage.Editor.Close;
+end;
 
 procedure TfrmMain.actCollapseAllExecute(Sender: TObject);
 begin
@@ -348,13 +371,13 @@ begin
   // The first time, this exception is raised, the raising takes a little longer with the debugger...
   // So let's do it at the start so it's not anoying while typing.
 
-  {$IFDEF DEBUG}
+{$IFDEF DEBUG}
   try
     raise EParseError.Create('');
   except
   end;
 
-  {$ENDIF}
+{$ENDIF}
 
 end;
 
@@ -384,7 +407,7 @@ begin
     else
       AddRecursive(tvNamespaces.Selections[I]);
   end;
-  pcTabs.EnableAlign;    
+  pcTabs.EnableAlign;
 end;
 
 procedure TfrmMain.actExpandAllExecute(Sender: TObject);
@@ -536,22 +559,22 @@ begin
   Application.OnActivate := AppActivate;
   LoadSettings;
 
-  //for var S in TDirectory.GetFiles('C:\Users\Dominik\Documents\Test Datapack\data\minecraft\recipes') do
+  // for var S in TDirectory.GetFiles('C:\Users\Dominik\Documents\Test Datapack\data\minecraft\recipes') do
   {
-  for var S in TDirectory.GetFiles('C:\Users\Dominik\Desktop\Server\Test\generated\data\minecraft\recipes') do
-  begin
+    for var S in TDirectory.GetFiles('C:\Users\Dominik\Desktop\Server\Test\generated\data\minecraft\recipes') do
+    begin
     var JRecipe := TJObject.CreateFromFile(S);
 
     if JRecipe['type'] = RecipeNames[TRecipeSmelting.GetType] then
-      if JRecipe['group'].Exists then
-        raise Exception.Create('Yeah boi!');
-        
+    if JRecipe['group'].Exists then
+    raise Exception.Create('Yeah boi!');
+
     try
-      var Recipe := TRecipe.CreateTyped(JRecipe);
+    var Recipe := TRecipe.CreateTyped(JRecipe);
     finally
-      JRecipe.Free;    
+    JRecipe.Free;
     end;
-  end;
+    end;
   }
 end;
 
@@ -637,6 +660,8 @@ begin
         SetCaptureControl(pcTabs);
         FRemoveTab := TabIndex;
       end;
+    mbRight:
+      pcTabs.ActivePageIndex := pcTabs.IndexOfTabAt(X, Y);
   end;
 end;
 
