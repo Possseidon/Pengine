@@ -313,7 +313,7 @@ type
     class operator GreaterThan(const A, B: TIntVector3): Boolean;
     class operator GreaterThanOrEqual(const A, B: TIntVector3): Boolean;
 
-    class operator In (A: Integer; const B: TIntVector3): Boolean; inline;
+    class operator In (const A, B: TIntVector3): Boolean; inline;
 
     /// <returns>A string representative in the form: <c>[X|Y|Z]</c></returns>
     /// <remarks>Direct implicit conversion to string is possible.</remarks>
@@ -1658,7 +1658,7 @@ begin
   Result := (A.X >= B.X) and (A.Y >= B.Y) and (A.Z >= B.Z);
 end;
 
-class operator TIntVector3.In(A: Integer; const B: TIntVector3): Boolean;
+class operator TIntVector3.In(const A, B: TIntVector3): Boolean;
 begin
   Result := A in IBounds3(B);
 end;
@@ -2282,7 +2282,7 @@ end;
 
 class operator TIntBounds3.In(const A: TIntVector3; const B: TIntBounds3): Boolean;
 begin
-  Result := (A >= B.C1) and (A < B.C2);
+  Result := (A >= B.C1) and (A <= B.C2);
 end;
 
 class operator TIntBounds3.Equal(const A, B: TIntBounds3): Boolean;

@@ -414,10 +414,12 @@ implementation
 { TBlockType.TProperty }
 
 constructor TBlockType.TProperty.Create(AJPair: TJPair);
+var
+  JValue: TJValue;
 begin
   FName := AJPair.Key;
   FValues := TValues.Create;
-  for var JValue in AJPair.Value.AsArray do
+  for JValue in AJPair.Value.AsArray do
     FValues.Add(JValue.AsString);
 end;
 

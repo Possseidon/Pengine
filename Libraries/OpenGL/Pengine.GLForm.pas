@@ -283,7 +283,8 @@ begin
   FInput.Free;
   FContext.Free;
 
-  ReleaseDC(Handle, FDC);
+  // DeactivateContext releases the Handle
+  // ReleaseDC(Handle, FDC);
   inherited;
 end;
 
