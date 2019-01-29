@@ -861,7 +861,7 @@ const
     bdUp,
     bdUp,
     bdFront,
-    bdBack
+    bdFront
     );
 
   BasicDirAxis: array [TBasicDir] of TCoordAxis = (
@@ -989,7 +989,7 @@ const
 
   { Shorthand Constructors }
 
-  /// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given values for X and Y.</returns>
+/// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given values for X and Y.</returns>
 function IVec2(X, Y: Integer): TIntVector2; overload; inline;
 /// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given value for X and Y.</returns>
 function IVec2(V: Integer): TIntVector2; overload; inline;
@@ -1019,7 +1019,46 @@ function IBounds3I(A, B: TIntVector3): TIntBounds3; overload; inline;
 /// <returns>A <see cref="Pengine.IntMaths|TIntBounds3"/> for the interval: <c>[0, A)</c></returns>
 function IBounds3(A: TIntVector3): TIntBounds3; overload; inline;
 
+function FlipDir(ADir: TBasicDir): TBasicDir; inline;
+function AbsDir(ADir: TBasicDir): TBasicDir; inline;
+function IsPosDir(ADir: TBasicDir): Boolean; inline;
+function RotateDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer = 1): TBasicDir; overload;
+function RotateDir(ADir: TBasicDir2; ASteps: Integer): TBasicDir2; overload;
+
 implementation
+
+{ TBasicDir helper functions }
+
+function FlipDir(ADir: TBasicDir): TBasicDir;
+begin
+  Result := FlippedBasicDirs[ADir];
+end;
+
+function AbsDir(ADir: TBasicDir): TBasicDir;
+begin
+  Result := AbsBasicDirs[ADir];
+end;
+
+function IsPosDir(ADir: TBasicDir): Boolean;
+begin
+  Result := ADir in [bdRight, bdUp, bdFront];
+end;
+
+function RotateDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer): TBasicDir;
+begin
+  ASteps := IBounds1(4).RangedMod(ASteps);
+  if ASteps = 0 then
+    Exit(ADir);
+  Result := BasicDirRotations[ADir, AAxis, ASteps];
+end;
+
+function RotateDir(ADir: TBasicDir2; ASteps: Integer): TBasicDir2;
+begin
+  ASteps := IBounds1(4).RangedMod(ASteps);
+  if ASteps = 0 then
+    Exit(ADir);
+  Result := TBasicDir2(BasicDirRotations[ADir, bdFront, ASteps]);
+end;
 
 { TIntVector2 }
 

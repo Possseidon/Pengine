@@ -26,9 +26,9 @@ object frmMain: TfrmMain
     Align = alClient
     TabOrder = 0
     Visible = False
-    ExplicitLeft = 360
+    ExplicitLeft = 260
     ExplicitTop = 3
-    ExplicitWidth = 191
+    ExplicitWidth = 69
     ExplicitHeight = 340
   end
   object pnlMain: TPanel
@@ -39,7 +39,6 @@ object frmMain: TfrmMain
     Align = alLeft
     BevelOuter = bvNone
     TabOrder = 1
-    ExplicitHeight = 326
   end
   object alActions: TActionList
     Left = 496
