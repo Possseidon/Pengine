@@ -22,14 +22,17 @@ uses
   Vcl.Menus,
   Vcl.StdCtrls,
   Vcl.Samples.Spin,
+  Vcl.WinXCtrls,
 
   GdiPlus,
   GdiPlusHelpers,
 
   Pengine.IntMaths,
 
+  SettingsDialog,
   ReactorDefine,
-  PreviewFrame, Vcl.WinXCtrls;
+  PreviewFrame,
+  ReactorEvolutionDefine;
 
 type
   TfrmMain = class(TForm)
@@ -97,6 +100,7 @@ type
     N4: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure actExitExecute(Sender: TObject);
+    procedure actNewExecute(Sender: TObject);
     procedure actPreviewExecute(Sender: TObject);
     procedure actPreviewUpdate(Sender: TObject);
     procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer; var Resize: Boolean);
@@ -125,6 +129,11 @@ end;
 procedure TfrmMain.actExitExecute(Sender: TObject);
 begin
   Close;
+end;
+
+procedure TfrmMain.actNewExecute(Sender: TObject);
+begin
+  frmSettings.Execute(TReactorEvolution.TSettings.Create);
 end;
 
 procedure TfrmMain.actPreviewExecute(Sender: TObject);

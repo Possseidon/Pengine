@@ -1,9 +1,9 @@
-object frmInitialization: TfrmInitialization
+object frmSettings: TfrmSettings
   Left = 0
   Top = 0
   BorderStyle = bsDialog
-  Caption = 'Initialization'
-  ClientHeight = 263
+  Caption = 'Settings'
+  ClientHeight = 291
   ClientWidth = 484
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -13,6 +13,7 @@ object frmInitialization: TfrmInitialization
   Font.Style = []
   OldCreateOrder = False
   Position = poOwnerFormCenter
+  OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
   object gbReactorBlocks: TGroupBox
@@ -20,53 +21,49 @@ object frmInitialization: TfrmInitialization
     Left = 290
     Top = 3
     Width = 191
-    Height = 257
+    Height = 285
     Align = alClient
     Caption = 'Reactor Blocks'
     TabOrder = 0
-    ExplicitLeft = 278
-    ExplicitWidth = 157
-    ExplicitHeight = 191
+    ExplicitHeight = 257
     object clbReactorBlocks: TCheckListBox
       AlignWithMargins = True
       Left = 5
       Top = 18
       Width = 181
-      Height = 234
+      Height = 262
       Align = alClient
       ItemHeight = 13
       PopupMenu = pmReactorBlocks
       TabOrder = 0
-      ExplicitWidth = 130
-      ExplicitHeight = 158
+      ExplicitHeight = 234
     end
   end
-  object Panel1: TPanel
+  object pnlLeft: TPanel
     Left = 0
     Top = 0
     Width = 287
-    Height = 263
+    Height = 291
     Align = alLeft
     BevelOuter = bvNone
     TabOrder = 1
-    ExplicitLeft = 56
-    ExplicitTop = -24
-    ExplicitWidth = 291
+    ExplicitHeight = 263
     DesignSize = (
       287
-      263)
-    object Button1: TButton
+      291)
+    object btnGenerate: TButton
       Left = 137
-      Top = 230
+      Top = 258
       Width = 138
       Height = 25
       Anchors = [akLeft, akBottom]
       Caption = 'Generate'
       Default = True
       ModalResult = 1
-      TabOrder = 0
+      TabOrder = 2
+      ExplicitTop = 230
     end
-    object GroupBox1: TGroupBox
+    object gbReactor: TGroupBox
       AlignWithMargins = True
       Left = 3
       Top = 3
@@ -74,22 +71,22 @@ object frmInitialization: TfrmInitialization
       Height = 104
       Align = alTop
       Caption = 'Reactor'
-      TabOrder = 1
-      object Label1: TLabel
+      TabOrder = 0
+      object lbReactorSize: TLabel
         Left = 12
         Top = 21
         Width = 64
         Height = 13
         Caption = 'Reactor Size:'
       end
-      object Label4: TLabel
+      object lbFuelBasePower: TLabel
         Left = 12
         Top = 49
         Width = 83
         Height = 13
         Caption = 'Fuel Base Power:'
       end
-      object Label6: TLabel
+      object lbFuelBaseHeat: TLabel
         Left = 12
         Top = 76
         Width = 76
@@ -143,72 +140,77 @@ object frmInitialization: TfrmInitialization
         Text = '0'
       end
     end
-    object GroupBox2: TGroupBox
+    object gbEvolution: TGroupBox
       AlignWithMargins = True
       Left = 3
       Top = 113
       Width = 281
-      Height = 107
+      Height = 139
       Align = alTop
       Caption = 'Evolution'
-      TabOrder = 2
-      object Label2: TLabel
+      TabOrder = 1
+      object lbPopulationSize: TLabel
         Left = 12
         Top = 25
-        Width = 54
+        Width = 76
         Height = 13
-        Caption = 'Population:'
+        Caption = 'Population Size:'
       end
-      object Label3: TLabel
+      object lbGeneratorFunction: TLabel
         Left = 12
         Top = 53
-        Width = 82
+        Width = 97
         Height = 13
-        Caption = 'Fitness Function:'
+        Caption = 'Generator Function:'
       end
-      object Label5: TLabel
+      object lbMutationFunction: TLabel
         Left = 12
         Top = 80
         Width = 90
         Height = 13
         Caption = 'Mutation Function:'
       end
-      object sePopulation: TSpinEdit
+      object lbFitnessFunction: TLabel
+        Left = 12
+        Top = 107
+        Width = 82
+        Height = 13
+        Caption = 'Fitness Function:'
+      end
+      object sePopulationSize: TSpinEdit
         Left = 134
         Top = 22
         Width = 138
         Height = 22
-        MaxValue = 0
-        MinValue = 0
+        MaxValue = 2147483647
+        MinValue = 1
         TabOrder = 0
-        Value = 0
+        Value = 20
       end
       object cbFitnessFunction: TComboBox
         Left = 134
-        Top = 50
+        Top = 104
         Width = 106
         Height = 21
         Style = csDropDownList
-        Enabled = False
-        TabOrder = 1
+        Sorted = True
+        TabOrder = 5
       end
-      object btnFitnessFunctionSettings: TButton
+      object btnGeneratorFunctionSettings: TButton
         Left = 246
         Top = 50
         Width = 26
         Height = 21
-        Caption = '...'
-        Enabled = False
-        TabOrder = 2
+        Action = actShowGeneratorSettings
+        TabOrder = 6
       end
       object btnMutationFunctionSettings: TButton
         Left = 246
         Top = 77
         Width = 26
         Height = 21
-        Caption = '...'
-        Enabled = False
-        TabOrder = 3
+        Action = actShowMutationSettings
+        TabOrder = 4
       end
       object cbMutationFunction: TComboBox
         Left = 134
@@ -216,8 +218,26 @@ object frmInitialization: TfrmInitialization
         Width = 106
         Height = 21
         Style = csDropDownList
-        Enabled = False
-        TabOrder = 4
+        Sorted = True
+        TabOrder = 3
+      end
+      object cbGeneratorFunction: TComboBox
+        Left = 134
+        Top = 50
+        Width = 106
+        Height = 21
+        Style = csDropDownList
+        Sorted = True
+        TabOrder = 1
+        OnChange = cbGeneratorFunctionChange
+      end
+      object btnFitnessFunctionSettings: TButton
+        Left = 246
+        Top = 104
+        Width = 26
+        Height = 21
+        Action = actShowFitnessSettings
+        TabOrder = 2
       end
     end
   end
@@ -238,6 +258,21 @@ object frmInitialization: TfrmInitialization
     end
     object DisableCoolers1: TMenuItem
       Caption = 'Disable Coolers'
+    end
+  end
+  object alSettings: TActionList
+    Left = 338
+    Top = 91
+    object actShowGeneratorSettings: TAction
+      Caption = '...'
+      OnExecute = actShowGeneratorSettingsExecute
+      OnUpdate = actShowGeneratorSettingsUpdate
+    end
+    object actShowMutationSettings: TAction
+      Caption = '...'
+    end
+    object actShowFitnessSettings: TAction
+      Caption = '...'
     end
   end
 end

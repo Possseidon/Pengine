@@ -5,11 +5,14 @@ interface
 uses
   System.SysUtils,
 
-  Pengine.IntMaths;
+  Pengine.IntMaths,
+  Pengine.Interfaces;
 
 type
 
-  TReactor = class
+  EReactor = class(Exception);
+
+  TReactor = class(TInterfaceBase)
   public type
 
     TBlockType = (
@@ -45,6 +48,11 @@ type
     end;
 
   public const
+
+    SizeLimits: TIntBounds3 = (
+      C1: (X: 1; Y: 1; Z: 1);
+      C2: (X: 24; Y: 24; Z: 24)
+      );
 
     Coolers = [Low(TCoolerType) .. High(TCoolerType)];
 
@@ -96,6 +104,7 @@ type
 
   private
     FBlocks: array of array of array of TBlockType;
+    FLocked: Boolean;
     FCellCount: Integer;
     FCalculated: Boolean;
     FEfficiency: Single;
@@ -107,7 +116,8 @@ type
     function GetBlock(APos: TIntVector3): TBlockType;
     procedure SetBlock(APos: TIntVector3; const Value: TBlockType);
 
-    procedure AssertPos(APos: TIntVector3);
+    procedure PosCheck(APos: TIntVector3); inline;
+    procedure LockCheck; inline;
 
     function GetCellCount: Integer;
     function GetEfficiency: Single;
@@ -123,6 +133,9 @@ type
 
     procedure Assign(AFrom: TReactor);
     function Copy: TReactor;
+
+    property Locked: Boolean read FLocked;
+    procedure Lock;
 
     property Size: TIntVector3 read GetSize write SetSize;
     property Blocks[APos: TIntVector3]: TBlockType read GetBlock write SetBlock; default;
@@ -188,6 +201,11 @@ begin
   Result := ABaseHeat * CellCount * HeatFactor;
 end;
 
+procedure TReactor.Lock;
+begin
+  FLocked := True;
+end;
+
 function TReactor.NetHeat(ABaseHeat: Single): Single;
 begin
   Result := HeatGeneration(ABaseHeat) - CoolingRate;
@@ -200,22 +218,24 @@ end;
 
 procedure TReactor.SetBlock(APos: TIntVector3; const Value: TBlockType);
 begin
-  AssertPos(APos);
+  LockCheck;
+  PosCheck(APos);
   FBlocks[APos.X, APos.Y, APos.Z] := Value;
   FCalculated := False;
 end;
 
 procedure TReactor.SetSize(const Value: TIntVector3);
 begin
+  LockCheck;
   if Size = Value then
     Exit;
-  if Value in IBounds3I(1, 24) then
+  if Value in SizeLimits then
   begin
     FCalculated := False;
     SetLength(FBlocks, Value.X, Value.Y, Value.Z);
   end
   else
-    raise EArgumentException.Create('Reactor size must be between 1x1x1 and 24x24x24.');
+    raise EReactor.CreateFmt('Reactor size must be in range %s.', [SizeLimits.ToString]);
 end;
 
 procedure TReactor.EnsureCalculated;
@@ -445,6 +465,7 @@ procedure TReactor.Clear;
 var
   Pos: TIntVector3;
 begin
+  LockCheck;
   for Pos in Size do
     FreeAndNil(FBlocks[Pos.X, Pos.Y, Pos.Z]);
 end;
@@ -460,16 +481,23 @@ begin
   Size := ASize;
 end;
 
-procedure TReactor.AssertPos(APos: TIntVector3);
+procedure TReactor.LockCheck;
+begin
+  if Locked then
+    raise EReactor.Create('Reactor is locked and cannot be modified.');
+end;
+
+procedure TReactor.PosCheck(APos: TIntVector3);
 begin
   if not(APos in Size) then
-    raise EArgumentOutOfRangeException.Create('Reactor block position out of range.');
+    raise EReactor.Create('Reactor block position out of range.');
 end;
 
 procedure TReactor.Assign(AFrom: TReactor);
 var
   Pos: TIntVector3;
 begin
+  LockCheck;
   Size := AFrom.Size;
   for Pos in Size do
     Self[Pos] := AFrom[Pos];

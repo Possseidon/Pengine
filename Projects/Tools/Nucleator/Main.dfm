@@ -29,8 +29,8 @@ object frmMain: TfrmMain
     Visible = False
     ExplicitLeft = 444
     ExplicitTop = 3
-    ExplicitWidth = 373
-    ExplicitHeight = 480
+    ExplicitWidth = 453
+    ExplicitHeight = 472
   end
   object pnlMain: TPanel
     Left = 0
@@ -40,7 +40,6 @@ object frmMain: TfrmMain
     Align = alLeft
     BevelOuter = bvNone
     TabOrder = 1
-    ExplicitHeight = 486
     object gbEvolution: TGroupBox
       AlignWithMargins = True
       Left = 3
@@ -120,20 +119,18 @@ object frmMain: TfrmMain
         Top = 180
         Width = 138
         Height = 25
+        Action = actSingleStep
         Anchors = [akLeft, akBottom]
-        Caption = 'Single Step'
         TabOrder = 0
-        ExplicitTop = 196
       end
       object btnStartStop: TButton
         Left = 136
         Top = 211
         Width = 138
         Height = 25
+        Action = actStartStop
         Anchors = [akLeft, akBottom]
-        Caption = 'Start'
         TabOrder = 1
-        ExplicitTop = 227
       end
       object GroupBox2: TGroupBox
         AlignWithMargins = True
@@ -144,7 +141,6 @@ object frmMain: TfrmMain
         Align = alRight
         Caption = 'Current Population'
         TabOrder = 2
-        ExplicitHeight = 239
         object lbPopulation: TListBox
           AlignWithMargins = True
           Left = 5
@@ -155,7 +151,6 @@ object frmMain: TfrmMain
           ItemHeight = 13
           PopupMenu = pmPopulation
           TabOrder = 0
-          ExplicitHeight = 185
         end
         object btnInspect: TButton
           AlignWithMargins = True
@@ -166,7 +161,6 @@ object frmMain: TfrmMain
           Align = alBottom
           Caption = 'Inspect'
           TabOrder = 1
-          ExplicitTop = 209
         end
       end
       object seGeneration: TSpinEdit
@@ -292,8 +286,8 @@ object frmMain: TfrmMain
         Left = 46
         Top = 184
         Anchors = [akLeft, akBottom]
+        FrameDelay = 40
         IndicatorSize = aisLarge
-        ExplicitTop = 200
       end
     end
     object gbGraph: TGroupBox
@@ -305,8 +299,6 @@ object frmMain: TfrmMain
       Align = alClient
       Caption = 'Statistics'
       TabOrder = 1
-      ExplicitTop = 271
-      ExplicitHeight = 212
       object pbGraph: TPaintBox
         AlignWithMargins = True
         Left = 5
@@ -332,11 +324,12 @@ object frmMain: TfrmMain
     end
     object actSingleStep: TAction
       Category = 'Evolution'
-      Caption = 'actSingleStep'
+      Caption = 'Single Step'
     end
     object actNew: TAction
       Category = 'File'
       Caption = 'New'
+      OnExecute = actNewExecute
     end
     object actOpen: TAction
       Category = 'File'
@@ -361,7 +354,7 @@ object frmMain: TfrmMain
     end
     object actStartStop: TAction
       Category = 'Evolution'
-      Caption = 'actStartStop'
+      Caption = 'Start'
     end
   end
   object mmMain: TMainMenu
