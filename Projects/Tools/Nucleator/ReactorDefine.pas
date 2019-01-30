@@ -135,6 +135,7 @@ type
 
     function PowerGeneration(ABasePower: Single): Single;
     function HeatGeneration(ABaseHeat: Single): Single;
+    function NetHeat(ABaseHeat: Single): Single;
 
   end;
 
@@ -184,7 +185,12 @@ end;
 
 function TReactor.HeatGeneration(ABaseHeat: Single): Single;
 begin
-  Result := ABaseHeat * CellCount * HeatFactor - CoolingRate;
+  Result := ABaseHeat * CellCount * HeatFactor;
+end;
+
+function TReactor.NetHeat(ABaseHeat: Single): Single;
+begin
+  Result := HeatGeneration(ABaseHeat) - CoolingRate;
 end;
 
 function TReactor.PowerGeneration(ABasePower: Single): Single;

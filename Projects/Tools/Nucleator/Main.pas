@@ -20,11 +20,16 @@ uses
   Vcl.ToolWin,
   Vcl.ActnList,
   Vcl.Menus,
+  Vcl.StdCtrls,
+  Vcl.Samples.Spin,
+
+  GdiPlus,
+  GdiPlusHelpers,
 
   Pengine.IntMaths,
 
   ReactorDefine,
-  PreviewFrame;
+  PreviewFrame, Vcl.WinXCtrls;
 
 type
   TfrmMain = class(TForm)
@@ -38,14 +43,69 @@ type
     Preview1: TMenuItem;
     actExit: TAction;
     actPreview: TAction;
+    pmPopulation: TPopupMenu;
+    Inspect1: TMenuItem;
+    InstactAll1: TMenuItem;
+    actSingleStep: TAction;
+    actOpen: TAction;
+    gbEvolution: TGroupBox;
+    Label6: TLabel;
+    Label7: TLabel;
+    Label8: TLabel;
+    Label9: TLabel;
+    Label10: TLabel;
+    btnSingleStep: TButton;
+    btnStartStop: TButton;
+    GroupBox2: TGroupBox;
+    lbPopulation: TListBox;
+    btnInspect: TButton;
+    seGeneration: TSpinEdit;
+    edtFitnessWorst: TEdit;
+    edtFitnessAverage: TEdit;
+    edtFitnessBest: TEdit;
+    gbGraph: TGroupBox;
+    pbGraph: TPaintBox;
+    actSave: TAction;
+    actNew: TAction;
+    actSaveAs: TAction;
+    actNew1: TMenuItem;
+    actSave1: TMenuItem;
+    actSaveAs1: TMenuItem;
+    Open1: TMenuItem;
+    N1: TMenuItem;
+    N2: TMenuItem;
+    Label1: TLabel;
+    edtEfficiencyWorst: TEdit;
+    edtEfficiencyAverage: TEdit;
+    edtEfficiencyBest: TEdit;
+    Label2: TLabel;
+    edtPowerGenerationWorst: TEdit;
+    edtPowerGenerationAverage: TEdit;
+    edtPowerGenerationBest: TEdit;
+    Label3: TLabel;
+    edtHeatGenerationWorst: TEdit;
+    edtHeatGenerationAverage: TEdit;
+    edtHeatGenerationBest: TEdit;
+    aiEvolving: TActivityIndicator;
+    actCurrentSettings: TAction;
+    ShowSettings1: TMenuItem;
+    N3: TMenuItem;
+    actStartStop: TAction;
+    Evolution1: TMenuItem;
+    actSingleStep1: TMenuItem;
+    actStartStop1: TMenuItem;
+    N4: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure actExitExecute(Sender: TObject);
     procedure actPreviewExecute(Sender: TObject);
     procedure actPreviewUpdate(Sender: TObject);
+    procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer; var Resize: Boolean);
+    procedure pbGraphPaint(Sender: TObject);
   private
-    { Private-Deklarationen }
+    FPreviewWidth: Integer;
+
   public
-    { Public-Deklarationen }
+
   end;
 
 var
@@ -57,30 +117,9 @@ implementation
 
 
 procedure TfrmMain.FormCreate(Sender: TObject);
-var
-  Reactor: TReactor;
-  P: TIntVector3;
 begin
+  FPreviewWidth := ClientWidth;
   ClientWidth := pnlMain.Width;
-
-  Reactor := TReactor.Create(IVec3(3, 3, 3));
-  Reactor[IVec3(0, 1, 1)] := rbReactorCell;
-  Reactor[IVec3(1, 1, 1)] := rbModeratorBlock;  
-  Reactor[IVec3(2, 1, 1)] := rbReactorCell;
-  Reactor[IVec3(1, 0, 1)] := rbWaterCooler; 
-  Reactor[IVec3(1, 2, 1)] := rbWaterCooler; 
-  Reactor[IVec3(1, 1, 0)] := rbWaterCooler; 
-  Reactor[IVec3(1, 1, 2)] := rbWaterCooler; 
-  Reactor[IVec3(2, 2, 1)] := rbRedstoneCooler; 
-
-  ShowMessageFmt('Efficiency: %.1f%%' + sLineBreak + 'HeatFactor: %.1f%%' + sLineBreak + 
-    'Power: %.1f rf/t' + sLineBreak + 'Net-Heat: %.1f h/t' + sLineBreak + 'Cooling: %.1f h/t',
-    [Reactor.Efficiency * 100, Reactor.HeatFactor * 100, Reactor.PowerGeneration(180), Reactor.HeatGeneration(21.6),
-    Reactor.CoolingRate]);
-
-  Reactor.Free;
-
-  Application.Terminate;
 end;
 
 procedure TfrmMain.actExitExecute(Sender: TObject);
@@ -89,17 +128,42 @@ begin
 end;
 
 procedure TfrmMain.actPreviewExecute(Sender: TObject);
+var
+  Tmp: Integer;
 begin
   frmPreview.Visible := not frmPreview.Visible;
   if frmPreview.Visible then
-    ClientWidth := pnlMain.Width + 300
+  begin
+    Tmp := FPreviewWidth;
+    FPreviewWidth := 0;
+    ClientWidth := Tmp;
+  end
   else
+  begin
+    FPreviewWidth := ClientWidth;
     ClientWidth := pnlMain.Width;
+  end;
 end;
 
 procedure TfrmMain.actPreviewUpdate(Sender: TObject);
 begin
   actPreview.Checked := frmPreview.Visible;
+end;
+
+procedure TfrmMain.FormCanResize(Sender: TObject; var NewWidth, NewHeight:
+  Integer; var Resize: Boolean);
+begin
+  if FPreviewWidth <> 0 then
+    NewWidth := pnlMain.Width + Width - ClientWidth;
+  Resize := True;
+end;
+
+procedure TfrmMain.pbGraphPaint(Sender: TObject);
+var
+  Graphics: IGPGraphics;
+begin
+  Graphics := pbGraph.ToGPGraphics;
+  // Graphics.FillEllipse(TGPSolidBrush.Create(TGPColor.Black), TGPRectF.Create(0, 0, pbGraph.Width, pbGraph.Height));
 end;
 
 end.

@@ -109,6 +109,11 @@
             <DesignClass>TFrame</DesignClass>
         </DCCReference>
         <DCCReference Include="ReactorDefine.pas"/>
+        <DCCReference Include="InitializationDialog.pas">
+            <Form>frmInitialization</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="ReactorEvolutionDefine.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
