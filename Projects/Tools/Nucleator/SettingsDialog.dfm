@@ -90,7 +90,7 @@ object frmSettings: TfrmSettings
         Height = 13
         Caption = 'Fuel Base Heat:'
       end
-      object seReactorX: TSpinEdit
+      object seReactorSizeX: TSpinEdit
         Left = 134
         Top = 18
         Width = 42
@@ -99,8 +99,11 @@ object frmSettings: TfrmSettings
         MinValue = 0
         TabOrder = 0
         Value = 0
+        OnChange = seReactorSizeChange
+        OnExit = seReactorSizeExit
       end
-      object seReactorY: TSpinEdit
+      object seReactorSizeY: TSpinEdit
+        Tag = 1
         Left = 182
         Top = 18
         Width = 42
@@ -109,8 +112,11 @@ object frmSettings: TfrmSettings
         MinValue = 0
         TabOrder = 1
         Value = 0
+        OnChange = seReactorSizeChange
+        OnExit = seReactorSizeExit
       end
-      object seReactorZ: TSpinEdit
+      object seReactorSizeZ: TSpinEdit
+        Tag = 2
         Left = 230
         Top = 18
         Width = 42
@@ -119,6 +125,8 @@ object frmSettings: TfrmSettings
         MinValue = 0
         TabOrder = 2
         Value = 0
+        OnChange = seReactorSizeChange
+        OnExit = seReactorSizeExit
       end
       object edtFuelBasePower: TEdit
         Left = 134
@@ -127,14 +135,19 @@ object frmSettings: TfrmSettings
         Height = 21
         TabOrder = 3
         Text = '0'
+        OnChange = edtFuelValueChange
+        OnExit = edtFuelValueExit
       end
       object edtFuelBaseHeat: TEdit
+        Tag = 1
         Left = 134
         Top = 73
         Width = 138
         Height = 21
         TabOrder = 4
         Text = '0'
+        OnChange = edtFuelValueChange
+        OnExit = edtFuelValueExit
       end
     end
     object gbEvolution: TGroupBox
@@ -183,6 +196,7 @@ object frmSettings: TfrmSettings
         MinValue = 1
         TabOrder = 0
         Value = 20
+        OnChange = sePopulationSizeChange
       end
       object cbFitnessFunction: TComboBox
         Left = 134

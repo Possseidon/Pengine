@@ -149,7 +149,7 @@ type
 
     function PowerGeneration(ABasePower: Single): Single;
     function HeatGeneration(ABaseHeat: Single): Single;
-    function NetHeat(ABaseHeat: Single): Single;
+    function NetHeatGeneration(ABaseHeat: Single): Single;
 
   end;
 
@@ -207,7 +207,7 @@ begin
   FLocked := True;
 end;
 
-function TReactor.NetHeat(ABaseHeat: Single): Single;
+function TReactor.NetHeatGeneration(ABaseHeat: Single): Single;
 begin
   Result := HeatGeneration(ABaseHeat) - CoolingRate;
 end;
@@ -341,7 +341,7 @@ var
     begin
       Result := 0;
       for Axis := Low(TCoordAxis3) to High(TCoordAxis3) do
-        if APos[Axis] mod (Size[Axis] - 1) = 0 then
+        if (APos[Axis] = 0) or (APos[Axis] = Size[Axis] - 1) then
           Inc(Result);
     end;
 

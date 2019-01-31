@@ -4,7 +4,7 @@ object frmMain: TfrmMain
   AlphaBlend = True
   Caption = 'Nucleator'
   ClientHeight = 478
-  ClientWidth = 900
+  ClientWidth = 959
   Color = clBtnFace
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
@@ -21,22 +21,22 @@ object frmMain: TfrmMain
   TextHeight = 13
   inline frmPreview: TfrmPreview
     AlignWithMargins = True
-    Left = 444
+    Left = 532
     Top = 3
-    Width = 453
+    Width = 424
     Height = 472
     Align = alClient
     TabOrder = 0
     Visible = False
-    ExplicitLeft = 444
+    ExplicitLeft = 532
     ExplicitTop = 3
-    ExplicitWidth = 453
+    ExplicitWidth = 365
     ExplicitHeight = 472
   end
   object pnlMain: TPanel
     Left = 0
     Top = 0
-    Width = 441
+    Width = 529
     Height = 478
     Align = alLeft
     BevelOuter = bvNone
@@ -45,22 +45,22 @@ object frmMain: TfrmMain
       AlignWithMargins = True
       Left = 3
       Top = 3
-      Width = 435
+      Width = 523
       Height = 246
       Align = alTop
       Caption = 'Evolution'
       TabOrder = 0
       DesignSize = (
-        435
+        523
         246)
-      object Label6: TLabel
+      object lbGeneration: TLabel
         Left = 10
         Top = 21
         Width = 57
         Height = 13
         Caption = 'Generation:'
       end
-      object Label7: TLabel
+      object lbWorst: TLabel
         Left = 136
         Top = 46
         Width = 42
@@ -69,7 +69,7 @@ object frmMain: TfrmMain
         AutoSize = False
         Caption = 'Worst'
       end
-      object Label8: TLabel
+      object lbAverage: TLabel
         Left = 184
         Top = 46
         Width = 42
@@ -78,7 +78,7 @@ object frmMain: TfrmMain
         AutoSize = False
         Caption = 'Average'
       end
-      object Label9: TLabel
+      object lbBest: TLabel
         Left = 232
         Top = 46
         Width = 42
@@ -87,33 +87,33 @@ object frmMain: TfrmMain
         AutoSize = False
         Caption = 'Best'
       end
-      object Label10: TLabel
+      object lbFitness: TLabel
         Left = 10
         Top = 68
         Width = 38
         Height = 13
         Caption = 'Fitness:'
       end
-      object Label1: TLabel
+      object lbEfficiency: TLabel
         Left = 10
         Top = 95
         Width = 50
         Height = 13
         Caption = 'Efficiency:'
       end
-      object Label2: TLabel
+      object lbPowerGeneration: TLabel
         Left = 10
         Top = 122
         Width = 90
         Height = 13
         Caption = 'Power Generation:'
       end
-      object Label3: TLabel
+      object lbNetHeatGeneration: TLabel
         Left = 10
         Top = 149
-        Width = 83
+        Width = 103
         Height = 13
-        Caption = 'Heat Generation:'
+        Caption = 'Net Heat Generation:'
       end
       object btnSingleStep: TButton
         Left = 136
@@ -133,35 +133,48 @@ object frmMain: TfrmMain
         Anchors = [akLeft, akBottom]
         TabOrder = 1
       end
-      object GroupBox2: TGroupBox
+      object gbPopulation: TGroupBox
         AlignWithMargins = True
-        Left = 290
+        Left = 280
         Top = 18
-        Width = 140
+        Width = 238
         Height = 223
         Align = alRight
-        Caption = 'Current Population'
+        Anchors = [akLeft, akTop, akRight, akBottom]
+        Caption = 'Population'
         TabOrder = 2
-        object lbPopulation: TListBox
+        object lvPopulation: TListView
           AlignWithMargins = True
           Left = 5
           Top = 18
-          Width = 130
-          Height = 169
+          Width = 228
+          Height = 200
           Align = alClient
-          ItemHeight = 13
+          Columns = <
+            item
+              Caption = 'Fitness'
+            end
+            item
+              Caption = 'Efficiency'
+              Width = 60
+            end
+            item
+              Caption = 'RF/t'
+            end
+            item
+              Caption = 'H/t'
+              Width = -2
+              WidthType = (
+                -2)
+            end>
+          GridLines = True
+          ReadOnly = True
           PopupMenu = pmPopulation
+          SortType = stData
           TabOrder = 0
-        end
-        object btnInspect: TButton
-          AlignWithMargins = True
-          Left = 5
-          Top = 193
-          Width = 130
-          Height = 25
-          Align = alBottom
-          Caption = 'Inspect'
-          TabOrder = 1
+          ViewStyle = vsReport
+          OnColumnClick = lvPopulationColumnClick
+          OnCompare = lvPopulationCompare
         end
       end
       object seGeneration: TSpinEdit
@@ -169,11 +182,11 @@ object frmMain: TfrmMain
         Top = 18
         Width = 138
         Height = 22
-        Enabled = False
-        MaxValue = 0
-        MinValue = 0
+        MaxValue = 1
+        MinValue = 1
+        ReadOnly = True
         TabOrder = 3
-        Value = 0
+        Value = 1
       end
       object edtFitnessWorst: TEdit
         Left = 136
@@ -256,7 +269,7 @@ object frmMain: TfrmMain
         TabOrder = 12
         Text = '-'
       end
-      object edtHeatGenerationWorst: TEdit
+      object edtNetHeatGenerationWorst: TEdit
         Left = 136
         Top = 146
         Width = 42
@@ -265,7 +278,7 @@ object frmMain: TfrmMain
         TabOrder = 13
         Text = '-'
       end
-      object edtHeatGenerationAverage: TEdit
+      object edtNetHeatGenerationAverage: TEdit
         Left = 184
         Top = 146
         Width = 42
@@ -274,7 +287,7 @@ object frmMain: TfrmMain
         TabOrder = 14
         Text = '-'
       end
-      object edtHeatGenerationBest: TEdit
+      object edtNetHeatGenerationBest: TEdit
         Left = 232
         Top = 146
         Width = 42
@@ -295,7 +308,7 @@ object frmMain: TfrmMain
       AlignWithMargins = True
       Left = 3
       Top = 255
-      Width = 435
+      Width = 523
       Height = 220
       Align = alClient
       Caption = 'Statistics'
@@ -304,7 +317,7 @@ object frmMain: TfrmMain
         AlignWithMargins = True
         Left = 5
         Top = 18
-        Width = 425
+        Width = 513
         Height = 197
         Align = alClient
         OnPaint = pbGraphPaint
@@ -315,8 +328,8 @@ object frmMain: TfrmMain
     end
   end
   object alActions: TActionList
-    Left = 464
-    Top = 24
+    Left = 648
+    Top = 80
     object actPreview: TAction
       Category = 'View'
       Caption = '3D Preview'
@@ -363,8 +376,8 @@ object frmMain: TfrmMain
     end
   end
   object mmMain: TMainMenu
-    Left = 520
-    Top = 24
+    Left = 656
+    Top = 144
     object File1: TMenuItem
       Caption = 'File'
       object actNew1: TMenuItem
@@ -418,8 +431,8 @@ object frmMain: TfrmMain
     end
   end
   object pmPopulation: TPopupMenu
-    Left = 350
-    Top = 87
+    Left = 374
+    Top = 119
     object Inspect1: TMenuItem
       Caption = 'Inspect'
     end

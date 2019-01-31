@@ -10,6 +10,7 @@ uses
   System.Variants,
   System.Classes,
   System.Math,
+  System.Actions,
 
   Vcl.Graphics,
   Vcl.Controls,
@@ -24,14 +25,20 @@ uses
 
   Pengine.Utility,
   Pengine.Collections,
+  Pengine.IntMaths,
 
   ReactorDefine,
-  ReactorEvolutionDefine,
-  System.Actions;
+  ReactorEvolutionDefine;
 
 type
 
-  TDefaultGeneratorFunction = class(TReactorGeneratorFunction)
+  IHasSettings = interface
+    ['{BE872851-764E-4616-B5DB-2C1D62A53147}']
+    procedure ShowSettingsDialog;
+
+  end;
+
+  TDefaultGeneratorFunction = class(TGeneratorFunction)
   public type
 
     TGenerator = class(TReactorGenerator)
@@ -41,21 +48,21 @@ type
     end;
 
   public
-    function GetDisplayName: string; override;
+    class function GetDisplayName: string; override;
 
     function GetEnumerator: IReactorIterator; override;
 
   end;
 
-  TDefaultMutationFunction = class(TReactorMutationFunction)
+  TDefaultMutationFunction = class(TMutationFunction)
   public
-    function GetDisplayName: string; override;
+    class function GetDisplayName: string; override;
 
   end;
 
-  TDefaultFitnessFunction = class(TReactorFitnessFunction)
+  TDefaultFitnessFunction = class(TFitnessFunction)
   public
-    function GetDisplayName: string; override;
+    class function GetDisplayName: string; override;
 
     function Calculate(AReactor: TReactor): Single; override;
 
@@ -74,9 +81,9 @@ type
     btnGenerate: TButton;
     gbReactor: TGroupBox;
     lbReactorSize: TLabel;
-    seReactorX: TSpinEdit;
-    seReactorY: TSpinEdit;
-    seReactorZ: TSpinEdit;
+    seReactorSizeX: TSpinEdit;
+    seReactorSizeY: TSpinEdit;
+    seReactorSizeZ: TSpinEdit;
     gbEvolution: TGroupBox;
     lbPopulationSize: TLabel;
     sePopulationSize: TSpinEdit;
@@ -109,11 +116,15 @@ type
     procedure actShowGeneratorSettingsUpdate(Sender: TObject);
     procedure cbGeneratorFunctionChange(Sender: TObject);
     procedure clbReactorBlocksClickCheck(Sender: TObject);
+    procedure edtFuelValueChange(Sender: TObject);
+    procedure edtFuelValueExit(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure sePopulationSizeChange(Sender: TObject);
+    procedure seReactorSizeChange(Sender: TObject);
+    procedure seReactorSizeExit(Sender: TObject);
   private
-    FSettings: TReactorEvolution.ISettings;
-    FFunctions: TInterfaceArray<IReactorFunction>;
+    FSettings: IEvolutionSettings;
 
     procedure LoadSettings;
 
@@ -122,10 +133,10 @@ type
 
     procedure InitFunctions;
 
-    property Settings: TReactorEvolution.ISettings read FSettings;
+    property Settings: IEvolutionSettings read FSettings;
 
   public
-    function Execute(ASettings: TReactorEvolution.ISettings): Boolean;
+    function Execute(ASettings: IEvolutionSettings): Boolean;
 
   end;
 
@@ -176,28 +187,23 @@ end;
 
 procedure TfrmSettings.actShowGeneratorSettingsExecute(Sender: TObject);
 var
-  Func: TReactorEvolution.IHasSettingsDialog;
+  HasSettings: IHasSettings;
 begin
-  Assert(Supports(cbGeneratorFunction.Items.Objects
-    [cbGeneratorFunction.ItemIndex],
-    TReactorEvolution.IHasSettingsDialog, Func));
-  Func.ShowSettingsDialog;
+  Assert(Supports(Settings.GeneratorFunction, IHasSettings, HasSettings));
+  HasSettings.ShowSettingsDialog;
 end;
 
 procedure TfrmSettings.actShowGeneratorSettingsUpdate(Sender: TObject);
 begin
-  actShowGeneratorSettings.Enabled := Supports(Settings.GeneratorFunction,
-    TReactorEvolution.IHasSettingsDialog);
+  actShowGeneratorSettings.Enabled := Supports(Settings.GeneratorFunction, IHasSettings);
 end;
 
 procedure TfrmSettings.cbGeneratorFunctionChange(Sender: TObject);
 var
-  Func: TReactorEvolution.IGeneratorFunction;
+  Selected: TObject;
 begin
-  Assert(Supports(cbGeneratorFunction.Items.Objects
-    [cbGeneratorFunction.ItemIndex],
-    TReactorEvolution.IGeneratorFunction, Func));
-  Settings.GeneratorFunction := Func;
+  Selected := cbGeneratorFunction.Items.Objects[cbGeneratorFunction.ItemIndex];
+  Settings.SetGeneratorFunction(TGeneratorFunctionClass(Selected));
 end;
 
 procedure TfrmSettings.clbReactorBlocksClickCheck(Sender: TObject);
@@ -206,6 +212,42 @@ var
 begin
   for BlockType in TReactor.BlockTypes do
     Settings.HasBlockType[BlockType] := clbReactorBlocks.Checked[Ord(BlockType)];
+end;
+
+procedure TfrmSettings.edtFuelValueChange(Sender: TObject);
+var
+  Edit: TEdit;
+  Value: Single;
+begin
+  Edit := Sender as TEdit;
+  if Single.TryParse(Edit.Text, Value, FormatSettings.Invariant) then
+  begin
+    Edit.ParentFont := True;
+    case Edit.Tag of
+      0:
+        Settings.FuelBasePower := Value;
+      1:
+        Settings.FuelBaseHeat := Value;
+    end;
+  end
+  else
+  begin
+    Edit.Font.Color := clRed;
+  end;
+end;
+
+procedure TfrmSettings.edtFuelValueExit(Sender: TObject);
+var
+  Edit: TEdit;
+begin
+  Edit := Sender as TEdit;
+  Edit.ParentFont := True;
+  case Edit.Tag of
+    0:
+      Edit.Text := PrettyFloat(Settings.FuelBasePower);
+    1:
+      Edit.Text := PrettyFloat(Settings.FuelBaseHeat);
+  end;
 end;
 
 procedure TfrmSettings.FormCreate(Sender: TObject);
@@ -217,7 +259,7 @@ end;
 procedure TfrmSettings.FormShow(Sender: TObject);
 begin
   clbReactorBlocks.ItemIndex := -1;
-  seReactorX.SetFocus;
+  seReactorSizeX.SetFocus;
 end;
 
 procedure TfrmSettings.LoadSettings;
@@ -225,15 +267,15 @@ var
   BlockType: TReactor.TBlockType;
 begin
   if Settings.GeneratorFunction = nil then
-    Settings.GeneratorFunction := TDefaultGeneratorFunction.Create(Settings);
+    Settings.SetGeneratorFunction(TDefaultGeneratorFunction);
   if Settings.MutationFunction = nil then
-    Settings.MutationFunction := TDefaultMutationFunction.Create(Settings);
+    Settings.SetMutationFunction(TDefaultMutationFunction);
   if Settings.FitnessFunction = nil then
-    Settings.FitnessFunction := TDefaultFitnessFunction.Create(Settings);
+    Settings.SetFitnessFunction(TDefaultFitnessFunction);
 
-  seReactorX.Value := Settings.ReactorSize.X;
-  seReactorY.Value := Settings.ReactorSize.Y;
-  seReactorZ.Value := Settings.ReactorSize.Z;
+  seReactorSizeX.Value := Settings.ReactorSize.X;
+  seReactorSizeY.Value := Settings.ReactorSize.Y;
+  seReactorSizeZ.Value := Settings.ReactorSize.Z;
   edtFuelBasePower.Text := PrettyFloat(Settings.FuelBasePower);
   edtFuelBaseHeat.Text := PrettyFloat(Settings.FuelBaseHeat);
 
@@ -248,15 +290,12 @@ end;
 
 procedure TfrmSettings.InitReactorSize;
 begin
-  seReactorX.MinValue := TReactor.SizeLimits.C1.X;
-  seReactorX.MaxValue := TReactor.SizeLimits.C2.X;
-  seReactorX.Value := seReactorX.MinValue;
-  seReactorY.MinValue := TReactor.SizeLimits.C1.Y;
-  seReactorY.MaxValue := TReactor.SizeLimits.C2.Y;
-  seReactorY.Value := seReactorZ.MinValue;
-  seReactorZ.MinValue := TReactor.SizeLimits.C1.Z;
-  seReactorZ.MaxValue := TReactor.SizeLimits.C2.Z;
-  seReactorZ.Value := seReactorZ.MinValue;
+  seReactorSizeX.MinValue := TReactor.SizeLimits.C1.X;
+  seReactorSizeX.MaxValue := TReactor.SizeLimits.C2.X;
+  seReactorSizeY.MinValue := TReactor.SizeLimits.C1.Y;
+  seReactorSizeY.MaxValue := TReactor.SizeLimits.C2.Y;
+  seReactorSizeZ.MinValue := TReactor.SizeLimits.C1.Z;
+  seReactorSizeZ.MaxValue := TReactor.SizeLimits.C2.Z;
 end;
 
 procedure TfrmSettings.InitReactorBlocks;
@@ -272,9 +311,7 @@ end;
 
 procedure TfrmSettings.InitFunctions;
 var
-  FuncClass: TReactorEvolution.TFunctionClass;
-  SettingsFunc: TReactorEvolution.IFunction;
-  FuncObject: TReactorEvolution.TFunction;
+  FuncClass: TEvolutionFunctionClass;
 begin
   cbGeneratorFunction.Items.BeginUpdate;
   cbMutationFunction.Items.BeginUpdate;
@@ -286,43 +323,25 @@ begin
 
   try
 
-    SettingsFunc := FFunctions.Add(Settings.GeneratorFunction);
-    cbGeneratorFunction.AddItem(SettingsFunc.GetDisplayName,
-      TObject(SettingsFunc));
-    cbGeneratorFunction.ItemIndex := 0;
     for FuncClass in TReactorEvolution.GeneratorFunctions do
     begin
-      if TObject(SettingsFunc).ClassType = FuncClass then
-        Continue;
-      FuncObject := FuncClass.Create(Settings);
-      FFunctions.Add(FuncObject);
-      cbGeneratorFunction.AddItem(FuncObject.GetDisplayName, FuncObject);
+      cbGeneratorFunction.AddItem(FuncClass.GetDisplayName, TObject(FuncClass));
+      if FuncClass = Settings.GeneratorFunction.FunctionClass then
+        cbGeneratorFunction.ItemIndex := cbGeneratorFunction.Items.Count - 1;
     end;
 
-    SettingsFunc := FFunctions.Add(Settings.MutationFunction);
-    cbMutationFunction.AddItem(SettingsFunc.GetDisplayName,
-      TObject(SettingsFunc));
-    cbMutationFunction.ItemIndex := 0;
     for FuncClass in TReactorEvolution.MutationFunctions do
     begin
-      if TObject(SettingsFunc).ClassType = FuncClass then
-        Continue;
-      FuncObject := FuncClass.Create(Settings);
-      FFunctions.Add(FuncObject);
-      cbMutationFunction.AddItem(FuncObject.GetDisplayName, FuncObject);
+      cbMutationFunction.AddItem(FuncClass.GetDisplayName, TObject(FuncClass));
+      if FuncClass = Settings.MutationFunction.FunctionClass then
+        cbMutationFunction.ItemIndex := cbMutationFunction.Items.Count - 1;
     end;
 
-    SettingsFunc := FFunctions.Add(Settings.FitnessFunction);
-    cbFitnessFunction.AddItem(SettingsFunc.GetDisplayName,
-      TObject(SettingsFunc));
-    cbFitnessFunction.ItemIndex := 0;
     for FuncClass in TReactorEvolution.FitnessFunctions do
     begin
-      if TObject(SettingsFunc).ClassType = FuncClass then
-        Continue;
-      FuncObject := FuncClass.Create(Settings);
-      FFunctions.Add(FuncObject);
-      cbFitnessFunction.AddItem(FuncObject.GetDisplayName, FuncObject);
+      cbFitnessFunction.AddItem(FuncClass.GetDisplayName, TObject(FuncClass));
+      if FuncClass = Settings.FitnessFunction.FunctionClass then
+        cbFitnessFunction.ItemIndex := cbFitnessFunction.Items.Count - 1;
     end;
 
   finally
@@ -332,24 +351,46 @@ begin
   end;
 end;
 
-function TfrmSettings.Execute(ASettings: TReactorEvolution.ISettings): Boolean;
+function TfrmSettings.Execute(ASettings: IEvolutionSettings): Boolean;
 begin
   FSettings := ASettings.Copy;
-  FFunctions := TInterfaceArray<IReactorFunction>.Create;
   try
     LoadSettings;
     Result := ShowModal = mrOk;
     if Result then
       ASettings.Assign(FSettings);
   finally
-    FreeAndNil(FFunctions);
     FSettings := nil;
   end;
 end;
 
+procedure TfrmSettings.sePopulationSizeChange(Sender: TObject);
+begin
+  Settings.PopulationSize := sePopulationSize.Value;
+end;
+
+procedure TfrmSettings.seReactorSizeChange(Sender: TObject);
+var
+  SpinEdit: TSpinEdit;
+  Tmp: TIntVector3;
+begin
+  SpinEdit := Sender as TSpinEdit;
+  Tmp := Settings.ReactorSize;
+  Tmp[TCoordAxis(SpinEdit.Tag)] := EnsureRange(SpinEdit.Value, SpinEdit.MinValue, SpinEdit.MaxValue);
+  Settings.ReactorSize := Tmp;
+end;
+
+procedure TfrmSettings.seReactorSizeExit(Sender: TObject);
+var
+  SpinEdit: TSpinEdit;
+begin
+  SpinEdit := Sender as TSpinEdit;
+  SpinEdit.Value := Settings.ReactorSize[TCoordAxis(SpinEdit.Tag)];
+end;
+
 { TDefaultGeneratorFunction }
 
-function TDefaultGeneratorFunction.GetDisplayName: string;
+class function TDefaultGeneratorFunction.GetDisplayName: string;
 begin
   Result := 'Default';
 end;
@@ -361,7 +402,7 @@ end;
 
 { TDefaultMutationFunction }
 
-function TDefaultMutationFunction.GetDisplayName: string;
+class function TDefaultMutationFunction.GetDisplayName: string;
 begin
   Result := 'Default';
 end;
@@ -375,7 +416,7 @@ begin
     Max(1, AReactor.HeatGeneration(Settings.FuelBaseHeat) + 11);
 end;
 
-function TDefaultFitnessFunction.GetDisplayName: string;
+class function TDefaultFitnessFunction.GetDisplayName: string;
 begin
   Result := 'Default';
 end;
@@ -383,8 +424,11 @@ end;
 { TDefaultGeneratorFunction.TGenerator }
 
 procedure TDefaultGeneratorFunction.TGenerator.Generate(AReactor: TReactor; AIndex: Integer);
+var
+  Pos: TIntVector3;
 begin
-  
+  for Pos in AReactor.Size do
+    AReactor.Blocks[Pos] := Settings.BlockTypeArray[Random(Settings.BlockTypeArray.Count)];
 end;
 
 initialization
