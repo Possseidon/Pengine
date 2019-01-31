@@ -54,7 +54,8 @@ type
       C2: (X: 24; Y: 24; Z: 24)
       );
 
-    Coolers = [Low(TCoolerType) .. High(TCoolerType)];
+    BlockTypes = [Low(TBlockType) .. High(TBlockType)];
+    CoolerTypes = [Low(TCoolerType) .. High(TCoolerType)];
 
     BlockData: array [TBlockType] of TBlockData = (
       // Air
@@ -454,8 +455,16 @@ begin
     Process(Pos);
 
   FCellCount := ResultCellCount;
-  FEfficiency := ResultEfficiency / ResultCellCount;
-  FHeatFactor := ResultHeatFactor / ResultCellCount;
+  if ResultCellCount > 0 then
+  begin
+    FEfficiency := ResultEfficiency / ResultCellCount;
+    FHeatFactor := ResultHeatFactor / ResultCellCount;
+  end
+  else
+  begin
+    FEfficiency := 0;
+    FHeatFactor := 0;
+  end;
   FCoolingRate := ResultCoolingRate;
 
   FCalculated := True;

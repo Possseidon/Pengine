@@ -14,6 +14,7 @@ object frmSettings: TfrmSettings
   OldCreateOrder = False
   Position = poOwnerFormCenter
   OnCreate = FormCreate
+  OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
   object gbReactorBlocks: TGroupBox
@@ -25,18 +26,17 @@ object frmSettings: TfrmSettings
     Align = alClient
     Caption = 'Reactor Blocks'
     TabOrder = 0
-    ExplicitHeight = 257
     object clbReactorBlocks: TCheckListBox
       AlignWithMargins = True
       Left = 5
       Top = 18
       Width = 181
       Height = 262
+      OnClickCheck = clbReactorBlocksClickCheck
       Align = alClient
       ItemHeight = 13
       PopupMenu = pmReactorBlocks
       TabOrder = 0
-      ExplicitHeight = 234
     end
   end
   object pnlLeft: TPanel
@@ -47,7 +47,6 @@ object frmSettings: TfrmSettings
     Align = alLeft
     BevelOuter = bvNone
     TabOrder = 1
-    ExplicitHeight = 263
     DesignSize = (
       287
       291)
@@ -58,10 +57,8 @@ object frmSettings: TfrmSettings
       Height = 25
       Anchors = [akLeft, akBottom]
       Caption = 'Generate'
-      Default = True
       ModalResult = 1
       TabOrder = 2
-      ExplicitTop = 230
     end
     object gbReactor: TGroupBox
       AlignWithMargins = True
@@ -245,34 +242,57 @@ object frmSettings: TfrmSettings
     Left = 336
     Top = 39
     object EnableAll1: TMenuItem
-      Caption = 'Enable All'
+      Action = actEnableAllBlocks
     end
     object DisableAll1: TMenuItem
-      Caption = 'Disable All'
+      Action = actDisableAllBlocks
     end
     object N1: TMenuItem
       Caption = '-'
     end
     object EnableCoolers1: TMenuItem
-      Caption = 'Enable Coolers'
+      Action = actEnabelCoolers
     end
     object DisableCoolers1: TMenuItem
-      Caption = 'Disable Coolers'
+      Action = actDisableCoolers
     end
   end
   object alSettings: TActionList
     Left = 338
     Top = 91
     object actShowGeneratorSettings: TAction
+      Category = 'Settings'
       Caption = '...'
       OnExecute = actShowGeneratorSettingsExecute
       OnUpdate = actShowGeneratorSettingsUpdate
     end
     object actShowMutationSettings: TAction
+      Category = 'Settings'
       Caption = '...'
     end
     object actShowFitnessSettings: TAction
+      Category = 'Settings'
       Caption = '...'
+    end
+    object actEnableAllBlocks: TAction
+      Category = 'Reactor Blocks'
+      Caption = 'Enable All'
+      OnExecute = actEnableAllBlocksExecute
+    end
+    object actDisableAllBlocks: TAction
+      Category = 'Reactor Blocks'
+      Caption = 'Disable All'
+      OnExecute = actDisableAllBlocksExecute
+    end
+    object actEnabelCoolers: TAction
+      Category = 'Reactor Blocks'
+      Caption = 'Enable Coolers'
+      OnExecute = actEnabelCoolersExecute
+    end
+    object actDisableCoolers: TAction
+      Category = 'Reactor Blocks'
+      Caption = 'Disable Coolers'
+      OnExecute = actDisableCoolersExecute
     end
   end
 end

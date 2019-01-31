@@ -16,6 +16,8 @@ type
   TReactorEvolution = class
   public type
 
+    ISettings = interface;
+
     IHasSettingsDialog = interface
       ['{BE872851-764E-4616-B5DB-2C1D62A53147}']
       procedure ShowSettingsDialog;
@@ -31,10 +33,15 @@ type
     TFunctionClass = class of TFunction;
 
     TFunction = class(TInterfacedObject, IFunction)
+    private
+      [Weak] FSettings: ISettings;
+
     public
-      constructor Create; virtual;
+      constructor Create(ASettings: ISettings); virtual;
 
       function GetDisplayName: string; virtual; abstract;
+
+      property Settings: ISettings read FSettings;
 
     end;
 
@@ -76,27 +83,32 @@ type
 
     TGeneratorFunctionClass = class of TGeneratorFunction;
 
+    IReactorIterator = IIterator<TRatedReactor>;
+
     TGeneratorFunction = class(TFunction, IGeneratorFunction)
-      function GetEnumerator: IIterator<TRatedReactor>; virtual; abstract;
+    public
+      function GetEnumerator: IReactorIterator; virtual; abstract;
 
     end;
 
-    TReactorGenerator = class(TInterfacedObject, IIterator<TRatedReactor>)
+    TReactorGenerator = class(TInterfacedObject, IReactorIterator)
     private
-      FCount: Integer;
+      FSettings: ISettings;
       FCurrentIndex: Integer;
       FCurrent: TRatedReactor;
 
       function GetCurrent: TRatedReactor;
 
     protected
-      function Generate(AIndex: Integer): TRatedReactor; virtual; abstract;
+      procedure Generate(AReactor: TReactor; AIndex: Integer); virtual; abstract;
 
     public
-      constructor Create(ACount: Integer);
+      constructor Create(ASettings: ISettings); virtual;
 
       function MoveNext: Boolean;
       property Current: TRatedReactor read GetCurrent;
+
+      property Settings: ISettings read FSettings;
 
     end;
 
@@ -106,14 +118,14 @@ type
       TReactors = TObjectArray<TRatedReactor>;
 
     private
-      FFitnessFunction: IFitnessFunction;
       FReactors: TReactors;
 
       function GetReactors: TReactors.TReader;
       function GetPopulationSize: Integer;
 
     public
-      constructor Create(AFitnessFunction: IFitnessFunction; AGeneratorFunction: IGeneratorFunction);
+      constructor Create(ASettings: ISettings);
+      destructor Destroy; override;
 
       /// <summary>Ordered by fitness from worst to best.</summary>
       property Reactors: TReactors.TReader read GetReactors;
@@ -159,33 +171,40 @@ type
 
     end;
 
-    TGenerations = TObjectArray<TGeneration>;
-
     ISettings = interface
       ['{A5E4086D-B8FB-41D6-858A-21D51E286790}']
-      function GetFitnessFunction: IFitnessFunction;
-      function GetFuelBaseHeat: Single;
-      function GetFuelBasePower: Single;
-      function GetGeneratorFunction: IGeneratorFunction;
-      function GetMutationFunction: IMutationFunction;
-      function GetPopulationSize: Integer;
       function GetReactorSize: TIntVector3;
-      procedure SetFitnessFunction(const Value: IFitnessFunction);
-      procedure SetFuelBaseHeat(const Value: Single);
-      procedure SetFuelBasePower(const Value: Single);
-      procedure SetGeneratorFunction(const Value: IGeneratorFunction);
-      procedure SetMutationFunction(const Value: IMutationFunction);
-      procedure SetPopulationSize(const Value: Integer);
       procedure SetReactorSize(const Value: TIntVector3);
+      function GetFuelBasePower: Single;
+      procedure SetFuelBasePower(const Value: Single);
+      function GetFuelBaseHeat: Single;
+      procedure SetFuelBaseHeat(const Value: Single);
+
+      function GetBlockTypes: TReactor.TBlockTypes;
+      procedure SetBlockTypes(const Value: TReactor.TBlockTypes);
+      function GetBlockType(ABlockType: TReactor.TBlockType): Boolean;
+      procedure SetBlockType(ABlockType: TReactor.TBlockType; const Value: Boolean);
+
+      function GetPopulationSize: Integer;
+      procedure SetPopulationSize(const Value: Integer);
+      function GetGeneratorFunction: IGeneratorFunction;
+      procedure SetGeneratorFunction(const Value: IGeneratorFunction);
+      function GetMutationFunction: IMutationFunction;
+      procedure SetMutationFunction(const Value: IMutationFunction);
+      function GetFitnessFunction: IFitnessFunction;
+      procedure SetFitnessFunction(const Value: IFitnessFunction);
 
       property ReactorSize: TIntVector3 read GetReactorSize write SetReactorSize;
       property FuelBasePower: Single read GetFuelBasePower write SetFuelBasePower;
       property FuelBaseHeat: Single read GetFuelBaseHeat write SetFuelBaseHeat;
 
+      property BlockTypes: TReactor.TBlockTypes read GetBlockTypes write SetBlockTypes;
+      property HasBlockType[ABlockType: TReactor.TBlockType]: Boolean read GetBlockType write SetBlockType;
+
       property PopulationSize: Integer read GetPopulationSize write SetPopulationSize;
-      property FitnessFunction: IFitnessFunction read GetFitnessFunction write SetFitnessFunction;
       property GeneratorFunction: IGeneratorFunction read GetGeneratorFunction write SetGeneratorFunction;
       property MutationFunction: IMutationFunction read GetMutationFunction write SetMutationFunction;
+      property FitnessFunction: IFitnessFunction read GetFitnessFunction write SetFitnessFunction;
 
       procedure Assign(AFrom: ISettings);
       function Copy: ISettings;
@@ -198,9 +217,10 @@ type
       FFuelBasePower: Single;
       FFuelBaseHeat: Single;
       FPopulationSize: Integer;
-      FFitnessFunction: IFitnessFunction;
       FGeneratorFunction: IGeneratorFunction;
       FMutationFunction: IMutationFunction;
+      FFitnessFunction: IFitnessFunction;
+      FBlockTypes: TReactor.TBlockTypes;
 
       function GetReactorSize: TIntVector3;
       procedure SetReactorSize(const Value: TIntVector3);
@@ -209,14 +229,19 @@ type
       function GetFuelBaseHeat: Single;
       procedure SetFuelBaseHeat(const Value: Single);
 
+      function GetBlockTypes: TReactor.TBlockTypes;
+      procedure SetBlockTypes(const Value: TReactor.TBlockTypes);
+      function GetBlockType(ABlockType: TReactor.TBlockType): Boolean;
+      procedure SetBlockType(ABlockType: TReactor.TBlockType; const Value: Boolean);
+
       function GetPopulationSize: Integer;
       procedure SetPopulationSize(const Value: Integer);
-      function GetFitnessFunction: IFitnessFunction;
-      procedure SetFitnessFunction(const Value: IFitnessFunction);
       function GetGeneratorFunction: IGeneratorFunction;
       procedure SetGeneratorFunction(const Value: IGeneratorFunction);
       function GetMutationFunction: IMutationFunction;
       procedure SetMutationFunction(const Value: IMutationFunction);
+      function GetFitnessFunction: IFitnessFunction;
+      procedure SetFitnessFunction(const Value: IFitnessFunction);
 
     public
       constructor Create;
@@ -225,15 +250,20 @@ type
       property FuelBasePower: Single read GetFuelBasePower write SetFuelBasePower;
       property FuelBaseHeat: Single read GetFuelBaseHeat write SetFuelBaseHeat;
 
+      property BlockTypes: TReactor.TBlockTypes read GetBlockTypes write SetBlockTypes;
+      property HasBlockType[ABlockType: TReactor.TBlockType]: Boolean read GetBlockType write SetBlockType;
+
       property PopulationSize: Integer read GetPopulationSize write SetPopulationSize;
-      property FitnessFunction: IFitnessFunction read GetFitnessFunction write SetFitnessFunction;
       property GeneratorFunction: IGeneratorFunction read GetGeneratorFunction write SetGeneratorFunction;
       property MutationFunction: IMutationFunction read GetMutationFunction write SetMutationFunction;
+      property FitnessFunction: IFitnessFunction read GetFitnessFunction write SetFitnessFunction;
 
       procedure Assign(AFrom: ISettings);
       function Copy: ISettings;
 
     end;
+
+    TGenerations = TObjectArray<TGeneration>;
 
   private
   class var
@@ -266,6 +296,7 @@ type
 
   public
     constructor Create(ASettings: ISettings);
+    destructor Destroy; override;
 
     property Generations: TGenerations.TReader read GetGenerations;
 
@@ -273,14 +304,47 @@ type
 
   end;
 
+  IReactorIterator = TReactorEvolution.IReactorIterator;
+
+  IReactorFunction = TReactorEvolution.IFunction;
+
+  TReactorGenerator = TReactorEvolution.TReactorGenerator;
+  IReactorGeneratorFunction = TReactorEvolution.IGeneratorFunction;
+  TReactorGeneratorFunction = TReactorEvolution.TGeneratorFunction;
+
+  IReactorMutationFunction = TReactorEvolution.IMutationFunction;
+  TReactorMutationFunction = TReactorEvolution.TMutationFunction;
+
+  IReactorFitnessFunction = TReactorEvolution.IFitnessFunction;
+  TReactorFitnessFunction = TReactorEvolution.TFitnessFunction;
+
 implementation
 
 { TReactorEvolution.TPopulation }
 
-constructor TReactorEvolution.TGeneration.Create(AFitnessFunction: IFitnessFunction;
-  AGeneratorFunction: IGeneratorFunction);
+constructor TReactorEvolution.TGeneration.Create(ASettings: ISettings);
+var
+  Reactor: TRatedReactor;
 begin
-  FFitnessFunction := AFitnessFunction;
+  FReactors := TReactors.Create;
+  FReactors.Capacity := ASettings.PopulationSize;
+  for Reactor in ASettings.GeneratorFunction do
+  begin
+    Reactor.FFitness := ASettings.FitnessFunction.Calculate(Reactor);
+    FReactors.Add(Reactor);
+  end;
+  FReactors.Sort(
+    function(A, B: TRatedReactor): Boolean
+    begin
+      Result := A.Fitness < B.Fitness;
+    end
+    );
+end;
+
+destructor TReactorEvolution.TGeneration.Destroy;
+begin
+  FReactors.Free;
+  inherited;
 end;
 
 function TReactorEvolution.TGeneration.GetPopulationSize: Integer;
@@ -298,6 +362,13 @@ end;
 constructor TReactorEvolution.Create(ASettings: ISettings);
 begin
   FSettings := ASettings.Copy;
+  FGenerations := TGenerations.Create;
+  FGenerations.Add(TGeneration.Create(FSettings));
+end;
+
+destructor TReactorEvolution.Destroy;
+begin
+  FGenerations.Free;
 end;
 
 class constructor TReactorEvolution.Create;
@@ -356,9 +427,9 @@ end;
 
 { TReactorEvolution.TReactorGenerator }
 
-constructor TReactorEvolution.TReactorGenerator.Create(ACount: Integer);
+constructor TReactorEvolution.TReactorGenerator.Create(ASettings: ISettings);
 begin
-  FCount := ACount;
+  FSettings := ASettings;
   FCurrentIndex := -1;
 end;
 
@@ -370,9 +441,13 @@ end;
 function TReactorEvolution.TReactorGenerator.MoveNext: Boolean;
 begin
   Inc(FCurrentIndex);
-  Result := FCurrentIndex < FCount;
+  Result := FCurrentIndex < Settings.PopulationSize;
   if Result then
-    FCurrent := Generate(FCurrentIndex);
+  begin
+    FCurrent := TRatedReactor.Create(Settings.ReactorSize);
+    Generate(FCurrent, FCurrentIndex);
+    FCurrent.Lock;
+  end;
 end;
 
 { TReactorEvolution.TMutationFunction }
@@ -429,9 +504,32 @@ begin
   FPopulationSize := Value;
 end;
 
+function TReactorEvolution.TSettings.GetBlockType(ABlockType: TReactor.TBlockType): Boolean;
+begin
+  Result := ABlockType in FBlockTypes;
+end;
+
+function TReactorEvolution.TSettings.GetBlockTypes: TReactor.TBlockTypes;
+begin
+  Result := FBlockTypes;
+end;
+
 function TReactorEvolution.TSettings.GetFitnessFunction: IFitnessFunction;
 begin
   Result := FFitnessFunction;
+end;
+
+procedure TReactorEvolution.TSettings.SetBlockType(ABlockType: TReactor.TBlockType; const Value: Boolean);
+begin
+  if Value then
+    Include(FBlockTypes, ABlockType)
+  else
+    Exclude(FBlockTypes, ABlockType);
+end;
+
+procedure TReactorEvolution.TSettings.SetBlockTypes(const Value: TReactor.TBlockTypes);
+begin
+  FBlockTypes := Value;
 end;
 
 procedure TReactorEvolution.TSettings.SetFitnessFunction(const Value: IFitnessFunction);
@@ -465,9 +563,11 @@ begin
   FuelBasePower := AFrom.FuelBasePower;
   FuelBaseHeat := AFrom.FuelBaseHeat;
   PopulationSize := AFrom.PopulationSize;
+  // TODO: Must create copy functions!
   FitnessFunction := AFrom.FitnessFunction;
   GeneratorFunction := AFrom.GeneratorFunction;
   MutationFunction := AFrom.MutationFunction;
+  BlockTypes := AFrom.BlockTypes;
 end;
 
 function TReactorEvolution.TSettings.Copy: ISettings;
@@ -482,13 +582,14 @@ begin
   FuelBasePower := 100;
   FuelBaseHeat := 10;
   PopulationSize := 20;
+  BlockTypes := TReactor.BlockTypes;
 end;
 
 { TReactorEvolution.TFunction }
 
-constructor TReactorEvolution.TFunction.Create;
+constructor TReactorEvolution.TFunction.Create(ASettings: ISettings);
 begin
-  // nothing by default
+  FSettings := ASettings;
 end;
 
 end.

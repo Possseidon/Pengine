@@ -98,17 +98,21 @@ type
     actSingleStep1: TMenuItem;
     actStartStop1: TMenuItem;
     N4: TMenuItem;
+    procedure FormDestroy(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure actExitExecute(Sender: TObject);
     procedure actNewExecute(Sender: TObject);
     procedure actPreviewExecute(Sender: TObject);
     procedure actPreviewUpdate(Sender: TObject);
+    procedure actSingleStepExecute(Sender: TObject);
+    procedure actSingleStepUpdate(Sender: TObject);
+    procedure actStartStopExecute(Sender: TObject);
+    procedure actStartStopUpdate(Sender: TObject);
     procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer; var Resize: Boolean);
     procedure pbGraphPaint(Sender: TObject);
   private
     FPreviewWidth: Integer;
-
-  public
+    FEvolution: TReactorEvolution;
 
   end;
 
@@ -119,6 +123,11 @@ implementation
 
 {$R *.dfm}
 
+
+procedure TfrmMain.FormDestroy(Sender: TObject);
+begin
+  FEvolution.Free;
+end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
@@ -132,8 +141,12 @@ begin
 end;
 
 procedure TfrmMain.actNewExecute(Sender: TObject);
+var
+  Settings: TReactorEvolution.ISettings;
 begin
-  frmSettings.Execute(TReactorEvolution.TSettings.Create);
+  Settings := TReactorEvolution.TSettings.Create;
+  frmSettings.Execute(Settings);
+  FEvolution := TReactorEvolution.Create(Settings);
 end;
 
 procedure TfrmMain.actPreviewExecute(Sender: TObject);
@@ -157,6 +170,26 @@ end;
 procedure TfrmMain.actPreviewUpdate(Sender: TObject);
 begin
   actPreview.Checked := frmPreview.Visible;
+end;
+
+procedure TfrmMain.actSingleStepExecute(Sender: TObject);
+begin
+  // TODO: SingleStep
+end;
+
+procedure TfrmMain.actSingleStepUpdate(Sender: TObject);
+begin
+  actSingleStep.Enabled := FEvolution <> nil;
+end;
+
+procedure TfrmMain.actStartStopExecute(Sender: TObject);
+begin
+  // TODO: Start/Stop
+end;
+
+procedure TfrmMain.actStartStopUpdate(Sender: TObject);
+begin
+  actStartStop.Enabled := FEvolution <> nil;
 end;
 
 procedure TfrmMain.FormCanResize(Sender: TObject; var NewWidth, NewHeight:

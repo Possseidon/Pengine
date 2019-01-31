@@ -16,6 +16,7 @@ object frmMain: TfrmMain
   OldCreateOrder = False
   OnCanResize = FormCanResize
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 13
   inline frmPreview: TfrmPreview
@@ -314,7 +315,7 @@ object frmMain: TfrmMain
     end
   end
   object alActions: TActionList
-    Left = 528
+    Left = 464
     Top = 24
     object actPreview: TAction
       Category = 'View'
@@ -325,6 +326,8 @@ object frmMain: TfrmMain
     object actSingleStep: TAction
       Category = 'Evolution'
       Caption = 'Single Step'
+      OnExecute = actSingleStepExecute
+      OnUpdate = actSingleStepUpdate
     end
     object actNew: TAction
       Category = 'File'
@@ -355,10 +358,12 @@ object frmMain: TfrmMain
     object actStartStop: TAction
       Category = 'Evolution'
       Caption = 'Start'
+      OnExecute = actStartStopExecute
+      OnUpdate = actStartStopUpdate
     end
   end
   object mmMain: TMainMenu
-    Left = 472
+    Left = 520
     Top = 24
     object File1: TMenuItem
       Caption = 'File'
