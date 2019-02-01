@@ -10,6 +10,7 @@ uses
   System.Variants,
   System.Classes,
   System.Actions,
+  System.Math,
 
   Vcl.Graphics,
   Vcl.Controls,
@@ -24,17 +25,23 @@ uses
   Vcl.Samples.Spin,
   Vcl.WinXCtrls,
 
+  VclTee.TeeGDIPlus,
+  VclTee.TeEngine,
+  VclTee.Series,
+  VclTee.TeeProcs,
+  VclTee.Chart,
+
   GdiPlus,
   GdiPlusHelpers,
 
   Pengine.IntMaths,
   Pengine.Collections,
+  Pengine.Utility,
 
   SettingsDialog,
   ReactorDefine,
   PreviewFrame,
-  ReactorEvolutionDefine,
-  Pengine.Utility, System.Math;
+  ReactorEvolutionDefine;
 
 type
   TfrmMain = class(TForm)
@@ -67,8 +74,7 @@ type
     edtFitnessWorst: TEdit;
     edtFitnessAverage: TEdit;
     edtFitnessBest: TEdit;
-    gbGraph: TGroupBox;
-    pbGraph: TPaintBox;
+    gbChart: TGroupBox;
     actSave: TAction;
     actNew: TAction;
     actSaveAs: TAction;
@@ -99,6 +105,11 @@ type
     actSingleStep1: TMenuItem;
     actStartStop1: TMenuItem;
     N4: TMenuItem;
+    tcStatistics: TChart;
+    Series1: TFastLineSeries;
+    Series2: TFastLineSeries;
+    Series3: TFastLineSeries;
+    Series4: TPointSeries;
     procedure FormDestroy(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure actExitExecute(Sender: TObject);
@@ -106,29 +117,37 @@ type
     procedure actPreviewExecute(Sender: TObject);
     procedure actPreviewUpdate(Sender: TObject);
     procedure actSingleStepExecute(Sender: TObject);
-    procedure actSingleStepUpdate(Sender: TObject);
     procedure actStartStopExecute(Sender: TObject);
-    procedure actStartStopUpdate(Sender: TObject);
     procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer; var Resize: Boolean);
     procedure lvPopulationColumnClick(Sender: TObject; Column: TListColumn);
     procedure lvPopulationCompare(Sender: TObject; Item1, Item2: TListItem; Data: Integer; var Compare: Integer);
-    procedure pbGraphPaint(Sender: TObject);
+    procedure seGenerationChange(Sender: TObject);
   private
     FPreviewWidth: Integer;
     FEvolution: TReactorEvolution;
     FSortColumn: Integer;
 
-    procedure UpdateInfo;
+    procedure UpdateAll;
+    procedure UpdateGeneration;
     procedure UpdateStats;
     procedure UpdatePopulation;
+    procedure UpdateChart;
+
+    procedure ClearChartValues;
 
     function GetCurrentGeneration: TEvolutionGeneration;
 
     function FormatStat(AValue: Single; Digits: Integer): string;
+    function GetChartValues(const Index: Integer): TChartSeries;
 
   public
     property Evolution: TReactorEvolution read FEvolution;
     property CurrentGeneration: TEvolutionGeneration read GetCurrentGeneration;
+
+    property ChartMinValues: TChartSeries index 0 read GetChartValues;
+    property ChartAvgValues: TChartSeries index 1 read GetChartValues;
+    property ChartMaxValues: TChartSeries index 2 read GetChartValues;
+    property ChartAllValues: TChartSeries index 3 read GetChartValues;
 
   end;
 
@@ -136,6 +155,9 @@ var
   frmMain: TfrmMain;
 
 implementation
+
+uses
+  System.Generics.Collections;
 
 {$R *.dfm}
 
@@ -152,12 +174,18 @@ begin
   FPreviewWidth := ClientWidth;
   ClientWidth := pnlMain.Width;
 
+  tcStatistics.Zoom.MouseWheel := pmwNormal;
+
+  ClearChartValues;
+
   Settings := TEvolutionSettings.Create;
   Settings.SetGeneratorFunction(TDefaultGeneratorFunction);
   Settings.SetMutationFunction(TDefaultMutationFunction);
   Settings.SetFitnessFunction(TDefaultFitnessFunction);
   FEvolution := TReactorEvolution.Create(Settings);
-  UpdateInfo;
+
+  UpdateAll;
+
 end;
 
 procedure TfrmMain.actExitExecute(Sender: TObject);
@@ -174,7 +202,8 @@ begin
   begin
     FEvolution.Free;
     FEvolution := TReactorEvolution.Create(Settings);
-    UpdateInfo;
+    seGeneration.Value := 1;
+    UpdateAll;
   end;
 end;
 
@@ -203,12 +232,10 @@ end;
 
 procedure TfrmMain.actSingleStepExecute(Sender: TObject);
 begin
-  // TODO: SingleStep
-end;
-
-procedure TfrmMain.actSingleStepUpdate(Sender: TObject);
-begin
-  actSingleStep.Enabled := FEvolution <> nil;
+  FEvolution.Evolve;
+  seGeneration.MaxValue := FEvolution.Generations.Count;
+  seGeneration.Value := FEvolution.Generations.Count;
+  UpdateAll;
 end;
 
 procedure TfrmMain.actStartStopExecute(Sender: TObject);
@@ -216,9 +243,9 @@ begin
   // TODO: Start/Stop
 end;
 
-procedure TfrmMain.actStartStopUpdate(Sender: TObject);
+procedure TfrmMain.ClearChartValues;
 begin
-  actStartStop.Enabled := FEvolution <> nil;
+  tcStatistics.SeriesList.ClearValues;
 end;
 
 function TfrmMain.FormatStat(AValue: Single; Digits: Integer): string;
@@ -234,23 +261,41 @@ begin
   Resize := True;
 end;
 
-procedure TfrmMain.pbGraphPaint(Sender: TObject);
+procedure TfrmMain.UpdateChart;
 var
-  Graphics: IGPGraphics;
+  Generation: TEvolutionGeneration;
+  I: Integer;
+  Stats: TEvolutionGeneration.TStats;
 begin
-  Graphics := pbGraph.ToGPGraphics;
-  // Graphics.FillEllipse(TGPSolidBrush.Create(TGPColor.Black), TGPRectF.Create(0, 0, pbGraph.Width, pbGraph.Height));
+  ClearChartValues;
+  I := 1;
+  for Generation in FEvolution.Generations do
+  begin
+    Stats := Generation.FitnessStats;
+    ChartMinValues.AddXY(I, Stats.Worst);
+    ChartAvgValues.AddXY(I, Stats.Average);
+    ChartMaxValues.AddXY(I, Stats.Best);
+    //for Reactor in Generation.Reactors do
+    //  ChartAllValues.AddXY(I, Reactor.Fitness);
+    Inc(I);
+  end;
 end;
 
-procedure TfrmMain.UpdateInfo;
+procedure TfrmMain.UpdateGeneration;
+begin
+  UpdateStats;
+  UpdatePopulation;
+end;
+
+procedure TfrmMain.UpdateAll;
 var
   GenerationCount: Integer;
 begin
   GenerationCount := FEvolution.Generations.Count;
   seGeneration.MaxValue := GenerationCount;
   seGeneration.ReadOnly := GenerationCount <= 1;
-  UpdateStats;
-  UpdatePopulation;
+  UpdateGeneration;
+  UpdateChart;
 end;
 
 procedure TfrmMain.UpdateStats;
@@ -259,9 +304,9 @@ var
 begin
   Gen := CurrentGeneration;
   // Fitness
-  edtFitnessWorst.Text := FormatStat(Gen.FitnessStats.Worst, 2);
-  edtFitnessAverage.Text := FormatStat(Gen.FitnessStats.Average, 2);
-  edtFitnessBest.Text := FormatStat(Gen.FitnessStats.Best, 2);
+  edtFitnessWorst.Text := FormatStat(Gen.FitnessStats.Worst, 0);
+  edtFitnessAverage.Text := FormatStat(Gen.FitnessStats.Average, 0);
+  edtFitnessBest.Text := FormatStat(Gen.FitnessStats.Best, 0);
   // Efficiency
   edtEfficiencyWorst.Text := FormatStat(Gen.EfficiencyStats.Worst, 2);
   edtEfficiencyAverage.Text := FormatStat(Gen.EfficiencyStats.Average, 2);
@@ -293,16 +338,21 @@ begin
       Reactor := Generation.Reactors[I];
       Item := lvPopulation.Items.Add;
       Item.Data := Reactor;
-      Item.Caption := FormatStat(Reactor.Fitness, 2);
+      Item.Caption := FormatStat(Reactor.Fitness, 0);
       Item.SubItems.Add(FormatStat(Reactor.Efficiency, 2));
-      Item.SubItems.Add(FormatStat(Reactor.PowerGeneration(Generation.Settings.FuelBasePower), 0));
-      Item.SubItems.Add(FormatStat(Reactor.NetHeatGeneration(Generation.Settings.FuelBaseHeat), 0));
+      Item.SubItems.Add(FormatStat(Reactor.PowerGeneration, 0));
+      Item.SubItems.Add(FormatStat(Reactor.NetHeatGeneration, 0));
     end;
 
   finally
     lvPopulation.Items.EndUpdate;
 
   end;
+end;
+
+function TfrmMain.GetChartValues(const Index: Integer): TChartSeries;
+begin
+  Result := tcStatistics.Series[Index];
 end;
 
 function TfrmMain.GetCurrentGeneration: TEvolutionGeneration;
@@ -333,11 +383,16 @@ begin
     2:
       Compare := Sign(B.Efficiency - A.Efficiency);
     3:
-      Compare := Sign(B.PowerGeneration(Settings.FuelBasePower) - A.PowerGeneration(Settings.FuelBasePower));
+      Compare := Sign(B.PowerGeneration - A.PowerGeneration);
     4:
-      Compare := Sign(A.NetHeatGeneration(Settings.FuelBaseHeat) - B.NetHeatGeneration(Settings.FuelBaseHeat));
+      Compare := Sign(A.NetHeatGeneration - B.NetHeatGeneration);
   end;
   Compare := Sign(FSortColumn) * Compare;
+end;
+
+procedure TfrmMain.seGenerationChange(Sender: TObject);
+begin
+  UpdateGeneration;
 end;
 
 end.

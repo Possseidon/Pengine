@@ -131,6 +131,12 @@ type
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector2"/> with both components being the same, given value.</summary>
     constructor Create(V: Integer); overload;
 
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector2"/> with random values in the given range <c>[0, R)</c>.</summary>
+    class function Random(ARange: TIntVector2): TIntVector2; static;
+
+    /// <returns>The area of the vector as a rectangle.</returns>
+    function Area: Integer;
+
     class operator Implicit(V: Integer): TIntVector2; inline;
     class operator Implicit(A: TIntVector2): TPoint;
     class operator Implicit(A: TPoint): TIntVector2;
@@ -249,6 +255,12 @@ type
     constructor Create(X, Y, Z: Integer); overload;
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector3"/> with all components being the same, given value.</summary>
     constructor Create(V: Integer); overload;
+
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector3"/> with random values in the given range <c>[0, R)</c>.</summary>
+    class function Random(ARange: TIntVector3): TIntVector3; static;
+
+    /// <returns>The volume of the vector as a cuboid.</returns>
+    function Volume: Integer;
 
     /// <remarks>Allows simple array-like access of each component, thanks to it being a default property.</remarks>
     property Component[AAxis: TCoordAxis3]: Integer read GetComponent write SetComponent; default;
@@ -1108,6 +1120,11 @@ begin
   Result.Y := A.Y + B.Y;
 end;
 
+function TIntVector2.Area: Integer;
+begin
+  Result := X * Y;
+end;
+
 class operator TIntVector2.Subtract(const A, B: TIntVector2): TIntVector2;
 begin
   Result.X := A.X - B.X;
@@ -1129,6 +1146,12 @@ end;
 class operator TIntVector2.Positive(const A: TIntVector2): TIntVector2;
 begin
   Result := A;
+end;
+
+class function TIntVector2.Random(ARange: TIntVector2): TIntVector2;
+begin
+  Result.X := System.Random(ARange.X);
+  Result.Y := System.Random(ARange.Y);
 end;
 
 class operator TIntVector2.Negative(const A: TIntVector2): TIntVector2;
@@ -1660,6 +1683,13 @@ begin
   Result := A;
 end;
 
+class function TIntVector3.Random(ARange: TIntVector3): TIntVector3;
+begin
+  Result.X := System.Random(ARange.X);
+  Result.Y := System.Random(ARange.Y);
+  Result.Z := System.Random(ARange.Z);
+end;
+
 class operator TIntVector3.Negative(const A: TIntVector3): TIntVector3;
 begin
   Result.X := -A.X;
@@ -1705,6 +1735,11 @@ end;
 function TIntVector3.ToString: string;
 begin
   Result := Format('[%d|%d|%d]', [X, Y, Z]);
+end;
+
+function TIntVector3.Volume: Integer;
+begin
+  Result := X * Y * Z;
 end;
 
 class operator TIntVector3.Implicit(const A: TIntVector3): string;

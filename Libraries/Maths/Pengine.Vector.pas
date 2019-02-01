@@ -146,6 +146,9 @@ type
     /// <returns>The normalized vector.</returns>
     function Normalize: TVector2; inline;
 
+    /// <returns>The area of the vector as a rectangle.</returns>
+    function Area: Single;
+
     /// <returns>The distance to the specified vector.</returns>
     function DistanceTo(const A: TVector2): Single;
     /// <returns>A vector, pointing from the calling to the specified vector</returns>
@@ -367,6 +370,9 @@ type
     function Length: Single; inline;
     /// <returns>The normalized vector.</returns>
     function Normalize: TVector3; inline;
+
+    /// <returns>The volume of the vector as a cuboid.</returns>
+    function Volume: Single;
 
     /// <returns>The distance to the specified vector.</returns>
     function DistanceTo(const A: TVector3): Single;
@@ -2131,6 +2137,11 @@ begin
   Result := RadToDeg(AngleRadTo(A));
 end;
 
+function TVector2.Area: Single;
+begin
+  Result := X * Y;
+end;
+
 function TVector2.RotateRad(AAngle: Single): TVector2;
 begin
   Result := Sin(AAngle) * Cross + Cos(AAngle) * Self;
@@ -2727,6 +2738,11 @@ begin
   Result := A - Self;
 end;
 
+function TVector3.Volume: Single;
+begin
+  Result := X * Y * Z;
+end;
+
 function TVector3.Cross(const A: TVector3): TVector3;
 begin
   Result.X := Y * A.Z - Z * A.Y;
@@ -3210,7 +3226,7 @@ end;
 
 function TBounds2.Area: Single;
 begin
-  Result := Width * Height;
+  Result := Size.Area;
 end;
 
 function TBounds2.Width: Single;
@@ -3598,7 +3614,7 @@ end;
 
 function TBounds3.Volume: Single;
 begin
-  Result := Width * Height * Depth;
+  Result := Size.Volume;
 end;
 
 function TBounds3.Width: Single;

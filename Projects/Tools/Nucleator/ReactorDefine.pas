@@ -106,8 +106,8 @@ type
   private
     FBlocks: array of array of array of TBlockType;
     FLocked: Boolean;
-    FCellCount: Integer;
     FCalculated: Boolean;
+    FCellCount: Integer;
     FEfficiency: Single;
     FHeatFactor: Single;
     FCoolingRate: Single;
@@ -512,8 +512,10 @@ begin
     Self[Pos] := AFrom[Pos];
 
   FCalculated := AFrom.FCalculated;
+  FCellCount := AFrom.FCellCount;
   FEfficiency := AFrom.FEfficiency;
-  FHeatFactor := AFrom.FHeatFactor;
+  FHeatFactor := AFrom.HeatFactor;
+  FCoolingRate := AFrom.FCoolingRate;
 end;
 
 end.

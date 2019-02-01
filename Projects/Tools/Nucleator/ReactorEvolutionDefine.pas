@@ -17,9 +17,15 @@ type
   TRatedReactor = class(TReactor)
   private
     FFitness: Single;
+    FHeatGeneration: Single;
+    FPowerGeneration: Single;
+    FNetHeatGeneration: Single;
 
   public
     property Fitness: Single read FFitness;
+    function PowerGeneration: Single; overload;
+    function HeatGeneration: Single; overload;
+    function NetHeatGeneration: Single; overload;
 
   end;
 
@@ -55,7 +61,7 @@ type
     function GetSettings: IEvolutionSettings;
 
   public
-    constructor Create(ASettings: IEvolutionSettings);
+    constructor Create(ASettings: IEvolutionSettings; AParentGeneration: TEvolutionGeneration = nil); overload;
     destructor Destroy; override;
 
     property Settings: IEvolutionSettings read GetSettings;
@@ -96,7 +102,7 @@ type
 
   IFitnessFunction = interface(IEvolutionFunction)
     ['{CBC54E5B-6AB4-47A6-9A1A-B245A4297997}']
-    function Calculate(AReactor: TReactor): Single;
+    function Calculate(AReactor: TRatedReactor): Single;
 
     function Copy(ASettings: IEvolutionSettings): IFitnessFunction;
 
@@ -205,7 +211,7 @@ type
 
   TFitnessFunction = class abstract(TEvolutionFunction, IFitnessFunction)
   public
-    function Calculate(AReactor: TReactor): Single; virtual; abstract;
+    function Calculate(AReactor: TRatedReactor): Single; virtual; abstract;
 
     function Copy(ASettings: IEvolutionSettings): IFitnessFunction;
 
@@ -239,6 +245,17 @@ type
     property Current: TRatedReactor read GetCurrent;
 
     property Settings: IEvolutionSettings read FSettings;
+
+  end;
+
+  TReactorMutator = class(TReactorGenerator)
+  private
+    FParentGeneration: TEvolutionGeneration;
+
+  public
+    constructor Create(AParentGeneration: TEvolutionGeneration); reintroduce; virtual;
+
+    property ParentGeneration: TEvolutionGeneration read FParentGeneration;
 
   end;
 
@@ -371,21 +388,38 @@ type
 
     property Settings: IEvolutionSettings read GetSettings;
 
+    procedure Evolve;
+
   end;
 
 implementation
 
 { TEvolutionGeneration }
 
-constructor TEvolutionGeneration.Create(ASettings: IEvolutionSettings);
+constructor TEvolutionGeneration.Create(ASettings: IEvolutionSettings; AParentGeneration: TEvolutionGeneration);
 var
   Reactor: TRatedReactor;
+  Generator: IGeneratorFunction;
 begin
   FSettings := ASettings;
   FReactors := TReactors.Create;
   FReactors.Capacity := ASettings.PopulationSize;
-  for Reactor in ASettings.GeneratorFunction do
+
+  if AParentGeneration = nil then
   begin
+    Generator := ASettings.GeneratorFunction;
+  end
+  else
+  begin
+    ASettings.MutationFunction.ParentGeneration := AParentGeneration;
+    Generator := ASettings.MutationFunction;
+  end;
+
+  for Reactor in Generator do
+  begin
+    Reactor.FPowerGeneration := Reactor.PowerGeneration(Settings.FuelBasePower);
+    Reactor.FHeatGeneration := Reactor.HeatGeneration(Settings.FuelBaseHeat);
+    Reactor.FNetHeatGeneration := Reactor.NetHeatGeneration(Settings.FuelBaseHeat);
     Reactor.FFitness := ASettings.FitnessFunction.Calculate(Reactor);
     FReactors.Add(Reactor);
   end;
@@ -466,7 +500,7 @@ begin
   Result := CreateStats(
     function(AReactor: TRatedReactor): Single
     begin
-      Result := AReactor.NetHeatGeneration(Settings.FuelBaseHeat);
+      Result := AReactor.NetHeatGeneration;
     end,
     True);
 end;
@@ -481,7 +515,7 @@ begin
   Result := CreateStats(
     function(AReactor: TRatedReactor): Single
     begin
-      Result := AReactor.HeatGeneration(Settings.FuelBasePower);
+      Result := AReactor.PowerGeneration;
     end
     );
 end;
@@ -513,6 +547,11 @@ end;
 destructor TReactorEvolution.Destroy;
 begin
   FGenerations.Free;
+end;
+
+procedure TReactorEvolution.Evolve;
+begin
+  FGenerations.Add(TEvolutionGeneration.Create(Settings, FGenerations.Last));
 end;
 
 class constructor TReactorEvolution.Create;
@@ -835,6 +874,31 @@ end;
 function TGeneratorFunction.Copy(ASettings: IEvolutionSettings): IGeneratorFunction;
 begin
   Assert(Supports(inherited Copy(ASettings), IGeneratorFunction, Result));
+end;
+
+{ TRatedReactor }
+
+function TRatedReactor.HeatGeneration: Single;
+begin
+  Result := FHeatGeneration;
+end;
+
+function TRatedReactor.NetHeatGeneration: Single;
+begin
+  Result := FNetHeatGeneration;
+end;
+
+function TRatedReactor.PowerGeneration: Single;
+begin
+  Result := FPowerGeneration;
+end;
+
+{ TReactorMutator }
+
+constructor TReactorMutator.Create(AParentGeneration: TEvolutionGeneration);
+begin
+  inherited Create(AParentGeneration.Settings);
+  FParentGeneration := AParentGeneration;
 end;
 
 end.

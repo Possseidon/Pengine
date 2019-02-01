@@ -55,9 +55,8 @@ object frmSettings: TfrmSettings
       Top = 258
       Width = 138
       Height = 25
+      Action = actGenerate
       Anchors = [akLeft, akBottom]
-      Caption = 'Generate'
-      ModalResult = 1
       TabOrder = 2
     end
     object gbReactor: TGroupBox
@@ -307,6 +306,11 @@ object frmSettings: TfrmSettings
       Category = 'Reactor Blocks'
       Caption = 'Disable Coolers'
       OnExecute = actDisableCoolersExecute
+    end
+    object actGenerate: TAction
+      Caption = 'Generate'
+      OnExecute = actGenerateExecute
+      OnUpdate = actGenerateUpdate
     end
   end
 end

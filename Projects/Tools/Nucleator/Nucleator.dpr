@@ -6,7 +6,9 @@ uses
   PreviewFrame in 'PreviewFrame.pas' {frmPreview: TFrame},
   ReactorDefine in 'ReactorDefine.pas',
   SettingsDialog in 'SettingsDialog.pas' {frmSettings},
-  ReactorEvolutionDefine in 'ReactorEvolutionDefine.pas';
+  ReactorEvolutionDefine in 'ReactorEvolutionDefine.pas',
+  Vcl.Themes,
+  Vcl.Styles;
 
 {$R *.res}
 

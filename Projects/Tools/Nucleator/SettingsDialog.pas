@@ -55,8 +55,18 @@ type
   end;
 
   TDefaultMutationFunction = class(TMutationFunction)
+  public type
+
+    TMutator = class(TReactorMutator)
+    protected
+      procedure Generate(AReactor: TReactor; AIndex: Integer); override;
+
+    end;
+
   public
     class function GetDisplayName: string; override;
+
+    function GetEnumerator: IReactorIterator; override;
 
   end;
 
@@ -64,7 +74,7 @@ type
   public
     class function GetDisplayName: string; override;
 
-    function Calculate(AReactor: TReactor): Single; override;
+    function Calculate(AReactor: TRatedReactor): Single; override;
 
   end;
 
@@ -108,10 +118,13 @@ type
     actEnableAllBlocks: TAction;
     actDisableCoolers: TAction;
     actEnabelCoolers: TAction;
+    actGenerate: TAction;
     procedure actDisableAllBlocksExecute(Sender: TObject);
     procedure actDisableCoolersExecute(Sender: TObject);
     procedure actEnabelCoolersExecute(Sender: TObject);
     procedure actEnableAllBlocksExecute(Sender: TObject);
+    procedure actGenerateExecute(Sender: TObject);
+    procedure actGenerateUpdate(Sender: TObject);
     procedure actShowGeneratorSettingsExecute(Sender: TObject);
     procedure actShowGeneratorSettingsUpdate(Sender: TObject);
     procedure cbGeneratorFunctionChange(Sender: TObject);
@@ -183,6 +196,17 @@ begin
   for BlockType in TReactor.BlockTypes do
     clbReactorBlocks.Checked[Ord(BlockType)] := True;
   clbReactorBlocksClickCheck(clbReactorBlocks);
+end;
+
+procedure TfrmSettings.actGenerateExecute(Sender: TObject);
+begin
+  ModalResult := mrOk;
+  CloseModal;
+end;
+
+procedure TfrmSettings.actGenerateUpdate(Sender: TObject);
+begin
+  actGenerate.Enabled := Settings.BlockTypes <> [];
 end;
 
 procedure TfrmSettings.actShowGeneratorSettingsExecute(Sender: TObject);
@@ -407,13 +431,17 @@ begin
   Result := 'Default';
 end;
 
+function TDefaultMutationFunction.GetEnumerator: IReactorIterator;
+begin
+  Result := TMutator.Create(ParentGeneration);
+end;
+
 { TDefaultFitnessFunction }
 
-function TDefaultFitnessFunction.Calculate(AReactor: TReactor): Single;
+function TDefaultFitnessFunction.Calculate(AReactor: TRatedReactor): Single;
 begin
-  Result :=
-    AReactor.PowerGeneration(Settings.FuelBasePower) /
-    Max(1, AReactor.HeatGeneration(Settings.FuelBaseHeat) + 11);
+  // Result := Max(0, AReactor.PowerGeneration - Power(Max(0, AReactor.NetHeatGeneration), 1.5));
+  Result := AReactor.Efficiency * AReactor.PowerGeneration / (1 + Exp(AReactor.NetHeatGeneration));
 end;
 
 class function TDefaultFitnessFunction.GetDisplayName: string;
@@ -429,6 +457,21 @@ var
 begin
   for Pos in AReactor.Size do
     AReactor.Blocks[Pos] := Settings.BlockTypeArray[Random(Settings.BlockTypeArray.Count)];
+end;
+
+{ TDefaultMutationFunction.TMutator }
+
+procedure TDefaultMutationFunction.TMutator.Generate(AReactor: TReactor; AIndex: Integer);
+var
+  I: Integer;
+  NewType: TReactor.TBlockType;
+begin
+  AReactor.Assign(ParentGeneration.Reactors[Random(AIndex)]);
+  for I := 1 to 5 * AIndex div Settings.PopulationSize do
+  begin
+    NewType := Settings.BlockTypeArray[Random(Settings.BlockTypeArray.Count)];
+    AReactor.Blocks[TIntVector3.Random(AReactor.Size)] := NewType;
+  end;
 end;
 
 initialization
