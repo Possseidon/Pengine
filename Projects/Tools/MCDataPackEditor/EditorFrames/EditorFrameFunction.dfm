@@ -56,6 +56,8 @@ object frmEditorFunctions: TfrmEditorFunctions
     inherited synEditor: TSynEdit
       Width = 610
       Height = 409
+      PopupMenu = pmFunctions
+      SearchEngine = synSearch
       OnChange = synEditorChange
       OnCommandProcessed = synEditorCommandProcessed
       OnGutterPaint = synEditorGutterPaint
@@ -389,5 +391,30 @@ object frmEditorFunctions: TfrmEditorFunctions
     TimerInterval = 1
     Left = 104
     Top = 160
+  end
+  object synSearch: TSynEditSearch
+    Left = 104
+    Top = 208
+  end
+  object alFunctions: TActionList
+    Left = 104
+    Top = 264
+    object actToggleComment: TAction
+      Caption = 'Toggle comment'
+      ShortCut = 16455
+      OnExecute = actToggleCommentExecute
+    end
+  end
+  object actSearch: TAction
+    Category = 'Edit'
+    Caption = 'Search'
+    ShortCut = 16454
+  end
+  object pmFunctions: TPopupMenu
+    Left = 184
+    Top = 48
+    object ogglecomment1: TMenuItem
+      Action = actToggleComment
+    end
   end
 end

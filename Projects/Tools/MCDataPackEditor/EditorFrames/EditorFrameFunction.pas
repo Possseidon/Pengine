@@ -34,7 +34,13 @@ uses
   Pengine.MC.Brigadier,
 
   DatapackView,
-  FunctionTheme;
+  FunctionTheme,
+  SynEditOptionsDialog,
+  SynEditMiscClasses,
+  SynEditSearch,
+  Vcl.Menus,
+  System.Actions,
+  Vcl.ActnList;
 
 type
 
@@ -65,6 +71,13 @@ type
     frmSynEditor: TfrmSynEditor;
     synCompletion: TSynCompletionProposal;
     synContextPreview: TSynCompletionProposal;
+    synSearch: TSynEditSearch;
+    alFunctions: TActionList;
+    actSearch: TAction;
+    pmFunctions: TPopupMenu;
+    actToggleComment: TAction;
+    ogglecomment1: TMenuItem;
+    procedure actToggleCommentExecute(Sender: TObject);
     procedure frmSynEditorsynEditorPaint(Sender: TObject; ACanvas: TCanvas);
     procedure lvErrorsDblClick(Sender: TObject);
     procedure synCompletionExecute(Kind: SynCompletionType; Sender: TObject; var CurrentInput: string;
@@ -194,6 +207,52 @@ begin
   FLines.Free;
   FLinesMap.Free;
   inherited;
+end;
+
+procedure TfrmEditorFunctions.actToggleCommentExecute(Sender: TObject);
+var
+  StartPos, EndPos, EditStart, EditEnd: TBufferCoord;
+  NewLine: string;
+  I, Len: Integer;
+begin
+  StartPos := synEditor.CharIndexToRowCol(synEditor.SelStart);
+  EndPos := synEditor.CharIndexToRowCol(synEditor.SelEnd);
+
+  synEditor.BeginUndoBlock;
+  synEditor.UndoList.AddChange(crSelection, StartPos, EndPos, '', smNormal);
+
+  try
+    for I := StartPos.Line to EndPos.Line do
+    begin
+      if synEditor.Lines[I - 1].Trim.IsEmpty then
+        Continue;
+      EditStart.Line := I;
+      EditStart.Char := 1;
+      EditEnd.Line := I;
+      EditEnd.Char := 3;
+      if synEditor.Lines[I - 1].Trim.StartsWith('#') then
+      begin
+        NewLine := synEditor.Lines[I - 1].Substring(1).TrimLeft;
+        Len := synEditor.Lines[I - 1].Length - NewLine.Length;
+        synEditor.UndoList.AddChange(crDelete, EditStart, EditEnd, synEditor.Lines[I - 1].Substring(0, Len),
+          smNormal);
+        synEditor.Lines[I - 1] := NewLine;
+      end
+      else
+      begin
+        synEditor.UndoList.AddChange(crInsert, EditStart, EditEnd, '', smNormal);
+        synEditor.Lines[I - 1] := '# ' + synEditor.Lines[I - 1];
+      end;
+    end;
+
+  finally
+    synEditor.EndUndoBlock;
+
+  end;
+
+  synEditor.SelStart := synEditor.RowColToCharIndex(StartPos);
+  synEditor.SelEnd := synEditor.RowColToCharIndex(EndPos);
+  synEditorChange(nil);
 end;
 
 procedure TfrmEditorFunctions.Format;
@@ -623,4 +682,3 @@ begin
 end;
 
 end.
-
