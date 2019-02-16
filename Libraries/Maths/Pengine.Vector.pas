@@ -146,6 +146,9 @@ type
     /// <returns>The normalized vector.</returns>
     function Normalize: TVector2; inline;
 
+    /// <returns>The area of the vector as a rectangle.</returns>
+    function Area: Single;
+
     /// <returns>The distance to the specified vector.</returns>
     function DistanceTo(const A: TVector2): Single;
     /// <returns>A vector, pointing from the calling to the specified vector</returns>
@@ -367,6 +370,9 @@ type
     function Length: Single; inline;
     /// <returns>The normalized vector.</returns>
     function Normalize: TVector3; inline;
+
+    /// <returns>The volume of the vector as a cuboid.</returns>
+    function Volume: Single;
 
     /// <returns>The distance to the specified vector.</returns>
     function DistanceTo(const A: TVector3): Single;
@@ -1780,12 +1786,6 @@ const
     (S: (X: 0; Y: 0; Z: 1); DX: (X: 1; Y: 0; Z: 0); DY: (X: 0; Y: 1; Z: 0))
     );
 
-function FlipDir(ADir: TBasicDir): TBasicDir; inline;
-function AbsDir(ADir: TBasicDir): TBasicDir; inline;
-function IsPosDir(ADir: TBasicDir): Boolean; inline;
-function RotateDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer = 1): TBasicDir; overload;
-function RotateDir(ADir: TBasicDir2; ASteps: Integer): TBasicDir2; overload;
-
 // Shorthand Constructors
 
 /// <returns>A <see cref="Pengine.Vector|TVector2"/> with the given values for X and Y.</returns>
@@ -2135,6 +2135,11 @@ end;
 function TVector2.AngleTo(const A: TVector2): Single;
 begin
   Result := RadToDeg(AngleRadTo(A));
+end;
+
+function TVector2.Area: Single;
+begin
+  Result := X * Y;
 end;
 
 function TVector2.RotateRad(AAngle: Single): TVector2;
@@ -2733,6 +2738,11 @@ begin
   Result := A - Self;
 end;
 
+function TVector3.Volume: Single;
+begin
+  Result := X * Y * Z;
+end;
+
 function TVector3.Cross(const A: TVector3): TVector3;
 begin
   Result.X := Y * A.Z - Z * A.Y;
@@ -3216,7 +3226,7 @@ end;
 
 function TBounds2.Area: Single;
 begin
-  Result := Width * Height;
+  Result := Size.Area;
 end;
 
 function TBounds2.Width: Single;
@@ -3604,7 +3614,7 @@ end;
 
 function TBounds3.Volume: Single;
 begin
-  Result := Width * Height * Depth;
+  Result := Size.Volume;
 end;
 
 function TBounds3.Width: Single;
@@ -5336,39 +5346,6 @@ begin
     if AHexahedron.FaceNormals[Dir].D.Dot(AHexahedron.FaceNormals[Dir].S.VectorTo(APoint)) > 0 then
       Exit(False);
   Result := True;
-end;
-
-{ TBasicDir helper functions }
-
-function FlipDir(ADir: TBasicDir): TBasicDir;
-begin
-  Result := FlippedBasicDirs[ADir];
-end;
-
-function AbsDir(ADir: TBasicDir): TBasicDir;
-begin
-  Result := AbsBasicDirs[ADir];
-end;
-
-function IsPosDir(ADir: TBasicDir): Boolean;
-begin
-  Result := ADir in [bdRight, bdUp, bdFront];
-end;
-
-function RotateDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer): TBasicDir;
-begin
-  ASteps := IBounds1(4).RangedMod(ASteps);
-  if ASteps = 0 then
-    Exit(ADir);
-  Result := BasicDirRotations[ADir, AAxis, ASteps];
-end;
-
-function RotateDir(ADir: TBasicDir2; ASteps: Integer): TBasicDir2;
-begin
-  ASteps := IBounds1(4).RangedMod(ASteps);
-  if ASteps = 0 then
-    Exit(ADir);
-  Result := TBasicDir2(BasicDirRotations[ADir, bdFront, ASteps]);
 end;
 
 { Shorthand Constructors }

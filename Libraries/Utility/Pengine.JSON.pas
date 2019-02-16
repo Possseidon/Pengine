@@ -235,6 +235,8 @@ type
       // TJBase
       procedure Free; inline;
 
+      procedure SaveToFile(APath: string);
+
       function GetTypeName: string; inline;
 
       function Copy: TJBase; inline;
@@ -336,6 +338,9 @@ type
     class function Parse(AText: string): TJBase;
     /// <summary>Parses any json value from the given file.</summary>
     class function CreateFromFile(APath: string): TJBase;
+    /// <summary>Saves the json value to the given file path.</summary>
+    /// <remarks>Uses pretty formatting and default settings for the rest.</remarks>
+    procedure SaveToFile(APath: string);
 
     /// <summary>Creates an exact copy of the json value.</summary>
     function Copy: TJBase;
@@ -940,6 +945,8 @@ type
     procedure Define(AName: string; AObject: IJSerializable; AVersion: Integer = -1); overload;
     procedure Define(AName: string; ASerializer: TJArraySerializer); overload;
     procedure Define(AName: string; ASerializer: TJArrayRefSerializer); overload;
+    procedure DefineArray<T: constructor, IJSerializable>(AName: string; AArray: TArray<T>); overload;
+    procedure DefineArray<T: IJSerializable>(AName: string; AArray: TArray<T>; AInstantiator: TFunc<T>); overload;
 
     property Mode: TMode read FMode;
     function IsStoring: Boolean;
@@ -1042,6 +1049,11 @@ begin
       Result := Result + '.';
   end;
   Result := Result + Name;
+end;
+
+procedure TJBase.SaveToFile(APath: string);
+begin
+  TFile.WriteAllText(APath, Format);
 end;
 
 procedure TJBase.SetIndex(const Value: Integer);
@@ -1178,6 +1190,11 @@ end;
 function TJBase.TJValue.GetAsBool: Boolean;
 begin
   Result := Cast<TJBool>.Value;
+end;
+
+procedure TJBase.TJValue.SaveToFile(APath: string);
+begin
+  FValue.SaveToFile(APath);
 end;
 
 procedure TJBase.TJValue.SetAsBool(const Value: Boolean);
@@ -3069,6 +3086,42 @@ begin
     ASerializer.Free;
 
   end;
+end;
+
+procedure TJSerializer.DefineArray<T>(AName: string; AArray: TArray<T>; AInstantiator: TFunc<T>);
+var
+  JArray: TJArray;
+  Item: T;
+  JItem: TJObject;
+begin
+  case Mode of
+    smSerialize:
+      begin
+        JArray := Value.AddArray(AName);
+        for Item in AArray do
+          JArray.Add(TJSerializer.Serialize(Item));
+      end;
+    smUnserialize:
+      if Value.Get(AName, JArray) then
+      begin
+        AArray.Clear;
+        for JItem in JArray do
+        begin
+          Item := AInstantiator;
+          TJSerializer.Unserialize(Item, JItem);
+          AArray.Add(Item);
+        end;
+      end;
+  end;
+end;
+
+procedure TJSerializer.DefineArray<T>(AName: string; AArray: TArray<T>);
+begin
+  DefineArray<T>(AName, AArray,
+    function: T
+    begin
+      Result := T.Create;
+    end);
 end;
 
 { TJArraySerializer<T> }

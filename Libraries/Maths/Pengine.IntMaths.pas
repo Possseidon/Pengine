@@ -131,6 +131,12 @@ type
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector2"/> with both components being the same, given value.</summary>
     constructor Create(V: Integer); overload;
 
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector2"/> with random values in the given range <c>[0, R)</c>.</summary>
+    class function Random(ARange: TIntVector2): TIntVector2; static;
+
+    /// <returns>The area of the vector as a rectangle.</returns>
+    function Area: Integer;
+
     class operator Implicit(V: Integer): TIntVector2; inline;
     class operator Implicit(A: TIntVector2): TPoint;
     class operator Implicit(A: TPoint): TIntVector2;
@@ -250,6 +256,12 @@ type
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector3"/> with all components being the same, given value.</summary>
     constructor Create(V: Integer); overload;
 
+    /// <summary>Creates a <see cref="Pengine.IntMaths|TIntVector3"/> with random values in the given range <c>[0, R)</c>.</summary>
+    class function Random(ARange: TIntVector3): TIntVector3; static;
+
+    /// <returns>The volume of the vector as a cuboid.</returns>
+    function Volume: Integer;
+
     /// <remarks>Allows simple array-like access of each component, thanks to it being a default property.</remarks>
     property Component[AAxis: TCoordAxis3]: Integer read GetComponent write SetComponent; default;
 
@@ -313,7 +325,7 @@ type
     class operator GreaterThan(const A, B: TIntVector3): Boolean;
     class operator GreaterThanOrEqual(const A, B: TIntVector3): Boolean;
 
-    class operator In (A: Integer; const B: TIntVector3): Boolean; inline;
+    class operator In (const A, B: TIntVector3): Boolean; inline;
 
     /// <returns>A string representative in the form: <c>[X|Y|Z]</c></returns>
     /// <remarks>Direct implicit conversion to string is possible.</remarks>
@@ -861,7 +873,7 @@ const
     bdUp,
     bdUp,
     bdFront,
-    bdBack
+    bdFront
     );
 
   BasicDirAxis: array [TBasicDir] of TCoordAxis = (
@@ -989,7 +1001,7 @@ const
 
   { Shorthand Constructors }
 
-  /// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given values for X and Y.</returns>
+/// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given values for X and Y.</returns>
 function IVec2(X, Y: Integer): TIntVector2; overload; inline;
 /// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given value for X and Y.</returns>
 function IVec2(V: Integer): TIntVector2; overload; inline;
@@ -1019,7 +1031,46 @@ function IBounds3I(A, B: TIntVector3): TIntBounds3; overload; inline;
 /// <returns>A <see cref="Pengine.IntMaths|TIntBounds3"/> for the interval: <c>[0, A)</c></returns>
 function IBounds3(A: TIntVector3): TIntBounds3; overload; inline;
 
+function FlipDir(ADir: TBasicDir): TBasicDir; inline;
+function AbsDir(ADir: TBasicDir): TBasicDir; inline;
+function IsPosDir(ADir: TBasicDir): Boolean; inline;
+function RotateDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer = 1): TBasicDir; overload;
+function RotateDir(ADir: TBasicDir2; ASteps: Integer): TBasicDir2; overload;
+
 implementation
+
+{ TBasicDir helper functions }
+
+function FlipDir(ADir: TBasicDir): TBasicDir;
+begin
+  Result := FlippedBasicDirs[ADir];
+end;
+
+function AbsDir(ADir: TBasicDir): TBasicDir;
+begin
+  Result := AbsBasicDirs[ADir];
+end;
+
+function IsPosDir(ADir: TBasicDir): Boolean;
+begin
+  Result := ADir in [bdRight, bdUp, bdFront];
+end;
+
+function RotateDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer): TBasicDir;
+begin
+  ASteps := IBounds1(4).RangedMod(ASteps);
+  if ASteps = 0 then
+    Exit(ADir);
+  Result := BasicDirRotations[ADir, AAxis, ASteps];
+end;
+
+function RotateDir(ADir: TBasicDir2; ASteps: Integer): TBasicDir2;
+begin
+  ASteps := IBounds1(4).RangedMod(ASteps);
+  if ASteps = 0 then
+    Exit(ADir);
+  Result := TBasicDir2(BasicDirRotations[ADir, bdFront, ASteps]);
+end;
 
 { TIntVector2 }
 
@@ -1069,6 +1120,11 @@ begin
   Result.Y := A.Y + B.Y;
 end;
 
+function TIntVector2.Area: Integer;
+begin
+  Result := X * Y;
+end;
+
 class operator TIntVector2.Subtract(const A, B: TIntVector2): TIntVector2;
 begin
   Result.X := A.X - B.X;
@@ -1090,6 +1146,12 @@ end;
 class operator TIntVector2.Positive(const A: TIntVector2): TIntVector2;
 begin
   Result := A;
+end;
+
+class function TIntVector2.Random(ARange: TIntVector2): TIntVector2;
+begin
+  Result.X := System.Random(ARange.X);
+  Result.Y := System.Random(ARange.Y);
 end;
 
 class operator TIntVector2.Negative(const A: TIntVector2): TIntVector2;
@@ -1621,6 +1683,13 @@ begin
   Result := A;
 end;
 
+class function TIntVector3.Random(ARange: TIntVector3): TIntVector3;
+begin
+  Result.X := System.Random(ARange.X);
+  Result.Y := System.Random(ARange.Y);
+  Result.Z := System.Random(ARange.Z);
+end;
+
 class operator TIntVector3.Negative(const A: TIntVector3): TIntVector3;
 begin
   Result.X := -A.X;
@@ -1658,7 +1727,7 @@ begin
   Result := (A.X >= B.X) and (A.Y >= B.Y) and (A.Z >= B.Z);
 end;
 
-class operator TIntVector3.In(A: Integer; const B: TIntVector3): Boolean;
+class operator TIntVector3.In(const A, B: TIntVector3): Boolean;
 begin
   Result := A in IBounds3(B);
 end;
@@ -1666,6 +1735,11 @@ end;
 function TIntVector3.ToString: string;
 begin
   Result := Format('[%d|%d|%d]', [X, Y, Z]);
+end;
+
+function TIntVector3.Volume: Integer;
+begin
+  Result := X * Y * Z;
 end;
 
 class operator TIntVector3.Implicit(const A: TIntVector3): string;
@@ -2282,7 +2356,7 @@ end;
 
 class operator TIntBounds3.In(const A: TIntVector3; const B: TIntBounds3): Boolean;
 begin
-  Result := (A >= B.C1) and (A < B.C2);
+  Result := (A >= B.C1) and (A <= B.C2);
 end;
 
 class operator TIntBounds3.Equal(const A, B: TIntBounds3): Boolean;

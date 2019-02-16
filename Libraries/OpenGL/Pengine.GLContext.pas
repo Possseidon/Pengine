@@ -52,6 +52,7 @@ type
 
     FGLDebugLogLevels: TGLDebugSeverities;
     FGLDebugRaiseLevels: TGLDebugSeverities;
+    FAutoFinish: Boolean;
 
     function GetDeltaTime: TSeconds;
     function GetFPS: Single;
@@ -115,6 +116,11 @@ type
     property MaxSamples: Integer read FMaxSamples;
     property Samples: Integer read FSamples write SetSamples;
 
+    procedure Flush;
+    procedure Finish;
+
+    property AutoFinish: Boolean read FAutoFinish write FAutoFinish;
+
   end;
 
 implementation
@@ -175,6 +181,16 @@ begin
     DeactivateRenderingContext;
     DestroyRenderingContext(FRC);
   end;
+end;
+
+procedure TGLContext.Finish;
+begin
+  glFinish;
+end;
+
+procedure TGLContext.Flush;
+begin
+  glFlush;
 end;
 
 procedure TGLContext.SetMultiSampled(Value: Boolean);
@@ -363,7 +379,9 @@ begin
     FFBO.CopyToScreen([amColor]);
 
   SwapBuffers(FDC);
-  glFlush;
+
+  if AutoFinish then
+    Finish;
 end;
 
 end.
