@@ -3,7 +3,7 @@ unit GameOfLifeDefine;
 interface
 
 uses
-  BitField, IntegerMaths, SysUtils;
+  Pengine.BitField, Pengine.IntMaths, SysUtils;
 
 type
 
@@ -100,9 +100,9 @@ end;
 
 function TGameOfLife.GetCell(APos: TIntVector2): Boolean;
 begin
-  if not (APos in Range2(Size)) then
+  if not (APos in Size) then
     Result := FOutside
-  else  
+  else
     Result := FCells[APos.Y][APos.X];
 end;
 
@@ -116,7 +116,7 @@ var
   Offset: TIntVector2;
 begin
   Result := 0;
-  for Offset in Range2(-1, 2) do
+  for Offset in IBounds1I(-1, 1) do
     if (Offset <> 0) and Cells[APos + Offset] then
       Inc(Result);
 end;
@@ -146,7 +146,7 @@ var
   N: Integer;
 begin
   Result := TGameOfLife.Create(Size);
-  for Pos in Range2(Size) do
+  for Pos in Size do
   begin
     N := Neighbours[Pos];
     if (N = 3) or (N = 2) and Cells[Pos] then

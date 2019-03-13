@@ -246,6 +246,46 @@ type
   TLuaUnsigned = lua_Unsigned;
   TLuaCFunction = lua_CFunction;
 
+  TLuaMetatableEvent = (
+    // General
+    mtIndex,
+    mtNewIndex,
+    mtMode,
+    mtCall,
+    mtMetatable,
+    mtToString,
+    mtLen,
+    mtPairs,
+    mtIPairs,
+    mtGC,
+
+    // Math
+    mtUnm,
+    mtAdd,
+    mtSub,
+    mtMul,
+    mtDiv,
+    mtIDiv,
+    mtMod,
+    mtPow,
+    mtConcat,
+
+    // Bitwise
+    mtBAnd,
+    mtBOr,
+    mtBXOr,
+    mtBNot,
+    mtShl,
+    mtShr,
+
+    // Equivalence
+    mtEq,
+    mtLt,
+    mtLe
+    );
+
+  TLuaMetatableEvents = set of TLuaMetatableEvent;
+
   TLuaAlloc = lua_Alloc;
 
   TLuaReader = lua_Reader;
@@ -256,8 +296,6 @@ type
 
   TLuaDebug = lua_Debug;
   TLuaHook = lua_Hook;
-
-  { TLuaStateRec }
 
   TLuaStateRec = record
   private type
@@ -337,7 +375,7 @@ type
     // get functions (Lua -> stack)
     function GetGlobal_X(name: PAnsiChar): Integer; inline;
     function GetGlobal(name: PAnsiChar): TLuaType; inline;
-    function GetTable(index: Integer = -1): Integer; inline;
+    function GetTable(index: Integer): Integer; inline;
     function GetField_X(k: PAnsiChar; index: Integer = -1): Integer; inline;
     function GetField(k: PAnsiChar; index: Integer = -1): TLuaType; inline;
     function GetI_X(i: lua_Integer; index: Integer = -1): Integer; inline;
@@ -454,7 +492,8 @@ type
     property Top: Integer read GetTop write SetTop;
     function TypeNameAt(index: Integer = -1): PAnsiChar; inline;
 
-    function LoadString(AString: AnsiString; AChunkName: AnsiString = ''): TLuaLoadError;
+    function LoadString(AString: AnsiString; AChunkName: AnsiString): TLuaLoadError; overload;
+    function LoadString(AString: AnsiString): TLuaLoadError; overload;
 
     procedure Where(ALevel: Integer);
 
@@ -465,19 +504,81 @@ type
 
     function FormatTypes(ATypes: TLuaTypes; ANone: Boolean = False): AnsiString;
 
+    // Generates error strings
+    function BadTypeString(AExpected, AGot: TLuaString): TLuaString;
+    function BadArgString(AArg: Integer; AExpected, AGot: TLuaString): TLuaString;
+
+    // Tests a stackposition and uses BadTypeString
     procedure CheckType(AIndex: Integer; AType: TLuaType); overload;
     function CheckType(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean = False): TLuaType; overload;
-    function CheckAny(AIndex: Integer): TLuaType; overload;
-    procedure CheckEnd(AIndex: Integer); overload; inline;
+    function CheckAny(AIndex: Integer): TLuaType;
 
+    function CheckNumber(AIndex: Integer): TLuaNumber;
     function CheckInteger(AIndex: Integer): TLuaInteger;
+    function CheckBoolean(AIndex: Integer): Boolean;
+    function CheckString(AIndex: Integer): TLuaString;
 
-    function CheckOrDefault(AIndex: Integer; ADefault: TLuaInteger): TLuaInteger; overload;
     function CheckOrDefault(AIndex: Integer; ADefault: TLuaNumber): TLuaNumber; overload;
-    function CheckOrDefault(AIndex: Integer; ADefault: TLuaString): TLuaString; overload;
+    function CheckOrDefault(AIndex: Integer; ADefault: TLuaInteger): TLuaInteger; overload;
     function CheckOrDefault(AIndex: Integer; ADefault: Boolean): Boolean; overload;
+    function CheckOrDefault(AIndex: Integer; ADefault: TLuaString): TLuaString; overload;
+
+    // Tests a stackposition and uses BadArgString
+    procedure CheckArg(AIndex: Integer; AType: TLuaType); overload;
+    function CheckArg(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean = False): TLuaType; overload;
+    function CheckArgAny(AIndex: Integer): TLuaType;
+
+    function CheckArgNumber(AIndex: Integer): TLuaNumber;
+    function CheckArgInteger(AIndex: Integer): TLuaInteger;
+    function CheckArgBoolean(AIndex: Integer): Boolean;
+    function CheckArgString(AIndex: Integer): TLuaString;
+
+    function CheckArgOrDefault(AIndex: Integer; ADefault: TLuaNumber): TLuaNumber; overload;
+    function CheckArgOrDefault(AIndex: Integer; ADefault: TLuaInteger): TLuaInteger; overload;
+    function CheckArgOrDefault(AIndex: Integer; ADefault: Boolean): Boolean; overload;
+    function CheckArgOrDefault(AIndex: Integer; ADefault: TLuaString): TLuaString; overload;
 
   end;
+
+const
+
+  LuaMetatableEventNames: array [TLuaMetatableEvent] of AnsiString = (
+    // General
+    '__index',
+    '__newindex',
+    '__mode',
+    '__call',
+    '__metatable',
+    '__tostring',
+    '__len',
+    '__pairs',
+    '__ipairs',
+    '__gc',
+
+    // Math
+    '__unm',
+    '__add',
+    '__sub',
+    '__mul',
+    '__div',
+    '__idiv',
+    '__mod',
+    '__pow',
+    '__concat',
+
+    // Bitwise
+    '__band',
+    '__bor',
+    '__bxor',
+    '__bnot',
+    '__shl',
+    '__shr',
+
+    // Equivalence
+    '__eq',
+    '__lt',
+    '__le'
+    );
 
 function LuaDefaultAlloc(ud, ptr: Pointer; osize, nsize: NativeUInt): Pointer; cdecl;
 function NewLuaState(AAllocFunc: TLuaAlloc; AUserData: Pointer = nil): TLuaState;
@@ -834,6 +935,16 @@ begin
   Result := lua_atpanic(@Self, panicf);
 end;
 
+function TLuaStateRec.BadArgString(AArg: Integer; AExpected, AGot: TLuaString): TLuaString;
+begin
+  Result := Format(TLuaString('bad argument #%d (%s expected, got %s)'), [AArg, AExpected, AGot]);
+end;
+
+function TLuaStateRec.BadTypeString(AExpected, AGot: TLuaString): TLuaString;
+begin
+  Result := Format(TLuaString('bad type (%s expected, got %s)'), [AExpected, AGot]);
+end;
+
 function TLuaStateRec.Version: Plua_Number;
 begin
   Result := lua_version(@Self);
@@ -869,9 +980,162 @@ begin
   lua_copy(@Self, fromidx, toidx);
 end;
 
+procedure TLuaStateRec.CheckArg(AIndex: Integer; AType: TLuaType);
+begin
+  if &Type(AIndex) <> AType then
+    Error(BadArgString(AIndex, TypeName(AType), TypeNameAt(AIndex)));
+end;
+
+function TLuaStateRec.CheckAny(AIndex: Integer): TLuaType;
+begin
+  Result := &Type(AIndex);
+  if Result = ltNone then
+    Error(BadTypeString('any', 'none'));
+end;
+
+function TLuaStateRec.CheckArg(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean): TLuaType;
+begin
+  Result := &Type(AIndex);
+  if (Result = ltNone) and not ANone or (Result <> ltNone) and not(Result in ATypes) then
+    Error(BadArgString(AIndex, FormatTypes(ATypes), TypeName(Result)));
+end;
+
+function TLuaStateRec.CheckArgAny(AIndex: Integer): TLuaType;
+begin
+  Result := &Type(AIndex);
+  if Result = ltNone then
+    Error(BadArgString(AIndex, 'any', 'none'));
+end;
+
+function TLuaStateRec.CheckArgBoolean(AIndex: Integer): Boolean;
+begin
+  CheckType(AIndex, ltBoolean);
+  Result := ToBoolean(AIndex);
+end;
+
+function TLuaStateRec.CheckArgInteger(AIndex: Integer): TLuaInteger;
+var
+  IsInt: LongBool;
+begin
+  Result := ToIntegerX(@IsInt, AIndex);
+  if not IsInt then
+    Error(BadArgString(AIndex, 'integer', TypeNameAt(AIndex)));
+end;
+
+function TLuaStateRec.CheckArgNumber(AIndex: Integer): TLuaNumber;
+begin
+  CheckArg(AIndex, ltNumber);
+  Result := ToNumber(AIndex);
+end;
+
+function TLuaStateRec.CheckArgOrDefault(AIndex: Integer; ADefault: TLuaInteger): TLuaInteger;
+begin
+  if IsNoneOrNil(AIndex) then
+    Exit(ADefault);
+  Result := CheckArgInteger(AIndex);
+end;
+
+function TLuaStateRec.CheckArgOrDefault(AIndex: Integer; ADefault: Boolean): Boolean;
+begin
+  if IsNoneOrNil(AIndex) then
+    Exit(ADefault);
+  Result := CheckArgBoolean(AIndex);
+end;
+
+function TLuaStateRec.CheckArgOrDefault(AIndex: Integer; ADefault: TLuaString): TLuaString;
+begin
+  if IsNoneOrNil(AIndex) then
+    Exit(ADefault);
+  Result := CheckArgString(AIndex);
+end;
+
+function TLuaStateRec.CheckArgOrDefault(AIndex: Integer; ADefault: TLuaNumber): TLuaNumber;
+begin
+  if IsNoneOrNil(AIndex) then
+    Exit(ADefault);
+  Result := CheckNumber(AIndex);
+end;
+
+function TLuaStateRec.CheckArgString(AIndex: Integer): TLuaString;
+begin
+  CheckArg(AIndex, [ltString, ltNumber]);
+  Result := ToString(AIndex);
+end;
+
+function TLuaStateRec.CheckBoolean(AIndex: Integer): Boolean;
+begin
+  CheckType(AIndex, ltBoolean);
+  Result := ToBoolean(AIndex);
+end;
+
+function TLuaStateRec.CheckInteger(AIndex: Integer): TLuaInteger;
+var
+  IsInt: LongBool;
+begin
+  Result := ToIntegerX(@IsInt, AIndex);
+  if not IsInt then
+    Error(BadTypeString('integer', TypeNameAt(AIndex)));
+end;
+
+function TLuaStateRec.CheckNumber(AIndex: Integer): TLuaNumber;
+var
+  isnum: LongBool;
+begin
+  Result := ToNumberX(@isnum, AIndex);
+  if not isnum then
+    Error(BadTypeString(TypeName(ltNumber), TypeNameAt(AIndex)));
+end;
+
+function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: TLuaInteger): TLuaInteger;
+begin
+  if IsNoneOrNil(AIndex) then
+    Exit(ADefault);
+  Result := CheckInteger(AIndex);
+end;
+
+function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: TLuaString): TLuaString;
+begin
+  if IsNoneOrNil(AIndex) then
+    Exit(ADefault);
+  Result := CheckString(AIndex);
+end;
+
+function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: Boolean): Boolean;
+begin
+  if IsNoneOrNil(AIndex) then
+    Exit(ADefault);
+  Result := CheckBoolean(AIndex);
+end;
+
+function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: TLuaNumber): TLuaNumber;
+begin
+  if IsNoneOrNil(AIndex) then
+    Exit(ADefault);
+  Result := CheckNumber(AIndex);
+end;
+
 function TLuaStateRec.CheckStack(n: Integer): LongBool;
 begin
   Result := lua_checkstack(@Self, n);
+end;
+
+function TLuaStateRec.CheckString(AIndex: Integer): TLuaString;
+begin
+  CheckType(AIndex, [ltString, ltNumber]);
+  Result := ToString(AIndex);
+end;
+
+function TLuaStateRec.CheckType(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean): TLuaType;
+begin
+  Result := &Type(AIndex);
+  if (Result = ltNone) and not ANone or (Result <> ltNone) and not(Result in ATypes) then
+    Error(BadTypeString(FormatTypes(ATypes), TypeName(Result)));
+end;
+
+procedure TLuaStateRec.CheckType(AIndex: Integer; AType: TLuaType);
+begin
+  if &Type(AIndex) <> AType then
+    Error(BadTypeString(TypeName(AType), TypeNameAt(AIndex)));
 end;
 
 procedure TLuaStateRec.XMove(&to: TLuaState; n: Integer);
@@ -926,7 +1190,17 @@ end;
 
 function TLuaStateRec.TypeNameAt(index: Integer): PAnsiChar;
 begin
-  Result := TypeName_X(Type_X(index));
+  if GetMetatable(index) then
+  begin
+    GetField('__name');
+    if IsString then
+      Result := ToString
+    else
+      Result := TypeName_X(Type_X(index));
+    Pop(2);
+  end
+  else
+    Result := TypeName_X(Type_X(index));
 end;
 
 function TLuaStateRec.LoadString(AString: AnsiString; AChunkName: AnsiString): TLuaLoadError;
@@ -998,75 +1272,6 @@ begin
     end;
     Result := Result + '/' + TypeName(T);
   end;
-end;
-
-procedure TLuaStateRec.CheckType(AIndex: Integer; AType: TLuaType);
-var
-  T: TLuaType;
-begin
-  T := &Type(AIndex);
-  if T <> AType then
-    ErrorFmt('arg #%d: %s expected, got %s', [AIndex, TypeName(AType), TypeNameAt(AIndex)]);
-end;
-
-function TLuaStateRec.CheckType(AIndex: Integer; ATypes: TLuaTypes; ANone: Boolean): TLuaType;
-begin
-  Result := &Type(AIndex);
-  if (Result = ltNone) and not ANone or (Result <> ltNone) and not(Result in ATypes) then
-    ErrorFmt('arg #%d: %s expected, got %s', [AIndex, FormatTypes(ATypes, ANone), TypeName(Result)]);
-end;
-
-function TLuaStateRec.CheckAny(AIndex: Integer): TLuaType;
-begin
-  Result := &Type(AIndex);
-  if Result = ltNone then
-    ErrorFmt('arg #%d: argument expected, got %s', [AIndex, TypeName(Result)]);
-end;
-
-procedure TLuaStateRec.CheckEnd(AIndex: Integer);
-begin
-  CheckType(AIndex, ltNone);
-end;
-
-function TLuaStateRec.CheckInteger(AIndex: Integer): TLuaInteger;
-var
-  isnum: LongBool;
-begin
-  Result := ToIntegerX(@isnum, AIndex);
-  if not isnum then
-    ErrorFmt('arg #%d: number must be an integer', [AIndex]);
-end;
-
-function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: TLuaInteger): TLuaInteger;
-begin
-  CheckType(AIndex, [ltNil, ltNumber], True);
-  if IsNoneOrNil(AIndex) then
-    Exit(ADefault);
-  Result := CheckInteger(AIndex);
-end;
-
-function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: TLuaNumber): TLuaNumber;
-begin
-  CheckType(AIndex, [ltNil, ltNumber], True);
-  if IsNoneOrNil(AIndex) then
-    Exit(ADefault);
-  Result := ToNumber(AIndex);
-end;
-
-function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: TLuaString): TLuaString;
-begin
-  CheckType(AIndex, [ltNil, ltString], True);
-  if IsNoneOrNil(AIndex) then
-    Exit(ADefault);
-  Result := ToString_X(AIndex);
-end;
-
-function TLuaStateRec.CheckOrDefault(AIndex: Integer; ADefault: Boolean): Boolean;
-begin
-  CheckType(AIndex, [ltNil, ltBoolean], True);
-  if IsNoneOrNil(AIndex) then
-    Exit(ADefault);
-  Result := ToBoolean(AIndex);
 end;
 
 function TLuaStateRec.ToNumberX(isnum: PLongBool; index: Integer = -1): TLuaNumber;
@@ -1342,6 +1547,15 @@ end;
 function TLuaStateRec.Load(Reader: TLuaReader; Data: Pointer; chunkname, mode: PAnsiChar): TLuaLoadError;
 begin
   Result := TLuaLoadError(Load_X(Reader, Data, chunkname, mode));
+end;
+
+function TLuaStateRec.LoadString(AString: AnsiString): TLuaLoadError;
+var
+  R: TReaderRec;
+begin
+  R.Done := False;
+  R.Data := PAnsiChar(AString);
+  Result := Load(Reader, @R, nil, 't');
 end;
 
 function TLuaStateRec.Dump(writer: lua_Writer; Data: Pointer; strip: Integer): Integer;

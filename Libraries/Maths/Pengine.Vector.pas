@@ -568,9 +568,9 @@ type
     /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: Single): TBounds1;
 
-    /// <returns>THe bounds with all values rounded down.</returns>
+    /// <returns>The bounds with all values rounded down.</returns>
     function Floor: TIntBounds1;
-    /// <returns>THe bounds with all values rounded up.</returns>
+    /// <returns>The bounds with all values rounded up.</returns>
     function Ceil: TIntBounds1;
 
     class operator Add(const A, B: TBounds1): TBounds1;
@@ -735,9 +735,9 @@ type
     /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: TVector2): TBounds2;
 
-    /// <returns>THe bounds with all values rounded down.</returns>
+    /// <returns>The bounds with all values rounded down.</returns>
     function Floor: TIntBounds2;
-    /// <returns>THe bounds with all values rounded up.</returns>
+    /// <returns>The bounds with all values rounded up.</returns>
     function Ceil: TIntBounds2;
 
     class operator Add(const A, B: TBounds2): TBounds2;
@@ -950,9 +950,9 @@ type
     /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: TVector3): TBounds3;
 
-    /// <returns>THe bounds with all values rounded down.</returns>
+    /// <returns>The bounds with all values rounded down.</returns>
     function Floor: TIntBounds3;
-    /// <returns>THe bounds with all values rounded up.</returns>
+    /// <returns>The bounds with all values rounded up.</returns>
     function Ceil: TIntBounds3;
 
     class operator Add(const A, B: TBounds3): TBounds3;

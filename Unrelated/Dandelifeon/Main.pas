@@ -4,7 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, IntegerMaths, GameOfLifeDefine, Vcl.StdCtrls, Math;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Pengine.IntMaths, GameOfLifeDefine, Vcl.StdCtrls, Math;
 
 type
   TfrmMain = class(TForm)
@@ -91,7 +91,7 @@ begin
   SetLength(FSimulation, 1);
   FSimulation[0] := TGameOfLife.Create(IVec2(25, 25));
   DisplayGame := FSimulation[0];
-  FKillZone := Range2(DisplayGame.Size div 2 - 1, DisplayGame.Size div 2 + 2);
+  FKillZone := IBounds2I(DisplayGame.Size div 2 - 1, DisplayGame.Size div 2 + 1);
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
@@ -105,7 +105,7 @@ end;
 
 function TfrmMain.PaintboxToGame(X, Y: Integer): TIntVector2;
 begin
-  Result := Range2(0, 24).EnsureRange(IVec2(X, Y) div 20);
+  Result := IBounds2(0, 24).Clamp(IVec2(X, Y) div 20);
 end;
 
 procedure TfrmMain.pbGameMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -150,7 +150,7 @@ begin
   FBackbuffer.Canvas.Brush.Style := bsSolid;
   FBackbuffer.Canvas.Pen.Style := psSolid;
   FBackbuffer.Canvas.Pen.Color := clBlack;
-  for Pos in Range2(DisplayGame.Size) do
+  for Pos in DisplayGame.Size do
   begin
     if Pos in FKillZone then
     begin
