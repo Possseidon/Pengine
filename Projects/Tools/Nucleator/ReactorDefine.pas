@@ -38,12 +38,10 @@ type
 
     TBlockTypes = set of TBlockType;
 
-    TCoolerType = rbWaterCooler .. rbMagnesiumCooler;
-
     TBlockData = record
-      // Name: string;
       DisplayName: string;
       // Description: string;
+      TextureName: string;
       CoolerValue: Single;
     end;
 
@@ -55,34 +53,81 @@ type
       );
 
     BlockTypes = [Low(TBlockType) .. High(TBlockType)];
-    CoolerTypes = [Low(TCoolerType) .. High(TCoolerType)];
+    BlockTypesNoAir = [rbReactorCell .. High(TBlockType)];
+    CoolerTypes = [rbWaterCooler .. High(TBlockType)];
 
     BlockData: array [TBlockType] of TBlockData = (
       // Air
       (DisplayName: 'Air'),
 
       // Reactor Cell
-      (DisplayName: 'Reactor Cell'),
+      (DisplayName: 'Reactor Cell';
+      TextureName: 'CELL_BLOCK'),
 
       // Moderator Block
-      (DisplayName: 'Moderator Block'),
+      (DisplayName: 'Moderator Block';
+      TextureName: 'INGOT_BLOCK_GRAPHITE'),
 
       // Cooler
-      (DisplayName: 'Water Cooler'; CoolerValue: 20),
-      (DisplayName: 'Redstone Cooler'; CoolerValue: 80),
-      (DisplayName: 'Quartz Cooler'; CoolerValue: 80),
-      (DisplayName: 'Gold Cooler'; CoolerValue: 120),
-      (DisplayName: 'Glowstone Cooler'; CoolerValue: 120),
-      (DisplayName: 'Lapis Cooler'; CoolerValue: 100),
-      (DisplayName: 'Diamond Cooler'; CoolerValue: 120),
-      (DisplayName: 'Liquid Helium Cooler'; CoolerValue: 120),
-      (DisplayName: 'Enderium Cooler'; CoolerValue: 140),
-      (DisplayName: 'Cryotheum Cooler'; CoolerValue: 140),
-      (DisplayName: 'Iron Cooler'; CoolerValue: 60),
-      (DisplayName: 'Emerald Cooler'; CoolerValue: 140),
-      (DisplayName: 'Copper Cooler'; CoolerValue: 60),
-      (DisplayName: 'Tin Cooler'; CoolerValue: 80),
-      (DisplayName: 'Magnesium Cooler'; CoolerValue: 100)
+      (DisplayName: 'Water Cooler';
+      TextureName: 'COOLER_WATER';
+      CoolerValue: 20),
+
+      (DisplayName: 'Redstone Cooler';
+      TextureName: 'COOLER_REDSTONE';
+      CoolerValue: 80),
+
+      (DisplayName: 'Quartz Cooler';
+      TextureName: 'COOLER_QUARTZ';
+      CoolerValue: 80),
+
+      (DisplayName: 'Gold Cooler';
+      TextureName: 'COOLER_GOLD';
+      CoolerValue: 120),
+
+      (DisplayName: 'Glowstone Cooler';
+      TextureName: 'COOLER_GLOWSTONE';
+      CoolerValue: 120),
+
+      (DisplayName: 'Lapis Cooler';
+      TextureName: 'COOLER_LAPIS';
+      CoolerValue: 100),
+
+      (DisplayName: 'Diamond Cooler';
+      TextureName: 'COOLER_DIAMOND';
+      CoolerValue: 120),
+
+      (DisplayName: 'Liquid Helium Cooler';
+      TextureName: 'COOLER_HELIUM';
+      CoolerValue: 120),
+
+      (DisplayName: 'Enderium Cooler';
+      TextureName: 'COOLER_ENDERIUM';
+      CoolerValue: 140),
+
+      (DisplayName: 'Cryotheum Cooler';
+      TextureName: 'COOLER_CRYOTHEUM';
+      CoolerValue: 140),
+
+      (DisplayName: 'Iron Cooler';
+      TextureName: 'COOLER_IRON';
+      CoolerValue: 60),
+
+      (DisplayName: 'Emerald Cooler';
+      TextureName: 'COOLER_EMERALD';
+      CoolerValue: 140),
+
+      (DisplayName: 'Copper Cooler';
+      TextureName: 'COOLER_COPPER';
+      CoolerValue: 60),
+
+      (DisplayName: 'Tin Cooler';
+      TextureName: 'COOLER_TIN';
+      CoolerValue: 80),
+
+      (DisplayName: 'Magnesium Cooler';
+      TextureName: 'COOLER_MAGNESIUM';
+      CoolerValue: 100)
       );
 
     {
@@ -447,6 +492,7 @@ begin
   ResultCellCount := 0;
   ResultEfficiency := 0;
   ResultHeatFactor := 0;
+  ResultCoolingRate := 0;
 
   Size := Self.Size;
   SetLength(Data, Size.X, Size.Y, Size.Z);
@@ -509,7 +555,7 @@ begin
   LockCheck;
   Size := AFrom.Size;
   for Pos in Size do
-    Self[Pos] := AFrom[Pos];
+    FBlocks[Pos.X, Pos.Y, Pos.Z] := AFrom.FBlocks[Pos.X, Pos.Y, Pos.Z];
 
   FCalculated := AFrom.FCalculated;
   FCellCount := AFrom.FCellCount;

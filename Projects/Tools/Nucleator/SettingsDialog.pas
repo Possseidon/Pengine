@@ -439,9 +439,16 @@ end;
 { TDefaultFitnessFunction }
 
 function TDefaultFitnessFunction.Calculate(AReactor: TRatedReactor): Single;
+var
+  HeatFactor: Single;
 begin
   // Result := Max(0, AReactor.PowerGeneration - Power(Max(0, AReactor.NetHeatGeneration), 1.5));
-  Result := AReactor.Efficiency * AReactor.PowerGeneration / (1 + Exp(AReactor.NetHeatGeneration));
+  // Result := AReactor.Efficiency * AReactor.PowerGeneration / (1 + Exp(AReactor.NetHeatGeneration));
+  // Result := AReactor.Efficiency * AReactor.PowerGeneration - AReactor.NetHeatGeneration;
+  HeatFactor := Exp(-Sqr((AReactor.NetHeatGeneration + 0) / 100));
+  if AReactor.NetHeatGeneration > 0 then
+    HeatFactor := HeatFactor * 0.8;
+  Result := AReactor.Efficiency * AReactor.PowerGeneration * HeatFactor;
 end;
 
 class function TDefaultFitnessFunction.GetDisplayName: string;
@@ -466,8 +473,10 @@ var
   I: Integer;
   NewType: TReactor.TBlockType;
 begin
-  AReactor.Assign(ParentGeneration.Reactors[Random(AIndex)]);
-  for I := 1 to 5 * AIndex div Settings.PopulationSize do
+  AReactor.Assign(ParentGeneration.Reactors[Random(AIndex) div 2]);
+  if AIndex = 0 then
+    Exit;
+  for I := 0 to 5 * AIndex div Settings.PopulationSize do
   begin
     NewType := Settings.BlockTypeArray[Random(Settings.BlockTypeArray.Count)];
     AReactor.Blocks[TIntVector3.Random(AReactor.Size)] := NewType;

@@ -95,7 +95,7 @@ type
 
     PData = ^TData;
 
-    TMapping = class abstract
+    TMapping = class abstract(TInterfacedObject)
     private
       FVBO: TVBO<TData>;
       FData: PData;
@@ -112,7 +112,13 @@ type
 
     end;
 
-    TReader = class(TMapping)
+    IReader = interface
+      function GetData(APos: Integer): TData;
+      property Data[APos: Integer]: TData read GetData; default;
+
+    end;
+
+    TReader = class(TMapping, IReader)
     protected
       class function GetBufferAccess: TGLBufferAccess; override;
 
@@ -121,7 +127,22 @@ type
 
     end;
 
-    TWriter = class(TMapping)
+    IWriter = interface
+      function GetPos: Integer;
+      procedure SetPos(const Value: Integer);
+      function GetBuffer(AOffset: Integer): PData;
+      function GetCurrent: PData;
+
+      property Buffer[AOffset: Integer]: PData read GetBuffer; default;
+      property Current: PData read GetCurrent;
+
+      property BufferPos: Integer read GetPos write SetPos;
+      procedure AddToBuffer(AData: TData);
+      procedure NextBufferPos;
+
+    end;
+
+    TWriter = class(TMapping, IWriter)
     public type
 
       TDataArray = array [0 .. 0] of TData;
@@ -131,6 +152,7 @@ type
       FPos: Integer;
       FBufferData: PDataArray;
 
+      function GetPos: Integer;
       procedure SetPos(const Value: Integer);
       function GetBuffer(AOffset: Integer): PData;
       function GetCurrent: PData;
@@ -148,7 +170,7 @@ type
       property Current: PData read GetCurrent;
 
       /// <summary>The current position, where Buffer points to.</summary>
-      property BufferPos: Integer read FPos write SetPos;
+      property BufferPos: Integer read GetPos write SetPos;
       /// <summary>Adds a single data segment and advances the BufferPos.</summary>
       procedure AddToBuffer(AData: TData);
       /// <summary>Simply advances the bufferpos by one.</summary>
@@ -156,6 +178,7 @@ type
 
     end;
 
+    // TODO: New interface "IReadWriter"
     TReadWriter = class(TMapping)
     protected
       class function GetBufferAccess: TGLBufferAccess; override;
@@ -211,7 +234,7 @@ type
     property UsageHint: TGLBufferUsage read FUsageHint;
 
     /// <summary>Map the buffer to make changes to the data. Recommended usage, using the <c>with</c> statement.</summary>
-    function Map: TVBO<TData>.TWriter;
+    function Map: TVBO<TData>.IWriter;
 
   end;
 
@@ -266,7 +289,10 @@ type
 
   TVAO<T: record > = class(TVAO)
   public type
+
     TData = T;
+
+    IWriter = TVBO<T>.IWriter;
 
   private
     function GetVBO: TVBO<T>; inline;
@@ -720,6 +746,11 @@ begin
   Result := @FBufferData[BufferPos];
 end;
 
+function TVBO<TData>.TWriter.GetPos: Integer;
+begin
+  Result := FPos;
+end;
+
 procedure TVBO<TData>.TWriter.NextBufferPos;
 begin
   BufferPos := BufferPos + 1;
@@ -815,7 +846,7 @@ begin
   glBufferData(Ord(btArrayBuffer), AData.Count * GetDataSize, AData.DataPointer, Ord(AUsageHint));
 end;
 
-function TVBOMutable<TData>.Map: TVBO<TData>.TWriter;
+function TVBOMutable<TData>.Map: TVBO<TData>.IWriter;
 begin
   Result := TWriter.Create(Self);
 end;

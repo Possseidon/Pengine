@@ -140,22 +140,19 @@ end;
 
 procedure TSkybox.BuildVAO;
 var
-  Data: TSkyboxVAO.TData;
+  Writer: TSkyboxVAO.IWriter;
   P: TPlane3;
   T: TTexCoord2;
 begin
   FVAO.VBO.Generate(6 * 6, buStaticDraw);
-  with FVAO.VBO.Map do
+  Writer := FVAO.VBO.Map;
+  for P in CubePlanes do
   begin
-    for P in CubePlanes do
+    for T in QuadTexCoords do
     begin
-      for T in QuadTexCoords do
-      begin
-        Data.Pos := P[T.YX] * 2 - 1;
-        AddToBuffer(Data);
-      end;
+      Writer.Current.Pos := P[T.YX] * 2 - 1;
+      Writer.NextBufferPos;
     end;
-    Free;
   end;
 end;
 

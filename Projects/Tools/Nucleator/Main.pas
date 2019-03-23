@@ -3,31 +3,24 @@ unit Main;
 interface
 
 uses
-  Winapi.Windows,
-  Winapi.Messages,
-
-  System.SysUtils,
-  System.Variants,
   System.Classes,
   System.Actions,
   System.Math,
+  System.SysUtils,
 
-  Vcl.Graphics,
-  Vcl.Controls,
-  Vcl.Forms,
-  Vcl.Dialogs,
-  Vcl.ExtCtrls,
-  Vcl.ComCtrls,
-  Vcl.ToolWin,
-  Vcl.ActnList,
+  Vcl.AppEvnts,
   Vcl.Menus,
+  Vcl.ActnList,
+  Vcl.Forms,
   Vcl.StdCtrls,
   Vcl.Samples.Spin,
-  Vcl.WinXCtrls,
+  Vcl.Controls,
+  Vcl.ComCtrls,
+  Vcl.ExtCtrls,
 
   VclTee.TeeGDIPlus,
-  VclTee.TeEngine,
   VclTee.Series,
+  VclTee.TeEngine,
   VclTee.TeeProcs,
   VclTee.Chart,
 
@@ -37,43 +30,27 @@ uses
   Pengine.IntMaths,
   Pengine.Collections,
   Pengine.Utility,
+  Pengine.TimeManager,
 
   SettingsDialog,
   ReactorDefine,
   PreviewFrame,
   ReactorEvolutionDefine;
 
+// Win64 release bug after ~50.000 generations
+// Add more info to help with debugging, why the heat doesn't get calculated correctly anymore
+// Does it happen without Chart?
+
 type
   TfrmMain = class(TForm)
-    frmPreview: TfrmPreview;
-    pnlMain: TPanel;
     alActions: TActionList;
     mmMain: TMainMenu;
     File1: TMenuItem;
     Exit1: TMenuItem;
     View1: TMenuItem;
-    Preview1: TMenuItem;
     actExit: TAction;
-    actPreview: TAction;
-    pmPopulation: TPopupMenu;
-    Inspect1: TMenuItem;
-    InstactAll1: TMenuItem;
     actSingleStep: TAction;
     actOpen: TAction;
-    gbEvolution: TGroupBox;
-    lbGeneration: TLabel;
-    lbWorst: TLabel;
-    lbAverage: TLabel;
-    lbBest: TLabel;
-    lbFitness: TLabel;
-    btnSingleStep: TButton;
-    btnStartStop: TButton;
-    gbPopulation: TGroupBox;
-    lvPopulation: TListView;
-    seGeneration: TSpinEdit;
-    edtFitnessWorst: TEdit;
-    edtFitnessAverage: TEdit;
-    edtFitnessBest: TEdit;
     gbChart: TGroupBox;
     actSave: TAction;
     actNew: TAction;
@@ -84,22 +61,8 @@ type
     Open1: TMenuItem;
     N1: TMenuItem;
     N2: TMenuItem;
-    lbEfficiency: TLabel;
-    edtEfficiencyWorst: TEdit;
-    edtEfficiencyAverage: TEdit;
-    edtEfficiencyBest: TEdit;
-    lbPowerGeneration: TLabel;
-    edtPowerGenerationWorst: TEdit;
-    edtPowerGenerationAverage: TEdit;
-    edtPowerGenerationBest: TEdit;
-    lbNetHeatGeneration: TLabel;
-    edtNetHeatGenerationWorst: TEdit;
-    edtNetHeatGenerationAverage: TEdit;
-    edtNetHeatGenerationBest: TEdit;
-    aiEvolving: TActivityIndicator;
     actCurrentSettings: TAction;
     ShowSettings1: TMenuItem;
-    N3: TMenuItem;
     actStartStop: TAction;
     Evolution1: TMenuItem;
     actSingleStep1: TMenuItem;
@@ -110,25 +73,56 @@ type
     Series2: TFastLineSeries;
     Series3: TFastLineSeries;
     Series4: TPointSeries;
+    aeAppEvents: TApplicationEvents;
+    pnlTop: TPanel;
+    gbEvolution: TGroupBox;
+    lbGeneration: TLabel;
+    lbWorst: TLabel;
+    lbAverage: TLabel;
+    lbBest: TLabel;
+    lbFitness: TLabel;
+    lbEfficiency: TLabel;
+    lbPowerGeneration: TLabel;
+    lbNetHeatGeneration: TLabel;
+    btnSingleStep: TButton;
+    btnStartStop: TButton;
+    gbPopulation: TGroupBox;
+    lvPopulation: TListView;
+    seGeneration: TSpinEdit;
+    edtFitnessWorst: TEdit;
+    edtFitnessAverage: TEdit;
+    edtFitnessBest: TEdit;
+    edtEfficiencyWorst: TEdit;
+    edtEfficiencyAverage: TEdit;
+    edtEfficiencyBest: TEdit;
+    edtPowerGenerationWorst: TEdit;
+    edtPowerGenerationAverage: TEdit;
+    edtPowerGenerationBest: TEdit;
+    edtNetHeatGenerationWorst: TEdit;
+    edtNetHeatGenerationAverage: TEdit;
+    edtNetHeatGenerationBest: TEdit;
+    gb3DPreview: TGroupBox;
+    frmPreview: TfrmPreview;
+    spltChart: TSplitter;
     procedure FormDestroy(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure actExitExecute(Sender: TObject);
     procedure actNewExecute(Sender: TObject);
-    procedure actPreviewExecute(Sender: TObject);
-    procedure actPreviewUpdate(Sender: TObject);
     procedure actSingleStepExecute(Sender: TObject);
     procedure actStartStopExecute(Sender: TObject);
-    procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer; var Resize: Boolean);
+    procedure aeAppEventsIdle(Sender: TObject; var Done: Boolean);
     procedure lvPopulationColumnClick(Sender: TObject; Column: TListColumn);
     procedure lvPopulationCompare(Sender: TObject; Item1, Item2: TListItem; Data: Integer; var Compare: Integer);
+    procedure lvPopulationSelectItem(Sender: TObject; Item: TListItem; Selected: Boolean);
     procedure seGenerationChange(Sender: TObject);
   private
-    FPreviewWidth: Integer;
     FEvolution: TReactorEvolution;
     FSortColumn: Integer;
+    FEvolutionRunning: Boolean;
+    FUpdateTimer: TStopWatch;
+    FLoggedChartValues: Integer;
 
-    procedure UpdateAll;
-    procedure UpdateGeneration;
+    procedure UpdateGeneration(AJumpToLast: Boolean);
     procedure UpdateStats;
     procedure UpdatePopulation;
     procedure UpdateChart;
@@ -171,9 +165,6 @@ procedure TfrmMain.FormCreate(Sender: TObject);
 var
   Settings: IEvolutionSettings;
 begin
-  FPreviewWidth := ClientWidth;
-  ClientWidth := pnlMain.Width;
-
   tcStatistics.Zoom.MouseWheel := pmwNormal;
 
   ClearChartValues;
@@ -184,8 +175,8 @@ begin
   Settings.SetFitnessFunction(TDefaultFitnessFunction);
   FEvolution := TReactorEvolution.Create(Settings);
 
-  UpdateAll;
-
+  UpdateGeneration(True);
+  UpdateChart;
 end;
 
 procedure TfrmMain.actExitExecute(Sender: TObject);
@@ -202,100 +193,98 @@ begin
   begin
     FEvolution.Free;
     FEvolution := TReactorEvolution.Create(Settings);
+    ClearChartValues;
     seGeneration.Value := 1;
-    UpdateAll;
+    UpdateGeneration(True);
+    UpdateChart;
   end;
-end;
-
-procedure TfrmMain.actPreviewExecute(Sender: TObject);
-var
-  Tmp: Integer;
-begin
-  frmPreview.Visible := not frmPreview.Visible;
-  if frmPreview.Visible then
-  begin
-    Tmp := FPreviewWidth;
-    FPreviewWidth := 0;
-    ClientWidth := Tmp;
-  end
-  else
-  begin
-    FPreviewWidth := ClientWidth;
-    ClientWidth := pnlMain.Width;
-  end;
-end;
-
-procedure TfrmMain.actPreviewUpdate(Sender: TObject);
-begin
-  actPreview.Checked := frmPreview.Visible;
 end;
 
 procedure TfrmMain.actSingleStepExecute(Sender: TObject);
 begin
   FEvolution.Evolve;
-  seGeneration.MaxValue := FEvolution.Generations.Count;
-  seGeneration.Value := FEvolution.Generations.Count;
-  UpdateAll;
+  UpdateGeneration(True);
+  UpdateChart;
 end;
 
 procedure TfrmMain.actStartStopExecute(Sender: TObject);
 begin
-  // TODO: Start/Stop
-end;
-
-procedure TfrmMain.ClearChartValues;
-begin
-  tcStatistics.SeriesList.ClearValues;
-end;
-
-function TfrmMain.FormatStat(AValue: Single; Digits: Integer): string;
-begin
-  Result := Format('%.' + Digits.ToString + 'f', [AValue], FormatSettings.Invariant);
-end;
-
-procedure TfrmMain.FormCanResize(Sender: TObject; var NewWidth, NewHeight:
-  Integer; var Resize: Boolean);
-begin
-  if FPreviewWidth <> 0 then
-    NewWidth := pnlMain.Width + Width - ClientWidth;
-  Resize := True;
-end;
-
-procedure TfrmMain.UpdateChart;
-var
-  Generation: TEvolutionGeneration;
-  I: Integer;
-  Stats: TEvolutionGeneration.TStats;
-begin
-  ClearChartValues;
-  I := 1;
-  for Generation in FEvolution.Generations do
+  FEvolutionRunning := not FEvolutionRunning;
+  if FEvolutionRunning then
   begin
-    Stats := Generation.FitnessStats;
-    ChartMinValues.AddXY(I, Stats.Worst);
-    ChartAvgValues.AddXY(I, Stats.Average);
-    ChartMaxValues.AddXY(I, Stats.Best);
-    //for Reactor in Generation.Reactors do
-    //  ChartAllValues.AddXY(I, Reactor.Fitness);
-    Inc(I);
+    actStartStop.Caption := 'Stop';
+    FUpdateTimer.Start;
+  end
+  else
+  begin
+    actStartStop.Caption := 'Start';
+    UpdateGeneration(True);
+    UpdateChart;
   end;
 end;
 
-procedure TfrmMain.UpdateGeneration;
+procedure TfrmMain.aeAppEventsIdle(Sender: TObject; var Done: Boolean);
 begin
-  UpdateStats;
-  UpdatePopulation;
+  Done := not FEvolutionRunning;
+  if Done then
+    Exit;
+
+  FEvolution.Evolve;
+  if FUpdateTimer.Time > 0.25 then
+  begin
+    UpdateGeneration(True);
+    UpdateChart;
+    FUpdateTimer.Start;
+  end;
 end;
 
-procedure TfrmMain.UpdateAll;
-var
-  GenerationCount: Integer;
+procedure TfrmMain.lvPopulationColumnClick(Sender: TObject; Column: TListColumn);
 begin
-  GenerationCount := FEvolution.Generations.Count;
-  seGeneration.MaxValue := GenerationCount;
-  seGeneration.ReadOnly := GenerationCount <= 1;
-  UpdateGeneration;
-  UpdateChart;
+  if FSortColumn = Column.Index + 1 then
+    FSortColumn := -FSortColumn
+  else
+    FSortColumn := Column.Index + 1;
+  lvPopulation.AlphaSort;
+end;
+
+procedure TfrmMain.lvPopulationCompare(Sender: TObject; Item1, Item2: TListItem; Data: Integer; var Compare: Integer);
+var
+  A, B: TRatedReactor;
+  Settings: IEvolutionSettings;
+begin
+  A := TObject(Item1.Data) as TRatedReactor;
+  B := TObject(Item2.Data) as TRatedReactor;
+  Settings := CurrentGeneration.Settings;
+  case Abs(FSortColumn) of
+    1:
+      Compare := Sign(B.Fitness - A.Fitness);
+    2:
+      Compare := Sign(B.Efficiency - A.Efficiency);
+    3:
+      Compare := Sign(B.PowerGeneration - A.PowerGeneration);
+    4:
+      Compare := Sign(A.NetHeatGeneration - B.NetHeatGeneration);
+  end;
+  Compare := Sign(FSortColumn) * Compare;
+end;
+
+procedure TfrmMain.seGenerationChange(Sender: TObject);
+begin
+  UpdateGeneration(False);
+end;
+
+procedure TfrmMain.UpdateGeneration(AJumpToLast: Boolean);
+var
+  Value: Integer;
+begin
+  seGeneration.MaxValue := FEvolution.Generations.Count;
+  if AJumpToLast then
+    seGeneration.Value := FEvolution.Generations.Count;
+  if Integer.TryParse(seGeneration.Text, Value) and InRange(Value, seGeneration.MinValue, seGeneration.MaxValue) then
+  begin
+    UpdateStats;
+    UpdatePopulation;
+  end;
 end;
 
 procedure TfrmMain.UpdateStats;
@@ -350,9 +339,40 @@ begin
   end;
 end;
 
-function TfrmMain.GetChartValues(const Index: Integer): TChartSeries;
+procedure TfrmMain.UpdateChart;
+var
+  Series: TChartSeries;
+  I: Integer;
+  Stats: TEvolutionGeneration.TStats;
 begin
-  Result := tcStatistics.Series[Index];
+  for Series in tcStatistics.SeriesList do
+    Series.BeginUpdate;
+
+  try
+    for I := FLoggedChartValues to FEvolution.Generations.MaxIndex do
+    begin
+      Stats := FEvolution.Generations[I].FitnessStats;
+      ChartMinValues.AddXY(I + 1, Stats.Worst);
+      ChartAvgValues.AddXY(I + 1, Stats.Average);
+      ChartMaxValues.AddXY(I + 1, Stats.Best);
+      // for Reactor in Generation.Reactors do
+      // ChartAllValues.AddXY(I, Reactor.Fitness);
+    end;
+    FLoggedChartValues := FEvolution.Generations.Count;
+
+  finally
+    for Series in tcStatistics.SeriesList do
+      Series.EndUpdate;
+
+    tcStatistics.Invalidate;
+
+  end;
+end;
+
+procedure TfrmMain.ClearChartValues;
+begin
+  FLoggedChartValues := 0;
+  tcStatistics.SeriesList.ClearValues;
 end;
 
 function TfrmMain.GetCurrentGeneration: TEvolutionGeneration;
@@ -360,39 +380,21 @@ begin
   Result := FEvolution.Generations[seGeneration.Value - 1];
 end;
 
-procedure TfrmMain.lvPopulationColumnClick(Sender: TObject; Column: TListColumn);
+function TfrmMain.FormatStat(AValue: Single; Digits: Integer): string;
 begin
-  if FSortColumn = Column.Index + 1 then
-    FSortColumn := -FSortColumn
-  else
-    FSortColumn := Column.Index + 1;
-  lvPopulation.AlphaSort;
+  Result := Format('%.' + Digits.ToString + 'f', [AValue], FormatSettings.Invariant);
 end;
 
-procedure TfrmMain.lvPopulationCompare(Sender: TObject; Item1, Item2: TListItem; Data: Integer; var Compare: Integer);
-var
-  A, B: TRatedReactor;
-  Settings: IEvolutionSettings;
+function TfrmMain.GetChartValues(const Index: Integer): TChartSeries;
 begin
-  A := TObject(Item1.Data) as TRatedReactor;
-  B := TObject(Item2.Data) as TRatedReactor;
-  Settings := CurrentGeneration.Settings;
-  case Abs(FSortColumn) of
-    1:
-      Compare := Sign(B.Fitness - A.Fitness);
-    2:
-      Compare := Sign(B.Efficiency - A.Efficiency);
-    3:
-      Compare := Sign(B.PowerGeneration - A.PowerGeneration);
-    4:
-      Compare := Sign(A.NetHeatGeneration - B.NetHeatGeneration);
-  end;
-  Compare := Sign(FSortColumn) * Compare;
+  Result := tcStatistics.Series[Index];
 end;
 
-procedure TfrmMain.seGenerationChange(Sender: TObject);
+procedure TfrmMain.lvPopulationSelectItem(Sender: TObject; Item: TListItem; Selected: Boolean);
 begin
-  UpdateGeneration;
+  if not Selected then
+    Exit;
+  frmPreview.Reactor := TObject(Item.Data) as TRatedReactor;
 end;
 
 end.

@@ -5,8 +5,8 @@
         <FrameworkType>VCL</FrameworkType>
         <MainSource>Nucleator.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Debug</Config>
-        <Platform Condition="'$(Platform)'==''">Win32</Platform>
+        <Config Condition="'$(Config)'==''">Release</Config>
+        <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Application</AppType>
     </PropertyGroup>
@@ -142,6 +142,102 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="ReactorEvolutionDefine.pas"/>
+        <RcItem Include="Resources\Reactor\cell_block.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>CELL_BLOCK</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_copper.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_COPPER</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_cryotheum.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_CRYOTHEUM</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_diamond.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_DIAMOND</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_emerald.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_EMERALD</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_empty.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_EMPTY</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_enderium.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_ENDERIUM</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_glowstone.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_GLOWSTONE</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_gold.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_GOLD</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_helium.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_HELIUM</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_iron.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_IRON</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_lapis.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_LAPIS</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_magnesium.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_MAGNESIUM</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_quartz.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_QUARTZ</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_redstone.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_REDSTONE</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_tin.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_TIN</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\cooler_water.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>COOLER_WATER</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\fission_block_casing.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>FISSION_BLOCK_CASING</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Reactor\ingot_block_graphite.png">
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>INGOT_BLOCK_GRAPHITE</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Shader\model.fs">
+            <ContainerId>ResourceItem</ContainerId>
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>MODEL_FS</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Shader\model.vs">
+            <ContainerId>ResourceItem</ContainerId>
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>MODEL_VS</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Shader\skybox.fs">
+            <ContainerId>ResourceItem</ContainerId>
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>SKYBOX_FS</ResourceId>
+        </RcItem>
+        <RcItem Include="Resources\Shader\skybox.vs">
+            <ContainerId>ResourceItem</ContainerId>
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>SKYBOX_VS</ResourceId>
+        </RcItem>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -168,9 +264,153 @@
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="3">
+                <DeployFile LocalName="Resources\Reactor\cooler_lapis.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_copper.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_iron.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Shader\skybox.vs" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_magnesium.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_helium.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="Win32\Debug\Nucleator.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>Nucleator.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_emerald.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Win32\Release\Nucleator.exe" Configuration="Release" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>Nucleator.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_diamond.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_redstone.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_water.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Shader\skybox.fs" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\ingot_block_graphite.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_empty.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_cryotheum.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Shader\model.vs" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\fission_block_casing.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Shader\model.fs" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_quartz.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cell_block.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_glowstone.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_tin.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_enderium.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Resources\Reactor\cooler_gold.png" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

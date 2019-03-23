@@ -97,10 +97,10 @@ type
 
     THandlerRec = record
       case Info: Boolean of
-        True:
-          (HandlerInfo: THandler);
         False:
           (Handler: TEvent.THandler);
+        True:
+          (HandlerInfo: THandler);
     end;
 
     TAccess = record
@@ -432,9 +432,9 @@ begin
         if TMethod(Handler.Handler).Data = nil then
         begin
           if Handler.Info then
-            THandlerStatic(Handler.Handler)(AInfo)
+            THandlerStatic(TMethod(Handler.Handler).Code)(AInfo)
           else
-            TEvent.THandlerStatic(Handler.Handler)();
+            TEvent.THandlerStatic(TMethod(Handler.Handler).Code);
         end
         else
         begin

@@ -18,7 +18,7 @@ type
 
   /// <summary>Describes one of the three axes: <c>caX, caY, caZ</c> and also contains <c>caNone</c> to specify no axis.</summary>
   TCoordAxis = (
-    caNone = -1,
+    caNone,
     caX,
     caY,
     caZ

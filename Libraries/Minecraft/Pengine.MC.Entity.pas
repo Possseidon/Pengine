@@ -120,7 +120,7 @@ type
   TEntityImmobile = etAreaEffectCloud .. etEndCrystal;
   TEntityProjectile = etEgg .. etLlamaSpit;
   TEntityBlock = etTNT .. etFallingBlock;
-  TEntityVechicle = etBoat .. etCommandblockMinecart;
+  TEntityVehicle = etBoat .. etCommandblockMinecart;
   TEntityHostile = etElderGuardian .. etShulker;
   TEntityPassive = etSkeletonHorse .. etVillager;
   TEntityOther = etLightningBolt .. etLightningBolt;

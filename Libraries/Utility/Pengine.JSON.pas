@@ -1,11 +1,14 @@
 unit Pengine.JSON;
 
+{$POINTERMATH ON}
+
 interface
 
 uses
   System.SysUtils,
   System.Math,
   System.IOUtils,
+  System.TypInfo,
 
   Pengine.IntMaths,
   Pengine.Collections,
@@ -17,8 +20,6 @@ uses
   Pengine.Utility;
 
 type
-
-  // TODO: Change JSON-Formatter to use an interface, similarly as to how I want to do TParser now.
 
   EJSONError = class(Exception);
 
@@ -936,17 +937,39 @@ type
     class function Serialize(AObject: IJSerializable; AVersion: Integer = -1): TJObject;
     class procedure Unserialize(AObject: IJSerializable; AValue: TJObject);
 
+    // Normal Values
     procedure Define(AName: string; var ANumber: Int64); overload;
     procedure Define(AName: string; var ANumber: Integer); overload;
     procedure Define(AName: string; var ANumber: Single); overload;
     procedure Define(AName: string; var ANumber: Double); overload;
     procedure Define(AName: string; var AText: string); overload;
     procedure Define(AName: string; var AValue: Boolean); overload;
+
+    // Serializable Objects
     procedure Define(AName: string; AObject: IJSerializable; AVersion: Integer = -1); overload;
     procedure Define(AName: string; ASerializer: TJArraySerializer); overload;
     procedure Define(AName: string; ASerializer: TJArrayRefSerializer); overload;
+
+    // Arrays
+    procedure DefineArray(AName: string; AArray: TArray<Integer>); overload;
+    procedure DefineArray(AName: string; AArray: TArray<Int64>); overload;
+    procedure DefineArray(AName: string; AArray: TArray<Single>); overload;
+    procedure DefineArray(AName: string; AArray: TArray<Double>); overload;
+    procedure DefineArray(AName: string; AArray: TArray<string>); overload;
+
+    // Arrays of Serializable
     procedure DefineArray<T: constructor, IJSerializable>(AName: string; AArray: TArray<T>); overload;
     procedure DefineArray<T: IJSerializable>(AName: string; AArray: TArray<T>; AInstantiator: TFunc<T>); overload;
+
+    // Enum
+    procedure DefineEnum<T: record >(AName: string; var AEnum: T; AEnumToName: TFunc<T, string>;
+      ANameToEnum: TFunc<string, T>); overload;
+    procedure DefineEnum<T: record; N>(AName: string; var AEnum: T; const ANames: N); overload;
+
+    // Set
+    procedure DefineSet<T>(AName: string; var ASet: T; AEnumToName: TFunc<Byte, string>;
+      ANameToEnum: TFunc<string, Byte>); overload;
+    procedure DefineSet<T; N>(AName: string; var ASet: T; const ANames: N); overload;
 
     property Mode: TMode read FMode;
     function IsStoring: Boolean;
@@ -3088,6 +3111,116 @@ begin
   end;
 end;
 
+procedure TJSerializer.DefineArray(AName: string; AArray: TArray<Integer>);
+var
+  JArray: TJArray;
+  JValue: TJValue;
+  Item: Integer;
+begin
+  case Mode of
+    smSerialize:
+      begin
+        JArray := Value.AddArray(AName);
+        for Item in AArray do
+          JArray.Add(Item);
+      end;
+    smUnserialize:
+      begin
+        AArray.Clear;
+        for JValue in Value[AName].AsArray do
+          AArray.Add(JValue);
+      end;
+  end;
+end;
+
+procedure TJSerializer.DefineArray(AName: string; AArray: TArray<Int64>);
+var
+  JArray: TJArray;
+  JValue: TJValue;
+  Item: Int64;
+begin
+  case Mode of
+    smSerialize:
+      begin
+        JArray := Value.AddArray(AName);
+        for Item in AArray do
+          JArray.Add(Item);
+      end;
+    smUnserialize:
+      begin
+        AArray.Clear;
+        for JValue in Value[AName].AsArray do
+          AArray.Add(JValue);
+      end;
+  end;
+end;
+
+procedure TJSerializer.DefineArray(AName: string; AArray: TArray<Single>);
+var
+  JArray: TJArray;
+  JValue: TJValue;
+  Item: Single;
+begin
+  case Mode of
+    smSerialize:
+      begin
+        JArray := Value.AddArray(AName);
+        for Item in AArray do
+          JArray.Add(Item);
+      end;
+    smUnserialize:
+      begin
+        AArray.Clear;
+        for JValue in Value[AName].AsArray do
+          AArray.Add(JValue);
+      end;
+  end;
+end;
+
+procedure TJSerializer.DefineArray(AName: string; AArray: TArray<Double>);
+var
+  JArray: TJArray;
+  JValue: TJValue;
+  Item: Double;
+begin
+  case Mode of
+    smSerialize:
+      begin
+        JArray := Value.AddArray(AName);
+        for Item in AArray do
+          JArray.Add(Item);
+      end;
+    smUnserialize:
+      begin
+        AArray.Clear;
+        for JValue in Value[AName].AsArray do
+          AArray.Add(JValue);
+      end;
+  end;
+end;
+
+procedure TJSerializer.DefineArray(AName: string; AArray: TArray<string>);
+var
+  JArray: TJArray;
+  JValue: TJValue;
+  Item: string;
+begin
+  case Mode of
+    smSerialize:
+      begin
+        JArray := Value.AddArray(AName);
+        for Item in AArray do
+          JArray.Add(Item);
+      end;
+    smUnserialize:
+      begin
+        AArray.Clear;
+        for JValue in Value[AName].AsArray do
+          AArray.Add(JValue);
+      end;
+  end;
+end;
+
 procedure TJSerializer.DefineArray<T>(AName: string; AArray: TArray<T>; AInstantiator: TFunc<T>);
 var
   JArray: TJArray;
@@ -3110,6 +3243,146 @@ begin
           Item := AInstantiator;
           TJSerializer.Unserialize(Item, JItem);
           AArray.Add(Item);
+        end;
+      end;
+  end;
+end;
+
+procedure TJSerializer.DefineEnum<T, N>(AName: string; var AEnum: T; const ANames: N);
+var
+  Names: PString;
+begin
+  if GetTypeKind(T) <> tkEnumeration then
+    raise Exception.Create('Enumeration type expected.');
+  if (GetTypeKind(N) <> tkArray) or
+    (GetTypeData(TypeInfo(N)).ArrayData.ElType^ <> TypeInfo(string)) then
+    raise Exception.Create('Static array of string expected.');
+
+  Names := @ANames;
+  DefineEnum<T>(AName, AEnum,
+    function(AEnum: T): string
+    var
+      Index: Integer;
+    begin
+      case SizeOf(T) of
+        1:
+          Index := PByte(@AEnum)^;
+        2:
+          Index := PWord(@AEnum)^;
+        4:
+          Index := PInteger(@AEnum)^;
+      end;
+
+      Result := Names[Index];
+    end,
+    function(AName: string): T
+    var
+      Index: Integer;
+      Found: Boolean;
+    begin
+      Found := False;
+      for Index := GetTypeData(TypeInfo(T)).MinValue to GetTypeData(TypeInfo(T)).MaxValue do
+      begin
+        if AName = Names[Index] then
+        begin
+          Found := True;
+          Break;
+        end;
+      end;
+
+      if not Found then
+        raise EJSONError.Create('Invalid enum value.');
+
+      case SizeOf(T) of
+        1:
+          PByte(@Result)^ := Index;
+        2:
+          PWord(@Result)^ := Index;
+        4:
+          PInteger(@Result)^ := Index;
+      end;
+    end
+    );
+end;
+
+procedure TJSerializer.DefineEnum<T>(AName: string; var AEnum: T; AEnumToName: TFunc<T, string>;
+ANameToEnum: TFunc<string, T>);
+var
+  EnumValue: Integer;
+begin
+  if GetTypeKind(T) <> tkEnumeration then
+    raise Exception.Create('Enumeration type expected.');
+
+  case Mode of
+    smSerialize:
+      Value[AName] := AEnumToName(AEnum);
+    smUnserialize:
+      AEnum := ANameToEnum(Value[AName]);
+  end;
+end;
+
+procedure TJSerializer.DefineSet<T, N>(AName: string; var ASet: T; const ANames: N);
+var
+  Names: PString;
+  EnumType: PTypeInfo;
+begin
+  if GetTypeKind(T) <> tkSet then
+    raise Exception.Create('Set type expected.');
+  if (GetTypeKind(N) <> tkArray) or
+    (GetTypeData(TypeInfo(N)).ArrayData.ElType^ <> TypeInfo(string)) then
+    raise Exception.Create('Static array of string expected.');
+
+  EnumType := GetTypeData(TypeInfo(T)).CompType^;
+
+  Names := @ANames;
+  DefineSet(AName, ASet,
+    function(AEnum: Byte): string
+    begin
+      Result := Names[AEnum];
+    end,
+    function(AName: string): Byte
+    begin
+      for Result := GetTypeData(EnumType).MinValue to GetTypeData(EnumType).MaxValue do
+        if AName = Names[Result] then
+          Exit;
+      raise EJSONError.Create('Invalid set value.');
+    end
+    );
+end;
+
+procedure TJSerializer.DefineSet<T>(AName: string; var ASet: T; AEnumToName: TFunc<Byte, string>;
+ANameToEnum: TFunc<string, Byte>);
+var
+  JArray: TJArray;
+  EnumType: PTypeInfo;
+  B, SetOffset: Byte;
+  JValue: TJValue;
+begin
+  if GetTypeKind(T) <> tkSet then
+    raise Exception.Create('Set type expected.');
+
+  EnumType := GetTypeData(TypeInfo(T)).CompType^;
+
+  // A set of a subrange will remove empty bytes at the start
+  // Example: 10 .. 12 will not have 0 .. 9 be empty, but offset everything to omit 0 .. 7
+  SetOffset := GetTypeData(EnumType).MinValue div 8;
+
+  case Mode of
+    smSerialize:
+      begin
+        JArray := Value.AddArray(AName);
+        for B := GetTypeData(EnumType).MinValue to GetTypeData(EnumType).MaxValue do
+        begin
+          if PByte(@ASet)[B div 8 - SetOffset] shr (B mod 8) and 1 = 1 then
+            JArray.Add(AEnumToName(B));
+        end;
+      end;
+    smUnserialize:
+      begin
+        for JValue in Value[AName].AsArray do
+        begin
+          B := ANameToEnum(JValue);
+          PByte(@ASet)[B div 8 - SetOffset] := PByte(@ASet)[B div 8 - SetOffset] or (1 shl (B mod 8));
         end;
       end;
   end;
