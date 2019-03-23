@@ -3,7 +3,8 @@ unit Pengine.EventHandling;
 interface
 
 uses
-  System.SysUtils;
+  System.SysUtils,
+  Pengine.Interfaces;
 
 type
 
@@ -27,15 +28,14 @@ type
     procedure Cancel;
   end;
 
-  TEventInfo = class(TInterfacedObject)
+  TEventInfo = class(TInterfaceBase)
   end;
 
   TEvent = record
   public type
 
-    THandlerStatic = procedure;
-
     THandler = procedure of object;
+    THandlerStatic = procedure;
 
     TAccess = record
     private
@@ -44,11 +44,11 @@ type
       function Find(AHandler: THandler): Integer; inline;
 
     public
-      /// <summary>Adds a new static event-handler to the list.</summary>
+      /// <summary>Adds a new event-handler to the list.</summary>
       procedure Add(AHandler: THandlerStatic); overload; inline;
       /// <summary>Adds a new event-handler to the list.</summary>
       procedure Add(AHandler: THandler); overload;
-      /// <summary>Removes a static event-handler from the list.</summary>
+      /// <summary>Removes an event-handler from the list.</summary>
       procedure Remove(AHandler: THandlerStatic); overload; inline;
       /// <summary>Removes an event-handler from the list.</summary>
       procedure Remove(AHandler: THandler); overload;
@@ -68,7 +68,7 @@ type
     function Access: TAccess; inline;
 
     /// <summary>Execute each event handler.</summary>
-    procedure Execute; overload; inline;
+    procedure Execute;
 
     /// <summary>Disable the execution of all event handlers.</summary>
     /// <remarks>Calling disable multiple times, prevent the execution until enable has been called for the same amount
@@ -92,15 +92,14 @@ type
   TEvent<T: TEventInfo> = record
   public type
 
-    THandlerStatic = procedure(AInfo: T);
-
     THandler = procedure(AInfo: T) of object;
+    THandlerStatic = procedure(AInfo: T);
 
     THandlerRec = record
       case Info: Boolean of
-        False:
-          (HandlerInfo: THandler);
         True:
+          (HandlerInfo: THandler);
+        False:
           (Handler: TEvent.THandler);
     end;
 
@@ -111,19 +110,19 @@ type
       function Find(AHandler: THandler): Integer; inline;
 
     public
-      /// <summary>Adds a new static event-handler to the list.</summary>
+      /// <summary>Adds a new event-handler to the list.</summary>
       procedure Add(AHandler: THandlerStatic); overload; inline;
       /// <summary>Adds a new event-handler to the list.</summary>
       procedure Add(AHandler: THandler); overload;
-      /// <summary>Adds a new static event-handler without info to the list.</summary>
+      /// <summary>Adds a new event-handler without info to the list.</summary>
       procedure Add(AHandler: TEvent.THandlerStatic); overload; inline;
       /// <summary>Adds a new event-handler without info to the list.</summary>
       procedure Add(AHandler: TEvent.THandler); overload;
-      /// <summary>Removes a static event-handler from the list.</summary>
+      /// <summary>Removes an event-handler from the list.</summary>
       procedure Remove(AHandler: THandlerStatic); overload; inline;
       /// <summary>Removes an event-handler from the list.</summary>
       procedure Remove(AHandler: THandler); overload;
-      /// <summary>Removes a static event-handler without info from the list.</summary>
+      /// <summary>Removes an event-handler without info from the list.</summary>
       procedure Remove(AHandler: TEvent.THandlerStatic); overload; inline;
       /// <summary>Removes an event-handler without info from the list.</summary>
       procedure Remove(AHandler: TEvent.THandler); overload;
@@ -143,7 +142,7 @@ type
     function Access: TAccess;
 
     /// <summary>Execute each event handler with the given event-info object.</summary>
-    procedure Execute(AInfo: T; AFreeInfo: Boolean = True); inline;
+    procedure Execute(AInfo: T; AFreeInfo: Boolean = True);
 
     /// <summary>Disable the execution of all event handlers.</summary>
     /// <remarks>Calling disable multiple times, prevent the execution until enable has been called for the same amount
@@ -214,8 +213,7 @@ begin
   for Result := Length(TEvent(FEvent^).Handlers) - 1 downto 0 do
   begin
     Method := TMethod(TEvent(FEvent^).Handlers[Result]);
-    if (Method.Code = FindMethod.Code) and
-      ((Method.Data = FindMethod.Data) or (Method.Data = nil)) then
+    if (Method.Code = FindMethod.Code) and (Method.Data = FindMethod.Data) then
       Exit;
   end;
   Result := -1;
@@ -422,7 +420,7 @@ begin
   Result := Handlers <> nil;
 end;
 
-procedure TEvent<T>.Execute(AInfo: T; AFreeInfo: Boolean = True);
+procedure TEvent<T>.Execute(AInfo: T; AFreeInfo: Boolean);
 var
   Handler: THandlerRec;
 begin
@@ -431,17 +429,17 @@ begin
     begin
       for Handler in Handlers do
       begin
-        if Handler.Info then
+        if TMethod(Handler.Handler).Data = nil then
         begin
-          if TMethod(Handler.Handler).Data = nil then
-            THandlerStatic(TMethod(Handler.HandlerInfo).Code)(AInfo)
+          if Handler.Info then
+            THandlerStatic(Handler.Handler)(AInfo)
           else
-            Handler.HandlerInfo(AInfo);
+            TEvent.THandlerStatic(Handler.Handler)();
         end
         else
         begin
-          if TMethod(Handler.Handler).Data = nil then
-            TEvent.THandlerStatic(TMethod(Handler.Handler).Code)
+          if Handler.Info then
+            Handler.HandlerInfo(AInfo)
           else
             Handler.Handler;
         end;

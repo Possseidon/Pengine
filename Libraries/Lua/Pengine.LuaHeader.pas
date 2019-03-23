@@ -375,7 +375,8 @@ type
     // get functions (Lua -> stack)
     function GetGlobal_X(name: PAnsiChar): Integer; inline;
     function GetGlobal(name: PAnsiChar): TLuaType; inline;
-    function GetTable(index: Integer): Integer; inline;
+    function GetTable_X(index: Integer): Integer; inline;
+    function GetTable(index: Integer): TLuaType; inline;
     function GetField_X(k: PAnsiChar; index: Integer = -1): Integer; inline;
     function GetField(k: PAnsiChar; index: Integer = -1): TLuaType; inline;
     function GetI_X(i: lua_Integer; index: Integer = -1): Integer; inline;
@@ -387,7 +388,8 @@ type
     procedure CreateTable(narr, nrec: Integer); inline;
     function NewUserdata(size: NativeUInt): Pointer; inline;
     function GetMetatable(index: Integer = -1): LongBool; inline;
-    function GetUservalue(index: Integer = -1): Integer; inline;
+    function GetUservalue_X(index: Integer = -1): Integer; inline;
+    function GetUservalue(index: Integer = -1): TLuaType; inline;
 
     // set functions (stack -> Lua)
     procedure SetGlobal(name: PAnsiChar); inline;
@@ -490,7 +492,9 @@ type
     // --- Custom Functions ---
 
     property Top: Integer read GetTop write SetTop;
-    function TypeNameAt(index: Integer = -1): PAnsiChar; inline;
+    function TypeNameAt(index: Integer = -1): PAnsiChar;
+    procedure SetName(AName: AnsiString; index: Integer = -1);
+    procedure SetNameDebug(AName: AnsiString; index: Integer = -1); inline;
 
     function LoadString(AString: AnsiString; AChunkName: AnsiString): TLuaLoadError; overload;
     function LoadString(AString: AnsiString): TLuaLoadError; overload;
@@ -1404,7 +1408,12 @@ begin
   Result := lua_getglobal(@Self, name);
 end;
 
-function TLuaStateRec.GetTable(index: Integer): Integer;
+function TLuaStateRec.GetTable(index: Integer): TLuaType;
+begin
+  Result := TLuaType(GetTable_X(index));
+end;
+
+function TLuaStateRec.GetTable_X(index: Integer): Integer;
 begin
   Result := lua_gettable(@Self, index);
 end;
@@ -1459,7 +1468,12 @@ begin
   Result := lua_getmetatable(@Self, index);
 end;
 
-function TLuaStateRec.GetUservalue(index: Integer): Integer;
+function TLuaStateRec.GetUservalue(index: Integer): TLuaType;
+begin
+  Result := TLuaType(GetUservalue_X(index));
+end;
+
+function TLuaStateRec.GetUservalue_X(index: Integer): Integer;
 begin
   Result := lua_getuservalue(@Self, index);
 end;
@@ -1502,6 +1516,23 @@ end;
 procedure TLuaStateRec.SetMetatable(index: Integer);
 begin
   lua_setmetatable(@Self, index);
+end;
+
+procedure TLuaStateRec.SetName(AName: AnsiString; index: Integer);
+begin
+  index := AbsIndex(index);
+  if not GetMetatable(index) then
+    NewTable;
+  PushString(AName);
+  SetField('__name', -2);
+  SetMetatable(index);
+end;
+
+procedure TLuaStateRec.SetNameDebug(AName: AnsiString; index: Integer);
+begin
+{$IFDEF DEBUG}
+  SetName(AName, index);
+{$ENDIF}
 end;
 
 procedure TLuaStateRec.SetUservalue(index: Integer);
@@ -1827,13 +1858,13 @@ begin
             Call(1, 1);
           end
           else
-            PushFString('%s: %p', [TypeName(T), ToPointer(index)]);
+            PushFString('%s: %p', [TypeNameAt(index), ToPointer(index)]);
         end
         else
-          PushFString('%s: %p', [TypeName(T), ToPointer(index)]);
+          PushFString('%s: %p', [TypeNameAt(index), ToPointer(index)]);
       end;
     ltFunction, ltThread:
-      PushFString('%s: %p', [TypeName(T), ToPointer(index)]);
+      PushFString('%s: %p', [TypeNameAt(index), ToPointer(index)]);
   else
     Exit(ToString_X(index));
   end;

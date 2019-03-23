@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{965B3A46-16B8-4356-95DF-33DEDD1A5B46}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="LuaVisualizer.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="LuaVisualizerTest.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="LuaVisualizer">
+        <MSBuild Projects="LuaVisualizer.dproj"/>
+    </Target>
+    <Target Name="LuaVisualizer:Clean">
+        <MSBuild Projects="LuaVisualizer.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="LuaVisualizer:Make">
+        <MSBuild Projects="LuaVisualizer.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="LuaVisualizerTest">
+        <MSBuild Projects="LuaVisualizerTest.dproj"/>
+    </Target>
+    <Target Name="LuaVisualizerTest:Clean">
+        <MSBuild Projects="LuaVisualizerTest.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="LuaVisualizerTest:Make">
+        <MSBuild Projects="LuaVisualizerTest.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="LuaVisualizer;LuaVisualizerTest"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="LuaVisualizer:Clean;LuaVisualizerTest:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="LuaVisualizer:Make;LuaVisualizerTest:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

@@ -16,10 +16,10 @@ uses
   Pengine.LuaDefaultLibs,
   Pengine.LuaHeader,
   Pengine.LuaWrapper,
-  Pengine.Vector;
+  Pengine.Vector,
+  Pengine.EventHandling;
 
 type
-
   TLuaVector3 = class(TLuaWrapper<TVector3>)
   public
     class function RecordName: AnsiString; override;
@@ -43,11 +43,27 @@ type
   end;
 
   TLuaLocation3 = class(TLuaWrapper<TLocation3>)
+  public type
+
+    TLuaChangeEvent = class(TLuaWrapper<TLocation3.TChangeEvent.TAccess>)
+    private
+      procedure Change(AInfo: TLocation3.TChangeEventInfo);
+
+    published
+      class function Lua_add(L: TLuaState): Integer; static; cdecl;
+
+    end;
+
   published
     class function Lua_reset(L: TLuaState): Integer; static; cdecl;
 
-    class function __index(L: TLuaState): Integer; static; cdecl;
-    class function __newindex(L: TLuaState): Integer; static; cdecl;
+    // class function __index(L: TLuaState): Integer; static; cdecl;
+    // class function __newindex(L: TLuaState): Integer; static; cdecl;
+
+    class function LuaGet_pos(L: TLuaState): Integer; static; cdecl;
+    class function LuaSet_pos(L: TLuaState): Integer; static; cdecl;
+
+    class function LuaGet_onChange(L: TLuaState): Integer; static; cdecl;
 
   end;
 
@@ -223,43 +239,49 @@ end;
 
 { TLuaLocation3 }
 
+class function TLuaLocation3.LuaGet_onChange(L: TLuaState): Integer;
+begin
+  TLuaChangeEvent.Push(L, Check(L).OnChanged);
+  Result := 1;
+end;
+
+class function TLuaLocation3.LuaGet_pos(L: TLuaState): Integer;
+begin
+  TLuaVector3.Push(L, Check(L).Pos);
+  Result := 1;
+end;
+
+class function TLuaLocation3.LuaSet_pos(L: TLuaState): Integer;
+begin
+  Check(L).Pos := TLuaVector3.Check(L, 2)^;
+  Result := 0;
+end;
+
 class function TLuaLocation3.Lua_reset(L: TLuaState): Integer;
 begin
   CheckArg(L).Reset;
   Result := 0;
 end;
 
-class function TLuaLocation3.__index(L: TLuaState): Integer;
-var
-  Location: PData;
-  Index: AnsiString;
-begin
-  Location := CheckArg(L);
-  Index := L.CheckArgString(2);
-  if Index = 'pos' then
-    TLuaVector3.Push(L, Location.Pos)
-  else
-    Exit(0);
-  Result := 1;
-end;
-
-class function TLuaLocation3.__newindex(L: TLuaState): Integer;
-var
-  Location: PData;
-  Index: AnsiString;
-begin
-  Location := CheckArg(L);
-  Index := L.CheckArgString(2);
-  if Index = 'pos' then
-    Location.Pos := TLuaVector3.Check(L, 3)^
-  else
-    L.Error('invalid property');
-  Result := 0;
-end;
-
 var
   Lua: TLua;
   Code: string;
+
+  { TLuaLocation3.TLuaChangeEvent }
+
+procedure TLuaLocation3.TLuaChangeEvent.Change(AInfo: TLocation3.TChangeEventInfo);
+begin
+
+end;
+
+class function TLuaLocation3.TLuaChangeEvent.Lua_add(L: TLuaState): Integer;
+var
+  Data: PData;
+begin
+  Data := Check(L);
+
+  Result := 0;
+end;
 
 begin
   ReportMemoryLeaksOnShutdown := True;
