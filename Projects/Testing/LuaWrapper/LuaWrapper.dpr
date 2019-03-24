@@ -45,10 +45,21 @@ type
   TLuaLocation3 = class(TLuaWrapper<TLocation3>)
   public type
 
-    TLuaChangeEvent = class(TLuaWrapper<TLocation3.TChangeEvent.TAccess>)
+    TFunctionWrapper = class
     private
-      procedure Change(AInfo: TLocation3.TChangeEventInfo);
+      FL: TLuaState;
+      FFunction: Pointer;
 
+    public
+      constructor Create(AL: TLuaState);
+
+      procedure Call(AInfo: TLocation3.TChangeEventInfo);
+
+      property L: TLuaState read FL;
+
+    end;
+
+    TLuaChangeEvent = class(TLuaWrapper<TLocation3.TChangeEvent.TAccess>)
     published
       class function Lua_add(L: TLuaState): Integer; static; cdecl;
 
@@ -263,25 +274,37 @@ begin
   Result := 0;
 end;
 
-var
-  Lua: TLua;
-  Code: string;
-
-  { TLuaLocation3.TLuaChangeEvent }
-
-procedure TLuaLocation3.TLuaChangeEvent.Change(AInfo: TLocation3.TChangeEventInfo);
-begin
-
-end;
+{ TLuaLocation3.TLuaChangeEvent }
 
 class function TLuaLocation3.TLuaChangeEvent.Lua_add(L: TLuaState): Integer;
 var
   Data: PData;
+  Wrapper: TFunctionWrapper;
 begin
   Data := Check(L);
-
+  L.CheckArg(2, ltFunction);
+  Wrapper := TFunctionWrapper.Create(L);
+  Data.Add(Wrapper.Call);
   Result := 0;
 end;
+
+{ TLuaLocation3.TFunctionWrapper }
+
+procedure TLuaLocation3.TFunctionWrapper.Call(AInfo: TLocation3.TChangeEventInfo);
+begin
+  // TODO: Push Function
+  TLuaLocation3.Push(L, AInfo.Sender);
+  L.Call(1, 0);
+end;
+
+constructor TLuaLocation3.TFunctionWrapper.Create(AL: TLuaState);
+begin
+  FL := AL;
+end;
+
+var
+  Lua: TLua;
+  Code: string;
 
 begin
   ReportMemoryLeaksOnShutdown := True;
