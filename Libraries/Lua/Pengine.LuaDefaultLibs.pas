@@ -267,7 +267,7 @@ begin
       Exit(-I);
     Exit(max(L.Top - I, 0));
   end;
-  if L.tostring[1] = '#' then
+  if L.ToString(1)[0] = '#' then
   begin
     L.PushInteger(L.Top - 1);
     Exit(1);

@@ -7,11 +7,28 @@ uses
   System.TypInfo,
   System.SysUtils,
 
-  Pengine.LuaHeader;
+  Pengine.LuaHeader,
+  Pengine.EventHandling;
 
 type
 
-  TLuaWrapper<T> = class
+  TLuaWrapperClass = class of TLuaWrapper;
+
+  TLuaWrapper = class
+  private
+    class procedure PushParamsX(L: TLuaState; AInfo: TObject); virtual; abstract;
+
+  public
+    class procedure PushX(L: TLuaState; AValue: Pointer); virtual; abstract;
+
+    class function CheckX(L: TLuaState; AIndex: Integer): Pointer; virtual; abstract;
+    class function CheckArgX(L: TLuaState; AIndex: Integer): Pointer; virtual; abstract;
+
+    class function RecordName: AnsiString; virtual; abstract;
+
+  end;
+
+  TLuaWrapper<T> = class(TLuaWrapper)
   public type
 
     PData = ^T;
@@ -21,16 +38,53 @@ type
     class function NewIndex(L: TLuaState): Integer; static; cdecl;
 
   protected
-    class function TryConvertType(L: TLuaState; out AData: PData; AIndex: Integer = 1): Boolean; virtual;
+    class function TryConvertType(L: TLuaState; out AData: PData; AIndex: Integer): Boolean; virtual;
 
   public
+    class procedure PushX(L: TLuaState; AValue: Pointer); override;
     class procedure Push(L: TLuaState; AValue: T);
 
-    class function Check(L: TLuaState; AIndex: Integer = 1): PData;
-    class function CheckArg(L: TLuaState; AIndex: Integer = 1): PData;
-    class function RecordName: AnsiString; virtual;
+    class function CheckX(L: TLuaState; AIndex: Integer): Pointer; override;
+    class function CheckArgX(L: TLuaState; AIndex: Integer): Pointer; override;
+    class function Check(L: TLuaState; AIndex: Integer): PData;
+    class function CheckArg(L: TLuaState; AIndex: Integer): PData;
+
+    class function RecordName: AnsiString; override;
 
   end;
+
+{$M+}
+
+  TLuaEvent<TAccess: record; TInfo: TEventInfo> = class(TLuaWrapper<TAccess>)
+  private type
+
+    TPushParamsFunc = procedure(L: TLuaState; AInfo: TObject) of object;
+
+    PFunctionWrapper = ^TFunctionWrapper;
+
+    TFunctionWrapper = record
+    public
+      L: TLuaState;
+      PushParamsFunc: TPushParamsFunc;
+
+      class function Remove(L: TLuaState): Integer; static; cdecl;
+
+      procedure Call(AInfo: TInfo);
+
+    end;
+
+    class procedure PushParamsX(L: TLuaState; AInfo: TObject); override;
+
+  protected
+    class procedure PushParams(L: TLuaState; AInfo: TInfo); virtual; abstract;
+
+  published
+    class function Lua_add(L: TLuaState): Integer; static; cdecl;
+    class function Lua_remove(L: TLuaState): Integer; static; cdecl;
+
+  end;
+
+{$M-}
 
 implementation
 
@@ -46,6 +100,16 @@ class function TLuaWrapper<T>.CheckArg(L: TLuaState; AIndex: Integer): PData;
 begin
   if not TryConvertType(L, Result, AIndex) then
     L.Error(L.BadArgString(AIndex, RecordName, L.TypeNameAt(AIndex)));
+end;
+
+class function TLuaWrapper<T>.CheckArgX(L: TLuaState; AIndex: Integer): Pointer;
+begin
+  Result := CheckArg(L, AIndex);
+end;
+
+class function TLuaWrapper<T>.CheckX(L: TLuaState; AIndex: Integer): Pointer;
+begin
+  Result := Check(L, AIndex);
 end;
 
 class function TLuaWrapper<T>.Index(L: TLuaState): Integer;
@@ -114,7 +178,7 @@ begin
   Result := AnsiString(ClassName);
 end;
 
-class function TLuaWrapper<T>.TryConvertType(L: TLuaState; out AData: PData; AIndex: Integer = 1): Boolean;
+class function TLuaWrapper<T>.TryConvertType(L: TLuaState; out AData: PData; AIndex: Integer): Boolean;
 begin
   if not L.IsUserdata(AIndex) then
     Exit(False);
@@ -136,7 +200,7 @@ var
   RttiMethod: TRttiMethod;
 begin
   // (1) Create record userdata
-  T(L.NewUserdata(SizeOf(T))^) := AValue; // +
+  PData(L.NewUserdata(SizeOf(T)))^ := AValue; // +
   L.SetNameDebug(RecordName);
 
   // (2) Push the registry table
@@ -162,6 +226,9 @@ begin
     // (5) Create the metatable
     L.NewTable; // +
     L.SetNameDebug(RecordName + ' metatable');
+
+    L.PushBoolean(False);
+    L.SetField('__metatable', -2);
 
     for MetaEvent := Low(TLuaMetatableEvent) to High(TLuaMetatableEvent) do
     begin
@@ -234,6 +301,120 @@ begin
 
   // Pop uservalue and registry
   L.Pop(2); // -2
+end;
+
+class procedure TLuaWrapper<T>.PushX(L: TLuaState; AValue: Pointer);
+begin
+  Push(L, T(AValue^));
+end;
+
+{ TLuaEvent<T> }
+
+class procedure TLuaEvent<TAccess, TInfo>.PushParamsX(L: TLuaState; AInfo: TObject);
+begin
+  PushParams(L, TInfo(AInfo));
+end;
+
+class function TLuaEvent<TAccess, TInfo>.Lua_add(L: TLuaState): Integer;
+var
+  Data: PData;
+  Wrapper: PFunctionWrapper;
+  Handler: TEvent<TInfo>.THandler;
+  Self: TLuaWrapperClass;
+begin
+  L.GetUservalue(1);
+  Self := L.ToUserdata;
+  L.Pop;
+
+  Data := Self.CheckX(L, 1);
+  L.CheckArg(2, ltFunction);
+
+  L.PushValue(2);
+  if L.GetTable(LUA_REGISTRYINDEX) <> ltNil then
+    L.Error('event handler exists already');
+
+  Wrapper := L.NewUserdata(SizeOf(TFunctionWrapper));
+  Wrapper.L := L;
+  Wrapper.PushParamsFunc := Self.PushParamsX;
+
+  Handler := Wrapper.Call;
+  TEvent<TInfo>.TAccess(Pointer(Data)^).Add(Handler);
+
+  L.NewTable;
+  L.PushValue(1);
+  L.PushValue(-3);
+  L.PushCClosure(Wrapper.Remove, 2);
+  L.SetField('__gc', -2);
+  L.SetMetatable(-2);
+
+  L.PushLightuserdata(Wrapper);
+  L.PushValue(2);
+  L.SetTable(LUA_REGISTRYINDEX);
+
+  L.PushValue(2);
+  L.PushValue(4);
+  L.SetTable(LUA_REGISTRYINDEX);
+
+  Result := 0;
+end;
+
+class function TLuaEvent<TAccess, TInfo>.Lua_remove(L: TLuaState): Integer;
+var
+  Data: PData;
+  Wrapper: PFunctionWrapper;
+  Handler: TEvent<TInfo>.THandler;
+begin
+  Data := Check(L, 1);
+  L.CheckArg(2, ltFunction);
+  L.PushValue(2);
+
+  if L.GetTable(LUA_REGISTRYINDEX) <> ltNil then
+  begin
+    Wrapper := L.ToUserdata;
+
+    Handler := Wrapper.Call;
+    TEvent<TInfo>.TAccess(Pointer(Data)^).Remove(Handler);
+
+    Assert(L.GetMetatable);
+    L.PushNil;
+    L.SetField('__gc', -2);
+    L.Pop;
+
+    L.PushNil;
+    L.SetTable(LUA_REGISTRYINDEX);
+    L.PushNil;
+    L.SetTable(LUA_REGISTRYINDEX);
+  end
+  else
+    L.Error('event handler not found');
+
+  Result := 0;
+end;
+
+{ TLuaEvent<T>.TFunctionWrapper }
+
+procedure TLuaEvent<TAccess, TInfo>.TFunctionWrapper.Call(AInfo: TInfo);
+var
+  OldTop: Integer;
+begin
+  L.PushLightuserdata(@Self);
+  L.GetTable(LUA_REGISTRYINDEX);
+  OldTop := L.Top;
+  PushParamsFunc(L, AInfo);
+  L.Call(L.Top - OldTop, 0);
+end;
+
+class function TLuaEvent<TAccess, TInfo>.TFunctionWrapper.Remove(L: TLuaState): Integer;
+var
+  Data: ^TEvent<TInfo>.TAccess;
+  Self: PFunctionWrapper;
+  Handler: TEvent<TInfo>.THandler;
+begin
+  Data := L.ToUserdata(L.UpvalueIndex(1));
+  Self := L.ToUserdata(L.UpvalueIndex(2));
+  Handler := Self.Call;
+  Data^.Remove(Handler);
+  Result := 0;
 end;
 
 end.

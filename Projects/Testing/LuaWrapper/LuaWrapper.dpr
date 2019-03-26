@@ -20,6 +20,7 @@ uses
   Pengine.EventHandling;
 
 type
+
   TLuaVector3 = class(TLuaWrapper<TVector3>)
   public
     class function RecordName: AnsiString; override;
@@ -44,24 +45,36 @@ type
 
   TLuaLocation3 = class(TLuaWrapper<TLocation3>)
   public type
+            {
+    PFunctionWrapper = ^TFunctionWrapper;
 
-    TFunctionWrapper = class
-    private
-      FL: TLuaState;
-      FFunction: Pointer;
-
+    TFunctionWrapper = record
     public
-      constructor Create(AL: TLuaState);
+      L: TLuaState;
+
+      class function Remove(L: TLuaState): Integer; static; cdecl;
 
       procedure Call(AInfo: TLocation3.TChangeEventInfo);
-
-      property L: TLuaState read FL;
 
     end;
 
     TLuaChangeEvent = class(TLuaWrapper<TLocation3.TChangeEvent.TAccess>)
     published
       class function Lua_add(L: TLuaState): Integer; static; cdecl;
+      class function Lua_remove(L: TLuaState): Integer; static; cdecl;
+
+    end;
+         }
+
+         {
+    TLuaChangeEventInfo = class(TLuaEventInfo<TLocation3.TChangeEventInfo>)
+
+    end;
+         }
+
+    TLuaChangeEvent = class(TLuaEvent<TLocation3.TChangeEvent.TAccess, TLocation3.TChangeEventInfo>)
+    protected
+      class procedure PushParams(L: TLuaState; AInfo: TLocation3.TChangeEventInfo); override;
 
     end;
 
@@ -75,6 +88,7 @@ type
     class function LuaSet_pos(L: TLuaState): Integer; static; cdecl;
 
     class function LuaGet_onChange(L: TLuaState): Integer; static; cdecl;
+    class function LuaSet_onChange(L: TLuaState): Integer; static; cdecl;
 
   end;
 
@@ -88,11 +102,12 @@ type
   end;
 
   TLuaLibPrint = class(TLuaLib)
-  private
-    class function LuaPrint(L: TLuaState): Integer; static; cdecl;
-
   protected
     class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
+
+  published
+    class function Lua_print(L: TLuaState): Integer; static; cdecl;
+    class function Lua_gc(L: TLuaState): Integer; static; cdecl;
 
   end;
 
@@ -100,10 +115,16 @@ type
 
 class procedure TLuaLibPrint.CreateEntry(AEntry: TLuaLib.TTableEntry);
 begin
-  AEntry.Add('print', LuaPrint);
+  AEntry.AddPublished(Self);
 end;
 
-class function TLuaLibPrint.LuaPrint(L: TLuaState): Integer;
+class function TLuaLibPrint.Lua_gc(L: TLuaState): Integer;
+begin
+  L.GC(LUA_GCCOLLECT, 0);
+  Result := 0;
+end;
+
+class function TLuaLibPrint.Lua_print(L: TLuaState): Integer;
 var
   I: Integer;
 begin
@@ -141,7 +162,7 @@ end;
 
 class function TLuaVector3.Lua_normalize(L: TLuaState): Integer;
 begin
-  Push(L, CheckArg(L).Normalize);
+  Push(L, CheckArg(L, 1).Normalize);
   Result := 1;
 end;
 
@@ -150,7 +171,7 @@ var
   Vector: PData;
   Index: AnsiString;
 begin
-  Vector := CheckArg(L);
+  Vector := CheckArg(L, 1);
   Index := L.CheckArgString(2);
   if Index = 'x' then
     L.PushNumber(Vector.X)
@@ -169,7 +190,7 @@ var
   Index: AnsiString;
   Value: TLuaNumber;
 begin
-  Vector := CheckArg(L);
+  Vector := CheckArg(L, 1);
   Index := L.CheckArgString(2);
   Value := L.CheckArgNumber(3);
   if Index = 'x' then
@@ -185,7 +206,7 @@ end;
 
 class function TLuaVector3.__tostring(L: TLuaState): Integer;
 begin
-  L.PushString(AnsiString(CheckArg(L).ToString));
+  L.PushString(AnsiString(CheckArg(L, 1).ToString));
   Result := 1;
 end;
 
@@ -203,7 +224,7 @@ end;
 
 class function TLuaVector3.__len(L: TLuaState): Integer;
 begin
-  L.PushNumber(CheckArg(L).Length);
+  L.PushNumber(CheckArg(L, 1).Length);
   Result := 1;
 end;
 
@@ -235,12 +256,12 @@ end;
 class function TLuaLibVector3.__call(L: TLuaState): Integer;
 begin
   // Ignore self
-  case L.Top of
-    1:
+  case L.Top - 1 of
+    0:
       TLuaVector3.Push(L, 0);
-    2:
+    1:
       TLuaVector3.Push(L, Vec3(L.CheckArgNumber(2)));
-    4:
+    3:
       TLuaVector3.Push(L, Vec3(L.CheckArgNumber(2), L.CheckArgNumber(3), L.CheckArgNumber(4)));
   else
     Exit(L.Error('expected 0, 1 or 3 arguments'));
@@ -252,60 +273,142 @@ end;
 
 class function TLuaLocation3.LuaGet_onChange(L: TLuaState): Integer;
 begin
-  TLuaChangeEvent.Push(L, Check(L).OnChanged);
+  TLuaChangeEvent.Push(L, Check(L, 1).OnChanged);
   Result := 1;
 end;
 
 class function TLuaLocation3.LuaGet_pos(L: TLuaState): Integer;
 begin
-  TLuaVector3.Push(L, Check(L).Pos);
+  TLuaVector3.Push(L, Check(L, 1).Pos);
   Result := 1;
+end;
+
+class function TLuaLocation3.LuaSet_onChange(L: TLuaState): Integer;
+begin
+  L.PushCFunction(TLuaChangeEvent.Lua_add);
+  TLuaChangeEvent.Push(L, Check(L, 1).OnChanged);
+  L.PushValue(2);
+  L.Call(2, 0);
+  Result := 0;
 end;
 
 class function TLuaLocation3.LuaSet_pos(L: TLuaState): Integer;
 begin
-  Check(L).Pos := TLuaVector3.Check(L, 2)^;
+  Check(L, 1).Pos := TLuaVector3.Check(L, 2)^;
   Result := 0;
 end;
 
 class function TLuaLocation3.Lua_reset(L: TLuaState): Integer;
 begin
-  CheckArg(L).Reset;
+  CheckArg(L, 1).Reset;
   Result := 0;
 end;
 
 { TLuaLocation3.TLuaChangeEvent }
-
+                      {
 class function TLuaLocation3.TLuaChangeEvent.Lua_add(L: TLuaState): Integer;
 var
   Data: PData;
-  Wrapper: TFunctionWrapper;
+  Wrapper: PFunctionWrapper;
 begin
-  Data := Check(L);
+  Data := Check(L, 1);
   L.CheckArg(2, ltFunction);
-  Wrapper := TFunctionWrapper.Create(L);
+
+  L.PushValue(2);
+  if L.GetTable(LUA_REGISTRYINDEX) <> ltNil then
+    L.Error('event handler exists already');
+
+  Wrapper := L.NewUserdata(SizeOf(TFunctionWrapper));
+  Wrapper.L := L;
+
   Data.Add(Wrapper.Call);
+
+  L.NewTable;
+  L.PushValue(1);
+  L.PushValue(-3);
+  L.PushCClosure(Wrapper.Remove, 2);
+  L.SetField('__gc', -2);
+  L.SetMetatable(-2);
+
+  L.PushLightuserdata(Wrapper);
+  L.PushValue(2);
+  L.SetTable(LUA_REGISTRYINDEX);
+
+  L.PushValue(2);
+  L.PushValue(4);
+  L.SetTable(LUA_REGISTRYINDEX);
+
+  Result := 0;
+end;
+
+class function TLuaLocation3.TLuaChangeEvent.Lua_remove(L: TLuaState): Integer;
+var
+  Data: PData;
+  Wrapper: PFunctionWrapper;
+begin
+  Data := Check(L, 1);
+  L.CheckArg(2, ltFunction);
+  L.PushValue(2);
+
+  if L.GetTable(LUA_REGISTRYINDEX) <> ltNil then
+  begin
+    Wrapper := L.ToUserdata;
+    Data.Remove(Wrapper.Call);
+
+    Assert(L.GetMetatable);
+    L.PushNil;
+    L.SetField('__gc', -2);
+    L.Pop;
+
+    L.PushNil;
+    L.SetTable(LUA_REGISTRYINDEX);
+    L.PushNil;
+    L.SetTable(LUA_REGISTRYINDEX);
+  end
+  else
+    L.Error('event handler not found');
+
   Result := 0;
 end;
 
 { TLuaLocation3.TFunctionWrapper }
-
+    {
 procedure TLuaLocation3.TFunctionWrapper.Call(AInfo: TLocation3.TChangeEventInfo);
 begin
-  // TODO: Push Function
+  L.PushLightuserdata(@Self);
+  L.GetTable(LUA_REGISTRYINDEX);
   TLuaLocation3.Push(L, AInfo.Sender);
-  L.Call(1, 0);
+  TLuaVector3.Push(L, AInfo.Sender.Pos);
+  TLuaVector3.Push(L, AInfo.Sender.Offset);
+  L.Call(3, 0);
 end;
 
-constructor TLuaLocation3.TFunctionWrapper.Create(AL: TLuaState);
+class function TLuaLocation3.TFunctionWrapper.Remove(L: TLuaState): Integer;
+var
+  Data: TLuaChangeEvent.PData;
+  Self: PFunctionWrapper;
 begin
-  FL := AL;
+  Data := L.ToUserdata(L.UpvalueIndex(1));
+  Self := L.ToUserdata(L.UpvalueIndex(2));
+  Data.Remove(Self.Call);
+  Result := 0;
+end;
+     }
+{ TLuaLocation3.TLuaChangeEvent2 }
+
+class procedure TLuaLocation3.TLuaChangeEvent.PushParams(L: TLuaState; AInfo: TLocation3.TChangeEventInfo);
+begin
+  TLuaLocation3.Push(L, AInfo.Sender);
+  TLuaVector3.Push(L, AInfo.Sender.Pos);
+  TLuaVector3.Push(L, AInfo.Sender.Offset);
 end;
 
 var
   Lua: TLua;
+  Location: TLocation3;
   Code: string;
-
+  I: Integer;
+  OldTop: Integer;
 begin
   ReportMemoryLeaksOnShutdown := True;
   try
@@ -324,24 +427,56 @@ begin
     TLuaVector3.Push(Lua.L, Vec3(5, 1, 2));
     Lua.L.SetGlobal('b');
 
-    TLuaLocation3.Push(Lua.L, TLocation3.Create);
+    Location := TLocation3.Create;
+    TLuaLocation3.Push(Lua.L, Location);
     Lua.L.SetGlobal('l');
 
     while True do
     begin
       Readln(Code);
-      if Lua.L.LoadString(AnsiString(Code)) <> lleOK then
+      if Code = 'exit' then
+        Break;
+
+      case Lua.L.LoadString('return ' + AnsiString(Code)) of
+        lleErrorSyntax:
+          if Lua.L.LoadString(AnsiString(Code)) <> lleOK then
+          begin
+            Writeln(Lua.L.ToString);
+            Lua.L.Pop;
+            Continue;
+          end;
+
+        lleErrorMemory, lleErrorGCMM:
+          begin
+            Writeln(Lua.L.ToString);
+            Lua.L.Pop;
+            Continue;
+          end;
+      end;
+
+      OldTop := Lua.L.Top;
+      if Lua.CallTimeout(0, LUA_MULTRET, 1) <> lceOK then
       begin
         Writeln(Lua.L.ToString);
+        Lua.L.Pop;
         Continue;
       end;
 
-      if Lua.CallTimeout(0, 0, 1) <> lceOK then
-        Writeln(Lua.L.ToString);
+      if OldTop <> Lua.L.Top + 1 then
+      begin
+        Lua.L.PushCFunction(TLuaLibPrint.Lua_print);
+        Lua.L.Insert(OldTop);
+        Lua.L.Call(Lua.L.Top - OldTop, 0);
+      end;
 
     end;
 
     Lua.Free;
+
+    Location.Pos := 42;
+    Location.Free;
+
+    Writeln('Done');
 
   except
     on E: Exception do

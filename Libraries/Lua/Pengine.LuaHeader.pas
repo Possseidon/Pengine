@@ -1198,7 +1198,7 @@ begin
   begin
     GetField('__name');
     if IsString then
-      Result := ToString
+      Result := ToString_X
     else
       Result := TypeName_X(Type_X(index));
     Pop(2);
@@ -1858,7 +1858,11 @@ begin
             Call(1, 1);
           end
           else
+          begin
             PushFString('%s: %p', [TypeNameAt(index), ToPointer(index)]);
+            Remove(-2); // remove __tostring
+          end;
+          Remove(-2); // remove metatable
         end
         else
           PushFString('%s: %p', [TypeNameAt(index), ToPointer(index)]);
@@ -1869,7 +1873,6 @@ begin
     Exit(ToString_X(index));
   end;
   Replace(index);
-  Top := index;
   Result := ToString_X(index);
 end;
 
