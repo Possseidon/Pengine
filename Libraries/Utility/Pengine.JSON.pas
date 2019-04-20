@@ -973,6 +973,7 @@ type
 
     property Mode: TMode read FMode;
     function IsStoring: Boolean;
+    function IsLoading: Boolean;
 
     property Value: TJObject read FValue;
     function OwnValue: TJObject;
@@ -2918,6 +2919,11 @@ begin
   if IsStoring then
     FValue.Free;
   inherited;
+end;
+
+function TJSerializer.IsLoading: Boolean;
+begin
+  Result := Mode = smUnserialize;
 end;
 
 function TJSerializer.IsStoring: Boolean;

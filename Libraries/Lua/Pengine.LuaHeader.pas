@@ -437,7 +437,8 @@ type
 
     // some useful macros
     function GetExtraSpace: Pointer; inline;
-    function ToNumber(index: Integer = -1): TLuaNumber; inline;
+    function ToNumber(out AValue: TLuaNumber; index: Integer = -1): LongBool; overload; inline;
+    function ToNumber(index: Integer = -1): TLuaNumber; overload; inline;
     function ToInteger(index: Integer = -1): TLuaInteger; inline;
 
     procedure Pop(n: Integer = 1); inline;
@@ -1278,6 +1279,11 @@ begin
   end;
 end;
 
+function TLuaStateRec.ToNumber(out AValue: TLuaNumber; index: Integer): LongBool;
+begin
+  AValue := lua_tonumberx(@Self, index, @Result);
+end;
+
 function TLuaStateRec.ToNumberX(isnum: PLongBool; index: Integer = -1): TLuaNumber;
 begin
   Result := lua_tonumberx(@Self, index, isnum);
@@ -1520,7 +1526,8 @@ end;
 
 procedure TLuaStateRec.SetName(AName: AnsiString; index: Integer);
 begin
-  index := AbsIndex(index);
+  if index <> LUA_REGISTRYINDEX then
+    index := AbsIndex(index);
   if not GetMetatable(index) then
     NewTable;
   PushString(AName);
@@ -1849,24 +1856,22 @@ begin
     // ltNumber: ; // default
     // ltString: ; // default
     ltTable, ltUserdata:
+      if GetMetatable(index) then
       begin
-        if GetMetatable(index) then
+        if GetField('__tostring') <> ltNil then
         begin
-          if GetField('__tostring') <> ltNil then
-          begin
-            PushValue(index);
-            Call(1, 1);
-          end
-          else
-          begin
-            PushFString('%s: %p', [TypeNameAt(index), ToPointer(index)]);
-            Remove(-2); // remove __tostring
-          end;
-          Remove(-2); // remove metatable
+          PushValue(index);
+          Call(1, 1);
         end
         else
+        begin
           PushFString('%s: %p', [TypeNameAt(index), ToPointer(index)]);
-      end;
+          Remove(-2); // remove __tostring
+        end;
+        Remove(-2); // remove metatable
+      end
+      else
+        PushFString('%s: %p', [TypeNameAt(index), ToPointer(index)]);
     ltFunction, ltThread:
       PushFString('%s: %p', [TypeNameAt(index), ToPointer(index)]);
   else

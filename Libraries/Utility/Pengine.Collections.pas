@@ -33,7 +33,7 @@ type
     constructor Create;
   end;
 
-  /// <summary>Raised, if an array-item does not have a string-representative.</summary>
+  /// <summary>Raised, if an array-item does not have a string-representation.</summary>
   EArrayItemNoStringRepresentative = class(Exception)
   public
     constructor Create;
@@ -45,13 +45,13 @@ type
     constructor Create;
   end;
 
-  // TODO: XmlDoc
+  /// <summary>Raised, if the grow amount is less or equal to zero.</summary>
   EArrayInvalidGrowAmount = class(Exception)
   public
     constructor Create;
   end;
 
-  // TODO: XmlDoc
+  /// <summary>Raised, if the grow amount is less than to zero.</summary>
   EArrayInvalidShrinkRetain = class(Exception)
   public
     constructor Create;
@@ -71,12 +71,13 @@ type
 
   end;
 
-  // TODO: XmlDoc
   TArray = class(TInterfaceBase)
   public type
 
     TReader = class
     private
+      function Instance: TArray; inline;
+
       function GetCapacity: Integer; inline;
       function GetGrowAmount: Integer; inline;
       function GetShrinkRetain: Integer; inline;
@@ -118,14 +119,10 @@ type
 
     function CreateSame: TArray;
 
-    // TODO: XmlDoc
     function ShouldFreeItems: Boolean; virtual;
-    // TODO: XmlDoc
     procedure ItemRemoved(AIndex: Integer); virtual;
 
-    // TODO: XmlDoc
     function GetCapacity: Integer; virtual; abstract;
-    // TODO: XmlDoc
     procedure SetCapacity(const Value: Integer); virtual; abstract;
 
     procedure CopyTo(AArray: TArray); virtual; abstract;
@@ -136,70 +133,51 @@ type
     procedure AfterSort; virtual;
 
   public
-    // TODO: XmlDoc
     constructor Create; virtual;
-    // TODO: XmlDoc
     destructor Destroy; override;
 
-    // TODO: XmlDoc
     property GrowAmount: Integer read FGrowAmount write SetGrowAmount;
-    // TODO: XmlDoc
     property ShrinkRetain: Integer read FShrinkRetain write SetShrinkRetain;
 
     procedure SetGrowShrink(AGrowAmount, AShrinkRetain: Integer);
 
-    // TODO: XmlDoc
     function Count: Integer; inline;
     // use this, when making changes over DataPointer, keep capacity in mind
     procedure ForceCount(ACount: Integer); inline;
-    // TODO: XmlDoc
     function CountOptimized: Boolean; inline;
     // TODO: XmlDoc Remarks: returns -1 on empty arrays
     function MaxIndex: Integer; inline;
-    // TODO: XmlDoc
     function Empty: Boolean; inline;
 
-    // TODO: XmlDoc
     procedure RemoveAt(AIndex: Integer); virtual; abstract;
-    // TODO: XmlDoc
     procedure RemoveLast; inline;
-    // TODO: XmlDoc
     procedure Clear(AZeroCapacity: Boolean = True); virtual;
 
-    // TODO: XmlDoc
     property Capacity: Integer read GetCapacity write SetCapacity;
 
-    // TODO: XmlDoc
     procedure RangeCheckException(AIndex: Integer); inline;
-    // TODO: XmlDoc
     function RangeCheck(AIndex: Integer): Boolean; inline;
 
-    // TODO: XmlDoc
     procedure Swap(A, B: Integer); virtual;
-    // TODO: XmlDoc
     procedure SwapUnchecked(A, B: Integer); virtual; abstract;
 
     procedure Shuffle;
 
-    // TODO: XmlDoc
     function DataPointer: Pointer; virtual; abstract;
 
-    // TODO: XmlDoc
     function Copy: TArray;
 
-    function Reader: TReader; inline;
+    function Reader: TReader;
 
   end;
 
   TArrayClass = class of TArray;
 
-  // TODO: XmlDoc
   TArray<T> = class(TArray, IIterable<T>)
   public type
 
     TValue = T;
 
-    // TODO: XmlDoc
     TIterator = class(TIterator<T>)
     private
       FList: TArray<T>;
@@ -210,34 +188,26 @@ type
     public
       constructor Create(AList: TArray<T>; AReversed: Boolean = False);
 
-      // TODO: XmlDoc
       function MoveNext: Boolean; override;
-      // TODO: XmlDoc
       function GetCurrent: T; override;
 
-      // TODO: XmlDoc
       procedure RemoveCurrent; inline;
 
     end;
 
-    // TODO: XmlDoc
     TReverseWrapper = record
     private
       FArray: TArray<T>;
 
     public
-      // TODO: XmlDoc
       constructor Create(AArray: TArray<T>);
 
-      // TODO: XmlDoc
       function GetEnumerator(AAutoFree: Boolean = False): TIterator;
 
-      // TODO: XmlDoc
       function Copy: TArray<T>;
 
     end;
 
-    // TODO: XmlDoc
     TSorterBase = class abstract(TQuickSorter)
     private
       FArray: TArray<T>;
@@ -251,13 +221,11 @@ type
       procedure Swap(A: Integer; B: Integer); override;
 
     public
-      // TODO: XmlDoc
       constructor Create(AArray: TArray<T>);
       destructor Destroy; override;
 
     end;
 
-    // TODO: XmlDoc
     TSorterStatic = class(TSorterBase)
     private
       FFunc: TCompareFuncStatic<T>;
@@ -268,7 +236,6 @@ type
       constructor Create(AArray: TArray<T>; AFunc: TCompareFuncStatic<T>);
     end;
 
-    // TODO: XmlDoc
     TSorterRef = class(TSorterBase)
     private
       FFunc: TCompareFuncRef<T>;
@@ -279,7 +246,6 @@ type
       constructor Create(AArray: TArray<T>; AFunc: TCompareFuncRef<T>);
     end;
 
-    // TODO: XmlDoc
     TSorter = class(TSorterBase)
     private
       FFunc: TCompareFunc<T>;
@@ -292,6 +258,8 @@ type
 
     TReader = class(TArray.TReader)
     private
+      function Instance: TArray<T>; inline;
+
       function GetFirst: T;
       function GetItem(I: Integer): T;
       function GetLast: T;
@@ -300,64 +268,39 @@ type
       procedure SetLast(const Value: T);
 
     public
-
-      {$REGION 'Find Functions'}
-
-      // TODO: XmlDoc
+{$REGION 'Find Functions'}
       function FindFirstIndex(AFunc: TFindFuncStatic<T>): Integer; overload; inline;
-      // TODO: XmlDoc
       function FindFirstIndex(AFunc: TFindFuncRef<T>): Integer; overload; inline;
-      // TODO: XmlDoc
       function FindFirstIndex(AFunc: TFindFunc<T>): Integer; overload; inline;
 
-      // TODO: XmlDoc
       function FindFirst(AFunc: TFindFuncStatic<T>): T; overload; inline;
-      // TODO: XmlDoc
       function FindFirst(AFunc: TFindFuncRef<T>): T; overload; inline;
-      // TODO: XmlDoc
       function FindFirst(AFunc: TFindFunc<T>): T; overload; inline;
 
-      // TODO: XmlDoc
       function FindLastIndex(AFunc: TFindFuncStatic<T>): Integer; overload; inline;
-      // TODO: XmlDoc
       function FindLastIndex(AFunc: TFindFuncRef<T>): Integer; overload; inline;
-      // TODO: XmlDoc
       function FindLastIndex(AFunc: TFindFunc<T>): Integer; overload; inline;
 
-      // TODO: XmlDoc
-      function FindLast(AFunc: TFindFuncStatic<T>): T; overload;inline;
-      // TODO: XmlDoc
+      function FindLast(AFunc: TFindFuncStatic<T>): T; overload; inline;
       function FindLast(AFunc: TFindFuncRef<T>): T; overload; inline;
-      // TODO: XmlDoc
       function FindLast(AFunc: TFindFunc<T>): T; overload; inline;
 
-      // TODO: XmlDoc
       function FindIndexAsArray(AFunc: TFindFuncStatic<T>): TArray<Integer>; overload; inline;
-      // TODO: XmlDoc
       function FindIndexAsArray(AFunc: TFindFuncRef<T>): TArray<Integer>; overload; inline;
-      // TODO: XmlDoc
       function FindIndexAsArray(AFunc: TFindFunc<T>): TArray<Integer>; overload; inline;
 
-      // TODO: XmlDoc
       function FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>; overload; inline;
-      // TODO: XmlDoc
       function FindAsArray(AFunc: TFindFuncRef<T>): TArray<T>; overload; inline;
-      // TODO: XmlDoc
       function FindAsArray(AFunc: TFindFunc<T>): TArray<T>; overload; inline;
 
-      {$ENDREGION} //
+{$ENDREGION} //
 
-      {$REGION 'Sorting'}
-
-      // TODO: XmlDoc
+{$REGION 'Sorting'}
       function Sorted(AFunc: TCompareFuncStatic<T>): Boolean; overload; inline;
-      // TODO: XmlDoc
       function Sorted(AFunc: TCompareFuncRef<T>): Boolean; overload; inline;
-      // TODO: XmlDoc
       function Sorted(AFunc: TCompareFunc<T>): Boolean; overload; inline;
 
-      {$ENDREGION}
-
+{$ENDREGION}
       procedure ForEach(AFunc: TForEachProcStatic<T>); overload;
       procedure ForEach(AFunc: TForEachProcRef<T>); overload;
       procedure ForEach(AFunc: TForEachProc<T>); overload;
@@ -366,33 +309,22 @@ type
       function ForEach<R>(AFunc: TForEachFuncRef<T, R>): TArray<R>; overload;
       function ForEach<R>(AFunc: TForEachFunc<T, R>): TArray<R>; overload;
 
-      // TODO: XmlDoc
       function BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer; overload; inline;
-      // TODO: XmlDoc
       function BinarySearch(AItem: T; AFunc: TCompareFuncRef<T>): Integer; overload; inline;
-      // TODO: XmlDoc
       function BinarySearch(AItem: T; AFunc: TCompareFunc<T>): Integer; overload; inline;
 
-      // TODO: XmlDoc
       function Copy: TArray<T>; reintroduce; inline;
 
-      // TODO: XmlDoc
       property Items[I: Integer]: T read GetItem write SetItem; default;
 
-      // TODO: XmlDoc
       property First: T read GetFirst write SetFirst;
-      // TODO: XmlDoc
       property Last: T read GetLast write SetLast;
 
-      // TODO: XmlDoc
       function GetEnumerator: IIterator<T>; inline;
-      // TODO: XmlDoc
       function InReverse: TReverseWrapper; inline;
 
-      // TODO: XmlDoc
       function ToString: string; override;
-      // TODO: XmlDoc
-      class function ItemToString(AItem: T): string; inline;
+      function ItemToString(AItem: T): string; inline;
 
     end;
 
@@ -406,7 +338,7 @@ type
 
     function GetLast: T;
     procedure SetLast(const Value: T);
-    
+
   protected
     procedure SetItem(AIndex: Integer; AValue: T); virtual;
 
@@ -416,13 +348,9 @@ type
     procedure CopyTo(AArray: TArray); override;
 
   public
-    // TODO: XmlDoc
     function Add(AItem: T): T; overload; virtual;
-    // TODO: XmlDoc
     procedure Add(AItems: IIterator<T>); overload;
-    // TODO: XmlDoc
     procedure Add(AItems: IIterable<T>); overload;
-    // TODO: XmlDoc
     procedure Add(AItems: IEnumerable<T>); overload;
 
     // TODO: XmlDoc: Remarks: Insert can also add item at the end
@@ -430,83 +358,51 @@ type
 
     procedure SetIndex(ASource, ADestination: Integer); virtual;
 
-    // TODO: XmlDoc
     procedure RemoveAt(AIndex: Integer); override;
 
-    // TODO: XmlDoc
     procedure SwapUnchecked(A, B: Integer); override;
 
-    {$REGION 'Find Functions'}
-
-    // TODO: XmlDoc
+{$REGION 'Find Functions'}
     function FindFirstIndex(AFunc: TFindFuncStatic<T>): Integer; overload;
-    // TODO: XmlDoc
     function FindFirstIndex(AFunc: TFindFuncRef<T>): Integer; overload;
-    // TODO: XmlDoc
     function FindFirstIndex(AFunc: TFindFunc<T>): Integer; overload;
 
-    // TODO: XmlDoc
     function FindFirst(AFunc: TFindFuncStatic<T>): T; overload;
-    // TODO: XmlDoc
     function FindFirst(AFunc: TFindFuncRef<T>): T; overload;
-    // TODO: XmlDoc
     function FindFirst(AFunc: TFindFunc<T>): T; overload;
 
-    // TODO: XmlDoc
     function FindLastIndex(AFunc: TFindFuncStatic<T>): Integer; overload;
-    // TODO: XmlDoc
     function FindLastIndex(AFunc: TFindFuncRef<T>): Integer; overload;
-    // TODO: XmlDoc
     function FindLastIndex(AFunc: TFindFunc<T>): Integer; overload;
 
-    // TODO: XmlDoc
     function FindLast(AFunc: TFindFuncStatic<T>): T; overload;
-    // TODO: XmlDoc
     function FindLast(AFunc: TFindFuncRef<T>): T; overload;
-    // TODO: XmlDoc
     function FindLast(AFunc: TFindFunc<T>): T; overload;
 
-    // TODO: XmlDoc
     function FindIndexAsArray(AFunc: TFindFuncStatic<T>): TArray<Integer>; overload;
-    // TODO: XmlDoc
     function FindIndexAsArray(AFunc: TFindFuncRef<T>): TArray<Integer>; overload;
-    // TODO: XmlDoc
     function FindIndexAsArray(AFunc: TFindFunc<T>): TArray<Integer>; overload;
 
-    // TODO: XmlDoc
     function FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>; overload;
-    // TODO: XmlDoc
     function FindAsArray(AFunc: TFindFuncRef<T>): TArray<T>; overload;
-    // TODO: XmlDoc
     function FindAsArray(AFunc: TFindFunc<T>): TArray<T>; overload;
 
-    {$ENDREGION} //
+{$ENDREGION} //
 
-    {$REGION 'Sorting'}
-
-    // TODO: XmlDoc
+{$REGION 'Sorting'}
     procedure Sort(AFunc: TCompareFuncStatic<T>); overload; inline;
-    // TODO: XmlDoc
     procedure Sort(AFunc: TCompareFuncRef<T>); overload; inline;
-    // TODO: XmlDoc
     procedure Sort(AFunc: TCompareFunc<T>); overload; inline;
 
-    // TODO: XmlDoc
     function TrySort(AFunc: TCompareFuncStatic<T>): Boolean; overload; inline;
-    // TODO: XmlDoc
     function TrySort(AFunc: TCompareFuncRef<T>): Boolean; overload; inline;
-    // TODO: XmlDoc
     function TrySort(AFunc: TCompareFunc<T>): Boolean; overload; inline;
 
-    // TODO: XmlDoc
     function Sorted(AFunc: TCompareFuncStatic<T>): Boolean; overload;
-    // TODO: XmlDoc
     function Sorted(AFunc: TCompareFuncRef<T>): Boolean; overload;
-    // TODO: XmlDoc
     function Sorted(AFunc: TCompareFunc<T>): Boolean; overload;
 
-    {$ENDREGION}
-
+{$ENDREGION}
     procedure ForEach(AFunc: TForEachProcStatic<T>); overload;
     procedure ForEach(AFunc: TForEachProcRef<T>); overload;
     procedure ForEach(AFunc: TForEachProc<T>); overload;
@@ -515,78 +411,60 @@ type
     function ForEach<R>(AFunc: TForEachFuncRef<T, R>): TArray<R>; overload;
     function ForEach<R>(AFunc: TForEachFunc<T, R>): TArray<R>; overload;
 
-    // TODO: XmlDoc
     function BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer; overload;
-    // TODO: XmlDoc
     function BinarySearch(AItem: T; AFunc: TCompareFuncRef<T>): Integer; overload;
-    // TODO: XmlDoc
     function BinarySearch(AItem: T; AFunc: TCompareFunc<T>): Integer; overload;
 
-    // TODO: XmlDoc
     function Copy: TArray<T>; reintroduce; inline;
 
-    // TODO: XmlDoc
     property Items[I: Integer]: T read GetItem write SetItem; default;
 
-    // TODO: XmlDoc
     property First: T read GetFirst write SetFirst;
-    // TODO: XmlDoc
     property Last: T read GetLast write SetLast;
 
-    // TODO: XmlDoc
     function DataPointer: Pointer; override;
 
-    // TODO: XmlDoc
     function GetEnumerator: IIterator<T>;
-    // TODO: XmlDoc
     function InReverse: TReverseWrapper; inline;
 
-    // TODO: XmlDoc
     function ToString: string; override;
-    // TODO: XmlDoc
     class function ItemToString(AItem: T): string; virtual;
 
-    function Reader: TReader; reintroduce; inline;
+    function Reader: TReader;
 
   end;
 
-  // TODO: XmlDoc
   TIntArray = TArray<Integer>;
+
   TIntArrayHelper = class helper for TIntArray
-    // TODO: XmlDoc
     function Sum: Integer;
-    // TODO: XmlDoc
     function Difference: Integer; inline;
-    // TODO: XmlDoc
     function Average: Single; inline;
-    // TODO: XmlDoc
     function Min: Integer;
-    // TODO: XmlDoc
     function Max: Integer;
-    // TODO: XmlDoc
     function Bounds: TIntBounds1;
+
   end;
 
   TSingleArray = TArray<Single>;
+
   TSingleArrayHelper = class helper for TSingleArray
-    // TODO: XmlDoc
     function Sum: Single;
-    // TODO: XmlDoc
     function Difference: Single; inline;
-    // TODO: XmlDoc
     function Average: Single; inline;
-    // TODO: XmlDoc
     function Min: Single;
-    // TODO: XmlDoc
     function Max: Single;
-    // TODO: XmlDoc
     function Bounds: TBounds1;
+
   end;
 
   TFindableArray<T> = class abstract(TArray<T>)
   public type
 
     TReader = class(TArray<T>.TReader)
+    private
+      function Instance: TFindableArray<T>; inline;
+
     public
       function Find(AItem: T): Integer; reintroduce; inline;
       function Contains(AItem: T): Boolean; reintroduce; inline;
@@ -594,17 +472,14 @@ type
     end;
 
   public
-    // TODO: XmlDoc
     function Find(AItem: T): Integer; virtual; abstract;
     function Contains(AItem: T): Boolean;
-    // TODO: XmlDoc
     procedure Remove(AItem: T);
 
-    function Reader: TReader; reintroduce; inline;
+    function Reader: TReader; inline;
 
   end;
 
-  // TODO: XmlDoc
   TBaseRefArray<T: class> = class abstract(TFindableArray<T>)
   protected
     function GetOwnsObjects: Boolean; virtual; abstract;
@@ -613,10 +488,8 @@ type
     procedure ItemRemoved(AIndex: Integer); override;
 
   public
-    // TODO: XmlDoc
     function Find(AItem: T): Integer; override;
 
-    // TODO: XmlDoc
     class function ItemToString(AItem: T): string; override;
 
     property OwnsObjects: Boolean read GetOwnsObjects;
@@ -629,6 +502,9 @@ type
   public type
 
     TReader = class(TFindableArray<T>.TReader)
+    private
+      function Instance: TRefArray<T>; inline;
+
     public
       function Copy: TRefArray<T>; reintroduce; inline;
 
@@ -645,19 +521,11 @@ type
   public
     constructor Create(AOwnsObjects: Boolean); reintroduce; overload;
 
-    // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFuncStatic<T>): TRefArray<T>; overload; inline;
-    // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFuncRef<T>): TRefArray<T>; overload; inline;
-    // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFunc<T>): TRefArray<T>; overload; inline;
-
-    // TODO: XmlDoc
     function Copy: TRefArray<T>; reintroduce; inline;
 
     property OwnsObjects: Boolean read GetOwnsObjects write SetOwnsObjects;
 
-    function Reader: TReader; reintroduce; inline;
+    function Reader: TReader; inline;
 
   end;
 
@@ -682,8 +550,7 @@ type
 
   end;
 
-  // TODO: XmlDoc
-  TBaseRefPairArray<K: class; V> = class abstract(TArray<TPair<K, V>>)
+  TBaseRefPairArray<K: class; V> = class abstract(TArray < TPair < K, V >> )
   protected
     function GetOwnsKeys: Boolean; virtual; abstract;
 
@@ -707,14 +574,10 @@ type
   public
     constructor Create(AOwnsKeys: Boolean); reintroduce; overload;
 
-    // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefPairArray<K, V>; overload; inline;
-    // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TRefPairArray<K, V>; overload; inline;
-    // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TRefPairArray<K, V>; overload; inline;
+    function FindAsArray(AFunc: TFindFuncStatic < TPair < K, V >> ): TRefPairArray<K, V>; overload; inline;
+    function FindAsArray(AFunc: TFindFuncRef < TPair < K, V >> ): TRefPairArray<K, V>; overload; inline;
+    function FindAsArray(AFunc: TFindFunc < TPair < K, V >> ): TRefPairArray<K, V>; overload; inline;
 
-    // TODO: XmlDoc
     function Copy: TRefPairArray<K, V>; reintroduce; inline;
 
     property OwnsKeys: Boolean read GetOwnsKeys write SetOwnsKeys;
@@ -734,8 +597,7 @@ type
 
   end;
 
-  // TODO: XmlDoc
-  TBaseToRefPairArray<K; V: class> = class abstract(TArray<TPair<K, V>>)
+  TBaseToRefPairArray<K; V: class> = class abstract(TArray < TPair < K, V >> )
   public type
 
     TPair = TPair<K, V>;
@@ -763,14 +625,10 @@ type
   public
     constructor Create(AOwnsValues: Boolean); reintroduce; overload;
 
-    // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TToRefPairArray<K, V>; overload; inline;
-    // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TToRefPairArray<K, V>; overload; inline;
-    // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TToRefPairArray<K, V>; overload; inline;
+    function FindAsArray(AFunc: TFindFuncStatic < TPair < K, V >> ): TToRefPairArray<K, V>; overload; inline;
+    function FindAsArray(AFunc: TFindFuncRef < TPair < K, V >> ): TToRefPairArray<K, V>; overload; inline;
+    function FindAsArray(AFunc: TFindFunc < TPair < K, V >> ): TToRefPairArray<K, V>; overload; inline;
 
-    // TODO: XmlDoc
     function Copy: TToRefPairArray<K, V>; reintroduce; inline;
 
     property OwnsValues: Boolean read GetOwnsValues write SetOwnsValues;
@@ -796,8 +654,7 @@ type
 
   end;
 
-  // TODO: XmlDoc
-  TBaseRefRefPairArray<K, V: class> = class abstract(TArray<TPair<K, V>>)
+  TBaseRefRefPairArray<K, V: class> = class abstract(TArray < TPair < K, V >> )
   protected
     function GetOwnsKeys: Boolean; virtual; abstract;
     function GetOwnsValues: Boolean; virtual; abstract;
@@ -806,7 +663,6 @@ type
     procedure ItemRemoved(AIndex: Integer); override;
 
   public
-    // TODO: XmlDoc
     class function ItemToString(AItem: TPair<K, V>): string; override;
 
     property OwnsKeys: Boolean read GetOwnsKeys;
@@ -829,14 +685,10 @@ type
   public
     constructor Create(AOwnsKeys, AOwnsValues: Boolean); reintroduce; overload;
 
-    // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefRefPairArray<K, V>; overload; inline;
-    // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TRefRefPairArray<K, V>; overload; inline;
-    // TODO: XmlDoc
-    function FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TRefRefPairArray<K, V>; overload; inline;
+    function FindAsArray(AFunc: TFindFuncStatic < TPair < K, V >> ): TRefRefPairArray<K, V>; overload; inline;
+    function FindAsArray(AFunc: TFindFuncRef < TPair < K, V >> ): TRefRefPairArray<K, V>; overload; inline;
+    function FindAsArray(AFunc: TFindFunc < TPair < K, V >> ): TRefRefPairArray<K, V>; overload; inline;
 
-    // TODO: XmlDoc
     function Copy: TRefRefPairArray<K, V>; reintroduce; inline;
 
     property OwnsKeys: Boolean read GetOwnsKeys write SetOwnsKeys;
@@ -855,34 +707,23 @@ type
     function GetOwnsValues: Boolean; override;
 
   public
-    constructor Create(AOwnsKeysLink, AOwnsValuesLink: PBoolean);
-      reintroduce;
+    constructor Create(AOwnsKeysLink, AOwnsValuesLink: PBoolean); reintroduce;
 
   end;
 
-  // TODO: XmlDoc
   TInterfaceArray<T: IInterface> = class(TArray<T>)
   public
-    // TODO: XmlDoc
     function FindAsInterfaceArray(AFunc: TFindFuncStatic<T>): TInterfaceArray<T>; overload; inline;
-    // TODO: XmlDoc
     function FindAsInterfaceArray(AFunc: TFindFuncRef<T>): TInterfaceArray<T>; overload; inline;
-    // TODO: XmlDoc
     function FindAsInterfaceArray(AFunc: TFindFunc<T>): TInterfaceArray<T>; overload; inline;
 
-    // TODO: XmlDoc
     function Copy: TInterfaceArray<T>; reintroduce; inline;
 
-    // TODO: XmlDoc
     function Find(AItem: T): Integer; overload; inline;
-    // TODO: XmlDoc
     function Find(AItem: TObject): Integer; overload; inline;
-    // TODO: XmlDoc
     procedure Remove(AItem: T); overload;
-    // TODO: XmlDoc
     procedure Remove(AItem: TObject); overload;
 
-    // TODO: XmlDoc
     class function ItemToString(AItem: T): string; override;
 
   end;
@@ -916,7 +757,6 @@ type
 
   end;
 
-  // TODO: XmlDoc
   TStack = class
   private
     FArray: TArray;
@@ -933,7 +773,6 @@ type
   protected
     function CreateSame: TStack;
 
-    // TODO: XmlDoc
     function CreateArray: TArray; virtual; abstract;
 
     function CreateCopy: TStack; virtual;
@@ -942,26 +781,19 @@ type
     constructor Create; virtual;
     destructor Destroy; override;
 
-    // TODO: XmlDoc
     procedure Clear; inline;
 
-    // TODO: XmlDoc
     property Capacity: Integer read GetCapacity write SetCapacity;
-    // TODO: XmlDoc
     function Count: Integer;
-    // TODO: XmlDoc
     property GrowAmount: Integer read GetGrowAmount write SetGrowAmount;
-    // TODO: XmlDoc
     property ShrinkRetain: Integer read GetShrinkRetain write SetShrinkRetain;
 
-    // TODO: XmlDoc
     function Copy: TStack;
 
   end;
 
   TStackClass = class of TStack;
 
-  // TODO: XmlDoc
   TStack<T> = class(TStack)
   private
     function GetTop: T; inline;
@@ -971,36 +803,30 @@ type
     function CreateArray: TArray; override;
 
   public
-    // TODO: XmlDoc
     property Top: T read GetTop write SetTop;
-    // TODO: XmlDoc
     procedure Push(AItem: T); inline;
-    // TODO: XmlDoc
     function Pop: T; inline;
 
     function Count: Integer; inline;
     function Empty: Boolean; inline;
 
-    // TODO: XmlDoc
     function Copy: TStack<T>; reintroduce; inline;
 
   end;
 
   // TODO: TQueue<T> using a linked list
 
-  // TODO: XmlDoc
   TRefStack<T: class> = class(TStack<T>)
   private
     function GetOwnsObjects: Boolean;
     procedure SetOwnsObjects(const Value: Boolean);
+
   protected
-    // TODO: XmlDoc
     function CreateArray: TArray; override;
 
   public
     constructor Create(AOwnsObjects: Boolean); reintroduce; overload;
 
-    // TODO: XmlDoc
     function Copy: TRefStack<T>; reintroduce; inline;
 
     property OwnsObjects: Boolean read GetOwnsObjects write SetOwnsObjects;
@@ -1010,14 +836,15 @@ type
   TObjectStack<T: class> = class(TRefStack<T>)
   public
     constructor Create; overload; override;
+
   end;
 
-  // TODO: XmlDoc
   TValueHasher<K> = class abstract
   public
     class function GetHash(AKey: K): Cardinal; virtual; abstract;
     class function KeysEqual(AKey1, AKey2: K): Boolean; virtual; abstract;
     class function CanIndex(AKey: K): Boolean; virtual;
+
   end;
 
 implementation
@@ -1085,6 +912,11 @@ function TArray.CreateCopy: TArray;
 begin
   Result := CreateSame;
   CopyTo(Result);
+end;
+
+function TArray.Reader: TReader;
+begin
+  Result := TReader(Self);
 end;
 
 function TArray.Copy: TArray;
@@ -1179,11 +1011,6 @@ procedure TArray.RangeCheckException(AIndex: Integer);
 begin
   if not RangeCheck(AIndex) then
     raise EArrayRangeError.Create;
-end;
-
-function TArray.Reader: TReader;
-begin
-  Result := TReader(Self);
 end;
 
 procedure TArray.SetGrowAmount(const Value: Integer);
@@ -1682,7 +1509,7 @@ begin
   Result := FItems[I];
 end;
 
-function TArray<T>.FindIndexAsArray(AFunc: TFindFuncStatic<T>): TIntArray;
+function TArray<T>.FindIndexAsArray(AFunc: TFindFuncStatic<T>): TArray<Integer>;
 var
   I: Integer;
 begin
@@ -1692,7 +1519,7 @@ begin
       Result.Add(I);
 end;
 
-function TArray<T>.FindIndexAsArray(AFunc: TFindFuncRef<T>): TIntArray;
+function TArray<T>.FindIndexAsArray(AFunc: TFindFuncRef<T>): TArray<Integer>;
 var
   I: Integer;
 begin
@@ -1702,7 +1529,7 @@ begin
       Result.Add(I);
 end;
 
-function TArray<T>.FindIndexAsArray(AFunc: TFindFunc<T>): TIntArray;
+function TArray<T>.FindIndexAsArray(AFunc: TFindFunc<T>): TArray<Integer>;
 var
   I: Integer;
 begin
@@ -1814,6 +1641,11 @@ begin
   Move(FItems[0], TArray<T>(AArray).FItems[0], SizeOf(T) * Count);
 end;
 
+function TArray<T>.Reader: TReader;
+begin
+  Result := TReader(Self);
+end;
+
 function TArray<T>.DataPointer: Pointer;
 begin
   Result := FItems;
@@ -1849,11 +1681,6 @@ end;
 class function TArray<T>.ItemToString(AItem: T): string;
 begin
   raise EArrayItemNoStringRepresentative.Create;
-end;
-
-function TArray<T>.Reader: TReader;
-begin
-  Result := TReader(Self);
 end;
 
 function TArray<T>.BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer;
@@ -1989,29 +1816,14 @@ begin
   OwnsObjects := AOwnsObjects;
 end;
 
-function TRefArray<T>.FindAsArray(AFunc: TFindFuncStatic<T>): TRefArray<T>;
+function TRefArray<T>.Reader: TReader;
 begin
-
-end;
-
-function TRefArray<T>.FindAsArray(AFunc: TFindFunc<T>): TRefArray<T>;
-begin
-
-end;
-
-function TRefArray<T>.FindAsArray(AFunc: TFindFuncRef<T>): TRefArray<T>;
-begin
-
+  Result := TReader(Self);
 end;
 
 function TRefArray<T>.GetOwnsObjects: Boolean;
 begin
   Result := FOwnsObjects;
-end;
-
-function TRefArray<T>.Reader: TReader;
-begin
-  Result := TReader(Self);
 end;
 
 procedure TRefArray<T>.SetOwnsObjects(const Value: Boolean);
@@ -2303,17 +2115,17 @@ begin
   OwnsKeys := AOwnsKeys;
 end;
 
-function TRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefPairArray<K, V>;
+function TRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncStatic < TPair < K, V >> ): TRefPairArray<K, V>;
 begin
   Result := TRefPairArray<K, V>(inherited FindAsArray(AFunc));
 end;
 
-function TRefPairArray<K, V>.FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TRefPairArray<K, V>;
+function TRefPairArray<K, V>.FindAsArray(AFunc: TFindFunc < TPair < K, V >> ): TRefPairArray<K, V>;
 begin
   Result := TRefPairArray<K, V>(inherited FindAsArray(AFunc));
 end;
 
-function TRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TRefPairArray<K, V>;
+function TRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncRef < TPair < K, V >> ): TRefPairArray<K, V>;
 begin
   Result := TRefPairArray<K, V>(inherited FindAsArray(AFunc));
 end;
@@ -2354,17 +2166,17 @@ begin
   OwnsValues := AOwnsValues;
 end;
 
-function TToRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TToRefPairArray<K, V>;
+function TToRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncStatic < TPair < K, V >> ): TToRefPairArray<K, V>;
 begin
   Result := TToRefPairArray<K, V>(inherited FindAsArray(AFunc));
 end;
 
-function TToRefPairArray<K, V>.FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TToRefPairArray<K, V>;
+function TToRefPairArray<K, V>.FindAsArray(AFunc: TFindFunc < TPair < K, V >> ): TToRefPairArray<K, V>;
 begin
   Result := TToRefPairArray<K, V>(inherited FindAsArray(AFunc));
 end;
 
-function TToRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TToRefPairArray<K, V>;
+function TToRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncRef < TPair < K, V >> ): TToRefPairArray<K, V>;
 begin
   Result := TToRefPairArray<K, V>(inherited FindAsArray(AFunc));
 end;
@@ -2426,17 +2238,17 @@ begin
   OwnsValues := AOwnsValues;
 end;
 
-function TRefRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncStatic<TPair<K, V>>): TRefRefPairArray<K, V>;
+function TRefRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncStatic < TPair < K, V >> ): TRefRefPairArray<K, V>;
 begin
   Result := TRefRefPairArray<K, V>(inherited FindAsArray(AFunc));
 end;
 
-function TRefRefPairArray<K, V>.FindAsArray(AFunc: TFindFunc<TPair<K, V>>): TRefRefPairArray<K, V>;
+function TRefRefPairArray<K, V>.FindAsArray(AFunc: TFindFunc < TPair < K, V >> ): TRefRefPairArray<K, V>;
 begin
   Result := TRefRefPairArray<K, V>(inherited FindAsArray(AFunc));
 end;
 
-function TRefRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncRef<TPair<K, V>>): TRefRefPairArray<K, V>;
+function TRefRefPairArray<K, V>.FindAsArray(AFunc: TFindFuncRef < TPair < K, V >> ): TRefRefPairArray<K, V>;
 begin
   Result := TRefRefPairArray<K, V>(inherited FindAsArray(AFunc));
 end;
@@ -2539,259 +2351,269 @@ end;
 
 function TArray.TReader.GetCapacity: Integer;
 begin
-  Result := TArray(Self).Capacity;
+  Result := Instance.Capacity;
 end;
 
 function TArray.TReader.GetGrowAmount: Integer;
 begin
-  Result := TArray(Self).GrowAmount;
+  Result := Instance.GrowAmount;
 end;
 
 function TArray.TReader.GetShrinkRetain: Integer;
 begin
-  Result := TArray(Self).ShrinkRetain;
+  Result := Instance.ShrinkRetain;
+end;
+
+function TArray.TReader.Instance: TArray;
+begin
+  Result := TArray(Self);
 end;
 
 function TArray.TReader.Count: Integer;
 begin
-  Result := TArray(Self).Count;
+  Result := Instance.Count;
 end;
 
 function TArray.TReader.CountOptimized: Boolean;
 begin
-  Result := TArray(Self).CountOptimized;
+  Result := Instance.CountOptimized;
 end;
 
 function TArray.TReader.MaxIndex: Integer;
 begin
-  Result := TArray(Self).MaxIndex;
+  Result := Instance.MaxIndex;
 end;
 
 function TArray.TReader.Empty: Boolean;
 begin
-  Result := TArray(Self).Empty;
+  Result := Instance.Empty;
 end;
 
 procedure TArray.TReader.RangeCheckException(AIndex: Integer);
 begin
-  TArray(Self).RangeCheckException(AIndex);
+  Instance.RangeCheckException(AIndex);
 end;
 
 function TArray.TReader.RangeCheck(AIndex: Integer): Boolean;
 begin
-  Result := TArray(Self).RangeCheck(AIndex);
+  Result := Instance.RangeCheck(AIndex);
 end;
 
 function TArray.TReader.Copy: TArray;
 begin
-  Result := TArray(Self).Copy;
+  Result := Instance.Copy;
 end;
 
 { TArray<T>.TReader }
 
 function TArray<T>.TReader.BinarySearch(AItem: T; AFunc: TCompareFunc<T>): Integer;
 begin
-  Result := TArray<T>(Self).BinarySearch(AItem, AFunc);
+  Result := Instance.BinarySearch(AItem, AFunc);
 end;
 
 function TArray<T>.TReader.BinarySearch(AItem: T; AFunc: TCompareFuncRef<T>): Integer;
 begin
-  Result := TArray<T>(Self).BinarySearch(AItem, AFunc);
+  Result := Instance.BinarySearch(AItem, AFunc);
 end;
 
 function TArray<T>.TReader.BinarySearch(AItem: T; AFunc: TCompareFuncStatic<T>): Integer;
 begin
-  Result := TArray<T>(Self).BinarySearch(AItem, AFunc);
+  Result := Instance.BinarySearch(AItem, AFunc);
 end;
 
 function TArray<T>.TReader.Copy: TArray<T>;
 begin
-  Result := TArray<T>(Self).Copy;
+  Result := Instance.Copy;
 end;
 
 function TArray<T>.TReader.FindAsArray(AFunc: TFindFuncRef<T>): TArray<T>;
 begin
-  Result := TArray<T>(Self).FindAsArray(AFunc);
+  Result := Instance.FindAsArray(AFunc);
 end;
 
 function TArray<T>.TReader.FindAsArray(AFunc: TFindFunc<T>): TArray<T>;
 begin
-  Result := TArray<T>(Self).FindAsArray(AFunc);
+  Result := Instance.FindAsArray(AFunc);
 end;
 
 function TArray<T>.TReader.FindAsArray(AFunc: TFindFuncStatic<T>): TArray<T>;
 begin
-  Result := TArray<T>(Self).FindAsArray(AFunc);
+  Result := Instance.FindAsArray(AFunc);
 end;
 
 function TArray<T>.TReader.FindFirst(AFunc: TFindFuncStatic<T>): T;
 begin
-  Result := TArray<T>(Self).FindFirst(AFunc);
+  Result := Instance.FindFirst(AFunc);
 end;
 
 function TArray<T>.TReader.FindFirst(AFunc: TFindFuncRef<T>): T;
 begin
-  Result := TArray<T>(Self).FindFirst(AFunc);
+  Result := Instance.FindFirst(AFunc);
 end;
 
 function TArray<T>.TReader.FindFirst(AFunc: TFindFunc<T>): T;
 begin
-  Result := TArray<T>(Self).FindFirst(AFunc);
+  Result := Instance.FindFirst(AFunc);
 end;
 
 function TArray<T>.TReader.FindFirstIndex(AFunc: TFindFuncRef<T>): Integer;
 begin
-  Result := TArray<T>(Self).FindFirstIndex(AFunc);
+  Result := Instance.FindFirstIndex(AFunc);
 end;
 
 function TArray<T>.TReader.FindFirstIndex(AFunc: TFindFuncStatic<T>): Integer;
 begin
-  Result := TArray<T>(Self).FindFirstIndex(AFunc);
+  Result := Instance.FindFirstIndex(AFunc);
 end;
 
 function TArray<T>.TReader.FindFirstIndex(AFunc: TFindFunc<T>): Integer;
 begin
-  Result := TArray<T>(Self).FindFirstIndex(AFunc);
+  Result := Instance.FindFirstIndex(AFunc);
 end;
 
-function TArray<T>.TReader.FindIndexAsArray(AFunc: TFindFunc<T>): TIntArray;
+function TArray<T>.TReader.FindIndexAsArray(AFunc: TFindFunc<T>): TArray<Integer>;
 begin
-  Result := TArray<T>(Self).FindIndexAsArray(AFunc);
+  Result := Instance.FindIndexAsArray(AFunc);
 end;
 
-function TArray<T>.TReader.FindIndexAsArray(AFunc: TFindFuncRef<T>): TIntArray;
+function TArray<T>.TReader.FindIndexAsArray(AFunc: TFindFuncRef<T>): TArray<Integer>;
 begin
-  Result := TArray<T>(Self).FindIndexAsArray(AFunc);
+  Result := Instance.FindIndexAsArray(AFunc);
 end;
 
-function TArray<T>.TReader.FindIndexAsArray(AFunc: TFindFuncStatic<T>): TIntArray;
+function TArray<T>.TReader.FindIndexAsArray(AFunc: TFindFuncStatic<T>): TArray<Integer>;
 begin
-  Result := TArray<T>(Self).FindIndexAsArray(AFunc);
+  Result := Instance.FindIndexAsArray(AFunc);
 end;
 
 function TArray<T>.TReader.FindLast(AFunc: TFindFunc<T>): T;
 begin
-  Result := TArray<T>(Self).FindLast(AFunc);
+  Result := Instance.FindLast(AFunc);
 end;
 
 function TArray<T>.TReader.FindLast(AFunc: TFindFuncRef<T>): T;
 begin
-  Result := TArray<T>(Self).FindLast(AFunc);
+  Result := Instance.FindLast(AFunc);
 end;
 
 function TArray<T>.TReader.FindLast(AFunc: TFindFuncStatic<T>): T;
 begin
-  Result := TArray<T>(Self).FindLast(AFunc);
+  Result := Instance.FindLast(AFunc);
 end;
 
 function TArray<T>.TReader.FindLastIndex(AFunc: TFindFuncStatic<T>): Integer;
 begin
-  Result := TArray<T>(Self).FindLastIndex(AFunc);
+  Result := Instance.FindLastIndex(AFunc);
 end;
 
 function TArray<T>.TReader.FindLastIndex(AFunc: TFindFunc<T>): Integer;
 begin
-  Result := TArray<T>(Self).FindLastIndex(AFunc);
+  Result := Instance.FindLastIndex(AFunc);
 end;
 
 procedure TArray<T>.TReader.ForEach(AFunc: TForEachProcStatic<T>);
 begin
-  TArray<T>(Self).ForEach(AFunc);
+  Instance.ForEach(AFunc);
 end;
 
 procedure TArray<T>.TReader.ForEach(AFunc: TForEachProcRef<T>);
 begin
-  TArray<T>(Self).ForEach(AFunc);
+  Instance.ForEach(AFunc);
 end;
 
 procedure TArray<T>.TReader.ForEach(AFunc: TForEachProc<T>);
 begin
-  TArray<T>(Self).ForEach(AFunc);
+  Instance.ForEach(AFunc);
 end;
 
 function TArray<T>.TReader.ForEach<R>(AFunc: TForEachFuncStatic<T, R>): TArray<R>;
 begin
-  Result := TArray<T>(Self).ForEach<R>(AFunc);
+  Result := Instance.ForEach<R>(AFunc);
 end;
 
 function TArray<T>.TReader.ForEach<R>(AFunc: TForEachFuncRef<T, R>): TArray<R>;
 begin
-  Result := TArray<T>(Self).ForEach<R>(AFunc);
+  Result := Instance.ForEach<R>(AFunc);
 end;
 
 function TArray<T>.TReader.ForEach<R>(AFunc: TForEachFunc<T, R>): TArray<R>;
 begin
-  Result := TArray<T>(Self).ForEach<R>(AFunc);
+  Result := Instance.ForEach<R>(AFunc);
 end;
 
 function TArray<T>.TReader.FindLastIndex(AFunc: TFindFuncRef<T>): Integer;
 begin
-  Result := TArray<T>(Self).FindLastIndex(AFunc);
+  Result := Instance.FindLastIndex(AFunc);
 end;
 
 function TArray<T>.TReader.GetEnumerator: IIterator<T>;
 begin
-  Result := TArray<T>(Self).GetEnumerator;
+  Result := Instance.GetEnumerator;
 end;
 
 function TArray<T>.TReader.GetFirst: T;
 begin
-  Result := TArray<T>(Self).First;
+  Result := Instance.First;
 end;
 
 function TArray<T>.TReader.GetItem(I: Integer): T;
 begin
-  Result := TArray<T>(Self)[I];
+  Result := Instance[I];
 end;
 
 function TArray<T>.TReader.GetLast: T;
 begin
-  Result := TArray<T>(Self).Last;
+  Result := Instance.Last;
 end;
 
 function TArray<T>.TReader.InReverse: TReverseWrapper;
 begin
-  Result := TArray<T>(Self).InReverse;
+  Result := Instance.InReverse;
 end;
 
-class function TArray<T>.TReader.ItemToString(AItem: T): string;
+function TArray<T>.TReader.Instance: TArray<T>;
 begin
-  Result := TArray<T>(Pointer(Self)).ItemToString(AItem);
+  Result := TArray<T>(Self);
+end;
+
+function TArray<T>.TReader.ItemToString(AItem: T): string;
+begin
+  Result := Instance.ItemToString(AItem);
 end;
 
 procedure TArray<T>.TReader.SetFirst(const Value: T);
 begin
-  TArray<T>(Self).First := Value;
+  Instance.First := Value;
 end;
 
 procedure TArray<T>.TReader.SetItem(I: Integer; const Value: T);
 begin
-  TArray<T>(Self)[I] := Value;
+  Instance[I] := Value;
 end;
 
 procedure TArray<T>.TReader.SetLast(const Value: T);
 begin
-  TArray<T>(Self).Last := Value;
+  Instance.Last := Value;
 end;
 
 function TArray<T>.TReader.Sorted(AFunc: TCompareFunc<T>): Boolean;
 begin
-  Result := TArray<T>(Self).Sorted(AFunc);
+  Result := Instance.Sorted(AFunc);
 end;
 
 function TArray<T>.TReader.Sorted(AFunc: TCompareFuncRef<T>): Boolean;
 begin
-  Result := TArray<T>(Self).Sorted(AFunc);
+  Result := Instance.Sorted(AFunc);
 end;
 
 function TArray<T>.TReader.Sorted(AFunc: TCompareFuncStatic<T>): Boolean;
 begin
-  Result := TArray<T>(Self).Sorted(AFunc);
+  Result := Instance.Sorted(AFunc);
 end;
 
 function TArray<T>.TReader.ToString: string;
 begin
-  Result := TArray<T>(Self).ToString;
+  Result := Instance.ToString;
 end;
 
 { TSingleArrayHelper }
@@ -2857,19 +2679,29 @@ end;
 
 function TFindableArray<T>.TReader.Contains(AItem: T): Boolean;
 begin
-  Result := TFindableArray<T>(Self).Contains(AItem);
+  Result := Instance.Contains(AItem);
 end;
 
 function TFindableArray<T>.TReader.Find(AItem: T): Integer;
 begin
-  Result := TFindableArray<T>(Self).Find(AItem);
+  Result := Instance.Find(AItem);
+end;
+
+function TFindableArray<T>.TReader.Instance: TFindableArray<T>;
+begin
+  Result := TFindableArray<T>(Self);
 end;
 
 { TRefArray<T>.TReader }
 
 function TRefArray<T>.TReader.Copy: TRefArray<T>;
 begin
-  Result := TRefArray<T>(Self).Copy;
+  Result := Instance.Copy;
+end;
+
+function TRefArray<T>.TReader.Instance: TRefArray<T>;
+begin
+  Result := TRefArray<T>(Self);
 end;
 
 { TToObjectPairArray<K, V> }
