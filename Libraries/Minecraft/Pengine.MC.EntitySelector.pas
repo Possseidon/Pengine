@@ -14,10 +14,10 @@ uses
   Pengine.JSON,
 
   Pengine.MC.NBT,
-  Pengine.MC.Gamemode,
-  Pengine.MC.Entity,
   Pengine.MC.General,
-  Pengine.MC.Namespace;
+  Pengine.MC.Gamemode,
+  Pengine.MC.Namespace,
+  Pengine.MC.Registries;
 
 type
 
@@ -654,14 +654,14 @@ type
       end;
 
     private
-      FEntity: TEntity;
+      FEntity: TNSPath;
 
     public
       class function GetType: TOption.TType; override;
       class function GetQuantityType: TOption.TQuantityType; override;
       class function IsApplicable(AVariable: TVariable): Boolean; override;
 
-      property Entity: TEntity read FEntity write FEntity;
+      property Entity: TNSPath read FEntity write FEntity;
 
       class function GetDataParserClass: TParserClass; override;
 
@@ -1025,8 +1025,7 @@ begin
             Advance;
           end
       else
-        if Required then
-          raise EParseError.Create('Expected "," or "]".')
+        raise EParseError.Create('Expected "," or "]".');
       end;
     end
     else
@@ -1276,7 +1275,7 @@ end;
 
 function TEntitySelector.TOptionType.FormatData: string;
 begin
-  Result := inherited + NSPath(EntityNames[Entity]).Format;
+  Result := inherited + Entity;
 end;
 
 class function TEntitySelector.TOptionType.GetDataParserClass: TParserClass;
@@ -1403,7 +1402,7 @@ begin
   begin
     if Option is TOptionType then
     begin
-      if TOptionType(Option).Entity = etPlayer then
+      if TOptionType(Option).Entity = 'player' then
         Exit(not TOptionType(Option).Inverted)
       else if not TOptionType(Option).Inverted then
         Exit(False);
@@ -2218,20 +2217,16 @@ end;
 
 function TEntitySelector.TOptionType.TParser.Parse: Boolean;
 var
-  NSPath: TNSPath;
-  Entity: TEntity;
   Marker: TLogMarker;
 begin
   Marker := GetMarker;
   BeginSuggestions(TSuggestions.Create);
-  NSPath := ReadWhile(NamespacePathChars);
-  Result := not NSPath.IsEmpty;
+  ParseObject.Entity := ReadWhile(NamespacePathChars);
+  Result := not ParseObject.Entity.IsEmpty;
   if not Result then
     Exit;
-  if EntityFromName(NSPath, Entity) then
-    ParseObject.Entity := Entity
-  else
-    Log(Marker, '"%s" is not a valid entity type.', [NSPath.Format], elFatal);
+  if not MCRegistries.EntityType.Has(ParseObject.Entity) then
+    Log(Marker, '"%s" is not a valid entity type.', [ParseObject.Entity.Format], elError);
 end;
 
 { TEntitySelector.TSuggesions }
@@ -2332,13 +2327,13 @@ end;
 
 procedure TEntitySelector.TOptionType.TSuggestions.Generate;
 var
-  Entity: TEntity;
+  Entity: TNSPath;
 begin
-  for Entity := Low(TEntity) to High(TEntity) do
-    AddSuggestion(EntityNames[Entity]);
+  for Entity in MCRegistries.EntityType do
+    AddSuggestion(Entity.Format(False));
   AddSuggestion(TNSPath.Empty.Format);
-  for Entity := Low(TEntity) to High(TEntity) do
-    AddSuggestion(NSPath(EntityNames[Entity]).Format);
+  for Entity in MCRegistries.EntityType do
+    AddSuggestion(Entity.Format);
 end;
 
 { TEntitySelector.TOptionSort.TSuggestions }

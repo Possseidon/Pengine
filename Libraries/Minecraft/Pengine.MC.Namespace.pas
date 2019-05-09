@@ -78,7 +78,7 @@ begin
   Result.Create(ANamespace, APath);
 end;
 
-{ TNSIdent }
+{ TNSPath }
 
 constructor TNSPath.Create(ANamespace, APath: string);
 begin

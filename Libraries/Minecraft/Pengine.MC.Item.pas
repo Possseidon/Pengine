@@ -14,11 +14,11 @@ uses
   Pengine.Parsing,
   Pengine.Utility,
   Pengine.JSON,
+  Pengine.IntMaths,
 
   Pengine.MC.Namespace,
   Pengine.MC.NBT,
-  Pengine.MC.General,
-  Pengine.IntMaths;
+  Pengine.MC.General;
 
 type
 

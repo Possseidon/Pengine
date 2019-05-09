@@ -16,7 +16,6 @@ uses
   Pengine.JSON,
 
   Pengine.MC.NBT,
-  Pengine.MC.Enchantment,
   Pengine.MC.Attribute,
   Pengine.MC.Namespace;
 

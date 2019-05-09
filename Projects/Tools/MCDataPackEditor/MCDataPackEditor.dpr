@@ -31,6 +31,7 @@ uses
   EditorFrameStructure in 'EditorFrames\EditorFrameStructure.pas' {frmEditorStructures: TFrame},
   StartupView in 'StartupView.pas',
   Pengine.Settings,
+  Pengine.MC.Registries,
   System.IOUtils;
 
 {$R *.res}
@@ -41,6 +42,8 @@ begin
 
   RootSettingsG := TRootSettings.Create;
   RootSettingsG.Path := TPath.Combine(TPath.GetHomePath, '.mcdpe\settings.json');
+
+  MCRegistries.Load('Data\reports\registries.json');
 
   // fix for scrollbars not adapting to selected style
   TStyleManager.Engine.RegisterStyleHook(TCustomSynEdit, TMemoStyleHook);

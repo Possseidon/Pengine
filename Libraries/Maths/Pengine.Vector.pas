@@ -1777,6 +1777,30 @@ const
   InfBounds3: TBounds3 = (C1: (X: - Infinity; Y: - Infinity; Z: - Infinity);
     C2: (X: Infinity; Y: Infinity; Z: Infinity));
 
+  QuadTexCoords: array [TQuadIndex] of TVector2 = (
+    (X: 0; Y: 0),
+    (X: 1; Y: 0),
+    (X: 1; Y: 1),
+    (X: 1; Y: 1),
+    (X: 0; Y: 1),
+    (X: 0; Y: 0)
+    );
+
+  QuadMiddleCoords: array [TQuadIndex] of TVector2 = (
+    (X: - 1; Y: - 1),
+    (X: + 1; Y: - 1),
+    (X: + 1; Y: + 1),
+    (X: + 1; Y: + 1),
+    (X: - 1; Y: + 1),
+    (X: - 1; Y: - 1)
+    );
+
+  TriangleTexCoords: array [TTriangleIndex] of TVector2 = (
+    (X: 0; Y: 0),
+    (X: 1; Y: 0),
+    (X: 0; Y: 1)
+    );
+
   CubePlanes: array [TBasicDir3] of TPlane3 = (
     (S: (X: 0; Y: 0; Z: 0); DX: (X: 0; Y: 0; Z: 1); DY: (X: 0; Y: 1; Z: 0)),
     (S: (X: 1; Y: 0; Z: 1); DX: (X: 0; Y: 0; Z: - 1); DY: (X: 0; Y: 1; Z: 0)),

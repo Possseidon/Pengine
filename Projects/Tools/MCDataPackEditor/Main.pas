@@ -51,7 +51,7 @@ uses
   FunctionTheme,
   LightThemePreset,
   SettingsForm,
-  StartupView;
+  StartupView, SynEditHighlighter, SynEditCodeFolding, SynHighlighterPython, SynEdit;
 
 type
 

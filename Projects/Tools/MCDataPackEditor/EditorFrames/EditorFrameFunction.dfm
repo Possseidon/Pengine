@@ -64,6 +64,8 @@ object frmEditorFunctions: TfrmEditorFunctions
       OnPaint = frmSynEditorsynEditorPaint
       OnSpecialLineColors = synEditorSpecialLineColors
       OnStatusChange = synEditorStatusChange
+      ExplicitLeft = 3
+      ExplicitTop = -3
       ExplicitWidth = 610
       ExplicitHeight = 409
     end

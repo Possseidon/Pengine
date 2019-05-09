@@ -20,6 +20,15 @@ object frmSynEditor: TfrmSynEditor
     ParentShowHint = False
     ShowHint = False
     TabOrder = 0
+    OnKeyPress = synEditorKeyPress
+    CodeFolding.GutterShapeSize = 11
+    CodeFolding.CollapsedLineColor = clGrayText
+    CodeFolding.FolderBarLinesColor = clGrayText
+    CodeFolding.IndentGuidesColor = clGray
+    CodeFolding.IndentGuides = True
+    CodeFolding.ShowCollapsedLine = False
+    CodeFolding.ShowHintMark = True
+    UseCodeFolding = False
     Gutter.DigitCount = 3
     Gutter.Font.Charset = ANSI_CHARSET
     Gutter.Font.Color = clWindowText

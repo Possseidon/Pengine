@@ -76,7 +76,6 @@ type
     actSearch: TAction;
     pmFunctions: TPopupMenu;
     actToggleComment: TAction;
-    ogglecomment1: TMenuItem;
     procedure actToggleCommentExecute(Sender: TObject);
     procedure frmSynEditorsynEditorPaint(Sender: TObject; ACanvas: TCanvas);
     procedure lvErrorsDblClick(Sender: TObject);

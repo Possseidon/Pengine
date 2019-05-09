@@ -24,13 +24,9 @@ uses
   Pengine.MC.NBT,
   Pengine.MC.Vector,
   Pengine.MC.Namespace,
-  Pengine.MC.Entity,
-  Pengine.MC.Enchantment,
-  Pengine.MC.Dimension,
-  Pengine.MC.Particle,
   Pengine.MC.TextComponent,
-  Pengine.MC.MobEffect,
-  Pengine.MC.Scoreboard;
+  Pengine.MC.Scoreboard,
+  Pengine.MC.Registries;
 
 type
 
@@ -804,12 +800,12 @@ type
   /// <summary>A single potion effect.</summary>
   TBrigadierMobEffect = class(TBrigadierArgumentParameter)
   private
-    FEffect: TMobEffect;
+    FEffect: TNSPath;
 
   public
-    constructor Create(AArgument: TBrigadierArgument; AEffect: TMobEffect); reintroduce; overload;
+    constructor Create(AArgument: TBrigadierArgument; AEffect: TNSPath); reintroduce; overload;
 
-    property Effect: TMobEffect read FEffect write FEffect;
+    property Effect: TNSPath read FEffect write FEffect;
 
     function Format: string; override;
 
@@ -941,12 +937,12 @@ type
   /// <summary>An entity used in the summon command.</summary>
   TBrigadierEntitySummon = class(TBrigadierArgumentParameter)
   private
-    FEntity: TEntity;
+    FEntity: TNSPath;
 
   public
-    constructor Create(AArgument: TBrigadierArgument; AEntity: TEntity); reintroduce; overload;
+    constructor Create(AArgument: TBrigadierArgument; AEntity: TNSPath); reintroduce; overload;
 
-    property Entity: TEntity read FEntity;
+    property Entity: TNSPath read FEntity;
 
     function Format: string; override;
 
@@ -973,12 +969,12 @@ type
   /// <summary>An entity used in the summon command.</summary>
   TBrigadierItemEnchantment = class(TBrigadierArgumentParameter)
   private
-    FEnchantment: TEnchantment;
+    FEnchantment: TNSPath;
 
   public
-    constructor Create(AArgument: TBrigadierArgument; AEnchantment: TEnchantment); reintroduce; overload;
+    constructor Create(AArgument: TBrigadierArgument; AEnchantment: TNSPath); reintroduce; overload;
 
-    property Enchantment: TEnchantment read FEnchantment;
+    property Enchantment: TNSPath read FEnchantment;
 
     function Format: string; override;
 
@@ -1029,12 +1025,12 @@ type
   /// <summary>A dimension.</summary>
   TBrigadierDimension = class(TBrigadierArgumentParameter)
   private
-    FDimension: TDimension;
+    FDimension: TNSPath;
 
   public
-    constructor Create(AArgument: TBrigadierArgument; ADimension: TDimension); reintroduce; overload;
+    constructor Create(AArgument: TBrigadierArgument; ADimension: TNSPath); reintroduce; overload;
 
-    property Dimension: TDimension read FDimension;
+    property Dimension: TNSPath read FDimension;
 
     function Format: string; override;
 
@@ -1123,12 +1119,12 @@ type
   /// <summary>A particle type used in the particle command.</summary>
   TBrigadierParticle = class(TBrigadierArgumentParameter)
   private
-    FParticle: TParticle;
+    FParticle: TNSPath;
 
   public
-    constructor Create(AArgument: TBrigadierArgument; AParticle: TParticle); reintroduce; overload;
+    constructor Create(AArgument: TBrigadierArgument; AParticle: TNSPath); reintroduce; overload;
 
-    property Particle: TParticle read FParticle write FParticle;
+    property Particle: TNSPath read FParticle write FParticle;
 
     function Format: string; override;
 
@@ -2246,15 +2242,17 @@ end;
 
 function TBrigadierMobEffectParser.Parse: Boolean;
 var
-  NSPath: TNSPath;
-  Effect: TMobEffect;
+  Effect: TNSPath;
+  Marker: TLogMarker;
 begin
+  Marker := GetMarker;
+
   BeginSuggestions(TSuggestions.Create);
-  NSPath := ReadWhile(NamespacePathChars);
+  Effect := ReadWhile(NamespacePathChars);
   EndSuggestions;
 
-  if NSPath.IsEmpty or not MobEffectFromName(NSPath, Effect) then
-    Exit(False);
+  if not MCRegistries.MobEffect.Has(Effect) then
+    Log(Marker, 'Invalid mob effect "%s".', [Effect.Format]);
 
   ParseResult := TBrigadierMobEffect.Create(Argument, Effect);
 
@@ -2266,7 +2264,7 @@ end;
 class function TFormatNamespaceSettings.GetDescription: string;
 begin
   Result := Format(
-    'Allows individual settings, as to wether the formatter should show or hide the default namespace "%s:".',
+    'Allows individual settings, as to whether the formatter should show or hide the default namespace "%s:".',
     [TNSPath.DefaultNamespace]);
 end;
 
@@ -2398,7 +2396,7 @@ end;
 
 { TBrigadierEntitySummon }
 
-constructor TBrigadierEntitySummon.Create(AArgument: TBrigadierArgument; AEntity: TEntity);
+constructor TBrigadierEntitySummon.Create(AArgument: TBrigadierArgument; AEntity: TNSPath);
 begin
   inherited Create(AArgument);
   FEntity := AEntity;
@@ -2406,7 +2404,7 @@ end;
 
 function TBrigadierEntitySummon.Format: string;
 begin
-  Result := NSPath(EntityNames[Entity]).Format;
+  Result := Entity.Format;
 end;
 
 { TBrigadierEntitySummonParser }
@@ -2423,15 +2421,17 @@ end;
 
 function TBrigadierEntitySummonParser.Parse: Boolean;
 var
-  NSPath: TNSPath;
-  Entity: TEntity;
+  Entity: TNSPath;
+  Marker: TLogMarker;
 begin
+  Marker := GetMarker;
+
   BeginSuggestions(TSuggestions.Create);
-  NSPath := ReadWhile(NamespacePathChars);
+  Entity := ReadWhile(NamespacePathChars);
   EndSuggestions;
 
-  if NSPath.IsEmpty or not EntityFromName(NSPath, Entity) then
-    Exit(False);
+  if not MCRegistries.EntityType.Has(Entity) then
+    Log(Marker, 'Invalid entity type "%s".', [Entity.Format]);
 
   ParseResult := TBrigadierEntitySummon.Create(Argument, Entity);
 
@@ -2440,7 +2440,7 @@ end;
 
 { TBrigadierItemEnchantment }
 
-constructor TBrigadierItemEnchantment.Create(AArgument: TBrigadierArgument; AEnchantment: TEnchantment);
+constructor TBrigadierItemEnchantment.Create(AArgument: TBrigadierArgument; AEnchantment: TNSPath);
 begin
   inherited Create(AArgument);
   FEnchantment := AEnchantment;
@@ -2448,7 +2448,7 @@ end;
 
 function TBrigadierItemEnchantment.Format: string;
 begin
-  Result := NSPath(EnchantmentNames[Enchantment]).Format;
+  Result := Enchantment;
 end;
 
 { TBrigadierItemEnchantmentParser }
@@ -2465,15 +2465,17 @@ end;
 
 function TBrigadierItemEnchantmentParser.Parse: Boolean;
 var
-  NSPath: TNSPath;
-  Enchantment: TEnchantment;
+  Enchantment: TNSPath;
+  Marker: TLogMarker;
 begin
+  Marker := GetMarker;
+
   BeginSuggestions(TSuggestions.Create);
-  NSPath := ReadWhile(NamespacePathChars);
+  Enchantment := ReadWhile(NamespacePathChars);
   EndSuggestions;
 
-  if NSPath.IsEmpty or not EnchantmentFromName(NSPath, Enchantment) then
-    Exit(False);
+  if not MCRegistries.Enchantment.Has(Enchantment) then
+    Log(Marker, 'Invalid enchantment "%s".', [Enchantment.Format]);
 
   ParseResult := TBrigadierItemEnchantment.Create(Argument, Enchantment);
 
@@ -2484,13 +2486,13 @@ end;
 
 procedure TBrigadierItemEnchantmentParser.TSuggestions.Generate;
 var
-  Enchantment: TEnchantment;
+  Enchantment: TNSPath;
 begin
-  for Enchantment := Low(TEnchantment) to High(TEnchantment) do
-    AddSuggestion(EnchantmentNames[Enchantment]);
+  for Enchantment in MCRegistries.Enchantment do
+    AddSuggestion(Enchantment.Format(False));
   AddSuggestion(TNSPath.Empty.Format);
-  for Enchantment := Low(TEnchantment) to High(TEnchantment) do
-    AddSuggestion(NSPath(EnchantmentNames[Enchantment]).Format);
+  for Enchantment in MCRegistries.Enchantment do
+    AddSuggestion(Enchantment.Format);
 end;
 
 { TBrigadierTeamParser }
@@ -2533,7 +2535,7 @@ end;
 
 { TBrigadierDimension }
 
-constructor TBrigadierDimension.Create(AArgument: TBrigadierArgument; ADimension: TDimension);
+constructor TBrigadierDimension.Create(AArgument: TBrigadierArgument; ADimension: TNSPath);
 begin
   inherited Create(AArgument);
   FDimension := ADimension;
@@ -2541,7 +2543,7 @@ end;
 
 function TBrigadierDimension.Format: string;
 begin
-  Result := NSPath(DimensionNames[Dimension]).Format;
+  Result := Dimension;
 end;
 
 { TBrigadierDimensionParser }
@@ -2558,15 +2560,17 @@ end;
 
 function TBrigadierDimensionParser.Parse: Boolean;
 var
-  NSPath: TNSPath;
-  Dimension: TDimension;
+  Marker: TLogMarker;
+  Dimension: TNSPath;
 begin
+  Marker := GetMarker;
+
   BeginSuggestions(TSuggestions.Create);
-  NSPath := ReadWhile(NamespacePathChars);
+  Dimension := ReadWhile(NamespacePathChars);
   EndSuggestions;
 
-  if NSPath.IsEmpty or not DimensionFromName(NSPath, Dimension) then
-    Exit(False);
+  if not MCRegistries.DimensionType.Has(Dimension) then
+    Log(Marker, 'Invalid dimension "%s".', [Dimension.Format]);
 
   ParseResult := TBrigadierDimension.Create(Argument, Dimension);
 
@@ -2801,13 +2805,13 @@ end;
 
 procedure TBrigadierDimensionParser.TSuggestions.Generate;
 var
-  Dimension: TDimension;
+  Dimension: TNSPath;
 begin
-  for Dimension := Low(TDimension) to High(TDimension) do
-    AddSuggestion(DimensionNames[Dimension]);
+  for Dimension in MCRegistries.DimensionType do
+    AddSuggestion(Dimension.Format(False));
   AddSuggestion(TNSPath.Empty.Format);
-  for Dimension := Low(TDimension) to High(TDimension) do
-    AddSuggestion(NSPath(DimensionNames[Dimension]).Format);
+  for Dimension in MCRegistries.DimensionType do
+    AddSuggestion(Dimension.Format);
 end;
 
 { TBrigadierResourceLocationParser }
@@ -2883,15 +2887,17 @@ end;
 
 function TBrigadierParticleParser.Parse: Boolean;
 var
-  NSPath: TNSPath;
-  Particle: TParticle;
+  Marker: TLogMarker;
+  Particle: TNSPath;
 begin
+  Marker := GetMarker;
+
   BeginSuggestions(TSuggestions.Create);
-  NSPath := ReadWhile(NamespacePathChars);
+  Particle := ReadWhile(NamespacePathChars);
   EndSuggestions;
 
-  if NSPath.IsEmpty or not ParticleFromName(NSPath, Particle) then
-    Exit(False);
+  if not MCRegistries.ParticleType.Has(Particle) then
+    Log(Marker, 'Invalid particle "%s".', [Particle.Format]);
 
   ParseResult := TBrigadierParticle.Create(Argument, Particle);
 
@@ -2900,7 +2906,7 @@ end;
 
 { TBrigadierParticle }
 
-constructor TBrigadierParticle.Create(AArgument: TBrigadierArgument; AParticle: TParticle);
+constructor TBrigadierParticle.Create(AArgument: TBrigadierArgument; AParticle: TNSPath);
 begin
   inherited Create(AArgument);
   FParticle := AParticle;
@@ -2908,20 +2914,20 @@ end;
 
 function TBrigadierParticle.Format: string;
 begin
-  Result := NSPath(ParticleNames[Particle]).Format;
+  Result := Particle;
 end;
 
 { TBrigadierParticleParser.TSuggestions }
 
 procedure TBrigadierParticleParser.TSuggestions.Generate;
 var
-  Particle: TParticle;
+  Particle: TNSPath;
 begin
-  for Particle := Low(TParticle) to High(TParticle) do
-    AddSuggestion(ParticleNames[Particle]);
+  for Particle in MCRegistries.ParticleType do
+    AddSuggestion(Particle.Format(False));
   AddSuggestion(TNSPath.Empty.Format);
-  for Particle := Low(TParticle) to High(TParticle) do
-    AddSuggestion(NSPath(ParticleNames[Particle]).Format);
+  for Particle in MCRegistries.ParticleType do
+    AddSuggestion(Particle.Format);
 end;
 
 { TBrigadierColor }
@@ -2992,7 +2998,7 @@ end;
 
 { TBrigadierMobEffect }
 
-constructor TBrigadierMobEffect.Create(AArgument: TBrigadierArgument; AEffect: TMobEffect);
+constructor TBrigadierMobEffect.Create(AArgument: TBrigadierArgument; AEffect: TNSPath);
 begin
   inherited Create(AArgument);
   FEffect := AEffect;
@@ -3000,34 +3006,35 @@ end;
 
 function TBrigadierMobEffect.Format: string;
 begin
-  Result := NSPath(MobEffectNames[Effect]).Format;
+  Result := Effect;
 end;
 
 { TBrigadierMobEffectParser.TSuggestions }
 
 procedure TBrigadierMobEffectParser.TSuggestions.Generate;
 var
-  Effect: TMobEffect;
+  Effect: TNSPath;
 begin
-  for Effect := Low(TMobEffect) to High(TMobEffect) do
-    AddSuggestion(MobEffectNames[Effect]);
+  for Effect in MCRegistries.MobEffect do
+    AddSuggestion(Effect.Format(False));
   AddSuggestion(TNSPath.Empty.Format);
-  for Effect := Low(TMobEffect) to High(TMobEffect) do
-    AddSuggestion(NSPath(MobEffectNames[Effect]).Format);
+  for Effect in MCRegistries.MobEffect do
+    AddSuggestion(Effect.Format);
 end;
 
 { TBrigadierEntitySummonParser.TSuggestions }
 
 procedure TBrigadierEntitySummonParser.TSuggestions.Generate;
 var
-  Entity: TEntity;
+  Entity: TNSPath;
 begin
-  // skip first, being player
-  for Entity := Succ(Low(TEntity)) to High(TEntity) do
-    AddSuggestion(EntityNames[Entity]);
+  for Entity in MCRegistries.EntityType do
+    if Entity <> 'player' then
+      AddSuggestion(Entity.Format(False));
   AddSuggestion(TNSPath.Empty.Format);
-  for Entity := Succ(Low(TEntity)) to High(TEntity) do
-    AddSuggestion(NSPath(EntityNames[Entity]).Format);
+  for Entity in MCRegistries.EntityType do
+    if Entity <> 'player' then
+      AddSuggestion(Entity.Format);
 end;
 
 { TBrigadierScoreboardSlot }

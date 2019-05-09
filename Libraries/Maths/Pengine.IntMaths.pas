@@ -941,30 +941,6 @@ const
 
   QuadSideCount = High(TQuadIndex) + 1;
 
-  QuadTexCoords: array [TQuadIndex] of TIntVector2 = (
-    (X: 0; Y: 0),
-    (X: 1; Y: 0),
-    (X: 1; Y: 1),
-    (X: 1; Y: 1),
-    (X: 0; Y: 1),
-    (X: 0; Y: 0)
-    );
-
-  QuadMiddleCoords: array [TQuadIndex] of TIntVector2 = (
-    (X: - 1; Y: - 1),
-    (X: + 1; Y: - 1),
-    (X: + 1; Y: + 1),
-    (X: + 1; Y: + 1),
-    (X: - 1; Y: + 1),
-    (X: - 1; Y: - 1)
-    );
-
-  TriangleTexCoords: array [TTriangleIndex] of TIntVector2 = (
-    (X: 0; Y: 0),
-    (X: 1; Y: 0),
-    (X: 0; Y: 1)
-    );
-
   BasicDirectionNames: array [TBasicDir] of string = (
     'none',
     'left',

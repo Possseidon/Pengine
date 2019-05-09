@@ -17,7 +17,7 @@ uses
   Pengine.MC.General,
   Pengine.MC.Item,
   Pengine.MC.Namespace,
-  Pengine.MC.Entity;
+  Pengine.MC.Registries;
 
 type
 
@@ -1007,20 +1007,17 @@ end;
 
 class function TScoreboardCriteriaEntity.GetSubTypeCount: Integer;
 begin
-  Result := Length(EntityNames);
+  Result := MCRegistries.EntityType.Entries.Count;
 end;
 
 class function TScoreboardCriteriaEntity.GetSubTypeFromName(AName: string; out ASubType: Integer): Boolean;
-var
-  Entity: TEntity;
 begin
-  Result := EntityFromName(AName, Entity);
-  ASubType := Ord(Entity);
+  Result := MCRegistries.EntityType.Get(AName, ASubType);
 end;
 
 class function TScoreboardCriteriaEntity.GetSubTypeName(ASubType: Integer): string;
 begin
-  Result := EntityNames[TEntity(ASubType)];
+  Result := MCRegistries.EntityType.Entries[ASubType];
 end;
 
 { TScoreboardSlot }

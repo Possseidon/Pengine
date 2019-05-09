@@ -1176,16 +1176,19 @@ begin
   NSPath := NSPathString;
 
   ParseResult := TBlockStateTag.Create(NSPath);
+
   TagExists := RootSettingsG.Get<TBlockTagSettings>.BlockTags.Get(NSPath, BlockTag);
-  if not TagExists then
+  if TagExists then
+  begin
+    BlockTypes := BlockTag.BlockTypes;
+  end
+  else
+  begin
+    BlockTypes := nil;
     Log(Marker, '"%s" is not a valid block tag.', [NSPath.Format]);
+  end;
 
   ParseResult.NBT.Value := TNBTCompound.Parser.Optional(Info);
-
-  if BlockTag <> nil then
-    BlockTypes := BlockTag.BlockTypes
-  else
-    BlockTypes := nil;
 
   PropertiesParser := TBlockState.PropertiesParser;
   PropertiesParser.BlockTypes := BlockTypes;
