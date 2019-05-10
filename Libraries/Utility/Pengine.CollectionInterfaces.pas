@@ -103,8 +103,14 @@ begin
 end;
 
 function TIterable<T>.Empty: Boolean;
+var
+  Item: T;
 begin
-  Result := Count = 0;
+  if CountOptimized then
+    Exit(Count = 0);
+  for Item in Self do
+    Exit(True);
+  Result := False;
 end;
 
 procedure TIterable<T>.ForEach(AFunc: TForEachProcStatic<T>);

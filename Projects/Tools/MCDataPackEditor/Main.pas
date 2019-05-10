@@ -51,7 +51,7 @@ uses
   FunctionTheme,
   LightThemePreset,
   SettingsForm,
-  StartupView, SynEditHighlighter, SynEditCodeFolding, SynHighlighterPython, SynEdit;
+  StartupView, Vcl.StdCtrls;
 
 type
 
@@ -137,6 +137,7 @@ type
     actCloseAllOtherTabs: TAction;
     Closetab1: TMenuItem;
     Closeallothertabs1: TMenuItem;
+    Edit1: TEdit;
     procedure actCloseAllOtherTabsExecute(Sender: TObject);
     procedure actCloseTabExecute(Sender: TObject);
     procedure actCollapseAllExecute(Sender: TObject);

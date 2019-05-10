@@ -128,6 +128,14 @@ object frmMain: TfrmMain
     OnMouseUp = pcTabsMouseUp
     OnStartDrag = pcTabsStartDrag
   end
+  object Edit1: TEdit
+    Left = 536
+    Top = 160
+    Width = 121
+    Height = 21
+    TabOrder = 3
+    Text = 'Edit1'
+  end
   object alActions: TActionList
     Images = ilIcons
     Left = 48

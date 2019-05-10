@@ -4,6 +4,7 @@ interface
 
 uses
   Winapi.Windows,
+  Winapi.ShellAPI,
 
   System.IOUtils,
   System.SysUtils,
@@ -18,7 +19,8 @@ uses
   Pengine.EventHandling,
 
   Pengine.MC.General,
-  Pengine.MC.Brigadier, Winapi.ShellAPI;
+  Pengine.MC.Namespace,
+  Pengine.MC.Brigadier;
 
 type
 
@@ -27,14 +29,14 @@ type
   TDatapackBase = class
   protected
     function GetFullPath: TFileName; virtual; abstract;
-    function GetNamespacePath: string; virtual;
+    function GetNamespacePath: TNSPath; virtual;
 
     function GetName: string; virtual; abstract;
     procedure SetName(const Value: string); virtual;
 
     function GetDisplayName: string; virtual;
     procedure SetDisplayName(const Value: string); virtual;
-                                     
+
     class function MoveToRecycleBin(APath: TFileName): Boolean; static;
 
   public
@@ -50,7 +52,7 @@ type
     /// <returns>Wether NamespacePath is available on the current object.</returns>
     function HasNamespacePath: Boolean; virtual;
     /// <summary>The namespace identifier or namespace itself.</summary>
-    property NamespacePath: string read GetNamespacePath;
+    property NamespacePath: TNSPath read GetNamespacePath;
 
     procedure Update; virtual;
 
@@ -99,7 +101,7 @@ type
       function NameEditable: Boolean; override;
 
       property Parent: TDirectory read FParent;
-                                        
+
       function OnRename: TEvent.TAccess;
 
     end;
@@ -124,7 +126,7 @@ type
 
     protected
       function GetFullPath: TFileName; override;
-      function GetNamespacePath: string; override;
+      function GetNamespacePath: TNSPath; override;
 
       function GetDisplayName: string; override;
       procedure SetDisplayName(const Value: string); override;
@@ -137,7 +139,7 @@ type
       property FileExists: Boolean read GetFileExists;
       procedure Update; override;
       procedure Delete; override;
-      
+
       function OnChange: TEvent.TAccess;
       function OnFileRemoved: TEvent.TAccess;
       function OnRemove: TEvent.TAccess;
@@ -174,7 +176,7 @@ type
       procedure ChildRename(AEntry: TFileSystemEntry; ANewName: string);
 
     protected
-      function GetNamespacePath: string; override;
+      function GetNamespacePath: TNSPath; override;
 
     public
       constructor Create(AParent: TDirectory; AName: string);
@@ -190,7 +192,7 @@ type
 
       procedure Update; override;
       procedure Delete; override;
-      
+
       function OnAddEntry: TFileSystemEntry.TEvent.TAccess;
       function OnRemoveEntry: TFileSystemEntry.TEvent.TAccess;
 
@@ -198,14 +200,14 @@ type
 
     TRootDirectory = class(TDirectory)
     protected
-      function GetNamespacePath: string; override;
+      function GetNamespacePath: TNSPath; override;
       function GetFullPath: TFileName; override;
 
     public
       constructor Create(AData: TData; AName: string = '');
 
       procedure Delete; override;
-      
+
     end;
 
     TDataType = (
@@ -248,7 +250,7 @@ type
 
       function OnAddFileSystemEntry: TFileSystemEntry.TEvent.TAccess;
       function OnRemoveFileSystemEntry: TFileSystemEntry.TEvent.TAccess;
-      
+
       procedure Delete; override;
 
     end;
@@ -266,8 +268,8 @@ type
 
       property Directory: TRootDirectory read FDirectory;
 
-      procedure Update; override;      
-      
+      procedure Update; override;
+
     end;
 
     TDataMulti = class(TData)
@@ -313,7 +315,7 @@ type
       procedure FileSystemEntryRemove(AInfo: TFileSystemEntry.TEventInfo);
 
     protected
-      function GetNamespacePath: string; override;
+      function GetNamespacePath: TNSPath; override;
       function GetFullPath: TFileName; override;
       function GetName: string; override;
       procedure SetName(const Value: string); override;
@@ -335,7 +337,7 @@ type
       procedure EnableData(AType: TDataType);
       procedure DisableData(AType: TDataType);
 
-      procedure Update; override;    
+      procedure Update; override;
       procedure Delete; override;
 
       function OnEnableData: TData.TEvent.TAccess;
@@ -402,6 +404,28 @@ type
     function OnDisableData: TData.TEvent.TAccess;
     function OnAddFileSystemEntry: TFileSystemEntry.TEvent.TAccess;
     function OnRemoveFileSystemEntry: TFileSystemEntry.TEvent.TAccess;
+
+  end;
+
+  /// <summary>A collection of datapacks, allowing combined and flattened lockup.</summary>
+  TDatapackCollection = class
+  public type
+
+    TDatapacks = TObjectArray<TDatapack>;
+
+  private
+    FDatapacks: TDatapacks;
+
+    function GetDatapacks: TDatapacks.TReader;
+
+  public
+    property Datapacks: TDatapacks.TReader read GetDatapacks;
+    function Add(APath: string): TDatapack;
+    procedure Remove(ADatapack: TDatapack);
+    procedure Move(ADatapack: TDatapack; AIndex: Integer);
+
+    function GenerateFiles(ADataType: TDatapack.TDataType): TRefArray<TDatapack.TFile>;
+    function GenerateNSPaths(ADataType: TDatapack.TDataType): TArray<TNSPath>;
 
   end;
 
@@ -587,9 +611,9 @@ begin
   Result := FName;
 end;
 
-function TDatapack.TNamespace.GetNamespacePath: string;
+function TDatapack.TNamespace.GetNamespacePath: TNSPath;
 begin
-  Result := Name;
+  Result := NSPath(Name, '');
 end;
 
 function TDatapack.TNamespace.HasNamespacePath: Boolean;
@@ -1117,7 +1141,7 @@ begin
   Result := FEntries.Reader;
 end;
 
-function TDatapack.TDirectory.GetNamespacePath: string;
+function TDatapack.TDirectory.GetNamespacePath: TNSPath;
 begin
   Result := Parent.NamespacePath + Name + '/';
 end;
@@ -1139,7 +1163,6 @@ end;
 
 procedure TDatapack.TDirectory.Remove(AName: string);
 begin
-  ;
   FEntries.Remove(AName);
 end;
 
@@ -1239,7 +1262,7 @@ begin
   Result := ChangeFileExt(Name, '');
 end;
 
-function TDatapack.TFile.GetNamespacePath: string;
+function TDatapack.TFile.GetNamespacePath: TNSPath;
 begin
   Result := Parent.NamespacePath + DisplayName;
 end;
@@ -1323,9 +1346,9 @@ begin
     Result := TPath.Combine(Namespace.FullPath, Name);
 end;
 
-function TDatapack.TRootDirectory.GetNamespacePath: string;
+function TDatapack.TRootDirectory.GetNamespacePath: TNSPath;
 begin
-  Result := Namespace.NamespacePath + ':';
+  Result := Namespace.NamespacePath;
 end;
 
 { TDatapack.TDataSimple }
@@ -1371,7 +1394,7 @@ begin
   Result := Name;
 end;
 
-function TDatapackBase.GetNamespacePath: string;
+function TDatapackBase.GetNamespacePath: TNSPath;
 begin
   raise ENotSupportedException.Create('Namespacepath not available.');
 end;
@@ -1419,6 +1442,76 @@ end;
 procedure TDatapack.TDataMulti.Update;
 begin
   // TODO: TDatapack.TDataMulti.Update
+end;
+
+{ TDatapackCollection }
+
+function TDatapackCollection.Add(APath: string): TDatapack;
+begin
+  Result := FDatapacks.Add(TDatapack.Create(APath));
+end;
+
+function TDatapackCollection.GenerateFiles(ADataType: TDatapack.TDataType): TRefArray<TDatapack.TFile>;
+
+  procedure AddRecursive(AEntry: TDatapack.TFileSystemEntry);
+  var
+    Entry: TDatapack.TFileSystemEntry;
+  begin
+    if AEntry is TDatapack.TFile then
+      Result.Add(TDatapack.TFile(AEntry));
+    if AEntry is TDatapack.TDirectory then
+      for Entry in TDatapack.TDirectory(AEntry).Entries.Values do
+        AddRecursive(Entry);
+  end;
+
+var
+  Datapack: TDatapack;
+  Namespace: TDatapack.TNamespace;
+  Data: TDatapack.TData;
+begin
+  for Datapack in FDatapacks.InReverse do
+  begin
+    for Namespace in Datapack.Namespaces.Values do
+    begin
+      Data := Namespace.Data[ADataType];
+      if Data is TDatapack.TDataSimple then
+        AddRecursive(TDatapack.TDataSimple(Data).Directory);
+    end;
+  end;
+end;
+
+function TDatapackCollection.GenerateNSPaths(ADataType: TDatapack.TDataType): TArray<TNSPath>;
+var
+  Files: TRefArray<TDatapack.TFile>;
+  NSPathSet: TSet<TNSPath, TNSPathHasher>;
+  F: TDatapack.TFile;
+begin
+  Files := GenerateFiles(ADataType);
+  Result := TArray<TNSPath>.Create;
+  Result.Capacity := Files.Count;
+  NSPathSet := TSet<TNSPath, TNSPathHasher>.Create;
+  NSPathSet.HashMode := hmManual;
+  NSPathSet.Buckets := Files.Count;
+  for F in Files do
+    if NSPathSet.TryAdd(F.NamespacePath) then
+      Result.Add(F.NamespacePath);
+  Files.Free;
+  NSPathSet.Free;
+end;
+
+function TDatapackCollection.GetDatapacks: TDatapacks.TReader;
+begin
+  Result := FDatapacks.Reader;
+end;
+
+procedure TDatapackCollection.Move(ADatapack: TDatapack; AIndex: Integer);
+begin
+  FDatapacks.SetIndex(FDatapacks.Find(ADatapack), AIndex);
+end;
+
+procedure TDatapackCollection.Remove(ADatapack: TDatapack);
+begin
+  FDatapacks.Remove(ADatapack);
 end;
 
 end.

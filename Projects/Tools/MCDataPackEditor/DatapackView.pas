@@ -21,12 +21,12 @@ uses
 
 type
 
+  // TODO: Make sure editors get closed, when a datapack gets closed and other cases maybe
+
   TDatapackPageControl = class
   private
     FPageControl: TPageControl;
-    FDatapack: TDatapack;
-
-    procedure SetDatapack(const Value: TDatapack);
+    FDatapackCollection: TDatapackCollection;
 
     procedure AddPage(ATreeNode: TTreeNode);
     function GetCurrentData: TDatapack.TFile;
@@ -38,7 +38,7 @@ type
     constructor Create(APageControl: TPageControl);
 
     property PageControl: TPageControl read FPageControl;
-    property Datapack: TDatapack read FDatapack write SetDatapack;
+    property Datapacks: TDatapackCollection read FDatapackCollection;
 
     procedure Open(ATreeNode: TTreeNode);
 
@@ -731,6 +731,7 @@ constructor TDatapackPageControl.Create(APageControl: TPageControl);
 begin
   FPageControl := APageControl;
   FPageControl.OnChange := OnChangePage;
+  FDatapackCollection := TDatapackCollection.Create;
 end;
 
 function TDatapackPageControl.GetCurrentData: TDatapack.TFile;
@@ -790,17 +791,6 @@ begin
   PageControl.ActivePage.Editor.Save;
 end;
 
-procedure TDatapackPageControl.SetDatapack(const Value: TDatapack);
-var
-  I: Integer;
-begin
-  if Datapack = Value then
-    Exit;
-  FDatapack := Value;
-  for I := PageControl.PageCount - 1 to 0 do
-    PageControl.Pages[I].Free;
-end;
-
 procedure TDatapackPageControl.UpdateOpenPages;
 var
   I: Integer;
@@ -822,7 +812,7 @@ var
   PageControl: TPageControl;
 begin
   if Modified then
-    ModalResult := MessageDlg(Format('Save changes in %s before closing?', [NodeData.NamespacePath]),
+    ModalResult := MessageDlg(Format('Save changes in %s before closing?', [NodeData.NamespacePath.Format]),
       mtConfirmation, mbYesNoCancel, 0, mbYes)
   else
     ModalResult := mrNo;
@@ -878,7 +868,7 @@ begin
   end;
   Modified := True;
   TabSheet.PageControl.ActivePage := TabSheet;
-  if MessageDlg(Format('Content of %s changed, do you want to reload it?', [NodeData.NamespacePath]),
+  if MessageDlg(Format('Content of %s changed, do you want to reload it?', [NodeData.NamespacePath.Format]),
     mtConfirmation, mbYesNo, 0, mbYes) = mrYes then
   begin
     Load;
@@ -888,7 +878,7 @@ end;
 procedure TEditor.FileRemoved;
 begin
   Modified := True;
-  if MessageDlg(Format('File for %s does not exist anymore, do you want to recreate it?', [NodeData.NamespacePath]),
+  if MessageDlg(Format('File for %s does not exist anymore, do you want to recreate it?', [NodeData.NamespacePath.Format]),
     mtConfirmation, mbYesNo, 0, mbYes) = mrYes then
   begin
     Save;

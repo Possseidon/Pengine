@@ -271,18 +271,23 @@ type
 
     /// <summary>Enchants the item randomly with any applicable enchantment or out of a given set.</summary>
     TFunctionEnchantRandomly = class(TFunction)
+    public type
+
+      TEnchantments = TArray<TNSPath>;
+
     private
       FEnchantments: TEnchantments;
 
-      procedure SetEnchantments(const Value: TEnchantments);
-
     public
+      constructor Create(AEntry: TEntryItem); override;
+      destructor Destroy; override;
+
       class function GetType: TFunction.TType; override;
 
       procedure Load(AValue: TJValue); override;
       procedure Save(AValue: TJObject); override;
 
-      property Enchantments: TEnchantments read FEnchantments write SetEnchantments;
+      property Enchantments: TEnchantments read FEnchantments;
 
     end;
 
@@ -1079,22 +1084,24 @@ end;
 procedure TLootTable.TFunctionEnchantRandomly.Save(AValue: TJObject);
 var
   JEnchantments: TJArray;
-  Enchantment: TEnchantment;
+  Enchantment: TNSPath;
 begin
   inherited;
   JEnchantments := AValue.AddArray('enchantments');
   for Enchantment in Enchantments do
-    JEnchantments.Add(EnchantmentNames[Enchantment]);
+    JEnchantments.Add(Enchantment.Format);
 end;
 
-procedure TLootTable.TFunctionEnchantRandomly.SetEnchantments(const Value: TEnchantments);
-var
-  Changed: TEnchantments;
+constructor TLootTable.TFunctionEnchantRandomly.Create(AEntry: TEntryItem);
 begin
-  if Enchantments = Value then
-    Exit;
-  Changed := Value - (Value * Enchantments);
-  FEnchantments := Value;
+  inherited;
+  FEnchantments := TEnchantments.Create;
+end;
+
+destructor TLootTable.TFunctionEnchantRandomly.Destroy;
+begin
+  FEnchantments.Free;
+  inherited;
 end;
 
 class function TLootTable.TFunctionEnchantRandomly.GetType: TFunction.TType;
@@ -1105,25 +1112,13 @@ end;
 procedure TLootTable.TFunctionEnchantRandomly.Load(AValue: TJValue);
 var
   JEnchantment: TJValue;
-  Enchantment: TEnchantment;
+  Enchantment: TNSPath;
   JString: TJString;
 begin
   inherited;
-  Enchantments := [];
+  Enchantments.Clear;
   for JEnchantment in AValue['enchantments'].AsArray do
-  begin
-    if JEnchantment.Cast(JString) then
-    begin
-      for Enchantment := Low(TEnchantment) to High(TEnchantment) do
-      begin
-        if JString.Text = EnchantmentNames[Enchantment] then
-        begin
-          Include(FEnchantments, Enchantment);
-          Break;
-        end;
-      end;
-    end;
-  end;
+    Enchantments.Add(JEnchantment.AsString);
 end;
 
 { TLootTable.TFunctionEnchantWithLevels }
