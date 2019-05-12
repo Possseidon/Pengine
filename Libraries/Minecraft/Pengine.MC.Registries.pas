@@ -206,6 +206,7 @@ var
 begin
   for RegistryType := Low(TType) to High(TType) do
     FRegistries[RegistryType] := TMCRegistry.Create(AJObject[NSPath(TypeNames[RegistryType])]);
+  FLoaded := True;
 end;
 
 procedure TMCRegistries.Load(APath: string);

@@ -26,7 +26,6 @@ type
   TDatapackPageControl = class
   private
     FPageControl: TPageControl;
-    FDatapackCollection: TDatapackCollection;
 
     procedure AddPage(ATreeNode: TTreeNode);
     function GetCurrentData: TDatapack.TFile;
@@ -38,7 +37,6 @@ type
     constructor Create(APageControl: TPageControl);
 
     property PageControl: TPageControl read FPageControl;
-    property Datapacks: TDatapackCollection read FDatapackCollection;
 
     procedure Open(ATreeNode: TTreeNode);
 
@@ -46,6 +44,8 @@ type
 
     procedure SaveAll;
     procedure SaveCurrent;
+
+    procedure ClosePagesOf(ADatapack: TDatapack);
 
     property CurrentPage: TTabSheet read GetCurrentPage;
     property CurrentData: TDatapack.TFile read GetCurrentData;
@@ -58,12 +58,10 @@ type
   private
     FTreeView: TTreeView;
     FPageControl: TDatapackPageControl;
-    FDatapack: TDatapack;
+    FDatapackCollection: TDatapackCollection;
 
-    procedure SetDatapack(const Value: TDatapack);
-
-    procedure FillDatapack;
-    procedure FillNamespace(ANamespace: TDatapack.TNamespace);
+    function FillDatapack(ADatapack: TDatapack): TTreeNode;
+    function FillNamespace(ANamespace: TDatapack.TNamespace; ADatapackNode: TTreeNode = nil): TTreeNode;
     function FillData(AData: TDatapack.TData; ANamespaceNode: TTreeNode = nil): TTreeNode;
     function FillFileSystemEntry(AEntry: TDatapack.TFileSystemEntry; ANode: TTreeNode = nil): TTreeNode;
     function FillDirectory(ADirectory: TDatapack.TDirectory; ATreeNode: TTreeNode = nil): TTreeNode;
@@ -91,15 +89,18 @@ type
     procedure FileSystemEntryAdd(AInfo: TDatapack.TFileSystemEntry.TEventInfo);
     procedure FileSystemEntryRemove(AInfo: TDatapack.TFileSystemEntry.TEventInfo);
 
-    procedure AddEvents;
-    procedure RemoveEvents;
+    procedure DatapackCollectionAdd(AInfo: TDatapackCollection.TDatapackEventInfo);
+    procedure DatapackCollectionRemove(AInfo: TDatapackCollection.TDatapackEventInfo);
+
+    procedure AddEvents(ADatapack: TDatapack);
+    procedure RemoveEvents(ADatapack: TDatapack);
 
   public
     constructor Create(ATreeView: TTreeView; APageControl: TPageControl);
     destructor Destroy; override;
 
     property TreeView: TTreeView read FTreeView;
-    property Datapack: TDatapack read FDatapack write SetDatapack;
+    property DatapackCollection: TDatapackCollection read FDatapackCollection;
     property PageControl: TDatapackPageControl read FPageControl;
 
     function GetNode(ANodeData: TDatapackBase; out ANode: TTreeNode): Boolean;
@@ -107,7 +108,7 @@ type
     procedure ExpandAll;
     procedure CollapseAll;
 
-    procedure UpdateDatapack;
+    procedure Update;
 
     procedure AddNamespace;
 
@@ -251,7 +252,6 @@ begin
   if NodeData is TDatapack.TDataSimple then
     NodeData := TDatapack.TDataSimple(NodeData).Directory;
 
-  FileNode := TDatapack.TFileSystemEntry(NodeData);
   if NodeData is TDatapack.TDirectory then
   begin
     DirNode := TDatapack.TDirectory(NodeData);
@@ -259,6 +259,7 @@ begin
   end
   else
   begin
+    FileNode := TDatapack.TFileSystemEntry(NodeData);
     NewDir := FileNode.Parent.AddDirectory(GenerateDirectoryName(FileNode.Parent));
   end;
 
@@ -269,16 +270,14 @@ begin
   end;
 end;
 
-procedure TDatapackTreeView.AddEvents;
+procedure TDatapackTreeView.AddEvents(ADatapack: TDatapack);
 begin
-  if Datapack = nil then
-    Exit;
-  Datapack.OnAddNamespace.Add(NamespaceAdd);
-  Datapack.OnRemoveNamespace.Add(NamespaceRemove);
-  Datapack.OnEnableData.Add(DataEnable);
-  Datapack.OnDisableData.Add(DataDisable);
-  Datapack.OnAddFileSystemEntry.Add(FileSystemEntryAdd);
-  Datapack.OnRemoveFileSystemEntry.Add(FileSystemEntryRemove);
+  ADatapack.OnAddNamespace.Add(NamespaceAdd);
+  ADatapack.OnRemoveNamespace.Add(NamespaceRemove);
+  ADatapack.OnEnableData.Add(DataEnable);
+  ADatapack.OnDisableData.Add(DataDisable);
+  ADatapack.OnAddFileSystemEntry.Add(FileSystemEntryAdd);
+  ADatapack.OnRemoveFileSystemEntry.Add(FileSystemEntryRemove);
 end;
 
 procedure TDatapackTreeView.AddNamespace;
@@ -286,7 +285,13 @@ var
   Name: string;
   Namespace: TDatapack.TNamespace;
   NamespaceNode: TTreeNode;
+  Datapack: TDatapack;
 begin
+  if TreeView.Selected = nil then
+    Exit;
+
+  Datapack := TreeView.Selected.NodeData.Datapack;
+
   Name := GenerateNamespaceName;
   Namespace := Datapack.AddNamespace(Name);
   if GetNode(Namespace, NamespaceNode) then
@@ -355,6 +360,9 @@ begin
   TreeView.OnEditing := Editing;
   TreeView.OnEdited := Edited;
   TreeView.OnKeyPress := KeyPress;
+  FDatapackCollection := TDatapackCollection.Create;
+  FDatapackCollection.OnAdd.Add(DatapackCollectionAdd);
+  FDatapackCollection.OnRemove.Add(DatapackCollectionRemove);
 end;
 
 procedure TDatapackTreeView.DataDisable(AInfo: TDatapack.TData.TEventInfo);
@@ -370,6 +378,22 @@ begin
   FillData(AInfo.Sender).AlphaSort(True);
 end;
 
+procedure TDatapackTreeView.DatapackCollectionAdd(AInfo: TDatapackCollection.TDatapackEventInfo);
+begin
+  AddEvents(AInfo.Datapack);
+  FillDatapack(AInfo.Datapack).AlphaSort(True);
+end;
+
+procedure TDatapackTreeView.DatapackCollectionRemove(AInfo: TDatapackCollection.TDatapackEventInfo);
+var
+  Node: TTreeNode;
+begin
+  FPageControl.ClosePagesOf(AInfo.Datapack);
+  RemoveEvents(AInfo.Datapack);
+  Assert(GetNode(AInfo.Datapack, Node));
+  Node.Delete;
+end;
+
 procedure TDatapackTreeView.DblClick(Sender: TObject);
 var
   MousePos: TPoint;
@@ -383,6 +407,7 @@ end;
 
 destructor TDatapackTreeView.Destroy;
 begin
+  FDatapackCollection.Free;
   FPageControl.Free;
   inherited;
 end;
@@ -477,16 +502,19 @@ begin
     Result := FillDirectory(TDatapack.TDirectory(AEntry), ANode)
 end;
 
-procedure TDatapackTreeView.FillNamespace(ANamespace: TDatapack.TNamespace);
+function TDatapackTreeView.FillNamespace(ANamespace: TDatapack.TNamespace; ADatapackNode: TTreeNode): TTreeNode;
 var
   NamespaceNode: TTreeNode;
   DataType: TDatapack.TDataType;
   Data: TDatapack.TData;
 begin
+  Assert((ADatapackNode <> nil) or GetNode(ANamespace.Datapack, ADatapackNode));
+  Result := ADatapackNode;
+
   TreeView.Items.BeginUpdate;
 
   try
-    NamespaceNode := TreeView.Items.AddChildObject(nil, ANamespace.DisplayName, ANamespace);
+    NamespaceNode := TreeView.Items.AddChildObject(ADatapackNode, ANamespace.DisplayName, ANamespace);
     NamespaceNode.ImageIndex := 6;
     NamespaceNode.SelectedIndex := 6;
 
@@ -539,8 +567,13 @@ function TDatapackTreeView.GenerateNamespaceName: string;
 const
   DefaultName = 'new';
 var
+  Datapack: TDatapack;
   I: Integer;
 begin
+  if TreeView.Selected = nil then
+    Exit;
+
+  Datapack := TreeView.Selected.NodeData.Datapack;
   Result := DefaultName;
   I := 0;
   while Datapack.Namespaces.KeyExists(Result) do
@@ -588,7 +621,7 @@ var
 begin
   FillNamespace(AInfo.Sender);
   Assert(GetNode(AInfo.Sender, Node));
-  TreeView.Items.AlphaSort;
+  Node.Parent.AlphaSort;
   Node.AlphaSort(True);
 end;
 
@@ -600,16 +633,14 @@ begin
   Node.Delete;
 end;
 
-procedure TDatapackTreeView.RemoveEvents;
+procedure TDatapackTreeView.RemoveEvents(ADatapack: TDatapack);
 begin
-  if Datapack = nil then
-    Exit;
-  Datapack.OnAddNamespace.Remove(NamespaceAdd);
-  Datapack.OnRemoveNamespace.Remove(NamespaceRemove);
-  Datapack.OnEnableData.Remove(DataEnable);
-  Datapack.OnDisableData.Remove(DataDisable);
-  Datapack.OnAddFileSystemEntry.Remove(FileSystemEntryAdd);
-  Datapack.OnRemoveFileSystemEntry.Remove(FileSystemEntryRemove);
+  ADatapack.OnAddNamespace.Remove(NamespaceAdd);
+  ADatapack.OnRemoveNamespace.Remove(NamespaceRemove);
+  ADatapack.OnEnableData.Remove(DataEnable);
+  ADatapack.OnDisableData.Remove(DataDisable);
+  ADatapack.OnAddFileSystemEntry.Remove(FileSystemEntryAdd);
+  ADatapack.OnRemoveFileSystemEntry.Remove(FileSystemEntryRemove);
 end;
 
 procedure TDatapackTreeView.FileSystemEntryAdd(AInfo: TDatapack.TFileSystemEntry.TEventInfo);
@@ -656,46 +687,49 @@ begin
   end;
 end;
 
-procedure TDatapackTreeView.FillDatapack;
+function TDatapackTreeView.FillDatapack(ADatapack: TDatapack): TTreeNode;
 var
   Namespace: TDatapack.TNamespace;
 begin
   TreeView.Items.BeginUpdate;
-
   try
-    for Namespace in Datapack.Namespaces.Values do
-      FillNamespace(Namespace);
+    Result := TreeView.Items.AddChildObject(nil, ADatapack.DisplayName, ADatapack);
+    Result.ImageIndex := 10;
+    Result.SelectedIndex := 10;
+
+    for Namespace in ADatapack.Namespaces.Values do
+      FillNamespace(Namespace, Result);
+
+    Result.Expanded := True;
 
   finally
     TreeView.Items.EndUpdate;
-
   end;
 end;
 
-procedure TDatapackTreeView.SetDatapack(const Value: TDatapack);
-begin
-  RemoveEvents;
-  FDatapack := Value;
-  if Datapack = nil then
-    Exit;
-  UpdateAll;
-  AddEvents;
-end;
-
 procedure TDatapackTreeView.UpdateAll;
-begin
-  TreeView.Items.Clear;
-  if Datapack = nil then
-    Exit;
-  FillDatapack;
-  TreeView.AlphaSort;
-end;
-
-procedure TDatapackTreeView.UpdateDatapack;
+var
+  Datapack: TDatapack;
 begin
   TreeView.Items.BeginUpdate;
-  Datapack.Update;
-  TreeView.Items.EndUpdate;
+  try
+    TreeView.Items.Clear;
+    for Datapack in DatapackCollection.Datapacks do
+      FillDatapack(Datapack);
+    TreeView.AlphaSort;
+  finally
+    TreeView.Items.EndUpdate;
+  end;
+end;
+
+procedure TDatapackTreeView.Update;
+begin
+  TreeView.Items.BeginUpdate;
+  try
+    DatapackCollection.Update;
+  finally
+    TreeView.Items.EndUpdate;
+  end;
 end;
 
 { TDatapackPageControl }
@@ -727,11 +761,19 @@ begin
   EditorClass.Create(TabSheet, NodeData);
 end;
 
+procedure TDatapackPageControl.ClosePagesOf(ADatapack: TDatapack);
+var
+  I: Integer;
+begin
+  for I := PageControl.PageCount - 1 downto 0 do
+    if PageControl.Pages[I].Editor.NodeData.Datapack = ADatapack then
+      PageControl.Pages[I].Editor.Close;
+end;
+
 constructor TDatapackPageControl.Create(APageControl: TPageControl);
 begin
   FPageControl := APageControl;
   FPageControl.OnChange := OnChangePage;
-  FDatapackCollection := TDatapackCollection.Create;
 end;
 
 function TDatapackPageControl.GetCurrentData: TDatapack.TFile;
@@ -788,7 +830,8 @@ end;
 
 procedure TDatapackPageControl.SaveCurrent;
 begin
-  PageControl.ActivePage.Editor.Save;
+  if PageControl.ActivePage <> nil then
+    PageControl.ActivePage.Editor.Save;
 end;
 
 procedure TDatapackPageControl.UpdateOpenPages;
@@ -878,7 +921,8 @@ end;
 procedure TEditor.FileRemoved;
 begin
   Modified := True;
-  if MessageDlg(Format('File for %s does not exist anymore, do you want to recreate it?', [NodeData.NamespacePath.Format]),
+  if MessageDlg(Format('File for %s does not exist anymore, do you want to recreate it?',
+    [NodeData.NamespacePath.Format]),
     mtConfirmation, mbYesNo, 0, mbYes) = mrYes then
   begin
     Save;

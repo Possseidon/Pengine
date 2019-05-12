@@ -518,7 +518,7 @@ type
 
   end;
 
-  TBrigadierNBTParser = class(TBrigadierParser<TBrigadierNBT>)
+  TBrigadierNBTCompoundTagParser = class(TBrigadierParser<TBrigadierNBT>)
   protected
     function Parse: Boolean; override;
 
@@ -1579,17 +1579,17 @@ end;
 
 { TBrigadierNBTParser }
 
-class function TBrigadierNBTParser.GetParserString: TNSPath;
+class function TBrigadierNBTCompoundTagParser.GetParserString: TNSPath;
 begin
-  Result := 'nbt';
+  Result := 'nbt_compound_tag';
 end;
 
-class function TBrigadierNBTParser.GetResultName: string;
+class function TBrigadierNBTCompoundTagParser.GetResultName: string;
 begin
   Result := 'NBT-Compound';
 end;
 
-function TBrigadierNBTParser.Parse: Boolean;
+function TBrigadierNBTCompoundTagParser.Parse: Boolean;
 var
   Parser: TNBTCompound.IParser;
 begin
@@ -3406,7 +3406,7 @@ TBrigadierEntitySummonParser.RegisterClass;
 
 // - NBT related -
 
-TBrigadierNBTParser.RegisterClass;
+TBrigadierNBTCompoundTagParser.RegisterClass;
 TBrigadierNBTPathParser.RegisterClass;
 
 // - Text related -

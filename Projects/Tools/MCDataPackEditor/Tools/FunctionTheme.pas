@@ -261,7 +261,7 @@ type
     public const
 
       Parsers: array [0 .. 7] of TParserClass = (
-        TBrigadierNBTParser,
+        TBrigadierNBTCompoundTagParser,
         TNBTCompound.TParser,
         TNBTListOrArray.TParser,
         TNBTString.TStringOrIdentParser,

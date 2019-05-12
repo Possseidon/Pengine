@@ -1937,9 +1937,9 @@ end;
 
 class function TEntitySelector.TIntRangeParser.Format(ARange: TIntBounds1): string;
 
-  function Format(AValue: Single): string;
+  function Format(AValue: Integer): string;
   begin
-    Result := PrettyFloat(AValue);
+    Result := AValue.ToString;
   end;
 
 begin
@@ -1987,10 +1987,12 @@ var
 const
   Splitter = '..';
 var
+  Marker: TLogMarker;
   RangeMin, RangeMax: string;
   Range: TIntBounds1;
   Split: Boolean;
 begin
+  Marker := GetMarker;
   OldPos := Info.Pos;
   Split := False;
   RangeMin := '';
@@ -2015,7 +2017,7 @@ begin
     Range.C1 := ParseOptionaInteger(RangeMin, False);
     Range.C2 := ParseOptionaInteger(RangeMax, True);
     if (Range.C1 = Integer.MinValue) and (Range.C2 = Integer.MaxValue) then
-      Exit(False);
+      Log(Marker, 'Range would allow any value and therefore be useless.');
   end
   else
   begin
@@ -2305,7 +2307,7 @@ begin
   Range := IntRangeParser.Require(Info);
   ParseObject.Range := Range;
 
-  if ParseObject.MustBeNormalized and not Range.Normalized then
+  if ParseObject.MustBeNormalized and (Range.C1 > Range.C2) then
     Log(Marker, 'The minumum can''t be bigger than the maximum.');
 
   if Range.C1 = Integer.MinValue then
@@ -2315,9 +2317,9 @@ begin
 
   Range := Range.Normalize;
 
-  if ParseObject.GetMinimum(Value) and not(Range >= Value) then
+  if ParseObject.GetMinimum(Value) and ((Range.C1 < Value) or (Range.C2 < Value)) then
     Log(Marker, 'The value must be at least %d.', [Value]);
-  if ParseObject.GetMaximum(Value) and not(Range <= Value) then
+  if ParseObject.GetMaximum(Value) and ((Range.C1 > Value) or (Range.C2 > Value)) then
     Log(Marker, 'The value must be at most %d.', [Value]);
 
   Result := True;

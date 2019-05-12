@@ -1112,8 +1112,6 @@ end;
 procedure TLootTable.TFunctionEnchantRandomly.Load(AValue: TJValue);
 var
   JEnchantment: TJValue;
-  Enchantment: TNSPath;
-  JString: TJString;
 begin
   inherited;
   Enchantments.Clear;

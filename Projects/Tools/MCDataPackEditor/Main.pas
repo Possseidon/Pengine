@@ -51,7 +51,8 @@ uses
   FunctionTheme,
   LightThemePreset,
   SettingsForm,
-  StartupView, Vcl.StdCtrls;
+  StartupView,
+  Vcl.StdCtrls;
 
 type
 
@@ -70,7 +71,7 @@ type
     actOpenDatapack: TAction;
     actExit: TAction;
     dlgOpenDatapack: TOpenDialog;
-    tvNamespaces: TTreeView;
+    tvDatapacks: TTreeView;
     tbNewNamespace: TToolButton;
     ilIcons: TImageList;
     ToolButton1: TToolButton;
@@ -126,7 +127,6 @@ type
     ools1: TMenuItem;
     Formatmcfunction1: TMenuItem;
     Preferences1: TMenuItem;
-    N6: TMenuItem;
     FormatcurrentFile1: TMenuItem;
     FormatAllFiles1: TMenuItem;
     actFormatCurrent: TAction;
@@ -137,8 +137,19 @@ type
     actCloseAllOtherTabs: TAction;
     Closetab1: TMenuItem;
     Closeallothertabs1: TMenuItem;
-    Edit1: TEdit;
+    actOpenVanilla: TAction;
+    OpenVanilla1: TMenuItem;
+    RecentlyUsed1: TMenuItem;
+    Close1: TMenuItem;
+    N8: TMenuItem;
+    actCloseDatapack: TAction;
+    miAdd2: TMenuItem;
+    Directory2: TMenuItem;
+    Namespace2: TMenuItem;
+    N9: TMenuItem;
+    N10: TMenuItem;
     procedure actCloseAllOtherTabsExecute(Sender: TObject);
+    procedure actCloseDatapackExecute(Sender: TObject);
     procedure actCloseTabExecute(Sender: TObject);
     procedure actCollapseAllExecute(Sender: TObject);
     procedure actCopyNameExecute(Sender: TObject);
@@ -164,7 +175,6 @@ type
     procedure actRefreshExecute(Sender: TObject);
     procedure actRefreshUpdate(Sender: TObject);
     procedure actRenameExecute(Sender: TObject);
-    procedure actRenameUpdate(Sender: TObject);
     procedure actSaveAllExecute(Sender: TObject);
     procedure actSaveAllUpdate(Sender: TObject);
     procedure actSaveExecute(Sender: TObject);
@@ -180,11 +190,10 @@ type
     procedure pcTabsMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure pcTabsMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure pcTabsStartDrag(Sender: TObject; var DragObject: TDragObject);
-    procedure tvNamespacesContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
-    procedure tvNamespacesMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-    procedure tvNamespacesMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure tvDatapacksContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
+    procedure tvDatapacksMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure tvDatapacksMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
   private
-    FDatapack: TDatapack;
     FDatapackTreeView: TDatapackTreeView;
     FDraggedPage: TTabSheet;
     FRemoveTab: Integer;
@@ -230,6 +239,13 @@ begin
       pcTabs.Pages[I].Editor.Close;
 end;
 
+procedure TfrmMain.actCloseDatapackExecute(Sender: TObject);
+begin
+  if tvDatapacks.Selected = nil then
+    Exit;
+  FDatapackTreeView.DatapackCollection.Remove(tvDatapacks.Selected.NodeData.Datapack);
+end;
+
 procedure TfrmMain.actCloseTabExecute(Sender: TObject);
 begin
   if pcTabs.ActivePage <> nil then
@@ -243,25 +259,27 @@ end;
 
 procedure TfrmMain.actCopyNameExecute(Sender: TObject);
 begin
-  Clipboard.AsText := tvNamespaces.Selected.NodeData.NamespacePath;
+  if tvDatapacks.Selected = nil then
+    Exit;
+  Clipboard.AsText := tvDatapacks.Selected.NodeData.NamespacePath;
 end;
 
 procedure TfrmMain.actCopyNameUpdate(Sender: TObject);
 begin
-  actCopyName.Enabled := tvNamespaces.Focused and
-    (tvNamespaces.Selected <> nil) and
-    (tvNamespaces.Selected.NodeData <> nil) and
-    tvNamespaces.Selected.NodeData.HasNamespacePath;
+  actCopyName.Enabled := tvDatapacks.Focused and
+    (tvDatapacks.Selected <> nil) and
+    (tvDatapacks.Selected.NodeData <> nil) and
+    tvDatapacks.Selected.NodeData.HasNamespacePath;
 end;
 
 procedure TfrmMain.actCopyPathExecute(Sender: TObject);
 begin
-  Clipboard.AsText := tvNamespaces.Selected.NodeData.FullPath;
+  Clipboard.AsText := tvDatapacks.Selected.NodeData.FullPath;
 end;
 
 procedure TfrmMain.actCopyPathUpdate(Sender: TObject);
 begin
-  actCopyPath.Enabled := tvNamespaces.Focused and (tvNamespaces.Selected <> nil);
+  actCopyPath.Enabled := tvDatapacks.Focused and (tvDatapacks.Selected <> nil);
 end;
 
 procedure TfrmMain.actDeleteExecute(Sender: TObject);
@@ -279,9 +297,9 @@ begin
   Selected := TRefArray<TTreeNode>.Create;
 
   try
-    for I := 0 to tvNamespaces.SelectionCount - 1 do
-      if not HasSelectedParent(tvNamespaces.Selections[I]) then
-        Selected.Add(tvNamespaces.Selections[I]);
+    for I := 0 to tvDatapacks.SelectionCount - 1 do
+      if not HasSelectedParent(tvDatapacks.Selections[I]) then
+        Selected.Add(tvDatapacks.Selections[I]);
 
     for Node in Selected do
     begin
@@ -297,7 +315,7 @@ end;
 
 procedure TfrmMain.actDeleteUpdate(Sender: TObject);
 begin
-  actDelete.Enabled := tvNamespaces.Focused and (tvNamespaces.Selected <> nil);
+  actDelete.Enabled := tvDatapacks.Focused and (tvDatapacks.Selected <> nil);
 end;
 
 procedure TfrmMain.actExitExecute(Sender: TObject);
@@ -308,9 +326,7 @@ end;
 procedure TfrmMain.actOpenDatapackExecute(Sender: TObject);
 begin
   if dlgOpenDatapack.Execute then
-  begin
     LoadDatapack(dlgOpenDatapack.FileName);
-  end;
 end;
 
 procedure TfrmMain.AddData(Sender: TObject);
@@ -328,10 +344,7 @@ end;
 
 procedure TfrmMain.LoadDatapack(AFilename: TFilename);
 begin
-  FDatapackTreeView.Datapack := nil;
-  FDatapack.Free;
-  FDatapack := TDatapack.Create(AFilename);
-  FDatapackTreeView.Datapack := FDatapack;
+  FDatapackTreeView.DatapackCollection.Add(AFilename);
 end;
 
 procedure TfrmMain.LoadSettings;
@@ -364,7 +377,7 @@ end;
 
 function TfrmMain.DatapackOpen: Boolean;
 begin
-  Result := FDatapack <> nil;
+  Result := not FDatapackTreeView.DatapackCollection.Datapacks.Empty;
 end;
 
 procedure TfrmMain.ExceptionLagFix;
@@ -372,13 +385,13 @@ begin
   // The first time, this exception is raised, the raising takes a little longer with the debugger...
   // So let's do it at the start so it's not anoying while typing.
 
-{$IFDEF DEBUG}
+  {$IFDEF DEBUG}
   try
     raise EParseError.Create('');
   except
   end;
 
-{$ENDIF}
+  {$ENDIF}
 
 end;
 
@@ -401,12 +414,12 @@ var
   I: Integer;
 begin
   pcTabs.DisableAlign;
-  for I := 0 to tvNamespaces.SelectionCount - 1 do
+  for I := 0 to tvDatapacks.SelectionCount - 1 do
   begin
-    if tvNamespaces.Selections[I].NodeData is TDatapack.TFile then
-      FDatapackTreeView.PageControl.Open(tvNamespaces.Selections[I])
+    if tvDatapacks.Selections[I].NodeData is TDatapack.TFile then
+      FDatapackTreeView.PageControl.Open(tvDatapacks.Selections[I])
     else
-      AddRecursive(tvNamespaces.Selections[I]);
+      AddRecursive(tvDatapacks.Selections[I]);
   end;
   pcTabs.EnableAlign;
 end;
@@ -448,7 +461,7 @@ end;
 
 procedure TfrmMain.actNewNamespaceExecute(Sender: TObject);
 begin
-  FDatapackTreeView.AddNamespace;
+  FDatapackTreeView.AddNamespace();
 end;
 
 procedure TfrmMain.actNewNamespaceUpdate(Sender: TObject);
@@ -462,7 +475,7 @@ var
   NodeData: TDatapackBase;
   FileData: TDatapack.TFile;
 begin
-  NodeData := tvNamespaces.Selected.NodeData;
+  NodeData := tvDatapacks.Selected.NodeData;
   if NodeData is TDatapack.TFile then
   begin
     FileData := TDatapack.TFile(NodeData);
@@ -494,7 +507,7 @@ end;
 procedure TfrmMain.actRefreshExecute(Sender: TObject);
 begin
   // StartTimer;
-  FDatapackTreeView.UpdateDatapack;
+  FDatapackTreeView.Update;
   // ShowMessage(Format('Refresh took %s', [StopTimerGetString]));
 end;
 
@@ -505,18 +518,7 @@ end;
 
 procedure TfrmMain.actRenameExecute(Sender: TObject);
 begin
-  tvNamespaces.Selected.EditText;
-end;
-
-procedure TfrmMain.actRenameUpdate(Sender: TObject);
-var
-  AllowEdit: Boolean;
-begin
-  if tvNamespaces.Selected <> nil then
-    tvNamespaces.OnEditing(nil, tvNamespaces.Selected, AllowEdit)
-  else
-    AllowEdit := False;
-  actRename.Enabled := AllowEdit;
+  tvDatapacks.Selected.EditText;
 end;
 
 procedure TfrmMain.actSaveAllExecute(Sender: TObject);
@@ -555,7 +557,7 @@ begin
   InitDataTypes;
   InitTheme;
   ExceptionLagFix;
-  FDatapackTreeView := TDatapackTreeView.Create(tvNamespaces, pcTabs);
+  FDatapackTreeView := TDatapackTreeView.Create(tvDatapacks, pcTabs);
   CheckAppParams;
   Application.OnActivate := AppActivate;
   LoadSettings;
@@ -583,7 +585,6 @@ procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
   FFunctionTheme.Free;
   FDatapackTreeView.Free;
-  FDatapack.Free;
 end;
 
 procedure TfrmMain.InitDataTypes;
@@ -607,6 +608,10 @@ begin
     MenuItem := TMenuItem.Create(miAdd);
     MenuItem.Action := Action;
     miAdd.Add(MenuItem);
+
+    MenuItem := TMenuItem.Create(miAdd2);
+    MenuItem.Action := Action;
+    miAdd2.Add(MenuItem);
 
     ToolButton := TToolButton.Create(tbView);
     ToolButton.Left := tbView.Buttons[tbView.ButtonCount - 1].Left + 1;
@@ -717,59 +722,43 @@ begin
     FDraggedPage := pcTabs.Pages[TabIndex];
 end;
 
-procedure TfrmMain.tvNamespacesContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
+procedure TfrmMain.tvDatapacksContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
 var
+  HitTest: THitTests;
   Node: TTreeNode;
-  NodeClicked: Boolean;
-  I, FileCount, DirCount: Integer;
-  NodeData: TDatapackBase;
 begin
-  if not(htOnLabel in tvNamespaces.GetHitTestInfoAt(MousePos.X, MousePos.Y)) then
+  HitTest := tvDatapacks.GetHitTestInfoAt(MousePos.X, MousePos.Y);
+  if not(htOnItem in HitTest) then
+  begin
+    Handled := True;
     Exit;
-
-  Node := tvNamespaces.GetNodeAt(MousePos.X, MousePos.Y);
-  NodeClicked := Node <> nil;
-  if NodeClicked then
-  begin
-    tvNamespaces.Selected := Node;
   end;
 
-  if NodeClicked then
+  Node := tvDatapacks.GetNodeAt(MousePos.X, MousePos.Y);
+  if Node = nil then
   begin
-    FileCount := 0;
-    DirCount := 0;
-    for I := 0 to tvNamespaces.SelectionCount - 1 do
-    begin
-      NodeData := tvNamespaces.Selections[I].NodeData;
-      if NodeData is TDatapack.TFile then
-        Inc(FileCount)
-      else if NodeData is TDatapack.TDirectory then
-        Inc(DirCount);
-    end;
-    actCopyName.Enabled := (tvNamespaces.SelectionCount = 1) and (FileCount + DirCount = 1);
-  end
-  else
-  begin
-    actCopyName.Enabled := False;
+    Handled := True;
+    Exit;
   end;
 
-  actCopyPath.Enabled := tvNamespaces.SelectionCount = 1;
+  Node.Selected := True;
+
 end;
 
-procedure TfrmMain.tvNamespacesMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+procedure TfrmMain.tvDatapacksMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
-  SetCaptureControl(tvNamespaces);
+  SetCaptureControl(tvDatapacks);
 end;
 
-procedure TfrmMain.tvNamespacesMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+procedure TfrmMain.tvDatapacksMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   SetCaptureControl(nil);
-  if not tvNamespaces.MouseInClient then
+  if not tvDatapacks.MouseInClient then
     Exit;
   if Shift - [ssShift, ssCtrl] <> Shift then
     Exit;
-  if tvNamespaces.GetHitTestInfoAt(X, Y) <= [htNowhere, htOnRight, htOnIndent] then
-    tvNamespaces.ClearSelection;
+  if tvDatapacks.GetHitTestInfoAt(X, Y) <= [htNowhere, htOnRight, htOnIndent] then
+    tvDatapacks.ClearSelection;
 end;
 
 procedure TfrmMain.UpdateActions;
