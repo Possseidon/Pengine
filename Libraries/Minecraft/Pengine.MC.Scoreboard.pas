@@ -12,6 +12,7 @@ uses
   Pengine.Hasher,
   Pengine.Collections,
   Pengine.Settings,
+  Pengine.JSON,
 
   Pengine.MC.TextComponent,
   Pengine.MC.General,
@@ -285,6 +286,8 @@ type
   protected
     constructor Create(ARoot: TRootSettings); override;
 
+    class function GetNameForVersion(AVersion: Integer): string; override;
+
   public
     destructor Destroy; override;
 
@@ -292,6 +295,8 @@ type
 
     property Path: string read FPath write SetPath;
     property CriteriaType[AName: string]: TCriteriaType read GetCriteriaType;
+
+    procedure DefineJStorage(ASerializer: TJSerializer); override;
 
   end;
 
@@ -718,6 +723,11 @@ begin
   FCriteriaTypes := TCriteriaTypes.Create;
 end;
 
+procedure TScoreboardCriteriaFileSettings.DefineJStorage(ASerializer: TJSerializer);
+begin
+  ASerializer.Define('path', FPath);
+end;
+
 destructor TScoreboardCriteriaFileSettings.Destroy;
 begin
   FCriteriaTypes.Free;
@@ -731,6 +741,11 @@ begin
     Result := TCriteriaType.Create(TPath.Combine(Path, AName + '.scl'));
     FCriteriaTypes[AName] := Result;
   end;
+end;
+
+class function TScoreboardCriteriaFileSettings.GetNameForVersion(AVersion: Integer): string;
+begin
+  Result := 'mc_scoreboard';
 end;
 
 procedure TScoreboardCriteriaFileSettings.SetDefaults;
@@ -1017,7 +1032,7 @@ end;
 
 class function TScoreboardCriteriaEntity.GetSubTypeName(ASubType: Integer): string;
 begin
-  Result := MCRegistries.EntityType.Entries[ASubType];
+  Result := MCRegistries.EntityType.Entries[ASubType].Format(False);
 end;
 
 { TScoreboardSlot }
