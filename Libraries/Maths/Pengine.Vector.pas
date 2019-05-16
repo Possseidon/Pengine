@@ -176,6 +176,11 @@ type
     /// <returns>The by the given degree angle counter-clockwise Rotate vector.</returns>
     function Rotate(AAngle: Single): TVector2;
 
+    /// <returns>The angle of this vector in radians.</returns>
+    function AngleRad: Single;
+    /// <returns>The angle of this vector in degrees.</returns>
+    function Angle: Single;
+
     /// <returns>The vector, with each negative component being positive.</returns>
     function Abs: TVector2;
     /// <returns>The vector, with each component being rounded down.</returns>
@@ -203,6 +208,8 @@ type
 
     /// <returns>True, if the point lies inside of a circumcircle, defined by A, B and C.</returns>
     function InCircumcircle(const A, B, C: TVector2): Boolean;
+    /// <returns>True, if the point lies inside of a triangle, defined by A, B and C.</returns>
+    function InTriangle(const A, B, C: TVector2): Boolean;
 
   end;
 
@@ -2105,6 +2112,16 @@ begin
   Result := (Clockwise > 0) = (M.Determinant > 0);
 end;
 
+function TVector2.InTriangle(const A, B, C: TVector2): Boolean;
+var
+  Triangle: TAxisSystem2;
+  InvPoint: TVector2;
+begin
+  Triangle := TAxisSystem2.Create(A, A.VectorTo(B), A.VectorTo(C));
+  InvPoint := Triangle.InvPoint[Self];
+  Result := (InvPoint >= 0) and (InvPoint.X + InvPoint.Y <= 1);
+end;
+
 function TVector2.Length: Single;
 begin
   Result := Sqrt(SqrDot);
@@ -2149,6 +2166,16 @@ end;
 function TVector2.CosAngleTo(const A: TVector2): Single;
 begin
   Result := EnsureRange(Dot(A) / (Length * A.Length), -1, 1);
+end;
+
+function TVector2.Angle: Single;
+begin
+  Result := RadToDeg(AngleRad);
+end;
+
+function TVector2.AngleRad: Single;
+begin
+  Result := ArcTan2(Y, X);
 end;
 
 function TVector2.AngleRadTo(const A: TVector2): Single;
