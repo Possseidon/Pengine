@@ -24,6 +24,8 @@ type
 
   IIterate<T> = interface;
 
+  IList<T> = interface;
+
   /// <summary>Iterable using a for-in loop.</summary>
   IIterable<T> = interface
     function GetEnumerator: IIterator<T>;
@@ -33,13 +35,16 @@ type
 
   /// <summary>Defines various filtering operations for lazy iteration.</summary>
   IIterate<T> = interface(IIterable<T>)
+    function Count: Integer;
+    function ToList: IList<T>;
     function Any(APredicate: TPredicate<T>): Boolean;
     function All(APredicate: TPredicate<T>): Boolean;
     function Reduce(AFunc: TFunc<T, T, T>): T; overload;
-    function Reduce(AFunc: TFunc<T, T, T>; ADefault: T): T; overload;
+    function Reduce(AFunc: TFunc<T, T, T>; ASeed: T): T; overload;
 
-    function Filter(APredicate: TPredicate<T>): IIterate<T>;
+    function Where(APredicate: TPredicate<T>): IIterate<T>;
     function TakeWhile(APredicate: TPredicate<T>): IIterate<T>;
+    function SkipWhile(APredicate: TPredicate<T>): IIterate<T>;
     function Range(AIndex, ACount: Integer): IIterate<T>;
 
   end;
@@ -120,6 +125,9 @@ type
 
     function ReadonlyList: IReadonlyList<T>;
 
+    function Copy: IList<T>;
+    procedure Assign(AFrom: IList<T>);
+
   end;
 
   TList<T> = class(TInterfacedObject, IIterable<T>, IReadonlyCollection<T>, IReadonlyList<T>, ICollection<T>, IList<T>)
@@ -198,6 +206,9 @@ type
 
     function ReadonlyList: IReadonlyList<T>;
 
+    function Copy: IList<T>;
+    procedure Assign(AFrom: IList<T>);
+
   end;
 
   TListIterator<T> = class(TInterfacedObject, IIterator<T>)
@@ -248,16 +259,19 @@ type
   public
     // IIterable<T>
     function GetEnumerator: IIterator<T>; virtual; abstract;
-    function Iterate: IIterate<T>; virtual; abstract;
+    function Iterate: IIterate<T>;
 
     // IIterate<T>
+    function Count: Integer;
     function Any(APredicate: TPredicate<T>): Boolean;
     function All(APredicate: TPredicate<T>): Boolean;
     function Reduce(AFunc: TFunc<T, T, T>): T; overload;
-    function Reduce(AFunc: TFunc<T, T, T>; ADefault: T): T; overload;
+    function Reduce(AFunc: TFunc<T, T, T>; ASeed: T): T; overload;
+    function ToList: IList<T>;
 
-    function Filter(APredicate: TPredicate<T>): IIterate<T>;
+    function Where(APredicate: TPredicate<T>): IIterate<T>;
     function TakeWhile(APredicate: TPredicate<T>): IIterate<T>;
+    function SkipWhile(APredicate: TPredicate<T>): IIterate<T>;
     function Range(AIndex, ACount: Integer): IIterate<T>;
 
   end;
@@ -271,11 +285,10 @@ type
 
     // IIterable<T>
     function GetEnumerator: IIterator<T>; override;
-    function Iterate: IIterate<T>; override;
 
   end;
 
-  TFilterIterator<T> = class(TInterfacedObject, IIterator<T>)
+  TWhereIterator<T> = class(TInterfacedObject, IIterator<T>)
   private
     FIterator: IIterator<T>;
     FPredicate: TPredicate<T>;
@@ -289,7 +302,7 @@ type
 
   end;
 
-  TFilterIterate<T> = class(TIterate<T>, IIterable<T>, IIterate<T>)
+  TWhereIterate<T> = class(TIterate<T>, IIterable<T>, IIterate<T>)
   private
     FIterator: IIterator<T>;
     FPredicate: TPredicate<T>;
@@ -299,7 +312,59 @@ type
 
     // IIterable<T>
     function GetEnumerator: IIterator<T>; override;
-    function Iterate: IIterate<T>; override;
+
+  end;
+  
+  TTakeWhileIterator<T> = class(TInterfacedObject, IIterator<T>)
+  private
+    FIterator: IIterator<T>;
+    FPredicate: TPredicate<T>;
+
+    function GetCurrent: T;
+
+  public
+    constructor Create(AIterator: IIterator<T>; APredicate: TPredicate<T>);
+
+    function MoveNext: Boolean;
+
+  end;
+
+  TTakeWhileIterate<T> = class(TIterate<T>, IIterable<T>, IIterate<T>)
+  private
+    FIterator: IIterator<T>;
+    FPredicate: TPredicate<T>;
+
+  public
+    constructor Create(AIterator: IIterator<T>; APredicate: TPredicate<T>);
+
+    // IIterable<T>
+    function GetEnumerator: IIterator<T>; override;
+
+  end;
+             
+  TSkipWhileIterator<T> = class(TInterfacedObject, IIterator<T>)
+  private
+    FIterator: IIterator<T>;
+
+    function GetCurrent: T;
+
+  public
+    constructor Create(AIterator: IIterator<T>; APredicate: TPredicate<T>);
+
+    function MoveNext: Boolean;
+
+  end;
+
+  TSkipWhileIterate<T> = class(TIterate<T>, IIterable<T>, IIterate<T>)
+  private
+    FIterator: IIterator<T>;
+    FPredicate: TPredicate<T>;
+
+  public
+    constructor Create(AIterator: IIterator<T>; APredicate: TPredicate<T>);
+
+    // IIterable<T>
+    function GetEnumerator: IIterator<T>; override;
 
   end;
 
@@ -427,6 +492,11 @@ begin
   Result := IndexOf(AItem) <> -1;
 end;
 
+function TList<T>.Copy: IList<T>;
+begin
+  Result := TList<T>.Create(Self);
+end;
+
 procedure TList<T>.Add(AItem: T);
 begin
   Insert(Count, AItem);
@@ -460,6 +530,12 @@ procedure TList<T>.AddRange(AItems: IIterator<T>);
 begin
   while AItems.MoveNext do
     Add(AItems.Current);
+end;
+
+procedure TList<T>.Assign(AFrom: IList<T>);
+begin
+  Clear;
+  AddRange(AFrom);
 end;
 
 procedure TList<T>.RangeCheck(AIndex: Integer);
@@ -680,9 +756,18 @@ begin
   Result := FIterable.GetEnumerator;
 end;
 
-function TIterableIterate<T>.Iterate: IIterate<T>;
+function TIterate<T>.Iterate: IIterate<T>;
 begin
-  Result := FIterable.Iterate;
+  Result := Self;
+end;
+
+function TIterate<T>.Count: Integer;
+var
+  Item: T;
+begin
+  Result := 0;
+  for Item in Self do
+    Inc(Result);
 end;
 
 { TIterate<T> }
@@ -719,67 +804,135 @@ begin
     Result := AFunc(Result, Iterator.Current);
 end;
 
-function TIterate<T>.Reduce(AFunc: TFunc<T, T, T>; ADefault: T): T;
+function TIterate<T>.Reduce(AFunc: TFunc<T, T, T>; ASeed: T): T;
 var
   Iterator: IIterator<T>;
 begin
   Iterator := GetEnumerator;
-  Result := ADefault;
+  Result := ASeed;
   while Iterator.MoveNext do
     Result := AFunc(Result, Iterator.Current);
 end;
 
-function TIterate<T>.Filter(APredicate: TPredicate<T>): IIterate<T>;
+function TIterate<T>.ToList: IList<T>;
 begin
-  Result := TFilterIterate<T>.Create(GetEnumerator, APredicate);
+  Result := TList<T>.Create(Self);
+end;
+
+function TIterate<T>.Where(APredicate: TPredicate<T>): IIterate<T>;
+begin
+  Result := TWhereIterate<T>.Create(GetEnumerator, APredicate);
 end;
 
 function TIterate<T>.TakeWhile(APredicate: TPredicate<T>): IIterate<T>;
 begin
+  Result := TTakeWhileIterate<T>.Create(GetEnumerator, APredicate);
+end;
 
+function TIterate<T>.SkipWhile(APredicate: TPredicate<T>): IIterate<T>;
+begin
+  Result := TSkipWhileIterate<T>.Create(GetEnumerator, APredicate);
 end;
 
 function TIterate<T>.Range(AIndex, ACount: Integer): IIterate<T>;
 begin
-
+  // Result := TRangeIterate<T>.Create(GetEnumerator, AIndex, ACount);
 end;
 
-{ TFilterIterator<T> }
+{ TWhereIterator<T> }
 
-constructor TFilterIterator<T>.Create(AIterator: IIterator<T>; APredicate: TPredicate<T>);
+constructor TWhereIterator<T>.Create(AIterator: IIterator<T>; APredicate: TPredicate<T>);
 begin
   FIterator := AIterator;
   FPredicate := APredicate;
 end;
 
-function TFilterIterator<T>.GetCurrent: T;
+function TWhereIterator<T>.GetCurrent: T;
 begin
   Result := FIterator.Current;
 end;
 
-function TFilterIterator<T>.MoveNext: Boolean;
+function TWhereIterator<T>.MoveNext: Boolean;
 begin
   repeat
     Result := FIterator.MoveNext;
   until not Result or FPredicate(FIterator.Current);
 end;
 
-{ TFilterIterate<T> }
+{ TWhereIterate<T> }
 
-constructor TFilterIterate<T>.Create(AIterator: IIterator<T>; APredicate: TPredicate<T>);
+constructor TWhereIterate<T>.Create(AIterator: IIterator<T>; APredicate: TPredicate<T>);
 begin
   FIterator := AIterator;
   FPredicate := APredicate;
 end;
 
-function TFilterIterate<T>.GetEnumerator: IIterator<T>;
+function TWhereIterate<T>.GetEnumerator: IIterator<T>;
 begin
-  Result := TFilterIterator<T>.Create(FIterator, FPredicate);
+  Result := TWhereIterator<T>.Create(FIterator, FPredicate);
 end;
 
-function TFilterIterate<T>.Iterate: IIterate<T>;
+{ TTakeWhileIterate<T> }
+
+constructor TTakeWhileIterate<T>.Create(AIterator: IIterator<T>; APredicate: TPredicate<T>);
 begin
-  Result := Self;
+  FIterator := AIterator;
+  FPredicate := APredicate;
+end;
+
+function TTakeWhileIterate<T>.GetEnumerator: IIterator<T>;
+begin
+  Result := TTakeWhileIterator<T>.Create(FIterator, FPredicate);
+end;
+
+{ TTakeWhileIterator<T> }
+
+constructor TTakeWhileIterator<T>.Create(AIterator: IIterator<T>; APredicate: TPredicate<T>);
+begin
+  FIterator := AIterator;
+  FPredicate := APredicate;
+end;
+
+function TTakeWhileIterator<T>.GetCurrent: T;
+begin
+  Result := FIterator.Current;
+end;
+
+function TTakeWhileIterator<T>.MoveNext: Boolean;
+begin
+  Result := FIterator.MoveNext and FPredicate(FIterator.Current);
+end;
+
+{ TSkipWhileIterator<T> }
+
+constructor TSkipWhileIterator<T>.Create(AIterator: IIterator<T>; APredicate: TPredicate<T>);
+begin
+  FIterator := AIterator;
+  while MoveNext and APredicate(FIterator.Current) do
+    ; // nothing  
+end;
+
+function TSkipWhileIterator<T>.GetCurrent: T;
+begin
+  Result := FIterator.Current;
+end;
+
+function TSkipWhileIterator<T>.MoveNext: Boolean;
+begin
+  Result := FIterator.MoveNext;
+end;
+
+{ TSkipWhileIterate<T> }
+
+constructor TSkipWhileIterate<T>.Create(AIterator: IIterator<T>; APredicate: TPredicate<T>);
+begin
+  FIterator := AIterator;
+  FPredicate := APredicate;
+end;
+
+function TSkipWhileIterate<T>.GetEnumerator: IIterator<T>;
+begin
+  Result := TSkipWhileIterator<T>.Create(FIterator, FPredicate);
 end;
 
 end.
