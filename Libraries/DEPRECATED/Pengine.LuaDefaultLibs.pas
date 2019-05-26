@@ -145,6 +145,35 @@ type
 
   end;
 
+  TLuaLibPackage = class(TLuaLib)
+  public const
+
+    DefaultConfig = '\'#10';'#10'?'#10'!'#10'-'#10;
+    DefaultCPath = '';
+    DefaultPath = '.\?.lua;.\?\init.lua';
+
+    PreloadTableName = '_PRELOAD';
+    LoadedTableName = '_LOADED';
+
+  private
+    class function FindFile(L: TLuaState; AName, APName, ADirSep: TLuaString): TLuaString;
+    class function SearchPath(L: TLuaState; AName, APath, ASep, ADirSep: TLuaString): TLuaString;
+
+  protected
+    class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
+    class procedure InitLua(L: TLuaState); override;
+
+  public
+    class function Lua_searchPreload(L: TLuaState): Integer; static; cdecl;
+    class function Lua_searchLua(L: TLuaState): Integer; static; cdecl;
+
+    class function Lua_require(L: TLuaState): Integer; static; cdecl;
+    class function Lua_searchpath(L: TLuaState): Integer; static; cdecl;
+    // For C libs... not gonna happen probably
+    // class function Lua_loadlib(L: TLuaState): Integer; static; cdecl;
+
+  end;
+
   // TODO: string
 
 implementation
@@ -1164,6 +1193,83 @@ begin
     Exit(L.Error_X);
   end;
   Result := R;
+end;
+
+{ TLuaLibPackage }
+
+class procedure TLuaLibPackage.CreateEntry(AEntry: TLuaLib.TTableEntry);
+begin
+  AEntry.Add('require', Lua_require);
+  with AEntry.Add('package') do
+  begin
+    Add('config', DefaultConfig);
+    Add('cpath', DefaultCPath);
+    Add('loaded');
+    Add('loadlib', LuaNotImplemented);
+    Add('path', DefaultPath);
+    Add('preload');
+    Add('searchers');
+    Add('searchpath', Lua_searchpath);
+  end;
+end;
+
+class function TLuaLibPackage.FindFile(L: TLuaState; AName, APName, ADirSep: TLuaString): TLuaString;
+var
+  Path: PAnsiChar;
+begin
+  L.GetField(PAnsiChar(APName), L.UpvalueIndex(1));
+  Path := L.ToString;
+  if Path = nil then
+    L.ErrorFmt('''package.%s'' must be a string', [APName]);
+  Result := SearchPath(L, AName, Path, '.', ADirSep);
+end;
+
+class procedure TLuaLibPackage.InitLua(L: TLuaState);
+const
+  Searchers: array [1 .. 2] of TLuaCFunction = (
+    Lua_searchPreload,
+    Lua_searchLua
+  );
+
+var
+  Searcher: TLuaCFunction;
+  I: Integer;
+begin
+  L.GetField('package');
+  L.GetField('searchers');
+  for I := Low(Searchers) to High(Searchers) do
+  begin
+    L.PushValue(-2);
+    L.PushCClosure(Searcher, 1);
+    L.RawSetI(I, -2);
+  end;
+  L.Pop;
+end;
+
+class function TLuaLibPackage.Lua_require(L: TLuaState): Integer;
+begin
+
+end;
+
+class function TLuaLibPackage.Lua_searchLua(L: TLuaState): Integer;
+begin
+
+end;
+
+class function TLuaLibPackage.Lua_searchpath(L: TLuaState): Integer;
+begin
+
+end;
+
+class function TLuaLibPackage.Lua_searchPreload(L: TLuaState): Integer;
+var
+  Name: TLuaString;
+begin
+  Name := L.CheckString(1);
+  L.GetField(PreloadTableName, LUA_REGISTRYINDEX);
+  if L.GetField(PAnsiChar(Name), -1) = ltNil then
+    L.PushFString(#10#9'no field package.preload[''%s'']', [Name]);
+  Result := 1;
 end;
 
 end.

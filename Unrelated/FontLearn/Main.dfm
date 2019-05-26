@@ -4,7 +4,7 @@ object frmMain: TfrmMain
   BorderStyle = bsDialog
   Caption = 'Font Learn'
   ClientHeight = 158
-  ClientWidth = 354
+  ClientWidth = 519
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -20,7 +20,7 @@ object frmMain: TfrmMain
   object lbQuestion: TLabel
     Left = 0
     Top = 44
-    Width = 354
+    Width = 519
     Height = 66
     Align = alClient
     Alignment = taCenter
@@ -29,19 +29,20 @@ object frmMain: TfrmMain
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -40
-    Font.Name = 'Standard Galactic Alphabet'
+    Font.Name = 'Default'
     Font.Style = []
     ParentFont = False
     Layout = tlCenter
     ExplicitLeft = -3
     ExplicitTop = 0
+    ExplicitWidth = 354
     ExplicitHeight = 65
   end
   object edtInput: TEdit
     AlignWithMargins = True
     Left = 3
     Top = 113
-    Width = 348
+    Width = 513
     Height = 42
     Align = alBottom
     Alignment = taCenter
@@ -53,22 +54,19 @@ object frmMain: TfrmMain
     ParentFont = False
     TabOrder = 0
     OnKeyPress = edtInputKeyPress
-    ExplicitLeft = 0
-    ExplicitTop = 169
-    ExplicitWidth = 354
+    ExplicitWidth = 348
   end
   object Panel1: TPanel
     AlignWithMargins = True
     Left = 3
     Top = 3
-    Width = 348
+    Width = 513
     Height = 38
     Align = alTop
     TabOrder = 1
-    ExplicitLeft = -2
-    ExplicitTop = 0
+    ExplicitWidth = 348
     object lbStatistics: TLabel
-      Left = 247
+      Left = 414
       Top = 11
       Width = 12
       Height = 13
@@ -76,7 +74,7 @@ object frmMain: TfrmMain
       Caption = '...'
     end
     object cbMode: TComboBox
-      Left = 8
+      Left = 175
       Top = 8
       Width = 89
       Height = 21
@@ -90,13 +88,28 @@ object frmMain: TfrmMain
         'Word')
     end
     object btnStatistics: TButton
-      Left = 265
+      Left = 432
       Top = 6
       Width = 75
       Height = 25
       Caption = 'Statistics'
       TabOrder = 1
       OnClick = btnStatisticsClick
+    end
+    object cbFont: TComboBox
+      Left = 11
+      Top = 8
+      Width = 158
+      Height = 21
+      Style = csDropDownList
+      ItemIndex = 0
+      TabOrder = 2
+      Text = 'Standard Galactic Alphabet'
+      OnChange = cbFontChange
+      Items.Strings = (
+        'Standard Galactic Alphabet'
+        'Futurama Alien Alphabet One'
+        'Futurama Alien Alphabet Two')
     end
   end
 end

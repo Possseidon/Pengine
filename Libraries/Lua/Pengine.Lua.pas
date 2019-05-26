@@ -141,7 +141,8 @@ type
 
     class function LuaNotImplemented(L: TLuaState): Integer; static; cdecl;
 
-    class procedure CreateEntry(AEntry: TTableEntry); virtual; abstract;
+    class procedure CreateEntry(AEntry: TTableEntry); virtual;
+    class procedure InitLua(L: TLuaState); virtual;
 
   public
     constructor Create(L: TLuaState); virtual;
@@ -304,6 +305,7 @@ begin
   FL := L;
   L.PushGlobalTable;
   FEntry.RegisterEntry(L);
+  InitLua(L);
   L.Pop;
 end;
 
@@ -319,6 +321,11 @@ begin
   ChangeLuaState(L);
 end;
 
+class procedure TLuaLib.CreateEntry(AEntry: TTableEntry);
+begin
+  // nothing
+end;
+
 destructor TLuaLib.Destroy;
 begin
   L.PushGlobalTable;
@@ -326,6 +333,11 @@ begin
   L.Pop;
   FEntry.Free;
   inherited;
+end;
+
+class procedure TLuaLib.InitLua(L: TLuaState);
+begin
+  // nothing
 end;
 
 { TLuaLib.TEntry }
@@ -405,7 +417,7 @@ begin
 end;
 
 procedure TLuaLib.TTableEntry.AddMeta(AEvent: TLuaMetatableEvent; AString: TLuaString);
-begin                          
+begin
   FHasMetatable := True;
   FMetatable[AEvent] := TStringEntry.Create(LuaMetatableEventNames[AEvent], AString);
 end;
@@ -495,12 +507,12 @@ begin
     L.NewTable;
     for MetaEvent := Low(TLuaMetatableEvent) to High(TLuaMetatableEvent) do
     begin
-      if FMetatable[MetaEvent] <> nil then  
-        FMetatable[MetaEvent].RegisterEntry(L);    
+      if FMetatable[MetaEvent] <> nil then
+        FMetatable[MetaEvent].RegisterEntry(L);
     end;
     L.SetMetatable(-2);
   end;
-  
+
   if Name <> '' then
     L.Pop;
 end;
