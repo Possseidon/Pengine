@@ -1,4 +1,4 @@
-object Form9: TForm9
+object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'Factorio Calculator'

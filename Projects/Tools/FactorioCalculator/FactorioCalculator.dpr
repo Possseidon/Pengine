@@ -2,8 +2,9 @@ program FactorioCalculator;
 
 uses
   Vcl.Forms,
-  Main in 'Main.pas' {Form9},
-  FactoryDefine in 'FactoryDefine.pas';
+  Main in 'Main.pas' {frmMain},
+  FactoryDefine in 'FactoryDefine.pas',
+  RecipeForm in 'RecipeForm.pas' {frmRecipes};
 
 {$R *.res}
 
@@ -12,7 +13,8 @@ begin
 
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
-  Application.CreateForm(TForm9, Form9);
+  Application.CreateForm(TfrmMain, frmMain);
+  Application.CreateForm(TfrmRecipes, frmRecipes);
   Application.Run;
 end.
 

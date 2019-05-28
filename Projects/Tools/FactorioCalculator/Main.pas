@@ -25,10 +25,11 @@ uses
 
   Pengine.Factorio.General,
 
-  FactoryDefine;
+  FactoryDefine,
+  RecipeForm;
 
 type
-  TForm9 = class(TForm)
+  TfrmMain = class(TForm)
     pbFactory: TPaintBox;
     mmMenu: TMainMenu;
     File1: TMenuItem;
@@ -46,35 +47,37 @@ type
     FFactorio: TFactorio;
     FFactory: TFactory;
 
+  public
+    property Factorio: TFactorio read FFactorio;
+
   end;
 
 var
-  Form9: TForm9;
+  frmMain: TfrmMain;
 
 implementation
 
 {$R *.dfm}
 
-
-procedure TForm9.FormDestroy(Sender: TObject);
+procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
   FFactory.Free;
   FFactorio.Free;
 end;
 
-procedure TForm9.FormCreate(Sender: TObject);
+procedure TfrmMain.FormCreate(Sender: TObject);
 var
   MachineArray: TMachineArray;
 begin
   FFactorio := TFactorio.Create;
   FFactory := TFactory.Create;
 
-  MachineArray := FFactory.AddMachineArray(Vec2(0, 0),
-    FFactorio.Find<TFactorio.TAssemblingMachine>('assembling-machine-1'));
+  MachineArray := FFactory.AddMachineArray(Vec2(50, 50), FFactorio.Find<TFactorio.TAssemblingMachine>('assembling-machine-1'));
   MachineArray.Recipe := FFactorio.Find<TFactorio.TRecipe>('iron-gear-wheel');
+  // MachineArray.Remove;
 end;
 
-procedure TForm9.pbFactoryPaint(Sender: TObject);
+procedure TfrmMain.pbFactoryPaint(Sender: TObject);
 var
   G: IGPGraphics;
   Font: IGPFont;

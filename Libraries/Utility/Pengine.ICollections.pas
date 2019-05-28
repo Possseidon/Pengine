@@ -142,6 +142,7 @@ type
 
     procedure Add(AItem: T);
     procedure Remove(AItem: T);
+    function TryRemove(AItem: T): Boolean;
     procedure Clear;
 
     procedure AddRange(AItems: array of T); overload;
@@ -232,6 +233,7 @@ type
 
     procedure Add(AItem: T);
     procedure Remove(AItem: T);
+    function TryRemove(AItem: T): Boolean;
     procedure Clear;
 
     procedure AddRange(AItems: array of T); overload;
@@ -666,6 +668,17 @@ begin
   FItems[AIndex] := AValue;
 end;
 
+function TList<T>.TryRemove(AItem: T): Boolean;
+var
+  I: Integer;
+begin
+  I := IndexOf(AItem);
+  if I = -1 then
+    Exit(False);
+  RemoveAt(I);
+  Result := True;
+end;
+
 function TList<T>.GetFirst: T;
 begin
   Result := Items[0];
@@ -679,7 +692,7 @@ end;
 function TList<T>.ItemsEqual(A, B: T): Boolean;
 begin
   if (GetTypeKind(T) = tkRecord) and IsManagedType(T) then
-    raise Exception.Create('Comparing managed records is not supported.');
+    raise EListError.Create('Comparing managed records is not supported.');
   case GetTypeKind(T) of
     tkInteger, tkChar, tkEnumeration, tkFloat, tkSet, tkClass, tkMethod, tkWChar, tkRecord, tkInterface, tkInt64,
       tkClassRef, tkPointer:
@@ -695,7 +708,7 @@ begin
     tkAnsiString:
       Result := PAnsiString(@A)^ = PAnsiString(@B)^;
   else
-    raise Exception.Create('Unsupported object comparision.');
+    raise EListError.Create('Unsupported object comparision.');
   end;
 end;
 
@@ -749,7 +762,8 @@ end;
 
 procedure TList<T>.Remove(AItem: T);
 begin
-  RemoveAt(IndexOf(AItem));
+  if not TryRemove(AItem) then
+    raise EListError.Create('Item not found.');
 end;
 
 procedure TList<T>.Clear;

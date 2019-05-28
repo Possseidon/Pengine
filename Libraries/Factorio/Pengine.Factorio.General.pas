@@ -57,6 +57,7 @@ type
     TItem = class(TPrototype)
     private
       FStackSize: Integer;
+      FOrder: AnsiString;
 
     public
       constructor Create(AFactorio: TFactorio; L: TLuaState); override;
@@ -64,13 +65,14 @@ type
       class function GetType: TPrototype.TType; override;
 
       property StackSize: Integer read FStackSize;
+      property Order: AnsiString read FOrder;
 
     end;
 
     TRecipe = class(TPrototype)
     public type
 
-      TItem = class
+      TItemStack = class
       private
         FName: AnsiString;
         FAmount: Integer;
@@ -85,9 +87,9 @@ type
 
       end;
 
-      TIngredient = class(TItem);
+      TIngredient = class(TItemStack);
 
-      TResult = class(TItem)
+      TResult = class(TItemStack)
       private
         FProbability: Single;
 
@@ -102,9 +104,12 @@ type
       FEnergyRequired: Single;
       FIngredients: IObjectList<TIngredient>;
       FResults: IObjectList<TResult>;
+      FCategory: AnsiString;
+      FOrder: AnsiString;
 
       function GetIngredients: IReadonlyList<TIngredient>;
       function GetResults: IReadonlyList<TResult>;
+      function GetOrder: AnsiString;
 
     public
       constructor Create(AFactorio: TFactorio; L: TLuaState); override;
@@ -114,12 +119,15 @@ type
       property EnergyRequired: Single read FEnergyRequired;
       property Ingredients: IReadonlyList<TIngredient> read GetIngredients;
       property Results: IReadonlyList<TResult> read GetResults;
+      property Order: AnsiString read GetOrder;
 
     end;
 
     TAssemblingMachine = class(TPrototype)
     private
       FCraftingSpeed: Single;
+      FCraftingCategories: IList<AnsiString>;
+      function GetCraftingCategories: IReadonlyList<AnsiString>;
 
     public
       constructor Create(AFactorio: TFactorio; L: TLuaState); override;
@@ -127,6 +135,7 @@ type
       class function GetType: TPrototype.TType; override;
 
       property CraftingSpeed: Single read FCraftingSpeed;
+      property CraftingCategories: IReadonlyList<AnsiString> read GetCraftingCategories;
 
     end;
 
@@ -326,7 +335,7 @@ begin
   L.Pop;
 
   // if L.GetField('icon') = ltString then
-  //  FIcon := L.ToString.Replace('__base__', blabla);
+  // FIcon := L.ToString.Replace('__base__', blabla);
   // else
   FIconPath := string('data\base\graphics\icons\' + FName + '.png');
 end;
@@ -375,8 +384,13 @@ end;
 constructor TFactorio.TItem.Create(AFactorio: TFactorio; L: TLuaState);
 begin
   inherited;
+
   if L.GetField('stack_size') = ltNumber then
     FStackSize := L.ToInteger;
+  L.Pop;
+
+  if L.GetField('order') = ltString then
+    FOrder := L.ToString;
   L.Pop;
 end;
 
@@ -440,6 +454,10 @@ begin
   end;
   L.Pop;
 
+  if L.GetField('order') = ltString then
+    FOrder := L.ToString;
+  L.Pop;
+
   if ExtraTable then
     L.Pop;
 end;
@@ -447,6 +465,13 @@ end;
 function TFactorio.TRecipe.GetIngredients: IReadonlyList<TIngredient>;
 begin
   Result := FIngredients.ReadonlyList;
+end;
+
+function TFactorio.TRecipe.GetOrder: AnsiString;
+begin
+  if FOrder = '' then
+    FOrder := Factorio.Find<TItem>(Results.First.Name).Order;
+  Result := FOrder;
 end;
 
 function TFactorio.TRecipe.GetResults: IReadonlyList<TResult>;
@@ -468,6 +493,23 @@ begin
   if L.GetField('crafting_speed') = ltNumber then
     FCraftingSpeed := L.ToNumber;
   L.Pop;
+
+  FCraftingCategories := TList<AnsiString>.Create;
+  if L.GetField('crafting_categories') = ltTable then
+  begin
+    L.PushNil;
+    while L.Next(-2) do
+    begin
+      FCraftingCategories.Add(L.ToString);
+      L.Pop;
+    end;
+  end;
+  L.Pop;
+end;
+
+function TFactorio.TAssemblingMachine.GetCraftingCategories: IReadonlyList<AnsiString>;
+begin
+  Result := FCraftingCategories.ReadonlyList;
 end;
 
 class function TFactorio.TAssemblingMachine.GetType: TPrototype.TType;
@@ -511,9 +553,9 @@ begin
   Result := ptInserter;
 end;
 
-{ TFactorio.TRecipe.TItem }
+{ TFactorio.TRecipe.TItemStack }
 
-constructor TFactorio.TRecipe.TItem.Create(L: TLuaState);
+constructor TFactorio.TRecipe.TItemStack.Create(L: TLuaState);
 begin
   if L.GetI(1) = ltString then
   begin
