@@ -814,7 +814,7 @@ end;
 
 constructor TVBOImmutable<TData>.Create(AGLState: TGLState; ACount: Integer; AFlags: TGLBufferFlags; AData: Pointer);
 begin
-  inherited Create(GLState);
+  inherited Create(AGLState);
   FCount := ACount;
   glBufferStorage(Ord(btArrayBuffer), ACount * GetDataSize, AData, ToGLBitfield(AFlags));
 end;
