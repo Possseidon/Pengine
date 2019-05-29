@@ -202,165 +202,6 @@ type
     class function GetHash(const AValue: Char): Cardinal; override;
   end;
 
-  // Hashers end, everything else in other units!
-  {
-  // TODO: XmlDoc
-  TClassSet = TValueSet<TClass, TClassHasher>;
-  // TODO: XmlDoc
-  TClassMap<T> = class(TValueMap<TClass, T, TClassHasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TClassMap<T>; reintroduce; inline;
-  end;
-
-  TClassRefMap<T: class> = class(TToRefMap<TClass, T, TClassHasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TClassRefMap<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TPointerSet = TValueSet<Pointer, TPointerHasher>;
-
-  // TODO: XmlDoc
-  TIntSet = TValueSet<Integer, TIntHasher>;
-  // TODO: XmlDoc
-  TIntMap<T> = class(TValueMap<Integer, T, TIntHasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TIntMap<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TUIntSet = TValueSet<Cardinal, TUIntHasher>;
-  // TODO: XmlDoc
-  TUIntMap<T> = class(TValueMap<Cardinal, T, TUIntHasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TUIntMap<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TIntVector2Set = TValueSet<TIntVector2, TIntVector2Hasher>;
-  // TODO: XmlDoc
-  TIntVector2Map<T> = class(TValueMap<TIntVector2, T, TIntVector2Hasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TIntVector2Map<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TIntVector3Set = TValueSet<TIntVector3, TIntVector3Hasher>;
-  // TODO: XmlDoc
-  TIntVector3Map<T> = class(TValueMap<TIntVector3, T, TIntVector3Hasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TIntVector3Map<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TIntBounds1Set = TValueSet<TIntBounds1, TIntBounds1Hasher>;
-  // TODO: XmlDoc
-  TIntBounds1Map<T> = class(TValueMap<TIntBounds1, T, TIntBounds1Hasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TIntBounds1Map<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TIntBounds2Set = TValueSet<TIntBounds2, TIntBounds2Hasher>;
-  // TODO: XmlDoc
-  TIntBounds2Map<T> = class(TValueMap<TIntBounds2, T, TIntBounds2Hasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TIntBounds2Map<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TIntBounds3Set = TValueSet<TIntBounds3, TIntBounds3Hasher>;
-  // TODO: XmlDoc
-  TIntBounds3Map<T> = class(TValueMap<TIntBounds3, T, TIntBounds3Hasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TIntBounds3Map<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TSingleSet = TValueSet<Single, TSingleHasher>;
-  // TODO: XmlDoc
-  TSingleMap<T> = class(TValueMap<Single, T, TSingleHasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TSingleMap<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TVector2Set = TValueSet<TVector2, TVector2Hasher>;
-  // TODO: XmlDoc
-  TVector2Map<T> = class(TValueMap<TVector2, T, TVector2Hasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TVector2Map<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TVector3Set = TValueSet<TVector3, TVector3Hasher>;
-  // TODO: XmlDoc
-  TVector3Map<T> = class(TValueMap<TVector3, T, TVector3Hasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TVector3Map<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TLine2Set = TValueSet<TLine2, TLine2Hasher>;
-  // TODO: XmlDoc
-  TLine2Map<T> = class(TValueMap<TLine2, T, TLine2Hasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TLine2Map<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TLine3Set = TValueSet<TLine3, TLine3Hasher>;
-  // TODO: XmlDoc
-  TLine3Map<T> = class(TValueMap<TLine3, T, TLine3Hasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TLine3Map<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TPlane2Set = TValueSet<TPlane2, TPlane2Hasher>;
-  // TODO: XmlDoc
-  TPlane2Map<T> = class(TValueMap<TPlane2, T, TPlane2Hasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TPlane2Map<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TPlane3Set = TValueSet<TPlane3, TPlane3Hasher>;
-  // TODO: XmlDoc
-  TPlane3Map<T> = class(TValueMap<TPlane3, T, TPlane3Hasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TPlane3Map<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TVectorDirSet = TValueSet<TVectorDir, TVectorDirHasher>;
-  // TODO: XmlDoc
-  TVectorDirMap<T> = class(TValueMap<TVectorDir, T, TVectorDirHasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TVectorDirMap<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TStringSet = TValueSet<string, TStringHasher>;
-  // TODO: XmlDoc
-  TStringMap<T> = class(TValueMap<string, T, TStringHasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TStringMap<T>; reintroduce; inline;
-  end;
-
-  // TODO: XmlDoc
-  TAnsiStringSet = TValueSet<AnsiString, TAnsiStringHasher>;
-  // TODO: XmlDoc
-  TAnsiStringMap<T> = class(TValueMap<AnsiString, T, TAnsiStringHasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TAnsiStringMap<T>; reintroduce; inline;
-  end;
-  TAnsiStringRefMap<T: class> = class(TToRefMap<AnsiString, T, TAnsiStringHasher>)
-  public
-    function Copy(AHashMode: THashMode = hmAuto): TAnsiStringRefMap<T>; reintroduce; inline;
-  end;
-  }
-
 { Shorthand overloaded hash functions }
 
 function HashOf(const Value: Pointer): Cardinal; overload; inline;
@@ -389,9 +230,21 @@ implementation
 {$IFOPT Q+}{$DEFINE OVERFLOWCHECKSON}{$ENDIF}
 {$Q-}
 
-function R(I: Integer; N: Byte): Integer; inline;
+function R(I: Cardinal; N: ShortInt): Cardinal;
+{$IFDEF PURE_PASCAL}
 begin
   Result := (I shl N) or (I shr (SizeOf(I) * 8 - N));
+{$ELSE}
+asm
+{$IFDEF WIN64}
+  mov eax, ecx
+  mov ecx, edx
+  rol eax, cl
+{$ELSE}
+  mov cl, dl
+  rol eax, cl
+{$ENDIF}
+{$ENDIF}
 end;
 
 {$IFDEF OVERFLOWCHECKSON}{$Q+}
@@ -413,17 +266,11 @@ end;
 
 class function TPointerHasher.GetHash(const AValue: Pointer): Cardinal;
 begin
-
-  {$IFDEF WIN32}
-
-  Result := Cardinal(Pointer(AValue));
-
-  {$ELSE}
-
-  Result := Cardinal(Pointer(AValue)) xor Cardinal(UInt64(Pointer(AValue)) shr 32);
-
-  {$ENDIF}
-
+{$IFDEF WIN32}
+  Result := Cardinal(AValue);
+{$ELSE}
+  Result := Cardinal(AValue) xor Cardinal(UInt64(AValue) shr 32);
+{$ENDIF}
 end;
 
 class function TPointerHasher.CanIndex(const AValue: Pointer): Boolean;
@@ -605,150 +452,6 @@ class function TClassHasher.CanIndex(const AValue: TClass): Boolean;
 begin
   Result := AValue <> nil;
 end;
-
-// Wrong unit
-(*
-{ TUIntMap<T> }
-
-function TUIntMap<T>.Copy(AHashMode: THashMode): TUIntMap<T>;
-begin
-  Result := TUIntMap<T>(CreateCopy(AHashMode));
-end;
-
-{ TIntMap<T> }
-
-function TIntMap<T>.Copy(AHashMode: THashMode): TIntMap<T>;
-begin
-  Result := TIntMap<T>(CreateCopy(AHashMode));
-end;
-
-{ TIntVector2Map<T> }
-
-function TIntVector2Map<T>.Copy(AHashMode: THashMode): TIntVector2Map<T>;
-begin
-  Result := TIntVector2Map<T>(CreateCopy(AHashMode));
-end;
-
-{ TIntVector3Map<T> }
-
-function TIntVector3Map<T>.Copy(AHashMode: THashMode): TIntVector3Map<T>;
-begin
-  Result := TIntVector3Map<T>(CreateCopy(AHashMode));
-end;
-
-{ TIntBounds1Map<T> }
-
-function TIntBounds1Map<T>.Copy(AHashMode: THashMode): TIntBounds1Map<T>;
-begin
-  Result := TIntBounds1Map<T>(CreateCopy(AHashMode));
-end;
-
-{ TIntBounds2Map<T> }
-
-function TIntBounds2Map<T>.Copy(AHashMode: THashMode): TIntBounds2Map<T>;
-begin
-  Result := TIntBounds2Map<T>(CreateCopy(AHashMode));
-end;
-
-{ TIntBounds3Map<T> }
-
-function TIntBounds3Map<T>.Copy(AHashMode: THashMode): TIntBounds3Map<T>;
-begin
-  Result := TIntBounds3Map<T>(CreateCopy(AHashMode));
-end;
-
-{ TSingleMap<T> }
-
-function TSingleMap<T>.Copy(AHashMode: THashMode): TSingleMap<T>;
-begin
-  Result := TSingleMap<T>(CreateCopy(AHashMode));
-end;
-
-{ TVector2Map<T> }
-
-function TVector2Map<T>.Copy(AHashMode: THashMode): TVector2Map<T>;
-begin
-  Result := TVector2Map<T>(CreateCopy(AHashMode));
-end;
-
-{ TVector3Map<T> }
-
-function TVector3Map<T>.Copy(AHashMode: THashMode): TVector3Map<T>;
-begin
-  Result := TVector3Map<T>(CreateCopy(AHashMode));
-end;
-
-{ TLine2Map<T> }
-
-function TLine2Map<T>.Copy(AHashMode: THashMode): TLine2Map<T>;
-begin
-  Result := TLine2Map<T>(CreateCopy(AHashMode));
-end;
-
-{ TLine3Map<T> }
-
-function TLine3Map<T>.Copy(AHashMode: THashMode): TLine3Map<T>;
-begin
-  Result := TLine3Map<T>(CreateCopy(AHashMode));
-end;
-
-{ TPlane2Map<T> }
-
-function TPlane2Map<T>.Copy(AHashMode: THashMode): TPlane2Map<T>;
-begin
-  Result := TPlane2Map<T>(CreateCopy(AHashMode));
-end;
-
-{ TPlane3Map<T> }
-
-function TPlane3Map<T>.Copy(AHashMode: THashMode): TPlane3Map<T>;
-begin
-  Result := TPlane3Map<T>(CreateCopy(AHashMode));
-end;
-
-{ TVectorDirMap<T> }
-
-function TVectorDirMap<T>.Copy(AHashMode: THashMode): TVectorDirMap<T>;
-begin
-  Result := TVectorDirMap<T>(CreateCopy(AHashMode));
-end;
-
-{ TStringMap<T> }
-
-function TStringMap<T>.Copy(AHashMode: THashMode): TStringMap<T>;
-begin
-  Result := TStringMap<T>(CreateCopy(AHashMode));
-end;
-
-{ TAnsiStringMap<T> }
-
-function TAnsiStringMap<T>.Copy(AHashMode: THashMode): TAnsiStringMap<T>;
-begin
-  Result := TAnsiStringMap<T>(CreateCopy(AHashMode));
-end;
-
-{ TClassMap<T> }
-
-function TClassMap<T>.Copy(AHashMode: THashMode): TClassMap<T>;
-begin
-  Result := TClassMap<T>(CreateCopy(AHashMode));
-end;
-
-{ TAnsiStringRefMap<T> }
-
-function TAnsiStringRefMap<T>.Copy(AHashMode: THashMode): TAnsiStringRefMap<T>;
-begin
-  Result := TAnsiStringRefMap<T>(CreateCopy(AHashMode));
-end;
-
-{ TClassToRefMap<T> }
-
-function TClassRefMap<T>.Copy(AHashMode: THashMode): TClassRefMap<T>;
-begin
-  Result := TClassRefMap<T>(CreateCopy(AHashMode));
-end;
-
-*)
 
 { Shorthand overloaded hash functions }
 

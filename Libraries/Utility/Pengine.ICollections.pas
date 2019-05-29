@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils,
 
-  Pengine.EventHandling;
+  Pengine.Comparer;
 
 type
 
@@ -129,7 +129,6 @@ type
     property Last: T read GetLast;
 
     function IndexOf(AItem: T): Integer;
-    function IndexOfLast(AItem: T): Integer;
 
   end;
 
@@ -153,29 +152,32 @@ type
 
   end;
 
-  /// <summary>An ordered collection of items.</summary>
-  IList<T> = interface(ICollection<T>)
+  IListBase<T> = interface(ICollection<T>)
     function GetItem(AIndex: Integer): T;
-    procedure SetItem(AIndex: Integer; AItem: T);
     function GetMaxIndex: Integer;
     function GetFirst: T;
     function GetLast: T;
 
-    property Items[AIndex: Integer]: T read GetItem write SetItem; default;
+    property Items[AIndex: Integer]: T read GetItem; default;
 
     property MaxIndex: Integer read GetMaxIndex;
     property First: T read GetFirst;
     property Last: T read GetLast;
 
     function IndexOf(AItem: T): Integer;
-    function IndexOfLast(AItem: T): Integer;
 
-    procedure Insert(AIndex: Integer; AItem: T);
     procedure RemoveAt(AIndex: Integer);
     procedure RemoveRange(AIndex, ACount: Integer);
-    procedure RemoveLast(AItem: T);
 
     function Extract(AIndex: Integer): T;
+
+  end;
+
+  /// <summary>An ordered collection of items.</summary>
+  IList<T> = interface(IListBase<T>)
+    procedure SetItem(AIndex: Integer; AItem: T);
+
+    property Items[AIndex: Integer]: T read GetItem write SetItem; default;
 
     procedure InsertRange(AIndex: Integer; AItems: array of T); overload;
     procedure InsertRange(AIndex: Integer; AItems: IIterable<T>); overload;
@@ -184,11 +186,24 @@ type
     function ReadonlyList: IReadonlyList<T>;
 
     function Copy: IList<T>;
-    procedure Assign(AFrom: IList<T>);
 
   end;
 
-  TList<T> = class(TInterfacedObject, IIterable<T>, IReadonlyCollection<T>, IReadonlyList<T>, ICollection<T>, IList<T>)
+  /// <summary>An sorted collection, where the order of elements is given by a compare function.</summary>
+  ISortedList<T> = interface(IListBase<T>)
+    /// <summary>Wether the two values are ordered.</summary>
+    function Compare(A, B: T): Boolean;
+
+    /// <summary>Finds the index, where the item needs to be positioned.</summary>
+    /// <remarks>If the exact item is found, gives the index of that item.</remarks>
+    function BinarySearch(AItem: T): Integer;
+
+    function Copy: ISortedList<T>;
+
+  end;
+
+  TListBase<T> = class(TInterfacedObject, IListBase<T>, ICollection<T>, IIterable<T>, IReadonlyList<T>,
+    IReadonlyCollection<T>)
   public const
 
     GrowAmount = 16;
@@ -197,25 +212,25 @@ type
     FItems: array of T;
     FCount: Integer;
 
-    procedure EnsureCapacity(ACount: Integer);
     procedure ReduceCapacity(ACount: Integer);
 
     function GetCount: Integer;
     function GetMaxIndex: Integer;
 
-    function GetItem(AIndex: Integer): T;
-    procedure SetItem(AIndex: Integer; AValue: T);
-
     function GetFirst: T;
     function GetLast: T;
 
-    function ItemsEqual(A, B: T): Boolean; virtual;
-
   protected
+    procedure EnsureCapacity(ACount: Integer);
+
+    function GetItem(AIndex: Integer): T;
+
     procedure RangeCheck(AIndex: Integer); inline;
 
     procedure DoRemoveAt(AIndex: Integer);
     procedure DoRemoveRange(AIndex, ACount: Integer);
+
+    function ItemsEqual(A, B: T): Boolean; virtual;
 
   public
     constructor Create; overload; virtual;
@@ -242,43 +257,70 @@ type
 
     function ReadonlyCollection: IReadonlyCollection<T>;
 
-    // IList<T>
-    property Items[AIndex: Integer]: T read GetItem write SetItem; default;
+    // IListBase<T>
+    property Items[AIndex: Integer]: T read GetItem; default;
 
     property MaxIndex: Integer read GetMaxIndex;
     property First: T read GetFirst;
     property Last: T read GetLast;
 
     function IndexOf(AItem: T): Integer;
-    function IndexOfLast(AItem: T): Integer;
 
-    procedure Insert(AIndex: Integer; AItem: T);
     procedure RemoveAt(AIndex: Integer);
     procedure RemoveRange(AIndex, ACount: Integer);
-    procedure RemoveLast(AItem: T);
 
     function Extract(AIndex: Integer): T;
 
+    function ReadonlyList: IReadonlyList<T>;
+
+  end;
+
+  TList<T> = class(TListBase<T>, IList<T>)
+  private
+    procedure SetItem(AIndex: Integer; AValue: T);
+
+  public
+    /// IList<T>
+    property Items[AIndex: Integer]: T read GetItem write SetItem; default;
+
+    procedure Add(AItem: T);
+
+    procedure Insert(AIndex: Integer; AItem: T);
     procedure InsertRange(AIndex: Integer; AItems: array of T); overload;
     procedure InsertRange(AIndex: Integer; AItems: IIterable<T>); overload;
     procedure InsertRange(AIndex: Integer; AItems: IIterator<T>); overload;
 
-    function ReadonlyList: IReadonlyList<T>;
-
     function Copy: IList<T>;
-    procedure Assign(AFrom: IList<T>);
+
+  end;
+
+  TSortedList<T; C: TComparer<T>> = class(TListBase<T>, ISortedList<T>)
+  public
+    // ICollection<T>
+    // Interface-"Override"
+    procedure Add(AItem: T);
+
+    // Interface-"Override" to use binary search
+    function IndexOf(AItem: T): Integer;
+
+    // ISortedList<T>
+    function Compare(A, B: T): Boolean;
+
+    function BinarySearch(AItem: T): Integer;
+
+    function Copy: ISortedList<T>;
 
   end;
 
   TListIterator<T> = class(TInterfacedObject, IIterator<T>)
   private
-    FList: TList<T>;
+    FList: TListBase<T>;
     FCurrent: Integer;
 
     function GetCurrent: T;
 
   public
-    constructor Create(AList: TList<T>);
+    constructor Create(AList: TListBase<T>);
 
     function MoveNext: Boolean;
 
@@ -310,7 +352,6 @@ type
     procedure Remove(AItem: T);
     procedure RemoveAt(AIndex: Integer);
     procedure RemoveRange(AIndex, ACount: Integer);
-    procedure RemoveLast(AItem: T);
 
   end;
 
@@ -586,7 +627,7 @@ type
     function GetEnumerator: IIterator<T>; override;
 
   end;
-       
+
   TPrependIterator<T> = class(TInterfacedObject, IIterator<T>)
   private
     FIterator: IIterator<T>;
@@ -617,9 +658,9 @@ type
 
 implementation
 
-{ TList<T> }
+{ TListBase<T> }
 
-procedure TList<T>.EnsureCapacity(ACount: Integer);
+procedure TListBase<T>.EnsureCapacity(ACount: Integer);
 var
   Capacity: Integer;
 begin
@@ -630,14 +671,14 @@ begin
   SetLength(FItems, Capacity);
 end;
 
-function TList<T>.Extract(AIndex: Integer): T;
+function TListBase<T>.Extract(AIndex: Integer): T;
 begin
   RangeCheck(AIndex);
   Result := Items[AIndex];
   RemoveAt(AIndex);
 end;
 
-procedure TList<T>.ReduceCapacity(ACount: Integer);
+procedure TListBase<T>.ReduceCapacity(ACount: Integer);
 var
   Capacity: Integer;
 begin
@@ -648,27 +689,22 @@ begin
   SetLength(FItems, Capacity);
 end;
 
-function TList<T>.GetCount: Integer;
+function TListBase<T>.GetCount: Integer;
 begin
   Result := FCount;
 end;
 
-function TList<T>.GetMaxIndex: Integer;
+function TListBase<T>.GetMaxIndex: Integer;
 begin
   Result := FCount - 1;
 end;
 
-function TList<T>.GetItem(AIndex: Integer): T;
+function TListBase<T>.GetItem(AIndex: Integer): T;
 begin
   Result := FItems[AIndex];
 end;
 
-procedure TList<T>.SetItem(AIndex: Integer; AValue: T);
-begin
-  FItems[AIndex] := AValue;
-end;
-
-function TList<T>.TryRemove(AItem: T): Boolean;
+function TListBase<T>.TryRemove(AItem: T): Boolean;
 var
   I: Integer;
 begin
@@ -679,17 +715,17 @@ begin
   Result := True;
 end;
 
-function TList<T>.GetFirst: T;
+function TListBase<T>.GetFirst: T;
 begin
   Result := Items[0];
 end;
 
-function TList<T>.GetLast: T;
+function TListBase<T>.GetLast: T;
 begin
   Result := Items[MaxIndex];
 end;
 
-function TList<T>.ItemsEqual(A, B: T): Boolean;
+function TListBase<T>.ItemsEqual(A, B: T): Boolean;
 begin
   if (GetTypeKind(T) = tkRecord) and IsManagedType(T) then
     raise EListError.Create('Comparing managed records is not supported.');
@@ -712,67 +748,62 @@ begin
   end;
 end;
 
-function TList<T>.Iterate: IIterate<T>;
+function TListBase<T>.Iterate: IIterate<T>;
 begin
   Result := TIterableIterate<T>.Create(Self);
 end;
 
-constructor TList<T>.Create;
+constructor TListBase<T>.Create;
 begin
   // nothing
 end;
 
-constructor TList<T>.Create(AItems: array of T);
+constructor TListBase<T>.Create(AItems: array of T);
 begin
   Create;
   AddRange(AItems);
 end;
 
-constructor TList<T>.Create(AIterable: IIterable<T>);
+constructor TListBase<T>.Create(AIterable: IIterable<T>);
 begin
   Create;
   AddRange(AIterable);
 end;
 
-constructor TList<T>.Create(AIterator: IIterator<T>);
+constructor TListBase<T>.Create(AIterator: IIterator<T>);
 begin
   Create;
   AddRange(AIterator);
 end;
 
-function TList<T>.GetEnumerator: IIterator<T>;
+function TListBase<T>.GetEnumerator: IIterator<T>;
 begin
   Result := TListIterator<T>.Create(Self);
 end;
 
-function TList<T>.Contains(AItem: T): Boolean;
+function TListBase<T>.Contains(AItem: T): Boolean;
 begin
   Result := IndexOf(AItem) <> -1;
 end;
 
-function TList<T>.Copy: IList<T>;
+procedure TListBase<T>.Add(AItem: T);
 begin
-  Result := TList<T>.Create(Self);
+  Assert(False, 'Instance of TListBase<T> or no Add method.');
 end;
 
-procedure TList<T>.Add(AItem: T);
-begin
-  Insert(Count, AItem);
-end;
-
-procedure TList<T>.Remove(AItem: T);
+procedure TListBase<T>.Remove(AItem: T);
 begin
   if not TryRemove(AItem) then
     raise EListError.Create('Item not found.');
 end;
 
-procedure TList<T>.Clear;
+procedure TListBase<T>.Clear;
 begin
   FCount := 0;
   SetLength(FItems, 0);
 end;
 
-procedure TList<T>.AddRange(AItems: array of T);
+procedure TListBase<T>.AddRange(AItems: array of T);
 var
   Item: T;
 begin
@@ -780,35 +811,29 @@ begin
     Add(Item);
 end;
 
-procedure TList<T>.AddRange(AItems: IIterable<T>);
+procedure TListBase<T>.AddRange(AItems: IIterable<T>);
 begin
   AddRange(AItems.GetEnumerator);
 end;
 
-procedure TList<T>.AddRange(AItems: IIterator<T>);
+procedure TListBase<T>.AddRange(AItems: IIterator<T>);
 begin
   while AItems.MoveNext do
     Add(AItems.Current);
 end;
 
-procedure TList<T>.Assign(AFrom: IList<T>);
-begin
-  Clear;
-  AddRange(AFrom);
-end;
-
-procedure TList<T>.RangeCheck(AIndex: Integer);
+procedure TListBase<T>.RangeCheck(AIndex: Integer);
 begin
   if (AIndex < 0) or (AIndex >= Count) then
     raise EListError.Create('List index out of range.')at ReturnAddress;
 end;
 
-function TList<T>.ReadonlyCollection: IReadonlyCollection<T>;
+function TListBase<T>.ReadonlyCollection: IReadonlyCollection<T>;
 begin
   Result := Self;
 end;
 
-function TList<T>.IndexOf(AItem: T): Integer;
+function TListBase<T>.IndexOf(AItem: T): Integer;
 var
   I: Integer;
 begin
@@ -818,14 +843,58 @@ begin
   Result := -1;
 end;
 
-function TList<T>.IndexOfLast(AItem: T): Integer;
-var
-  I: Integer;
+procedure TListBase<T>.RemoveAt(AIndex: Integer);
 begin
-  for I := MaxIndex downto 0 do
-    if ItemsEqual(AItem, FItems[I]) then
-      Exit(I);
-  Result := -1;
+  RangeCheck(AIndex);
+  DoRemoveAt(AIndex);
+end;
+
+procedure TListBase<T>.RemoveRange(AIndex, ACount: Integer);
+begin
+  RangeCheck(AIndex);
+  RangeCheck(AIndex + ACount - 1);
+  DoRemoveRange(AIndex, ACount);
+end;
+
+function TListBase<T>.ReadonlyList: IReadonlyList<T>;
+begin
+  Result := Self;
+end;
+
+procedure TListBase<T>.DoRemoveAt(AIndex: Integer);
+var
+  Tmp: T;
+begin
+  if AIndex <> MaxIndex then
+  begin
+    Tmp := FItems[AIndex];
+    Move(FItems[AIndex + 1], FItems[AIndex], SizeOf(T) * (Count - AIndex - 1));
+    Move(Tmp, FItems[MaxIndex], SizeOf(T));
+  end;
+  ReduceCapacity(Count - 1);
+  Dec(FCount);
+end;
+
+procedure TListBase<T>.DoRemoveRange(AIndex, ACount: Integer);
+var
+  Tmp: array of T;
+begin
+  if AIndex <> Count - ACount then
+  begin
+    SetLength(Tmp, ACount);
+    Move(FItems[AIndex], Tmp[0], ACount * SizeOf(T));
+    Move(FItems[AIndex + ACount], FItems[AIndex], SizeOf(T) * (Count - AIndex - ACount));
+    Move(Tmp, FItems[MaxIndex], ACount * SizeOf(T));
+  end;
+  ReduceCapacity(Count - ACount);
+  Dec(FCount, ACount);
+end;
+
+{ TList<T> }
+
+procedure TList<T>.SetItem(AIndex: Integer; AValue: T);
+begin
+  FItems[AIndex] := AValue;
 end;
 
 procedure TList<T>.Insert(AIndex: Integer; AItem: T);
@@ -840,24 +909,6 @@ begin
   end;
   FItems[AIndex] := AItem;
   Inc(FCount);
-end;
-
-procedure TList<T>.RemoveAt(AIndex: Integer);
-begin
-  RangeCheck(AIndex);
-  DoRemoveAt(AIndex);
-end;
-
-procedure TList<T>.RemoveLast(AItem: T);
-begin
-  RemoveAt(IndexOfLast(AItem));
-end;
-
-procedure TList<T>.RemoveRange(AIndex, ACount: Integer);
-begin
-  RangeCheck(AIndex);
-  RangeCheck(AIndex + ACount - 1);
-  DoRemoveRange(AIndex, ACount);
 end;
 
 procedure TList<T>.InsertRange(AIndex: Integer; AItems: array of T);
@@ -882,43 +933,21 @@ begin
   end;
 end;
 
-function TList<T>.ReadonlyList: IReadonlyList<T>;
+function TList<T>.Copy: IList<T>;
 begin
-  Result := Self;
+  Result := TList<T>.Create(Self);
 end;
 
-procedure TList<T>.DoRemoveAt(AIndex: Integer);
-var
-  Tmp: T;
+procedure TList<T>.Add(AItem: T);
 begin
-  if AIndex <> MaxIndex then
-  begin
-    Tmp := FItems[AIndex];
-    Move(FItems[AIndex + 1], FItems[AIndex], SizeOf(T) * (Count - AIndex - 1));
-    Move(Tmp, FItems[MaxIndex], SizeOf(T));
-  end;
-  ReduceCapacity(Count - 1);
-  Dec(FCount);
+  Insert(Count, AItem);
 end;
 
-procedure TList<T>.DoRemoveRange(AIndex, ACount: Integer);
-var
-  Tmp: array of T;
-begin
-  if AIndex <> Count - ACount then
-  begin
-    SetLength(Tmp, ACount);
-    Move(FItems[AIndex], Tmp[0], ACount * SizeOf(T));
-    Move(FItems[AIndex + ACount], FItems[AIndex], SizeOf(T) * (Count - AIndex - ACount));
-    Move(Tmp, FItems[MaxIndex], ACount * SizeOf(T));
-  end;
-  ReduceCapacity(Count - ACount);
-  Dec(FCount, ACount);
-end;
+{ TSortedList<T, C> }
 
 { TListIterator<T> }
 
-constructor TListIterator<T>.Create(AList: TList<T>);
+constructor TListIterator<T>.Create(AList: TListBase<T>);
 begin
   FList := AList;
   FCurrent := -1;
@@ -979,11 +1008,6 @@ begin
   if OwnsObjects then
     Items[AIndex].Free;
   DoRemoveAt(AIndex);
-end;
-
-procedure TObjectList<T>.RemoveLast(AItem: T);
-begin
-  RemoveAt(IndexOfLast(AItem));
 end;
 
 procedure TObjectList<T>.RemoveRange(AIndex, ACount: Integer);
@@ -1161,7 +1185,7 @@ begin
 end;
 
 function TIterate<T>.Skip(ACount: Integer): IIterate<T>;
-begin                                                         
+begin
   Result := TRangeIterate<T>.Create(GetEnumerator, ACount, Integer.MaxValue);
 end;
 
@@ -1323,7 +1347,7 @@ begin
 end;
 
 function TGenericWrapper<T>.Zip<R>(AIterable: IIterable<T>; AFunc: TFunc<T, T, R>): IIterate<R>;
-begin                                                                                                                           
+begin
   Result := TZipIterate<T, T, R>.Create(FIterate.GetEnumerator, AIterable.GetEnumerator, AFunc);
 end;
 
@@ -1471,7 +1495,7 @@ function TConcatIterate<T>.GetEnumerator: IIterator<T>;
 begin
   Result := TConcatIterator<T>.Create(FIterator1, FIterator2);
 end;
-         
+
 { TAppendIterator<T> }
 
 constructor TAppendIterator<T>.Create(AIterator: IIterator<T>; AItem: T);
@@ -1545,6 +1569,33 @@ end;
 function TPrependIterate<T>.GetEnumerator: IIterator<T>;
 begin
   Result := TPrependIterator<T>.Create(FIterator, FItem);
+end;
+
+{ TSortedList<T, C> }
+
+procedure TSortedList<T, C>.Add(AItem: T);
+begin
+  raise ENotImplemented.Create('SortedList<T, C>.Add');
+end;
+
+function TSortedList<T, C>.BinarySearch(AItem: T): Integer;
+begin
+  raise ENotImplemented.Create('SortedList<T, C>.BinarySearch');
+end;
+
+function TSortedList<T, C>.Compare(A, B: T): Boolean;
+begin
+  Result := C.Compare(A, B);
+end;
+
+function TSortedList<T, C>.Copy: ISortedList<T>;
+begin
+  Result := TSortedList<T, C>.Create(Self);
+end;
+
+function TSortedList<T, C>.IndexOf(AItem: T): Integer;
+begin
+  raise ENotImplemented.Create('SortedList<T, C>.IndexOf');
 end;
 
 end.
