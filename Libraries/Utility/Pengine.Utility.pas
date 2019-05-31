@@ -99,7 +99,9 @@ type
 
   end;
 
-function GetBitCount(num: NativeUInt): Integer;
+function GetBitCount(ANum: NativeUInt): Integer;
+function Rol(I: Cardinal; N: ShortInt): Cardinal;
+function ILog2(AValue: Cardinal): Integer;
 
 function PrettyFloat(AValue: Single): string; overload;
 function PrettyFloat(AValue: Double): string; overload;
@@ -110,13 +112,36 @@ function ExpandEnvVars(AText: string): string;
 
 implementation
 
-function GetBitCount(num: NativeUInt): Integer;
+function GetBitCount(ANum: NativeUInt): Integer;
 asm
   {$IFDEF CPUX64}
-  POPCNT    rax, num
+  POPCNT    rax, ANum
   {$ELSE}
-  POPCNT    eax, num
+  POPCNT    eax, ANum
   {$ENDIF}
+end;
+
+{$IFOPT Q+}{$DEFINE OVERFLOWCHECKSON}{$ENDIF}
+{$Q-}
+
+function Rol(I: Cardinal; N: ShortInt): Cardinal;
+asm
+{$IFDEF WIN64}
+  mov eax, I
+  mov cl, N
+  rol eax, cl
+{$ELSE}
+  mov cl, N
+  rol I, cl
+{$ENDIF}
+end;
+
+{$IFDEF OVERFLOWCHECKSON}{$Q+}
+{$ENDIF}
+
+function ILog2(AValue: Cardinal): Integer;
+asm
+  BSR eax, AValue
 end;
 
 function PrettyFloat(AValue: Single): string;

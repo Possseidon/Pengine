@@ -74,7 +74,7 @@ begin
 
   MachineArray := FFactory.AddMachineArray(Vec2(50, 50), FFactorio.Find<TFactorio.TAssemblingMachine>('assembling-machine-1'));
   MachineArray.Recipe := FFactorio.Find<TFactorio.TRecipe>('iron-gear-wheel');
-  // MachineArray.Remove;
+  MachineArray.Remove;
 end;
 
 procedure TfrmMain.pbFactoryPaint(Sender: TObject);

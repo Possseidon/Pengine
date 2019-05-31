@@ -4,16 +4,19 @@ interface
 
 uses
   System.SysUtils,
+  System.Math,
 
   Pengine.IntMaths,
   Pengine.Vector,
-  Pengine.Equaller;
+  Pengine.Equaller,
+  Pengine.HashPrimes,
+  Pengine.Utility;
 
 type
 
   THasher<V> = class abstract
   public
-    class function Equal(const AValue1, AValue2: V): Boolean; virtual; abstract;    
+    class function Equal(const AValue1, AValue2: V): Boolean; virtual; abstract;
     class function GetHash(const AValue: V): Cardinal; virtual; abstract;
     class function CanIndex(const AValue: V): Boolean; virtual;
   end;
@@ -22,8 +25,9 @@ type
   /// <remarks>A <see cref="Pengine.ValueEqualler|TEqualler{V}"/> E is required, to counter hash collisions.<p/>
   /// A complex calculation is usually not necessary, as the modulus with a prime is taken by the hash collections.<p/>
   /// The main thing to look out for is, that for same values, <c>xor</c> will always calculate to zero.</remarks>
-  THasher<V; E: TEqualler<V>> = class abstract(THasher<V>)
-  public      
+  THasher<V; E: TEqualler<V> //
+    > = class abstract(THasher<V>)
+  public
     class function Equal(const AValue1, AValue2: V): Boolean; override;
   end;
 
@@ -177,7 +181,7 @@ type
     class function GetHash(const AValue: AnsiString): Cardinal; override;
   end;
 
-  /// <summary>Calulates a hash from any class type.</summary>
+  /// <summary>Calculates a hash from any class type.</summary>
   /// <remarks>Internally uses <see cref="Pengine.ValueHasher|TPointerHasher"/>.</remarks>
   TClassHasher = class(THasher<TClass, TClassEqualler>)
   public
@@ -227,36 +231,13 @@ function HashOf(const Value: TVectorDir): Cardinal; overload; inline;
 
 implementation
 
-{$IFOPT Q+}{$DEFINE OVERFLOWCHECKSON}{$ENDIF}
-{$Q-}
-
-function R(I: Cardinal; N: ShortInt): Cardinal;
-{$IFDEF PURE_PASCAL}
-begin
-  Result := (I shl N) or (I shr (SizeOf(I) * 8 - N));
-{$ELSE}
-asm
-{$IFDEF WIN64}
-  mov eax, ecx
-  mov ecx, edx
-  rol eax, cl
-{$ELSE}
-  mov cl, dl
-  rol eax, cl
-{$ENDIF}
-{$ENDIF}
-end;
-
-{$IFDEF OVERFLOWCHECKSON}{$Q+}
-{$ENDIF}
-           
 { THasher<V, E> }
 
 class function THasher<V>.CanIndex(const AValue: V): Boolean;
 begin
   Result := True;
 end;
-           
+
 class function THasher<V, E>.Equal(const AValue1, AValue2: V): Boolean;
 begin
   Result := E.Equal(AValue1, AValue2);
@@ -266,11 +247,11 @@ end;
 
 class function TPointerHasher.GetHash(const AValue: Pointer): Cardinal;
 begin
-{$IFDEF WIN32}
+  {$IFDEF WIN32}
   Result := Cardinal(AValue);
-{$ELSE}
+  {$ELSE}
   Result := Cardinal(AValue) xor Cardinal(UInt64(AValue) shr 32);
-{$ENDIF}
+  {$ENDIF}
 end;
 
 class function TPointerHasher.CanIndex(const AValue: Pointer): Boolean;
@@ -308,14 +289,14 @@ end;
 
 class function TIntVector2Hasher.GetHash(const AValue: TIntVector2): Cardinal;
 begin
-  Result := Cardinal(R(AValue.X, 8) xor R(AValue.Y, 24));
+  Result := Cardinal(Rol(AValue.X, 8) xor Rol(AValue.Y, 24));
 end;
 
 { TIntVector3Hasher }
 
 class function TIntVector3Hasher.GetHash(const AValue: TIntVector3): Cardinal;
 begin
-  Result := Cardinal(R(AValue.X, 5) xor R(AValue.Y, 16) xor R(AValue.Z, 27));
+  Result := Cardinal(Rol(AValue.X, 5) xor Rol(AValue.Y, 16) xor Rol(AValue.Z, 27));
 end;
 
 { TIntBounds1Hasher }
@@ -350,14 +331,14 @@ end;
 
 class function TVector2Hasher.GetHash(const AValue: TVector2): Cardinal;
 begin
-  Result := R(HashOf(AValue.X), 8) xor R(HashOf(AValue.Y), 24);
+  Result := Rol(HashOf(AValue.X), 8) xor Rol(HashOf(AValue.Y), 24);
 end;
 
 { TVector3Hasher }
 
 class function TVector3Hasher.GetHash(const AValue: TVector3): Cardinal;
 begin
-  Result := R(HashOf(AValue.X), 5) xor R(HashOf(AValue.Y), 16) xor R(HashOf(AValue.Z), 27);
+  Result := Rol(HashOf(AValue.X), 5) xor Rol(HashOf(AValue.Y), 16) xor Rol(HashOf(AValue.Z), 27);
 end;
 
 { TBounds1Hasher }

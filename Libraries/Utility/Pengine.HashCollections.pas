@@ -4,8 +4,8 @@ interface
 
 uses
   System.SysUtils,
-  System.Math,
 
+  Pengine.HashPrimes,
   Pengine.CollectionInterfaces,
   Pengine.Interfaces,
   Pengine.Collections,
@@ -66,14 +66,6 @@ type
 
   /// <summary>A base class for hash collections.</summary>
   THashBase = class(TInterfaceBase)
-  public const
-
-    HashPrimeOffset = 3;
-
-    HashPrimes: array [0 .. 28] of Integer = (
-      5, 13, 23, 53, 97, 193, 389, 769, 1543, 3079, 6151, 12289, 24593, 49157, 98317, 196613, 393241, 786433,
-      1572869, 3145739, 6291469, 12582917, 25165843, 50331653, 100663319, 201326611, 402653189, 805306457, 1610612741);
-
   public type
 
     TBucket = TArray;
@@ -127,7 +119,7 @@ type
     FBuckets: TBuckets;
 
     procedure SetHashMode(const Value: THashMode);
-    
+
   protected
     FCount: Integer;
 
@@ -139,7 +131,7 @@ type
     procedure UnownObjects; virtual;
     /// <summary>Used to reown previously unowned objects after rehashing.</summary>
     procedure ReownObjects; virtual;
-    
+
     /// <summary>Completly frees all buckets.</summary>
     procedure ClearBuckets;
     procedure CopyBuckets(AFrom: THashBase); virtual; abstract;
@@ -154,9 +146,6 @@ type
   public
     constructor Create; virtual;
     destructor Destroy; override;
-
-    /// <returns>A good count of buckets for a specified number of elements.</returns>
-    class function GetHashBuckets(ACount: Integer): Integer; static;
 
     /// <summary>The current bucket count.</summary>
     /// <remarks>The setter calculates a good count of buckets for the given element count.</remarks>
@@ -195,7 +184,7 @@ type
   THashBaseClass = class of THashBase;
 
   /// <summary>A generic base class for hashcollections.</summary>
-  THashBase<K; H: THasher<K>> = class abstract(THashBase)
+  THashBase<K; H: THasher<K> { } > = class abstract(THashBase)
   public type
 
     TReader = class(THashBase.TReader)
@@ -213,7 +202,7 @@ type
     /// <returns>The capped hash for a given key.</returns>
     /// <exception><see cref="Pengine.HashCollections|EHashKeyNotHashable"/> if the key is not hashable.</exception>
     function GetCappedHash(AKey: K): Integer;
-                                          
+
     function Copy: THashBase<K, H>; reintroduce; inline;
 
     function Reader: TReader; reintroduce; inline;
@@ -221,7 +210,7 @@ type
   end;
 
   /// <summary>A generic hashed set.</summary>
-  TSet<T; H: THasher<T>> = class abstract(THashBase<T, H>, IIterable<T>)
+  TSet<T; H: THasher<T> { } > = class abstract(THashBase<T, H>, IIterable<T>)
   public type
 
     TBucket = TArray<T>;
@@ -325,7 +314,7 @@ type
   end;
 
   /// <summary>A generic map, with hashed keys.</summary>
-  TMap<K, V; H: THasher<K>> = class abstract(THashBase<K, H>, IIterable<TPair<K, V>>)
+  TMap<K, V; H: THasher<K> { } > = class abstract(THashBase<K, H>, IIterable<TPair<K, V>>)
   public type
     // TODO: XmlDoc
     TPair = TPair<K, V>;
@@ -476,7 +465,7 @@ type
   end;
 
   /// <summary>A generic set for object references.</summary>
-  TRefSet<T: class; H: THasher<T>> = class(TSet<T, H>)
+  TRefSet<T: class; H: THasher<T> { } > = class(TSet<T, H>)
   private
     FOwnsObjects: Boolean;
     FStoredOwnsObjects: Boolean;
@@ -507,20 +496,20 @@ type
   end;
 
   /// <summary>A generic set for objects.</summary>
-  TObjectSet<T: class; H: THasher<T>> = class(TRefSet<T, H>)
+  TObjectSet<T: class; H: THasher<T> { } > = class(TRefSet<T, H>)
   protected
     function CreateCopy: THashBase; override;
 
   public
     constructor Create; override;
-    
+
   end;
 
   /// <summary>A generic set for objects, that uses the default reference hashing algorithm.</summary>
   TObjectSet<T: class> = class(TObjectSet<T, TRefHasher<T>>);
 
   /// <summary>A generic map where the key is an object reference.</summary>
-  TRefMap<K: class; V; H: THasher<K>> = class(TMap<K, V, H>)
+  TRefMap<K: class; V; H: THasher<K> { } > = class(TMap<K, V, H>)
   private
     FOwnsKeys: Boolean;
     FStoredOwnsKeys: Boolean;
@@ -549,7 +538,7 @@ type
   end;
 
   /// <summary>A generic map where the key is an object.</summary>
-  TObjectMap<K: class; V; H: THasher<K>> = class(TRefMap<K, V, H>)
+  TObjectMap<K: class; V; H: THasher<K> { } > = class(TRefMap<K, V, H>)
   protected
     function CreateCopy: THashBase; override;
 
@@ -562,7 +551,7 @@ type
   TObjectMap<K: class; V> = class(TObjectMap<K, V, TRefHasher<K>>);
 
   /// <summary>A generic map from and to an object reference.</summary>
-  TRefRefMap<K, V: class; H: THasher<K>> = class(TRefMap<K, V, H>)
+  TRefRefMap<K, V: class; H: THasher<K> { } > = class(TRefMap<K, V, H>)
   private
     FOwnsValues: Boolean;
     FStoredOwnsValues: Boolean;
@@ -594,7 +583,7 @@ type
   end;
 
   /// <summary>A generic map from object to object reference.</summary>
-  TObjectRefMap<K, V: class; H: THasher<K>> = class(TRefRefMap<K, V, H>)
+  TObjectRefMap<K, V: class; H: THasher<K> { } > = class(TRefRefMap<K, V, H>)
   protected
     function CreateCopy: THashBase; override;
 
@@ -608,7 +597,7 @@ type
   TObjectRefMap<K, V: class> = class(TObjectRefMap<K, V, TRefHasher<K>>);
 
   /// <summary>A generic map from and to an object.</summary>
-  TObjectObjectMap<K, V: class; H: THasher<K>> = class(TRefRefMap<K, V, H>)                 
+  TObjectObjectMap<K, V: class; H: THasher<K> { } > = class(TRefRefMap<K, V, H>)
   protected
     function CreateCopy: THashBase; override;
 
@@ -621,7 +610,7 @@ type
   TObjectObjectMap<K, V: class> = class(TObjectObjectMap<K, V, TRefHasher<K>>);
 
   /// <summary>A generic map from an object reference to an object.</summary>
-  TRefObjectMap<K, V: class; H: THasher<K>> = class(TRefRefMap<K, V, H>)
+  TRefObjectMap<K, V: class; H: THasher<K> { } > = class(TRefRefMap<K, V, H>)
   protected
     function CreateCopy: THashBase; override;
 
@@ -635,7 +624,7 @@ type
   TRefObjectMap<K, V: class> = class(TRefObjectMap<K, V, TRefHasher<K>>);
 
   /// <summary>A generic map to an object reference.</summary>
-  TToRefMap<K; V: class; H: THasher<K>> = class(TMap<K, V, H>)
+  TToRefMap<K; V: class; H: THasher<K> { } > = class(TMap<K, V, H>)
   private
     FOwnsValues: Boolean;
     FStoredOwnsValues: Boolean;
@@ -652,14 +641,14 @@ type
     function Copy: TToRefMap<K, V, H>; reintroduce; inline;
 
     property OwnsValues: Boolean read FOwnsValues write FOwnsValues;
-           
+
     function Equals(Obj: TObject): Boolean; overload; override;
     function Equals(AOther: TToRefMap<K, V, H>): Boolean; reintroduce; overload;
 
   end;
 
   /// <summary>A generic map to an object.</summary>
-  TToObjectMap<K; V: class; H: THasher<K>> = class(TToRefMap<K, V, H>)
+  TToObjectMap<K; V: class; H: THasher<K> { } > = class(TToRefMap<K, V, H>)
   protected
     function CreateCopy: THashBase; override;
 
@@ -834,21 +823,6 @@ end;
 function THashBase.Empty: Boolean;
 begin
   Result := FCount = 0;
-end;
-
-class function THashBase.GetHashBuckets(ACount: Integer): Integer;
-var
-  F: Single;
-begin
-  if ACount < 0 then
-    raise EInvalidHashBucketCount.Create;
-  if ACount = 0 then
-    Exit(HashPrimes[0]);
-  F := Log2(ACount);
-  Result := Max(0, Floor(F - HashPrimeOffset));
-  if Result >= Length(HashPrimes) then
-    raise ETooManyHashBuckets.Create;
-  Result := HashPrimes[Result];
 end;
 
 function THashBase.Reader: TReader;
@@ -1158,7 +1132,7 @@ begin
     Exit;
   end;
 
-  NewBuckets := GetHashBuckets(Value);
+  NewBuckets := ChooseHashPrime(Value);
   if NewBuckets > Buckets then
     Rehash(NewBuckets)
   else if NewBuckets < Buckets div 2 then // only shrink if bucket count halved
@@ -1436,7 +1410,7 @@ begin
     Exit;
   end;
 
-  NewCapacity := GetHashBuckets(Value);
+  NewCapacity := ChooseHashPrime(Value);
   if NewCapacity > Buckets then
     Rehash(NewCapacity)
   else if NewCapacity < Buckets div 2 then // only shrink if bucket count halved
@@ -1604,7 +1578,7 @@ begin
     if not AOther[Element] then
       Exit(False);
   end;
-  Result := True;     
+  Result := True;
 end;
 
 procedure TRefSet<T, H>.UnownObjects;
@@ -1694,7 +1668,7 @@ begin
     if Pair.Value.Equals(Value) then
       Exit(False);
   end;
-  Result := True;   
+  Result := True;
 end;
 
 procedure TRefRefMap<K, V, H>.UnownObjects;
@@ -1739,7 +1713,7 @@ function TToRefMap<K, V, H>.Equals(Obj: TObject): Boolean;
 begin
   if Obj.ClassType <> ClassType then
     Exit(False);
-  Result := Equals(TToRefMap<K, V, H>(Obj));  
+  Result := Equals(TToRefMap<K, V, H>(Obj));
 end;
 
 function TToRefMap<K, V, H>.Equals(AOther: TToRefMap<K, V, H>): Boolean;
@@ -1757,7 +1731,7 @@ begin
     if Pair.Value.Equals(Value) then
       Exit(False);
   end;
-  Result := True;       
+  Result := True;
 end;
 
 procedure TToRefMap<K, V, H>.UnownObjects;
@@ -1839,7 +1813,6 @@ begin
   Result := THashBase<K, H>(Self).GetCappedHash(AKey);
 end;
 
-
 { TSet<T, H>.TReader }
 
 function TSet<T, H>.TReader.GetElement(AElement: T): Boolean;
@@ -1851,6 +1824,7 @@ function TSet<T, H>.TReader.GetEnumerator: IIterator<T>;
 begin
   Result := TSet<T, H>(Self).GetEnumerator;
 end;
+
 function TSet<T, H>.TReader.Copy: TSet<T, H>;
 begin
   Result := TSet<T, H>(Self).Copy;
@@ -2001,7 +1975,7 @@ begin
   Result := TArray<V>.Create;
   Result.Capacity := FMap.Count;
   for Value in Self do
-    Result.Add(Value);  
+    Result.Add(Value);
 end;
 
 { TRefSet<T> }
@@ -2021,7 +1995,7 @@ end;
 function TObjectSet<T, H>.CreateCopy: THashBase;
 begin
   Result := TRefSet<T, H>.Create;
-  Result.Assign(Self);  
+  Result.Assign(Self);
 end;
 
 { TRefMap<K, V> }

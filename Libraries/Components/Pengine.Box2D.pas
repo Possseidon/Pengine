@@ -1,6 +1,6 @@
 unit Pengine.Box2D;
 
-{$Pointermath ON}
+{$POINTERMATH ON}
 
 interface
 
