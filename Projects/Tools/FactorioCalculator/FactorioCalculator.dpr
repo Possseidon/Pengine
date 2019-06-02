@@ -4,7 +4,8 @@ uses
   Vcl.Forms,
   Main in 'Main.pas' {frmMain},
   FactoryDefine in 'FactoryDefine.pas',
-  RecipeForm in 'RecipeForm.pas' {frmRecipes};
+  RecipeForm in 'RecipeForm.pas' {frmRecipes},
+  FactoryRendering in 'FactoryRendering.pas';
 
 {$R *.res}
 

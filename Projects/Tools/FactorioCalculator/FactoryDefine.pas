@@ -30,8 +30,9 @@ type
     FFactory: TFactory;
     FPos: TVector2;
     FRecipe: TFactorio.TRecipe;
-    FAssemblingMachine: TFactorio.TAssemblingMachine;
+    FCraftingMachine: TFactorio.TCraftingMachine;
     FCount: Integer;
+    FPerformance: Single;
     FOnChange: TEvent;
     FOnDestroy: TEvent;
 
@@ -39,22 +40,25 @@ type
     function GetOnDestroy: TEvent.TAccess;
 
     procedure Change;
-    procedure SetAssemblingMachine(const Value: TFactorio.TAssemblingMachine);
+    procedure SetCraftingMachine(const Value: TFactorio.TCraftingMachine);
     procedure SetCount(const Value: Integer);
     procedure SetPos(const Value: TVector2);
     procedure SetRecipe(const Value: TFactorio.TRecipe);
+    procedure SetPerformance(const Value: Single);
 
   public
-    constructor Create(AFactory: TFactory; APos: TVector2; AAssemblingMachine: TFactorio.TAssemblingMachine);
+    constructor Create(AFactory: TFactory; APos: TVector2; ACraftingMachine: TFactorio.TCraftingMachine);
     procedure BeforeDestruction; override;
     procedure Remove;
 
     property Factory: TFactory read FFactory;
 
     property Pos: TVector2 read FPos write SetPos;
-    property Recipe: TFactorio.TRecipe read FRecipe write SetRecipe;
-    property AssemblingMachine: TFactorio.TAssemblingMachine read FAssemblingMachine write SetAssemblingMachine;
+    property CraftingMachine: TFactorio.TCraftingMachine read FCraftingMachine write SetCraftingMachine;
     property Count: Integer read FCount write SetCount;
+    property Performance: Single read FPerformance write SetPerformance;
+    function HasRecipe: Boolean;
+    property Recipe: TFactorio.TRecipe read FRecipe write SetRecipe;
 
     property OnChange: TEvent.TAccess read GetOnChange;
     property OnDestroy: TEvent.TAccess read GetOnDestroy;
@@ -99,7 +103,7 @@ type
     procedure DefineJStorage(ASerializer: TJSerializer);
 
     property MachineArrays: IReadonlyList<TMachineArray> read GetMachineArrays;
-    function AddMachineArray(APos: TVector2; AAssemblingMachine: TFactorio.TAssemblingMachine): TMachineArray;
+    function AddMachineArray(APos: TVector2; ACraftingMachine: TFactorio.TCraftingMachine): TMachineArray;
     procedure RemoveMachineArray(AMachineArray: TMachineArray);
 
   end;
@@ -108,9 +112,9 @@ implementation
 
 { TFactory }
 
-function TFactory.AddMachineArray(APos: TVector2; AAssemblingMachine: TFactorio.TAssemblingMachine): TMachineArray;
+function TFactory.AddMachineArray(APos: TVector2; ACraftingMachine: TFactorio.TCraftingMachine): TMachineArray;
 begin
-  Result := TMachineArray.Create(Self, APos, AAssemblingMachine);
+  Result := TMachineArray.Create(Self, APos, ACraftingMachine);
   FMachineArrays.Add(Result);
   Result.OnChange.Add(MachineArrayChange);
   Result.OnDestroy.Add(MachineArrayDestroy);
@@ -152,7 +156,7 @@ begin
   Result := 0;
 end;
 
-{ TAssemblingMachine }
+{ TMachineArray }
 
 procedure TMachineArray.BeforeDestruction;
 begin
@@ -164,17 +168,23 @@ begin
   FOnChange.Execute(TEventInfo.Create(Self));
 end;
 
-constructor TMachineArray.Create(AFactory: TFactory; APos: TVector2; AAssemblingMachine: TFactorio.TAssemblingMachine);
+constructor TMachineArray.Create(AFactory: TFactory; APos: TVector2; ACraftingMachine: TFactorio.TCraftingMachine);
 begin
   FFactory := AFactory;
   FPos := APos;
-  FAssemblingMachine := AAssemblingMachine;
+  FCraftingMachine := ACraftingMachine;
   FCount := 1;
+  FPerformance := 1;
 end;
 
 function TMachineArray.GetOnDestroy: TEvent.TAccess;
 begin
   Result := FOnDestroy.Access;
+end;
+
+function TMachineArray.HasRecipe: Boolean;
+begin
+  Result := FRecipe <> nil;
 end;
 
 procedure TMachineArray.Remove;
@@ -187,11 +197,14 @@ begin
   Result := FOnChange.Access;
 end;
 
-procedure TMachineArray.SetAssemblingMachine(const Value: TFactorio.TAssemblingMachine);
+procedure TMachineArray.SetCraftingMachine(const Value: TFactorio.TCraftingMachine);
 begin
-  if AssemblingMachine = Value then
+  if CraftingMachine = Value then
     Exit;
-  FAssemblingMachine := Value;
+  FCraftingMachine := Value;
+
+  if HasRecipe and not CraftingMachine.CraftingCategories.Contains(Recipe.Category) then
+    Recipe := nil;
   Change;
 end;
 
@@ -200,6 +213,14 @@ begin
   if Count = Value then
     Exit;
   FCount := Value;
+  Change;
+end;
+
+procedure TMachineArray.SetPerformance(const Value: Single);
+begin
+  if Performance = Value then
+    Exit;
+  FPerformance := Value;
   Change;
 end;
 

@@ -9,11 +9,11 @@ uses
 
   Pengine.ICollections,
   Pengine.LuaHeader,
-  Pengine.Lua;
+  Pengine.IntMaths;
 
 type
 
-  TFactorio = class;
+  EFactorio = class(Exception);
 
   TFactorio = class
   public type
@@ -24,64 +24,169 @@ type
     public type
 
       TType = (
-        ptItem,
+        // Grouping
+        ptItemGroup,
+        ptItemSubgroup,
+
+        // Recipe
+        ptRecipeCategory,
         ptRecipe,
+
+        // Item
+        ptItem,
+        ptAmmo,
+        ptArmor,
+        ptCapsule,
+        ptEquipment,
+        ptGun,
+        ptItemWithEntityData,
+        ptMiningTool,
+        ptModule,
+        ptRailPlanner,
+        ptRepairTool,
+        ptTool,
+
+        // Fluid
+        ptFluid,
+
+        // Other
         ptAssemblingMachine,
-        ptTransportBelt,
-        ptInserter
+        ptRocketSilo,
+        ptFurnace,
+        ptInserter,
+        ptTransportBelt
         );
+
+    public const
+
+      ItemTypes = [ptItem .. ptTool];
+
+      ItemOrFluidTypes = [ptItem .. ptFluid];
+
+      GroupedTypes = [ptItem .. ptFluid];
+
+      CraftingMachines = [ptAssemblingMachine, ptRocketSilo, ptFurnace];
 
     private
       FFactorio: TFactorio;
       FName: AnsiString;
+      FOrder: AnsiString;
+      FIconSize: Integer;
       FIconPath: string;
       FIcon: IGPBitmap;
 
-      function GetIcon: IGPBitmap;
+    protected
+      function GetIcon: IGPBitmap; virtual;
+      function GetOrder: AnsiString; virtual;
 
     public
       constructor Create(AFactorio: TFactorio; L: TLuaState); virtual;
       class function CreateTyped(AFactorio: TFactorio; L: TLuaState): TPrototype;
 
-      class function GetName: AnsiString;
+      class function GetTypeName: AnsiString;
       class function GetType: TType; virtual; abstract;
 
       property Factorio: TFactorio read FFactorio;
-      property Name: AnsiString read FName;
 
+      property Name: AnsiString read FName;
+      property Order: AnsiString read GetOrder;
+
+      property IconSize: Integer read FIconSize;
       property IconPath: string read FIconPath;
       property Icon: IGPBitmap read GetIcon;
 
     end;
 
-    TItem = class(TPrototype)
+    TItemSubgroup = class;
+
+    TItemGroup = class(TPrototype)
     private
-      FStackSize: Integer;
-      FOrder: AnsiString;
+      FOrderInRecipe: AnsiString;
+      FSubgroups: ISortedList<TItemSubgroup>;
+
+      function GetSubgroups: IReadonlyList<TItemSubgroup>;
 
     public
       constructor Create(AFactorio: TFactorio; L: TLuaState); override;
 
       class function GetType: TPrototype.TType; override;
 
-      property StackSize: Integer read FStackSize;
-      property Order: AnsiString read FOrder;
+      property OrderInRecipe: AnsiString read FOrderInRecipe;
+      property Subgroups: IReadonlyList<TItemSubgroup> read GetSubgroups;
 
     end;
+
+    TGrouped = class;
+    TRecipe = class;
+
+    TItemSubgroup = class(TPrototype)
+    private
+      FEntries: ISortedList<TGrouped>;
+      FRecipes: ISortedList<TRecipe>;
+      FGroupName: AnsiString;
+      FGroup: TItemGroup;
+
+      function GetEntries: IReadonlyList<TGrouped>;
+      function GetGroup: TItemGroup;
+      function GetRecipes: IReadonlyList<TRecipe>;
+
+    public
+      constructor Create(AFactorio: TFactorio; L: TLuaState); override;
+
+      class function GetType: TPrototype.TType; override;
+
+      property Group: TItemGroup read GetGroup;
+      property Entries: IReadonlyList<TGrouped> read GetEntries;
+      property Recipes: IReadonlyList<TRecipe> read GetRecipes;
+
+    end;
+
+    TGrouped = class(TPrototype)
+    private
+      FSubgroup: TItemSubgroup;
+      FSubgroupName: AnsiString;
+
+      function GetGroup: TItemGroup;
+      function GetSubgroup: TItemSubgroup;
+
+    public
+      constructor Create(AFactorio: TFactorio; L: TLuaState); override;
+
+      property Group: TItemGroup read GetGroup;
+      property Subgroup: TItemSubgroup read GetSubgroup;
+      property SubgroupName: AnsiString read FSubgroupName;
+
+    end;
+
+    TRecipeCategory = class(TPrototype)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TItemOrFluid = class;
 
     TRecipe = class(TPrototype)
     public type
 
       TItemStack = class
       private
+        FFactorio: TFactorio;
+        FItem: TItemOrFluid;
         FName: AnsiString;
         FAmount: Integer;
         FIsFluid: Boolean;
 
+        function GetItem: TItemOrFluid;
+
       public
-        constructor Create(L: TLuaState);
+        constructor Create(AFactorio: TFactorio; L: TLuaState);
+
+        property Factorio: TFactorio read FFactorio;
 
         property Name: AnsiString read FName;
+        property Item: TItemOrFluid read GetItem;
+
         property Amount: Integer read FAmount;
         property IsFluid: Boolean read FIsFluid;
 
@@ -94,7 +199,7 @@ type
         FProbability: Single;
 
       public
-        constructor Create(L: TLuaState);
+        constructor Create(AFactorio: TFactorio; L: TLuaState);
 
         property Probabiliy: Single read FProbability;
 
@@ -104,12 +209,19 @@ type
       FEnergyRequired: Single;
       FIngredients: IObjectList<TIngredient>;
       FResults: IObjectList<TResult>;
-      FCategory: AnsiString;
-      FOrder: AnsiString;
+      FCategoryName: AnsiString;
+      FCategory: TRecipeCategory;
 
       function GetIngredients: IReadonlyList<TIngredient>;
       function GetResults: IReadonlyList<TResult>;
-      function GetOrder: AnsiString;
+
+      function GetCategory: TRecipeCategory;
+      function GetGroup: TItemGroup;
+      function GetSubgroup: TItemSubgroup;
+
+    protected
+      function GetIcon: IGPBitmap; override;
+      function GetOrder: AnsiString; override;
 
     public
       constructor Create(AFactorio: TFactorio; L: TLuaState); override;
@@ -119,36 +231,137 @@ type
       property EnergyRequired: Single read FEnergyRequired;
       property Ingredients: IReadonlyList<TIngredient> read GetIngredients;
       property Results: IReadonlyList<TResult> read GetResults;
-      property Order: AnsiString read GetOrder;
+
+      property CategoryName: AnsiString read FCategoryName;
+      property Category: TRecipeCategory read GetCategory;
+      property Group: TItemGroup read GetGroup;
+      property Subgroup: TItemSubgroup read GetSubgroup;
 
     end;
 
-    TAssemblingMachine = class(TPrototype)
+    TItemOrFluid = class(TGrouped);
+
+    TItem = class abstract(TItemOrFluid)
+    private
+      FStackSize: Integer;
+
+    public
+      constructor Create(AFactorio: TFactorio; L: TLuaState); override;
+
+      class function GetType: TPrototype.TType; override;
+
+      property StackSize: Integer read FStackSize;
+
+    end;
+
+    TAmmo = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TArmor = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TCapsule = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TEquipment = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TGun = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TItemWithEntityData = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TMiningTool = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TModule = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TRailPlanner = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TRepairTool = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TTool = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TFluid = class(TItemOrFluid)
+    public
+      constructor Create(AFactorio: TFactorio; L: TLuaState); override;
+
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TCraftingMachine = class(TPrototype)
     private
       FCraftingSpeed: Single;
-      FCraftingCategories: IList<AnsiString>;
-      function GetCraftingCategories: IReadonlyList<AnsiString>;
+      FCraftingCategoryNames: IList<AnsiString>;
+      FCraftingCategories: ISortedList<TRecipeCategory>;
+
+      function GetCraftingCategories: IReadonlyList<TRecipeCategory>;
+
+    protected
+      function GetOrder: AnsiString; override;
 
     public
       constructor Create(AFactorio: TFactorio; L: TLuaState); override;
 
-      class function GetType: TPrototype.TType; override;
-
       property CraftingSpeed: Single read FCraftingSpeed;
-      property CraftingCategories: IReadonlyList<AnsiString> read GetCraftingCategories;
+      property CraftingCategories: IReadonlyList<TRecipeCategory> read GetCraftingCategories;
 
     end;
 
-    TTransportBelt = class(TPrototype)
-    private
-      FSpeed: Single;
-
+    TAssemblingMachine = class(TCraftingMachine)
     public
-      constructor Create(AFactorio: TFactorio; L: TLuaState); override;
-
       class function GetType: TPrototype.TType; override;
 
-      property Speed: Single read FSpeed;
+    end;
+
+    TRocketSilo = class(TAssemblingMachine)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TFurnace = class(TCraftingMachine)
+    public
+      class function GetType: TPrototype.TType; override;
 
     end;
 
@@ -167,55 +380,176 @@ type
 
     end;
 
+    TTransportBelt = class(TPrototype)
+    private
+      FSpeed: Single;
+
+    public
+      constructor Create(AFactorio: TFactorio; L: TLuaState); override;
+
+      class function GetType: TPrototype.TType; override;
+
+      property Speed: Single read FSpeed;
+
+    end;
+
   public const
 
     PrototypeClasses: array [TPrototype.TType] of TPrototypeClass = (
-      TItem,
+      // Grouping
+      TItemGroup,
+      TItemSubgroup,
+
+      // Recipe
+      TRecipeCategory,
       TRecipe,
+
+      // Item
+      TItem,
+      TAmmo,
+      TArmor,
+      TCapsule,
+      TEquipment,
+      TGun,
+      TItemWithEntityData,
+      TMiningTool,
+      TModule,
+      TRailPlanner,
+      TRepairTool,
+      TTool,
+
+      // Fluid
+      TFluid,
+
+      // Other
       TAssemblingMachine,
-      TTransportBelt,
-      TInserter
+      TRocketSilo,
+      TFurnace,
+      TInserter,
+      TTransportBelt
       );
 
     PrototypeNames: array [TPrototype.TType] of AnsiString = (
-      'item',
+      // Grouping
+      'item-group',
+      'item-subgroup',
+
+      // Recipe
+      'recipe-category',
       'recipe',
+
+      // Item
+      'item',
+      'ammo',
+      'armor',
+      'capsule',
+      'equipment',
+      'gun',
+      'item-with-entity-data',
+      'mining-tool',
+      'module',
+      'rail-planner',
+      'repair-tool',
+      'tool',
+
+      // Fluid
+      'fluid',
+
+      // Other
       'assembling-machine',
-      'transport-belt',
-      'inserter'
+      'rocket-silo',
+      'furnace',
+      'inserter',
+      'transport-belt'
       );
 
   private
-    FLua: TLua;
     FExpensive: Boolean;
-    FPrototypes: array [TPrototype.TType] of IObjectList<TPrototype>;
+    FPrototypeLists: array [TPrototype.TType] of ISortedObjectList<TPrototype>;
+    FPrototypeMaps: array [TPrototype.TType] of IMap<AnsiString, TPrototype>;
+    FGroupedMap: IMap<AnsiString, TGrouped>;
+    FItemMap: IMap<AnsiString, TItemOrFluid>;
+    FCraftingMachineList: ISortedList<TCraftingMachine>;
+    FCraftingMachineMap: IMap<AnsiString, TCraftingMachine>;
 
-    function GetAssemblingMachine: IReadonlyList<TAssemblingMachine>;
-    function GetItem: IReadonlyList<TItem>;
-    function GetRecipe: IReadonlyList<TRecipe>;
-    function GetInserter: IReadonlyList<TInserter>;
-    function GetTransportBelt: IReadonlyList<TTransportBelt>;
+    function GetGrouped: IReadonlyMap<AnsiString, TGrouped>;
+    function GetItem: IReadonlyMap<AnsiString, TItemOrFluid>;
+    function GetFluidOrder: IReadonlyList<TFluid>;
+    function GetFluid: IReadonlyMap<AnsiString, TFluid>;
+
+    function GetCraftingMachineOrder: IReadonlyList<TCraftingMachine>;
+    function GetCraftingMachine: IReadonlyMap<AnsiString, TCraftingMachine>;
+
+    function GetRecipeCategoryOrder: IReadonlyList<TRecipeCategory>;
+    function GetRecipeCategory: IReadonlyMap<AnsiString, TRecipeCategory>;
+    function GetRecipeOrder: IReadonlyList<TRecipe>;
+    function GetRecipe: IReadonlyMap<AnsiString, TRecipe>;
+
+    function GetAssemblingMachine: IReadonlyMap<AnsiString, TAssemblingMachine>;
+    function GetInserter: IReadonlyMap<AnsiString, TInserter>;
+    function GetTransportBelt: IReadonlyMap<AnsiString, TTransportBelt>;
+
+    function GetItemGroupOrder: IReadonlyList<TItemGroup>;
+    function GetItemGroup: IReadonlyMap<AnsiString, TItemGroup>;
+    function GetItemSubgroup: IReadonlyMap<AnsiString, TItemSubgroup>;
+    function GetAssemblingMachineOrder: IReadonlyList<TAssemblingMachine>;
+    function GetInserterOrder: IReadonlyList<TInserter>;
+    function GetTransportBeltOrder: IReadonlyList<TTransportBelt>;
 
   public
     constructor Create(AExpensive: Boolean = False);
-    destructor Destroy; override;
 
     property Expensive: Boolean read FExpensive;
 
-    property Item: IReadonlyList<TItem> read GetItem;
-    property Recipe: IReadonlyList<TRecipe> read GetRecipe;
-    property AssemblingMachine: IReadonlyList<TAssemblingMachine> read GetAssemblingMachine;
-    property TransportBelt: IReadonlyList<TTransportBelt> read GetTransportBelt;
-    property Inserter: IReadonlyList<TInserter> read GetInserter;
+    property ItemGroupOrder: IReadonlyList<TItemGroup> read GetItemGroupOrder;
+    property ItemGroup: IReadonlyMap<AnsiString, TItemGroup> read GetItemGroup;
+    property ItemSubgroup: IReadonlyMap<AnsiString, TItemSubgroup> read GetItemSubgroup;
 
-    function List<T: TPrototype>: IReadonlyList<T>;
-    function Find<T: TPrototype>(AName: AnsiString): T;
+    property Grouped: IReadonlyMap<AnsiString, TGrouped> read GetGrouped;
+    property Item: IReadonlyMap<AnsiString, TItemOrFluid> read GetItem;
+    property FluidOrder: IReadonlyList<TFluid> read GetFluidOrder;
+    property Fluid: IReadonlyMap<AnsiString, TFluid> read GetFluid;
+
+    property CraftingMachineOrder: IReadonlyList<TCraftingMachine> read GetCraftingMachineOrder;
+    property CraftingMachine: IReadonlyMap<AnsiString, TCraftingMachine> read GetCraftingMachine;
+
+    property RecipeCategoryOrder: IReadonlyList<TRecipeCategory> read GetRecipeCategoryOrder;
+    property RecipeCategory: IReadonlyMap<AnsiString, TRecipeCategory> read GetRecipeCategory;
+    property RecipeOrder: IReadonlyList<TRecipe> read GetRecipeOrder;
+    property Recipe: IReadonlyMap<AnsiString, TRecipe> read GetRecipe;
+
+    property AssemblingMachineOrder: IReadonlyList<TAssemblingMachine> read GetAssemblingMachineOrder;
+    property AssemblingMachine: IReadonlyMap<AnsiString, TAssemblingMachine> read GetAssemblingMachine;
+    property InserterOrder: IReadonlyList<TInserter> read GetInserterOrder;
+    property Inserter: IReadonlyMap<AnsiString, TInserter> read GetInserter;
+    property TransportBeltOrder: IReadonlyList<TTransportBelt> read GetTransportBeltOrder;
+    property TransportBelt: IReadonlyMap<AnsiString, TTransportBelt> read GetTransportBelt;
+
+    function Order<T: TPrototype>: IReadonlyList<T>; overload;
+    function Order(AType: TPrototype.TType): IReadonlyList<TPrototype>; overload;
+    function Get<T: TPrototype>: IReadonlyMap<AnsiString, T>; overload;
+    function Get(AType: TPrototype.TType): IReadonlyMap<AnsiString, TPrototype>; overload;
+
+    // Replaces __base__ and __core__
+    class function ExpandPath(APath: string): string; static;
+    class function ComparePrototypes(A, B: TPrototype): Boolean; overload; static;
+    class function ComparePrototypes<T: TPrototype>(A, B: T): Boolean; overload; static;
 
   end;
 
 implementation
 
 { TFactorio }
+
+class function TFactorio.ComparePrototypes(A, B: TPrototype): Boolean;
+begin
+  Result := A.Order < B.Order;
+end;
+
+class function TFactorio.ComparePrototypes<T>(A, B: T): Boolean;
+begin
+  Result := A.Order < B.Order;
+end;
 
 constructor TFactorio.Create(AExpensive: Boolean);
 const
@@ -235,94 +569,205 @@ const
     'require "data.base.data"';
 
 var
+  L: TLuaState;
   ErrorMessage: PAnsiChar;
   Prototype: TPrototype;
-  T: TPrototype.TType;
+  PrototypeType: TPrototype.TType;
   PrototypeName: AnsiString;
+  UnsortedLists: array [TPrototype.TType] of IList<TPrototype>;
 begin
   FExpensive := AExpensive;
 
-  FLua := TLua.Create;
-  FLua.L.LOpenLibs;
-  if FLua.L.LDoString(InitCode) then
+  L := NewLuaState(LuaDefaultAlloc);
+  L.LOpenLibs;
+  if L.LDoString(InitCode) then
   begin
-    ErrorMessage := FLua.L.ToString;
-    FLua.L.Pop;
+    ErrorMessage := L.ToString;
+    L.Pop;
     raise Exception.Create(string(AnsiString(ErrorMessage)));
   end;
 
-  for T := Low(TPrototype.TType) to High(TPrototype.TType) do
-    FPrototypes[T] := TObjectList<TPrototype>.Create;
-
-  FLua.L.GetGlobal('data');
-  FLua.L.GetField('raw');
-  FLua.L.PushNil;
-  while FLua.L.Next(-2) do
+  for PrototypeType := Low(TPrototype.TType) to High(TPrototype.TType) do
   begin
-    PrototypeName := FLua.L.ToString(-2);
-    for T := Low(TPrototype.TType) to High(TPrototype.TType) do
+    UnsortedLists[PrototypeType] := TList<TPrototype>.Create;
+    FPrototypeMaps[PrototypeType] := TMap<AnsiString, TPrototype>.Create;
+  end;
+
+  FGroupedMap := TMap<AnsiString, TGrouped>.Create;
+  FItemMap := TMap<AnsiString, TItemOrFluid>.Create;
+  FCraftingMachineMap := TMap<AnsiString, TCraftingMachine>.Create;
+
+  L.GetGlobal('data');
+  L.GetField('raw');
+  L.PushNil;
+  while L.Next(-2) do
+  begin
+    PrototypeName := L.ToString(-2);
+    for PrototypeType := Low(TPrototype.TType) to High(TPrototype.TType) do
     begin
-      if PrototypeName <> PrototypeNames[T] then
+      if PrototypeName <> PrototypeNames[PrototypeType] then
         Continue;
-      FLua.L.PushNil;
-      while FLua.L.Next(-2) do
+      L.PushNil;
+      while L.Next(-2) do
       begin
-        Prototype := PrototypeClasses[T].Create(Self, FLua.L);
-        FPrototypes[T].Add(Prototype);
-        FLua.L.Pop;
+        Prototype := PrototypeClasses[PrototypeType].Create(Self, L);
+        UnsortedLists[PrototypeType].Add(Prototype);
+
+        if not FPrototypeMaps[PrototypeType].Add(Prototype.Name, Prototype) then
+          raise EFactorio.CreateFmt('Duplicate prototype "%s" found!', [Prototype.Name]);
+
+        if PrototypeType in TPrototype.GroupedTypes then
+          if not FGroupedMap.Add(Prototype.Name, TGrouped(Prototype)) then
+            raise EFactorio.CreateFmt('Duplicate grouped "%s" found!', [Prototype.Name]);
+
+        if PrototypeType in TPrototype.ItemOrFluidTypes then
+          if not FItemMap.Add(Prototype.Name, TItemOrFluid(Prototype)) then
+            raise EFactorio.CreateFmt('Duplicate item "%s" found!', [Prototype.Name]);
+
+        if PrototypeType in TPrototype.CraftingMachines then
+          if not FCraftingMachineMap.Add(Prototype.Name, TCraftingMachine(Prototype)) then
+            raise EFactorio.CreateFmt('Duplicate item "%s" found!', [Prototype.Name]);
+
+        L.Pop;
       end;
       Break;
     end;
-    FLua.L.Pop;
+    L.Pop;
   end;
 
-  FLua.L.Pop(2);
+  L.Pop(2);
+  L.Close;
+
+  for PrototypeType := Low(TPrototype.TType) to High(TPrototype.TType) do
+  begin
+    FPrototypeLists[PrototypeType] := TSortedObjectList<TPrototype>.Create;
+    FPrototypeLists[PrototypeType].Compare := ComparePrototypes;
+    FPrototypeLists[PrototypeType].AddRange(UnsortedLists[PrototypeType]);
+  end;
+
+  FCraftingMachineList := TSortedList<TCraftingMachine>.Create;
+  FCraftingMachineList.Compare := ComparePrototypes<TCraftingMachine>;
+  FCraftingMachineList.AddRange(FCraftingMachineMap.Values);
 end;
 
-destructor TFactorio.Destroy;
+class function TFactorio.ExpandPath(APath: string): string;
 begin
-  FLua.Free;
-  inherited;
+  Result := APath.Replace('__base__', 'data/base').Replace('__core__', 'data/core');
 end;
 
-function TFactorio.Find<T>(AName: AnsiString): T;
-var
-  Prototype: TPrototype;
+function TFactorio.GetAssemblingMachine: IReadonlyMap<AnsiString, TAssemblingMachine>;
 begin
-  for Prototype in FPrototypes[T.GetType] do
-    if Prototype.Name = AName then
-      Exit(T(Prototype));
-  raise Exception.Create('prototype not found');
+  Result := Get<TAssemblingMachine>;
 end;
 
-function TFactorio.GetAssemblingMachine: IReadonlyList<TAssemblingMachine>;
+function TFactorio.GetAssemblingMachineOrder: IReadonlyList<TAssemblingMachine>;
 begin
-  Result := IReadonlyList<TAssemblingMachine>(FPrototypes[ptAssemblingMachine].ReadonlyList);
+  Result := Order<TAssemblingMachine>;
 end;
 
-function TFactorio.GetInserter: IReadonlyList<TInserter>;
+function TFactorio.GetCraftingMachine: IReadonlyMap<AnsiString, TCraftingMachine>;
 begin
-  Result := IReadonlyList<TInserter>(FPrototypes[ptInserter].ReadonlyList);
+  Result := FCraftingMachineMap.ReadonlyMap;
 end;
 
-function TFactorio.GetItem: IReadonlyList<TItem>;
+function TFactorio.GetCraftingMachineOrder: IReadonlyList<TCraftingMachine>;
 begin
-  Result := IReadonlyList<TItem>(FPrototypes[ptItem].ReadonlyList);
+  Result := FCraftingMachineList.ReadonlyList;
 end;
 
-function TFactorio.GetRecipe: IReadonlyList<TRecipe>;
+function TFactorio.GetFluid: IReadonlyMap<AnsiString, TFluid>;
 begin
-  Result := IReadonlyList<TRecipe>(FPrototypes[ptRecipe].ReadonlyList);
+  Result := Get<TFluid>;
 end;
 
-function TFactorio.GetTransportBelt: IReadonlyList<TTransportBelt>;
+function TFactorio.GetFluidOrder: IReadonlyList<TFluid>;
 begin
-  Result := IReadonlyList<TTransportBelt>(FPrototypes[ptTransportBelt].ReadonlyList);
+  Result := Order<TFluid>;
 end;
 
-function TFactorio.List<T>: IReadonlyList<T>;
+function TFactorio.GetGrouped: IReadonlyMap<AnsiString, TGrouped>;
 begin
-  Result := IReadonlyList<T>(FPrototypes[T.GetType].ReadonlyList);
+  Result := FGroupedMap.ReadonlyMap;
+end;
+
+function TFactorio.GetInserter: IReadonlyMap<AnsiString, TInserter>;
+begin
+  Result := Get<TInserter>;
+end;
+
+function TFactorio.GetInserterOrder: IReadonlyList<TInserter>;
+begin
+  Result := Order<TInserter>;
+end;
+
+function TFactorio.GetItem: IReadonlyMap<AnsiString, TItemOrFluid>;
+begin
+  Result := FItemMap.ReadonlyMap;
+end;
+
+function TFactorio.GetItemGroup: IReadonlyMap<AnsiString, TItemGroup>;
+begin
+  Result := Get<TItemGroup>;
+end;
+
+function TFactorio.GetItemGroupOrder: IReadonlyList<TItemGroup>;
+begin
+  Result := Order<TItemGroup>;
+end;
+
+function TFactorio.GetItemSubgroup: IReadonlyMap<AnsiString, TItemSubgroup>;
+begin
+  Result := Get<TItemSubgroup>;
+end;
+
+function TFactorio.GetRecipe: IReadonlyMap<AnsiString, TRecipe>;
+begin
+  Result := Get<TRecipe>;
+end;
+
+function TFactorio.GetRecipeCategory: IReadonlyMap<AnsiString, TRecipeCategory>;
+begin
+  Result := Get<TRecipeCategory>;
+end;
+
+function TFactorio.GetRecipeCategoryOrder: IReadonlyList<TRecipeCategory>;
+begin
+  Result := Order<TRecipeCategory>;
+end;
+
+function TFactorio.GetRecipeOrder: IReadonlyList<TRecipe>;
+begin
+  Result := Order<TRecipe>;
+end;
+
+function TFactorio.GetTransportBelt: IReadonlyMap<AnsiString, TTransportBelt>;
+begin
+  Result := Get<TTransportBelt>;
+end;
+
+function TFactorio.GetTransportBeltOrder: IReadonlyList<TTransportBelt>;
+begin
+  Result := Order<TTransportBelt>;
+end;
+
+function TFactorio.Order(AType: TPrototype.TType): IReadonlyList<TPrototype>;
+begin
+  Result := FPrototypeLists[AType].ReadonlyList;
+end;
+
+function TFactorio.Order<T>: IReadonlyList<T>;
+begin
+  Result := IReadonlyList<T>(FPrototypeLists[T.GetType].ReadonlyList);
+end;
+
+function TFactorio.Get(AType: TPrototype.TType): IReadonlyMap<AnsiString, TPrototype>;
+begin
+  Result := FPrototypeMaps[AType].ReadonlyMap;
+end;
+
+function TFactorio.Get<T>: IReadonlyMap<AnsiString, T>;
+begin
+  Result := IReadonlyMap<AnsiString, T>(FPrototypeMaps[T.GetType].ReadonlyMap);
 end;
 
 { TFactorio.TPrototype }
@@ -334,10 +779,17 @@ begin
   FName := L.ToString;
   L.Pop;
 
-  // if L.GetField('icon') = ltString then
-  // FIcon := L.ToString.Replace('__base__', blabla);
-  // else
-  FIconPath := string('data\base\graphics\icons\' + FName + '.png');
+  if L.GetField('order') = ltString then
+    FOrder := L.ToString;
+  L.Pop;
+
+  if L.GetField('icon_size') = ltNumber then
+    FIconSize := L.ToInteger;
+  L.Pop;
+
+  if L.GetField('icon') = ltString then
+    FIconPath := TFactorio.ExpandPath(string(AnsiString(L.ToString)));
+  L.Pop;
 end;
 
 class function TFactorio.TPrototype.CreateTyped(AFactorio: TFactorio; L: TLuaState): TPrototype;
@@ -361,25 +813,29 @@ function TFactorio.TPrototype.GetIcon: IGPBitmap;
 begin
   if FIcon = nil then
   begin
-    if FileExists(FIconPath) then
-      FIcon := TGPBitmap.Create(FIconPath)
+    if FIconPath.IsEmpty or not FileExists(FIconPath) then
+    begin
+      FIcon := TGPBitmap.Create(IconSize, IconSize);
+      TGPGraphics.FromImage(FIcon).FillRectangle(TGPSolidBrush.Create(TGPColor.Red), 0, 0, IconSize, IconSize);
+      // Writeln('Missing Icon: ', Name, ' [', IconPath, '] ');
+    end
     else
-      FIcon := TGPBitmap.Create(1, 1);
+      FIcon := TGPBitmap.Create(FIconPath);
   end;
   Result := FIcon;
 end;
 
-class function TFactorio.TPrototype.GetName: AnsiString;
+function TFactorio.TPrototype.GetOrder: AnsiString;
+begin
+  Result := FOrder;
+end;
+
+class function TFactorio.TPrototype.GetTypeName: AnsiString;
 begin
   Result := PrototypeNames[GetType];
 end;
 
 { TFactorio.TItem }
-
-class function TFactorio.TItem.GetType: TPrototype.TType;
-begin
-  Result := ptItem;
-end;
 
 constructor TFactorio.TItem.Create(AFactorio: TFactorio; L: TLuaState);
 begin
@@ -388,10 +844,11 @@ begin
   if L.GetField('stack_size') = ltNumber then
     FStackSize := L.ToInteger;
   L.Pop;
+end;
 
-  if L.GetField('order') = ltString then
-    FOrder := L.ToString;
-  L.Pop;
+class function TFactorio.TItem.GetType: TPrototype.TType;
+begin
+  Result := ptItem;
 end;
 
 { TFactorio.TRecipe }
@@ -403,6 +860,12 @@ var
   ExtraTable: Boolean;
 begin
   inherited;
+
+  if L.GetField('category') = ltString then
+    FCategoryName := L.ToString
+  else
+    FCategoryName := 'crafting';
+  L.Pop;
 
   if Factorio.Expensive then
     ExtraTable := L.GetField('expensive') = ltTable
@@ -424,7 +887,7 @@ begin
     L.PushNil;
     while L.Next(-2) do
     begin
-      FIngredients.Add(TIngredient.Create(L));
+      FIngredients.Add(TIngredient.Create(Factorio, L));
       L.Pop;
     end;
   end;
@@ -432,7 +895,7 @@ begin
 
   FResults := TObjectList<TResult>.Create;
   if L.GetField('result') = ltString then
-    FResults.Add(TResult.Create(L));
+    FResults.Add(TResult.Create(Factorio, L));
   L.Pop;
 
   if L.GetField('results') = ltTable then
@@ -440,7 +903,7 @@ begin
     L.PushNil;
     while L.Next(-2) do
     begin
-      FResults.Add(TResult.Create(L));
+      FResults.Add(TResult.Create(Factorio, L));
       L.Pop;
     end;
   end;
@@ -454,12 +917,31 @@ begin
   end;
   L.Pop;
 
-  if L.GetField('order') = ltString then
-    FOrder := L.ToString;
-  L.Pop;
-
   if ExtraTable then
     L.Pop;
+end;
+
+function TFactorio.TRecipe.GetCategory: TRecipeCategory;
+begin
+  if FCategory = nil then
+    FCategory := Factorio.RecipeCategory[FCategoryName];
+  Result := FCategory;
+end;
+
+function TFactorio.TRecipe.GetGroup: TItemGroup;
+begin
+  Result := Results.First.Item.Group;
+end;
+
+function TFactorio.TRecipe.GetIcon: IGPBitmap;
+begin
+  if not FIconPath.IsEmpty then
+    Exit(inherited);
+
+  if Results.First.IsFluid then
+    Result := Factorio.Fluid[Results.First.Name].Icon
+  else
+    Result := Factorio.Item[Results.First.Name].Icon;
 end;
 
 function TFactorio.TRecipe.GetIngredients: IReadonlyList<TIngredient>;
@@ -470,7 +952,7 @@ end;
 function TFactorio.TRecipe.GetOrder: AnsiString;
 begin
   if FOrder = '' then
-    FOrder := Factorio.Find<TItem>(Results.First.Name).Order;
+    FOrder := Results.First.Item.Order;
   Result := FOrder;
 end;
 
@@ -479,14 +961,19 @@ begin
   Result := FResults.ReadonlyList;
 end;
 
+function TFactorio.TRecipe.GetSubgroup: TItemSubgroup;
+begin
+  Result := Results.First.Item.Subgroup;
+end;
+
 class function TFactorio.TRecipe.GetType: TPrototype.TType;
 begin
   Result := ptRecipe;
 end;
 
-{ TFactorio.TAssemblingMachine }
+{ TFactorio.TCraftingMachine }
 
-constructor TFactorio.TAssemblingMachine.Create(AFactorio: TFactorio; L: TLuaState);
+constructor TFactorio.TCraftingMachine.Create(AFactorio: TFactorio; L: TLuaState);
 begin
   inherited;
 
@@ -494,27 +981,40 @@ begin
     FCraftingSpeed := L.ToNumber;
   L.Pop;
 
-  FCraftingCategories := TList<AnsiString>.Create;
+  FCraftingCategoryNames := TList<AnsiString>.Create;
   if L.GetField('crafting_categories') = ltTable then
   begin
     L.PushNil;
     while L.Next(-2) do
     begin
-      FCraftingCategories.Add(L.ToString);
+      FCraftingCategoryNames.Add(L.ToString);
       L.Pop;
     end;
   end;
   L.Pop;
 end;
 
-function TFactorio.TAssemblingMachine.GetCraftingCategories: IReadonlyList<AnsiString>;
+function TFactorio.TCraftingMachine.GetCraftingCategories: IReadonlyList<TRecipeCategory>;
 begin
+  if FCraftingCategories = nil then
+  begin
+    FCraftingCategories := TSortedList<TRecipeCategory>.Create;
+    FCraftingCategories.Compare := TFactorio.ComparePrototypes<TRecipeCategory>;
+    FCraftingCategories.AddRange(
+      FCraftingCategoryNames.Iterate.Generic.Map<TRecipeCategory>(
+      function(Name: AnsiString): TRecipeCategory
+      begin
+        Result := Factorio.RecipeCategory[Name];
+      end));
+  end;
   Result := FCraftingCategories.ReadonlyList;
 end;
 
-class function TFactorio.TAssemblingMachine.GetType: TPrototype.TType;
+function TFactorio.TCraftingMachine.GetOrder: AnsiString;
 begin
-  Result := ptAssemblingMachine;
+  if FOrder = '' then
+    FOrder := Factorio.Item[Name].Subgroup.Order + '-' + Factorio.Item[Name].Order;
+  Result := FOrder;
 end;
 
 { TFactorio.TTransportBelt }
@@ -555,8 +1055,10 @@ end;
 
 { TFactorio.TRecipe.TItemStack }
 
-constructor TFactorio.TRecipe.TItemStack.Create(L: TLuaState);
+constructor TFactorio.TRecipe.TItemStack.Create(AFactorio: TFactorio; L: TLuaState);
 begin
+  FFactorio := AFactorio;
+
   if L.GetI(1) = ltString then
   begin
     FName := L.ToString;
@@ -580,12 +1082,20 @@ begin
   end;
 end;
 
+function TFactorio.TRecipe.TItemStack.GetItem: TItemOrFluid;
+begin
+  if FItem = nil then
+    FItem := Factorio.Item[Name];
+  Result := FItem;
+end;
+
 { TFactorio.TRecipe.TResult }
 
-constructor TFactorio.TRecipe.TResult.Create(L: TLuaState);
+constructor TFactorio.TRecipe.TResult.Create(AFactorio: TFactorio; L: TLuaState);
 begin
   if L.&Type = ltString then
   begin
+    FFactorio := AFactorio;
     FName := L.ToString;
     FAmount := 1;
     FProbability := 1;
@@ -599,6 +1109,241 @@ begin
       FProbability := 1;
     L.Pop;
   end;
+end;
+
+{ TFactorio.TAmmo }
+
+class function TFactorio.TAmmo.GetType: TPrototype.TType;
+begin
+  Result := ptAmmo;
+end;
+
+{ TFactorio.TArmor }
+
+class function TFactorio.TArmor.GetType: TPrototype.TType;
+begin
+  Result := ptArmor;
+end;
+
+{ TFactorio.TCapsule }
+
+class function TFactorio.TCapsule.GetType: TPrototype.TType;
+begin
+  Result := ptCapsule;
+end;
+
+{ TFactorio.TEquipment }
+
+class function TFactorio.TEquipment.GetType: TPrototype.TType;
+begin
+  Result := ptEquipment;
+end;
+
+{ TFactorio.TGun }
+
+class function TFactorio.TGun.GetType: TPrototype.TType;
+begin
+  Result := ptGun;
+end;
+
+{ TFactorio.TMiningTool }
+
+class function TFactorio.TMiningTool.GetType: TPrototype.TType;
+begin
+  Result := ptMiningTool;
+end;
+
+{ TFactorio.TModule }
+
+class function TFactorio.TModule.GetType: TPrototype.TType;
+begin
+  Result := ptModule;
+end;
+
+{ TFactorio.TRepairTool }
+
+class function TFactorio.TRepairTool.GetType: TPrototype.TType;
+begin
+  Result := ptRepairTool;
+end;
+
+{ TFactorio.TItemWithEntityData }
+
+class function TFactorio.TItemWithEntityData.GetType: TPrototype.TType;
+begin
+  Result := ptItemWithEntityData;
+end;
+
+{ TFactorio.TTool }
+
+class function TFactorio.TTool.GetType: TPrototype.TType;
+begin
+  Result := ptTool;
+end;
+
+{ TFactorio.TFluid }
+
+constructor TFactorio.TFluid.Create(AFactorio: TFactorio; L: TLuaState);
+begin
+  inherited;
+
+  if L.GetField('subgroup') <> ltString then
+    FSubgroupName := 'fluid';
+  L.Pop;
+end;
+
+class function TFactorio.TFluid.GetType: TPrototype.TType;
+begin
+  Result := ptFluid;
+end;
+
+{ TFactorio.TRailPlanner }
+
+class function TFactorio.TRailPlanner.GetType: TPrototype.TType;
+begin
+  Result := ptRailPlanner;
+end;
+
+{ TFactorio.TGrouped }
+
+constructor TFactorio.TGrouped.Create(AFactorio: TFactorio; L: TLuaState);
+begin
+  inherited;
+
+  if L.GetField('subgroup') = ltString then
+    FSubgroupName := L.ToString
+  else
+    FSubgroupName := 'other';
+  L.Pop;
+end;
+
+function TFactorio.TGrouped.GetGroup: TItemGroup;
+begin
+  Result := Subgroup.Group;
+end;
+
+function TFactorio.TGrouped.GetSubgroup: TItemSubgroup;
+begin
+  if FSubgroup = nil then
+    FSubgroup := Factorio.ItemSubgroup[FSubgroupName];
+  Result := FSubgroup;
+end;
+
+{ TFactorio.TItemGroup }
+
+constructor TFactorio.TItemGroup.Create(AFactorio: TFactorio; L: TLuaState);
+begin
+  inherited;
+
+  if L.GetField('order_in_recipe') = ltString then
+    FOrderInRecipe := L.ToString
+  else
+    FOrderInRecipe := Order;
+  L.Pop;
+end;
+
+function TFactorio.TItemGroup.GetSubgroups: IReadonlyList<TItemSubgroup>;
+begin
+  if FSubgroups = nil then
+  begin
+    FSubgroups := TSortedList<TItemSubgroup>.Create;
+    FSubgroups.Compare := TFactorio.ComparePrototypes<TItemSubgroup>;
+    FSubgroups.AddRange(
+      Factorio.ItemSubgroup.Values.Iterate.Where(
+      function(Subgroup: TItemSubgroup): Boolean
+      begin
+        Result := Subgroup.Group = Self;
+      end));
+  end;
+  Result := FSubgroups.ReadonlyList;
+end;
+
+class function TFactorio.TItemGroup.GetType: TPrototype.TType;
+begin
+  Result := ptItemGroup;
+end;
+
+{ TFactorio.TItemSubgroup }
+
+function TFactorio.TItemSubgroup.GetEntries: IReadonlyList<TGrouped>;
+begin
+  if FEntries = nil then
+  begin
+    FEntries := TSortedList<TGrouped>.Create;
+    FEntries.Compare := TFactorio.ComparePrototypes<TGrouped>;
+    FEntries.AddRange(
+      Factorio.Grouped.Values.Iterate.Where(
+      function(Grouped: TGrouped): Boolean
+      begin
+        Result := Grouped.Subgroup = Self;
+      end));
+  end;
+  Result := FEntries.ReadonlyList;
+end;
+
+constructor TFactorio.TItemSubgroup.Create(AFactorio: TFactorio; L: TLuaState);
+begin
+  inherited;
+
+  if L.GetField('group') = ltString then
+    FGroupName := L.ToString;
+  L.Pop;
+end;
+
+function TFactorio.TItemSubgroup.GetGroup: TItemGroup;
+begin
+  if FGroup = nil then
+    FGroup := Factorio.ItemGroup[FGroupName];
+  Result := FGroup;
+end;
+
+function TFactorio.TItemSubgroup.GetRecipes: IReadonlyList<TRecipe>;
+begin
+  if FRecipes = nil then
+  begin
+    FRecipes := TSortedList<TRecipe>.Create;
+    FRecipes.Compare := TFactorio.ComparePrototypes<TRecipe>;
+    FRecipes.AddRange(
+      Factorio.RecipeOrder.Iterate.Where(
+      function(Recipe: TRecipe): Boolean
+      begin
+        Result := Recipe.Subgroup = Self;
+      end));
+  end;
+  Result := FRecipes.ReadonlyList;
+end;
+
+class function TFactorio.TItemSubgroup.GetType: TPrototype.TType;
+begin
+  Result := ptItemSubgroup;
+end;
+
+{ TFactorio.TRecipeCategory }
+
+class function TFactorio.TRecipeCategory.GetType: TPrototype.TType;
+begin
+  Result := ptRecipeCategory;
+end;
+
+{ TFactorio.TAssemblingMachine }
+
+class function TFactorio.TAssemblingMachine.GetType: TPrototype.TType;
+begin
+  Result := ptAssemblingMachine;
+end;
+
+{ TFactorio.TRocketSilo }
+
+class function TFactorio.TRocketSilo.GetType: TPrototype.TType;
+begin
+  Result := ptRocketSilo;
+end;
+
+{ TFactorio.TFurnace }
+
+class function TFactorio.TFurnace.GetType: TPrototype.TType;
+begin
+  Result := ptFurnace;
 end;
 
 end.

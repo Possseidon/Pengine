@@ -165,6 +165,7 @@
             <Form>frmRecipes</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="FactoryRendering.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

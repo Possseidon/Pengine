@@ -42,6 +42,7 @@ type
     N2: TMenuItem;
     procedure FormDestroy(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure pbFactoryClick(Sender: TObject);
     procedure pbFactoryPaint(Sender: TObject);
   private
     FFactorio: TFactorio;
@@ -49,6 +50,7 @@ type
 
   public
     property Factorio: TFactorio read FFactorio;
+    property Factory: TFactory read FFactory;
 
   end;
 
@@ -72,9 +74,14 @@ begin
   FFactorio := TFactorio.Create;
   FFactory := TFactory.Create;
 
-  MachineArray := FFactory.AddMachineArray(Vec2(50, 50), FFactorio.Find<TFactorio.TAssemblingMachine>('assembling-machine-1'));
-  MachineArray.Recipe := FFactorio.Find<TFactorio.TRecipe>('iron-gear-wheel');
-  MachineArray.Remove;
+  MachineArray := FFactory.AddMachineArray(Vec2(50, 50), FFactorio.CraftingMachine['assembling-machine-1']);
+  // MachineArray.Recipe := FFactorio.Recipe['iron-gear-wheel'];
+  // MachineArray.Remove;
+end;
+
+procedure TfrmMain.pbFactoryClick(Sender: TObject);
+begin
+  frmRecipes.Execute(Factory.MachineArrays.First);
 end;
 
 procedure TfrmMain.pbFactoryPaint(Sender: TObject);
@@ -102,7 +109,7 @@ begin
       TGPPointF.Create(MachineArray.Pos.X + 4, MachineArray.Pos.Y + 4),
       FontBrush);
     G.DrawImage(
-      MachineArray.AssemblingMachine.Icon,
+      MachineArray.CraftingMachine.Icon,
       MachineArray.Pos.X + 30, MachineArray.Pos.Y + 4);
     if MachineArray.Recipe <> nil then
       G.DrawImage(

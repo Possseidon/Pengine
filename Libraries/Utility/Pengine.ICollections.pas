@@ -173,6 +173,7 @@ type
     function GetCount: Integer;
 
     property Count: Integer read GetCount;
+    function Empty: Boolean;
     function Contains(AItem: T): Boolean;
 
   end;
@@ -269,6 +270,8 @@ type
 
     function Extract(AIndex: Integer): T;
 
+    function ReadonlyList: IReadonlyList<T>;
+
     property Equate: TFunc<T, T, Boolean> read GetEquate write SetEquate;
     property Compare: TFunc<T, T, Boolean> read GetCompare write SetCompare;
 
@@ -287,8 +290,6 @@ type
 
     function TrySort: Boolean;
     procedure Sort;
-
-    function ReadonlyList: IReadonlyList<T>;
 
     function Copy: IList<T>;
 
@@ -553,6 +554,9 @@ type
     function Remove(AItem: T): Boolean;
     function Extract(AItem: T): T; overload;
 
+    // IListBase<T>
+    function ReadonlyList: IReadonlyList<T>;
+
     // IList<T>
     property Items[AIndex: Integer]: T read GetItem write SetItem; default;
 
@@ -567,8 +571,6 @@ type
     procedure Sort;
 
     function Copy: IList<T>;
-
-    function ReadonlyList: IReadonlyList<T>;
 
   end;
 
@@ -599,6 +601,9 @@ type
     function Extract(AItem: T): T; overload;
 
     function ReadonlyCollection: IReadonlyCollection<T>;
+
+    // IListBase<T>
+    function ReadonlyList: IReadonlyList<T>;
 
     // ISortedList<T>
     function BinarySearch(AItem: T): Integer;
@@ -807,6 +812,7 @@ type
 
       // IReadonlyCollection<K>
       property Count: Integer read GetCount;
+      function Empty: Boolean;
 
     end;
 
@@ -1977,6 +1983,11 @@ begin
   Result := AItem;
 end;
 
+function TList<T>.ReadonlyList: IReadonlyList<T>;
+begin
+  Result := Self;
+end;
+
 function TList<T>.Add(AItem: T): Boolean;
 begin
   Insert(Count, AItem);
@@ -2028,11 +2039,6 @@ begin
   Result := TList<T>.Create(Self);
   Result.Compare := Compare;
   Result.Equate := Equate;
-end;
-
-function TList<T>.ReadonlyList: IReadonlyList<T>;
-begin
-  Result := Self;
 end;
 
 { TSortedList<T> }
@@ -2117,16 +2123,14 @@ end;
 function TSortedList<T>.IndexOf(AItem: T): Integer;
 begin
   Result := BinarySearch(AItem);
-  if Result = -1 then
-    Exit;
-
   repeat
     if Equate(AItem, FItems[Result]) then
       Exit;
     if Compare(AItem, FItems[Result]) then
-      Exit(-1);
+      Break;
     Inc(Result);
   until Result > MaxIndex;
+  Result := -1;
 end;
 
 function TSortedList<T>.Contains(AItem: T): Boolean;
@@ -2152,6 +2156,11 @@ begin
 end;
 
 function TSortedList<T>.ReadonlyCollection: IReadonlyCollection<T>;
+begin
+  Result := Self;
+end;
+
+function TSortedList<T>.ReadonlyList: IReadonlyList<T>;
 begin
   Result := Self;
 end;
@@ -2329,6 +2338,8 @@ end;
 
 function THashBase<T, K>.TIteratorBase.MoveNext: Boolean;
 begin
+  if FHashBase.BucketCount = 0 then
+    Exit(False);
   Inc(FIndex);
   if FIndex > High(FHashBase.FItems[FBucket]) then
   begin
@@ -2693,6 +2704,11 @@ begin
 end;
 
 { TMap<K, V>.TCollection }
+
+function TMap<K, V>.TCollection.Empty: Boolean;
+begin
+  Result := FMap.Empty;
+end;
 
 function TMap<K, V>.TCollection.GetCount: Integer;
 begin
@@ -3388,12 +3404,10 @@ end;
 { TIterate<T> }
 
 function TIterate<T>.GetItem(AIndex: Integer): T;
-var
-  Item: T;
 begin
   if AIndex >= 0 then
   begin
-    for Item in Self do
+    for Result in Self do
     begin
       if AIndex = 0 then
         Exit;

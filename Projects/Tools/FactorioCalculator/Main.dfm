@@ -22,6 +22,7 @@ object frmMain: TfrmMain
     Width = 690
     Height = 435
     Align = alClient
+    OnClick = pbFactoryClick
     OnPaint = pbFactoryPaint
     ExplicitLeft = 192
     ExplicitTop = 208
