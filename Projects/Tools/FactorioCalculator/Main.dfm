@@ -5,33 +5,29 @@ object frmMain: TfrmMain
   ClientHeight = 435
   ClientWidth = 690
   Color = clBtnFace
+  DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  Menu = mmMenu
+  Menu = mmMain
   OldCreateOrder = False
-  OnCreate = FormCreate
-  OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 13
-  object pbFactory: TPaintBox
+  inline frmFactory: TfrmFactory
     Left = 0
     Top = 0
     Width = 690
     Height = 435
     Align = alClient
-    OnClick = pbFactoryClick
-    OnPaint = pbFactoryPaint
-    ExplicitLeft = 192
-    ExplicitTop = 208
-    ExplicitWidth = 105
-    ExplicitHeight = 105
+    TabOrder = 0
+    ExplicitWidth = 690
+    ExplicitHeight = 435
   end
-  object mmMenu: TMainMenu
+  object mmMain: TMainMenu
     Left = 24
-    Top = 16
+    Top = 8
     object File1: TMenuItem
       Caption = 'File'
       object New1: TMenuItem

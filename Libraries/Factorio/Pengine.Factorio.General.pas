@@ -75,6 +75,9 @@ type
       FIconPath: string;
       FIcon: IGPBitmap;
 
+      function GenerateMissingo: IGPBitmap;
+      function GetDisplayName: AnsiString;
+
     protected
       function GetIcon: IGPBitmap; virtual;
       function GetOrder: AnsiString; virtual;
@@ -89,6 +92,7 @@ type
       property Factorio: TFactorio read FFactorio;
 
       property Name: AnsiString read FName;
+      property DisplayName: AnsiString read GetDisplayName;
       property Order: AnsiString read GetOrder;
 
       property IconSize: Integer read FIconSize;
@@ -809,16 +813,50 @@ begin
   Result := nil;
 end;
 
+function TFactorio.TPrototype.GenerateMissingo: IGPBitmap;
+var
+  G: IGPGraphics;
+  Font: IGPFont;
+  Brush: IGPBrush;
+begin
+  Result := TGPBitmap.Create(IconSize, IconSize);
+
+  G := TGPGraphics.Create(Result);
+  G.TextRenderingHint := TextRenderingHintAntiAlias;
+  Font := TGPFont.Create('Tahoma', 7);
+  Brush := TGPSolidBrush.Create(TGPColor.Black);
+
+  G.DrawString(
+    string(DisplayName).Replace(' ', #10#13),
+    Font,
+    TGPRectF.Create(0, 0, IconSize, IconSize),
+    TGPStringFormat.Create([StringFormatFlagsNoWrap]),
+    Brush);
+end;
+
+function TFactorio.TPrototype.GetDisplayName: AnsiString;
+var
+  I: Integer;
+  UpperNext: Boolean;
+begin
+  Result := Name;
+  UpperNext := True;
+  for I := 1 to Length(Result) do
+  begin
+    if UpperNext then
+      Result[I] := UpCase(Result[I]);
+    UpperNext := Result[I] = '-';
+    if UpperNext then
+      Result[I] := ' ';
+  end;
+end;
+
 function TFactorio.TPrototype.GetIcon: IGPBitmap;
 begin
   if FIcon = nil then
   begin
     if FIconPath.IsEmpty or not FileExists(FIconPath) then
-    begin
-      FIcon := TGPBitmap.Create(IconSize, IconSize);
-      TGPGraphics.FromImage(FIcon).FillRectangle(TGPSolidBrush.Create(TGPColor.Red), 0, 0, IconSize, IconSize);
-      // Writeln('Missing Icon: ', Name, ' [', IconPath, '] ');
-    end
+      FIcon := GenerateMissingo
     else
       FIcon := TGPBitmap.Create(FIconPath);
   end;

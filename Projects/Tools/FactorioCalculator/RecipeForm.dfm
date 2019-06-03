@@ -3,8 +3,8 @@ object frmRecipes: TfrmRecipes
   Top = 0
   BorderStyle = bsToolWindow
   Caption = 'Configure Machine-Array'
-  ClientHeight = 323
-  ClientWidth = 194
+  ClientHeight = 377
+  ClientWidth = 266
   Color = clBtnFace
   Constraints.MinWidth = 200
   DoubleBuffered = True
@@ -21,8 +21,8 @@ object frmRecipes: TfrmRecipes
     AlignWithMargins = True
     Left = 3
     Top = 3
-    Width = 188
-    Height = 140
+    Width = 260
+    Height = 172
     Align = alTop
     Caption = 'Machine-Type'
     TabOrder = 0
@@ -30,53 +30,53 @@ object frmRecipes: TfrmRecipes
       AlignWithMargins = True
       Left = 5
       Top = 18
-      Width = 178
+      Width = 250
       Height = 36
-      Align = alClient
+      Align = alTop
       OnMouseDown = pbCraftingMachineMouseDown
       OnPaint = pbCraftingMachinePaint
+      ExplicitWidth = 178
       ExplicitHeight = 32
     end
     object pnlMachineArray: TPanel
       Left = 2
       Top = 57
-      Width = 184
-      Height = 81
-      Align = alBottom
+      Width = 256
+      Height = 113
+      Align = alClient
       BevelOuter = bvNone
       TabOrder = 0
-      ExplicitTop = 64
-      ExplicitWidth = 182
+      ExplicitWidth = 184
+      ExplicitHeight = 81
       DesignSize = (
-        184
-        81)
+        256
+        113)
       object lbCount: TLabel
-        Left = 8
-        Top = 28
+        Left = 6
+        Top = 53
         Width = 33
         Height = 13
         Caption = 'Count:'
       end
       object lbPerformance: TLabel
-        Left = 8
-        Top = 56
+        Left = 6
+        Top = 81
         Width = 65
         Height = 13
         Caption = 'Performance:'
       end
       object lbPerformanceUnit: TLabel
-        Left = 164
-        Top = 56
+        Left = 236
+        Top = 81
         Width = 11
         Height = 13
         Anchors = [akTop, akRight]
         Caption = '%'
-        ExplicitLeft = 162
       end
       object lbMachineName: TLabel
         Left = 0
         Top = 0
-        Width = 184
+        Width = 256
         Height = 13
         Align = alTop
         Alignment = taCenter
@@ -93,69 +93,79 @@ object frmRecipes: TfrmRecipes
         ExplicitWidth = 176
       end
       object seCount: TSpinEdit
-        Left = 96
-        Top = 25
+        Left = 166
+        Top = 50
         Width = 83
         Height = 22
         Anchors = [akTop, akRight]
-        MaxValue = 0
-        MinValue = 0
+        MaxValue = 2147483647
+        MinValue = 1
         TabOrder = 0
-        Value = 0
-        ExplicitLeft = 94
+        Value = 1
+        OnChange = seCountChange
       end
       object edtPerformance: TEdit
-        Left = 96
-        Top = 53
+        Left = 166
+        Top = 78
         Width = 64
         Height = 21
         Anchors = [akTop, akRight]
         TabOrder = 1
-        ExplicitLeft = 94
+        OnChange = edtPerformanceChange
+      end
+      object btnRemove: TButton
+        Left = 6
+        Top = 19
+        Width = 83
+        Height = 25
+        Caption = 'Remove'
+        TabOrder = 2
+        OnClick = btnRemoveClick
       end
     end
   end
   object gbRecipe: TGroupBox
     AlignWithMargins = True
     Left = 3
-    Top = 149
-    Width = 188
-    Height = 171
+    Top = 181
+    Width = 260
+    Height = 193
     Align = alClient
     Caption = 'Recipe'
     TabOrder = 1
-    ExplicitLeft = 56
-    ExplicitTop = 168
-    ExplicitWidth = 185
-    ExplicitHeight = 105
+    ExplicitTop = 149
+    ExplicitWidth = 188
+    ExplicitHeight = 171
     object pbRecipe: TPaintBox
       AlignWithMargins = True
       Left = 5
       Top = 111
-      Width = 178
-      Height = 36
+      Width = 250
+      Height = 58
       Align = alClient
       OnMouseDown = pbRecipeMouseDown
       OnPaint = pbRecipePaint
       ExplicitLeft = 7
+      ExplicitWidth = 178
       ExplicitHeight = 37
     end
     object pbGroup: TPaintBox
       AlignWithMargins = True
       Left = 5
       Top = 18
-      Width = 178
+      Width = 250
       Height = 68
       Align = alTop
       OnMouseDown = pbGroupMouseDown
       OnPaint = pbGroupPaint
       ExplicitLeft = 3
+      ExplicitWidth = 178
     end
     object lbGroupName: TLabel
       AlignWithMargins = True
       Left = 5
       Top = 92
-      Width = 178
+      Width = 250
       Height = 13
       Align = alTop
       Alignment = taCenter
@@ -174,8 +184,8 @@ object frmRecipes: TfrmRecipes
     object lbRecipeName: TLabel
       AlignWithMargins = True
       Left = 5
-      Top = 153
-      Width = 178
+      Top = 175
+      Width = 250
       Height = 13
       Align = alBottom
       Alignment = taCenter
@@ -191,5 +201,12 @@ object frmRecipes: TfrmRecipes
       ExplicitTop = 95
       ExplicitWidth = 182
     end
+  end
+  object tmrResize: TTimer
+    Enabled = False
+    Interval = 20
+    OnTimer = tmrResizeTimer
+    Left = 27
+    Top = 43
   end
 end

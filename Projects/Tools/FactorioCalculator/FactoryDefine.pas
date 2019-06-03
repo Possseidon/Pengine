@@ -13,13 +13,23 @@ uses
   Pengine.Vector,
   Pengine.EventHandling,
 
+  GdiPlus,
+
   Pengine.Factorio.General;
 
 type
 
   TFactory = class;
 
-  TMachineArray = class
+  // TODO: Base class
+  TFactoryIO = class
+  private
+
+  public
+
+  end;
+
+  TMachineArray = class(TFactoryIO)
   public type
 
     TEventInfo = TSenderEventInfo<TMachineArray>;
@@ -34,10 +44,10 @@ type
     FCount: Integer;
     FPerformance: Single;
     FOnChange: TEvent;
-    FOnDestroy: TEvent;
+    FOnRemove: TEvent;
 
     function GetOnChange: TEvent.TAccess;
-    function GetOnDestroy: TEvent.TAccess;
+    function GetOnRemove: TEvent.TAccess;
 
     procedure Change;
     procedure SetCraftingMachine(const Value: TFactorio.TCraftingMachine);
@@ -45,6 +55,7 @@ type
     procedure SetPos(const Value: TVector2);
     procedure SetRecipe(const Value: TFactorio.TRecipe);
     procedure SetPerformance(const Value: Single);
+    function GetBounds: TBounds2;
 
   public
     constructor Create(AFactory: TFactory; APos: TVector2; ACraftingMachine: TFactorio.TCraftingMachine);
@@ -54,6 +65,8 @@ type
     property Factory: TFactory read FFactory;
 
     property Pos: TVector2 read FPos write SetPos;
+    property Bounds: TBounds2 read GetBounds;
+
     property CraftingMachine: TFactorio.TCraftingMachine read FCraftingMachine write SetCraftingMachine;
     property Count: Integer read FCount write SetCount;
     property Performance: Single read FPerformance write SetPerformance;
@@ -61,7 +74,9 @@ type
     property Recipe: TFactorio.TRecipe read FRecipe write SetRecipe;
 
     property OnChange: TEvent.TAccess read GetOnChange;
-    property OnDestroy: TEvent.TAccess read GetOnDestroy;
+    property OnRemove: TEvent.TAccess read GetOnRemove;
+
+    procedure Draw(G: IGPGraphics);
 
   end;
 
@@ -89,12 +104,15 @@ type
     FMachineArrays: IObjectList<TMachineArray>;
     FOnMachineArrayAdd: TMachineEvent;
     FOnMachineArrayChange: TMachineEvent;
-    FOnMachineArrayDestroy: TMachineEvent;
+    FOnMachineArrayRemove: TMachineEvent;
 
     function GetMachineArrays: IReadonlyList<TMachineArray>;
 
     procedure MachineArrayChange(AInfo: TMachineArray.TEventInfo);
-    procedure MachineArrayDestroy(AInfo: TMachineArray.TEventInfo);
+    procedure MachineArrayRemove(AInfo: TMachineArray.TEventInfo);
+    function GetOnMachineArrayAdd: TMachineEvent.TAccess;
+    function GetOnMachineArrayChange: TMachineEvent.TAccess;
+    function GetOnMachineArrayRemove: TMachineEvent.TAccess;
 
   public
     constructor Create;
@@ -105,6 +123,14 @@ type
     property MachineArrays: IReadonlyList<TMachineArray> read GetMachineArrays;
     function AddMachineArray(APos: TVector2; ACraftingMachine: TFactorio.TCraftingMachine): TMachineArray;
     procedure RemoveMachineArray(AMachineArray: TMachineArray);
+
+    property OnMachineArrayAdd: TMachineEvent.TAccess read GetOnMachineArrayAdd;
+    property OnMachineArrayRemove: TMachineEvent.TAccess read GetOnMachineArrayRemove;
+    property OnMachineArrayChange: TMachineEvent.TAccess read GetOnMachineArrayChange;
+
+    function MachineArrayAt(APos: TVector2): TMachineArray;
+
+    procedure Draw(G: IGPGraphics);
 
   end;
 
@@ -117,7 +143,7 @@ begin
   Result := TMachineArray.Create(Self, APos, ACraftingMachine);
   FMachineArrays.Add(Result);
   Result.OnChange.Add(MachineArrayChange);
-  Result.OnDestroy.Add(MachineArrayDestroy);
+  Result.OnRemove.Add(MachineArrayRemove);
   FOnMachineArrayAdd.Execute(TMachineArrayEventInfo.Create(Self, Result));
 end;
 
@@ -131,9 +157,40 @@ begin
 
 end;
 
+procedure TFactory.Draw(G: IGPGraphics);
+var
+  MachineArray: TMachineArray;
+begin
+  for MachineArray in MachineArrays do
+    MachineArray.Draw(G);
+end;
+
 function TFactory.GetMachineArrays: IReadonlyList<TMachineArray>;
 begin
   Result := FMachineArrays.ReadonlyList;
+end;
+
+function TFactory.GetOnMachineArrayAdd: TMachineEvent.TAccess;
+begin
+  Result := FOnMachineArrayAdd.Access;
+end;
+
+function TFactory.GetOnMachineArrayChange: TMachineEvent.TAccess;
+begin
+  Result := FOnMachineArrayChange.Access;
+end;
+
+function TFactory.GetOnMachineArrayRemove: TMachineEvent.TAccess;
+begin
+  Result := FOnMachineArrayRemove.Access;
+end;
+
+function TFactory.MachineArrayAt(APos: TVector2): TMachineArray;
+begin
+  for Result in MachineArrays.Reverse do
+    if APos in Result.Bounds then
+      Exit;
+  Result := nil;
 end;
 
 procedure TFactory.MachineArrayChange(AInfo: TMachineArray.TEventInfo);
@@ -141,9 +198,9 @@ begin
   FOnMachineArrayChange.Execute(TMachineArrayEventInfo.Create(Self, AInfo.Sender));
 end;
 
-procedure TFactory.MachineArrayDestroy(AInfo: TMachineArray.TEventInfo);
+procedure TFactory.MachineArrayRemove(AInfo: TMachineArray.TEventInfo);
 begin
-  FOnMachineArrayDestroy.Execute(TMachineArrayEventInfo.Create(Self, AInfo.Sender));
+  FOnMachineArrayRemove.Execute(TMachineArrayEventInfo.Create(Self, AInfo.Sender));
 end;
 
 procedure TFactory.RemoveMachineArray(AMachineArray: TMachineArray);
@@ -160,7 +217,7 @@ end;
 
 procedure TMachineArray.BeforeDestruction;
 begin
-  FOnDestroy.Execute(TEventInfo.Create(Self));
+  FOnRemove.Execute(TEventInfo.Create(Self));
 end;
 
 procedure TMachineArray.Change;
@@ -177,9 +234,31 @@ begin
   FPerformance := 1;
 end;
 
-function TMachineArray.GetOnDestroy: TEvent.TAccess;
+procedure TMachineArray.Draw(G: IGPGraphics);
+var
+  B: TBounds2;
+  Rect: TGPRectF;
+  Pen: IGPPen;
+  Font: IGPFont;
+  FontBrush: IGPBrush;
 begin
-  Result := FOnDestroy.Access;
+  B := Bounds;
+  Rect:= TGPRectF.Create(B.C1.X, B.C1.Y, B.Width, B.Height);
+  Pen := TGPPen.Create(TGPColor.Black);
+  G.DrawRectangle(Pen, Rect);
+
+  Font := TGPFont.Create('Tahoma', 9);
+  FontBrush := TGPSolidBrush.Create(TGPColor.Black);
+  G.DrawString(Format('%dx', [Count]), Font, TGPPointF.Create(Pos.X + 10, Pos.Y + 32), FontBrush);
+  G.DrawString(Format('%.0f%%', [Performance * 100]), Font, TGPPointF.Create(Pos.X + 40, Pos.Y + 32), FontBrush);
+  G.DrawImage(CraftingMachine.Icon, Pos.X + 16, Pos.Y);
+  if HasRecipe then
+    G.DrawImage(Recipe.Icon, Pos.X + 48, Pos.Y);
+end;
+
+function TMachineArray.GetOnRemove: TEvent.TAccess;
+begin
+  Result := FOnRemove.Access;
 end;
 
 function TMachineArray.HasRecipe: Boolean;
@@ -190,6 +269,12 @@ end;
 procedure TMachineArray.Remove;
 begin
   Factory.RemoveMachineArray(Self);
+end;
+
+function TMachineArray.GetBounds: TBounds2;
+begin
+  // TODO
+  Result := Pos.Bounds(100);
 end;
 
 function TMachineArray.GetOnChange: TEvent.TAccess;

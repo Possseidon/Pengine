@@ -5,7 +5,7 @@ uses
   Main in 'Main.pas' {frmMain},
   FactoryDefine in 'FactoryDefine.pas',
   RecipeForm in 'RecipeForm.pas' {frmRecipes},
-  FactoryRendering in 'FactoryRendering.pas';
+  FactoryFrame in 'FactoryFrame.pas' {frmFactory: TFrame};
 
 {$R *.res}
 

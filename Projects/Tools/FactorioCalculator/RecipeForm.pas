@@ -9,21 +9,20 @@ uses
 
   Vcl.Forms,
   Vcl.Controls,
+  Vcl.StdCtrls,
+  Vcl.Samples.Spin,
+  Vcl.ExtCtrls,
 
   GdiPlus,
   GdiPlusHelpers,
 
   Pengine.ICollections,
   Pengine.IntMaths,
+  Pengine.Utility,
 
   Pengine.Factorio.General,
 
-  FactoryDefine,
-  Vcl.ComCtrls,
-  Vcl.Graphics,
-  Vcl.StdCtrls,
-  Vcl.Samples.Spin,
-  Vcl.ExtCtrls;
+  FactoryDefine;
 
 type
 
@@ -47,6 +46,10 @@ type
     lbMachineName: TLabel;
     lbGroupName: TLabel;
     lbRecipeName: TLabel;
+    btnRemove: TButton;
+    tmrResize: TTimer;
+    procedure btnRemoveClick(Sender: TObject);
+    procedure edtPerformanceChange(Sender: TObject);
     procedure FormDeactivate(Sender: TObject);
     procedure pbCraftingMachineMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure pbCraftingMachinePaint(Sender: TObject);
@@ -54,8 +57,12 @@ type
     procedure pbGroupMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure pbRecipeMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure pbRecipePaint(Sender: TObject);
+    procedure seCountChange(Sender: TObject);
+    procedure tmrResizeTimer(Sender: TObject);
   private
     FMachineArray: TMachineArray;
+    FTargetWidth: Integer;
+    FTargetHeight: Integer;
     FSelectedGroup: TFactorio.TItemGroup;
 
     procedure DrawBox(G: IGPGraphics; X, Y, Size: Integer; AType: TBoxDrawType);
@@ -73,12 +80,16 @@ type
     function GroupWidth: Integer;
     function RecipeWidth: Integer;
     function RecipeHeight: Integer;
-    
+
     procedure UpdateSize;
     procedure UpdateGroupName;
     procedure UpdateRecipeName;
 
+    procedure MakeOpaque(AControl: TControl);
+
   public
+    constructor Create(AOwner: TComponent); override;
+
     procedure Execute(AMachineArray: TMachineArray);
 
     property Factorio: TFactorio read GetFactorio;
@@ -100,13 +111,23 @@ begin
   Result := Factorio.CraftingMachine.Count * 38;
 end;
 
+constructor TfrmRecipes.Create(AOwner: TComponent);
+begin
+  inherited;
+  MakeOpaque(gbCraftingMachineType);
+  MakeOpaque(gbRecipe);
+end;
+
+procedure TfrmRecipes.btnRemoveClick(Sender: TObject);
+begin
+  FMachineArray.Remove;
+end;
+
 procedure TfrmRecipes.DrawBox(G: IGPGraphics; X, Y, Size: Integer; AType: TBoxDrawType);
 const
   Colors: array [TBoxDrawType] of record Pen, Gradient1, Gradient2: Cardinal end = (
     (Pen: $FF000000; Gradient1: $FFBBBBBB; Gradient2: $FFEEEEEE),
-    (Pen: $FFDD2222; Gradient1: $FF8888BB; Gradient2: $FFBBBBEE)
-    );
-
+    (Pen: $FFDD2222; Gradient1: $FF8888BB; Gradient2: $FFBBBBEE));
 var
   Rect: TGPRect;
   Pen: IGPPen;
@@ -119,19 +140,39 @@ begin
   G.DrawRectangle(Pen, Rect);
 end;
 
+procedure TfrmRecipes.edtPerformanceChange(Sender: TObject);
+var
+  Value: Single;
+begin
+  if TryStrToFloat(edtPerformance.Text, Value) then
+    FMachineArray.Performance := Value / 100;
+end;
+
 procedure TfrmRecipes.Execute(AMachineArray: TMachineArray);
 begin
+  Left := Mouse.CursorPos.X;
+  Top := Mouse.CursorPos.Y;
+
   FMachineArray := AMachineArray;
-  FMachineArray.OnDestroy.Add(MachineArrayDestroy);
+  FMachineArray.OnRemove.Add(MachineArrayDestroy);
   FMachineArray.OnChange.Add(MachineArrayChange);
   if FMachineArray.HasRecipe then
     FSelectedGroup := FMachineArray.Recipe.Group;
   MachineArrayChange;
+
+  seCount.Text := IntToStr(FMachineArray.Count);
+  edtPerformance.Text := PrettyFloat(FMachineArray.Performance * 100);
+
   Show;
 end;
 
 procedure TfrmRecipes.FormDeactivate(Sender: TObject);
 begin
+  if FMachineArray <> nil then
+  begin
+    FMachineArray.OnRemove.Remove(MachineArrayDestroy);
+    FMachineArray.OnChange.Remove(MachineArrayChange);
+  end;
   Close;
 end;
 
@@ -145,7 +186,7 @@ var
   GroupExists: Boolean;
 begin
   Invalidate;
-  lbMachineName.Caption := string(FMachineArray.CraftingMachine.Name);
+  lbMachineName.Caption := string(FMachineArray.CraftingMachine.DisplayName);
 
   GroupExists := Groups.Any(
     function(Group: TFactorio.TItemGroup): Boolean
@@ -153,10 +194,10 @@ begin
       Result := Group = FSelectedGroup;
     end);
   if not GroupExists and not Groups.Empty then
-    FSelectedGroup := Groups.First;        
+    FSelectedGroup := Groups.First;
 
   UpdateGroupName;
-  UpdateRecipeName;    
+  UpdateRecipeName;
   UpdateSize;
 end;
 
@@ -164,6 +205,11 @@ procedure TfrmRecipes.MachineArrayDestroy;
 begin
   FMachineArray := nil;
   Close;
+end;
+
+procedure TfrmRecipes.MakeOpaque(AControl: TControl);
+begin
+  AControl.ControlStyle := AControl.ControlStyle + [csOpaque];
 end;
 
 procedure TfrmRecipes.pbCraftingMachinePaint(Sender: TObject);
@@ -232,7 +278,7 @@ begin
   Result := Groups.Count * 70;
 end;
 
-procedure TfrmRecipes.pbCraftingMachineMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: 
+procedure TfrmRecipes.pbCraftingMachineMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y:
   Integer);
 begin
   X := Max(X, 0) div 38;
@@ -302,7 +348,7 @@ end;
 
 function TfrmRecipes.Recipes: IIterate<IIterate<TFactorio.TRecipe>>;
 begin
-  Result := Subgroups.Generic.Map<IIterate<TFactorio.TRecipe>>(
+  Result := Subgroups.Generic.Map < IIterate < TFactorio.TRecipe >> (
     function(Subgroup: TFactorio.TItemSubgroup): IIterate<TFactorio.TRecipe>
     begin
       Result := Subgroup.Recipes.Iterate.Where(
@@ -323,6 +369,14 @@ begin
   Result := Result * 38;
 end;
 
+procedure TfrmRecipes.seCountChange(Sender: TObject);
+var
+  Value: Integer;
+begin
+  if TryStrToInt(seCount.Text, Value) then
+    FMachineArray.Count := Value;
+end;
+
 function TfrmRecipes.Subgroups: IIterate<TFactorio.TItemSubgroup>;
 begin
   Result := FSelectedGroup.Subgroups.Iterate.Where(
@@ -336,15 +390,26 @@ begin
     end);
 end;
 
+procedure TfrmRecipes.tmrResizeTimer(Sender: TObject);
+begin
+  if (ClientWidth = FTargetWidth) and (ClientHeight = FTargetHeight) then
+  begin
+    tmrResize.Enabled := False;
+    Exit;
+  end;
+  ClientWidth := Round(ClientWidth * 0.5 + FTargetWidth * 0.5);
+  ClientHeight := Round(ClientHeight * 0.5 + FTargetHeight * 0.5);
+end;
+
 procedure TfrmRecipes.UpdateGroupName;
 begin
-  lbGroupName.Caption := FSelectedGroup.Name;  
+  lbGroupName.Caption := string(FSelectedGroup.DisplayName);
 end;
 
 procedure TfrmRecipes.UpdateRecipeName;
 begin
   if FMachineArray.HasRecipe then
-    lbRecipeName.Caption := FMachineArray.Recipe.Name
+    lbRecipeName.Caption := string(FMachineArray.Recipe.DisplayName)
   else
     lbRecipeName.Caption := '[none]';
 end;
@@ -356,8 +421,9 @@ begin
   NewWidth := CraftingMachinesWidth;
   NewWidth := Max(NewWidth, GroupWidth);
   NewWidth := Max(NewWidth, RecipeWidth);
-  ClientWidth := ClientWidth - pbCraftingMachine.Width + NewWidth;
-  ClientHeight := ClientHeight - pbRecipe.Height + RecipeHeight;
+  FTargetWidth := ClientWidth - pbCraftingMachine.Width + NewWidth;
+  FTargetHeight := ClientHeight - pbRecipe.Height + RecipeHeight;
+  tmrResize.Enabled := True;
 end;
 
 end.

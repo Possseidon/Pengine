@@ -193,6 +193,8 @@ type
 
     function IndexOf(AItem: T): Integer;
 
+    function Reverse: IIterate<T>;
+
   end;
 
   /// <summary>A set, which is readonly.</summary>
@@ -274,6 +276,8 @@ type
 
     property Equate: TFunc<T, T, Boolean> read GetEquate write SetEquate;
     property Compare: TFunc<T, T, Boolean> read GetCompare write SetCompare;
+
+    function Reverse: IIterate<T>;
 
   end;
 
@@ -494,6 +498,9 @@ type
     procedure SetEquate(const Value: TFunc<T, T, Boolean>);
 
   public
+    // IIterable<T>
+    function GetEnumerator: IIterator<T>;
+
     // ICollection<T>
     property Count: Integer read GetCount;
     function Empty: Boolean;
@@ -516,15 +523,32 @@ type
     property Equate: TFunc<T, T, Boolean> read GetEquate write SetEquate;
     property Compare: TFunc<T, T, Boolean> read GetCompare write SetCompare;
 
+    function Reverse: IIterate<T>;
+
   end;
 
-  TListIterator<T> = class(TInterfacedObject, IIterator<T>)
+  TListBaseIterator<T> = class(TInterfacedObject)
   private
     FList: TListBase<T>;
     FCurrent: Integer;
 
+  protected
     function GetCurrent: T;
 
+  public
+    constructor Create(AList: TListBase<T>);
+
+  end;
+
+  TListIterator<T> = class(TListBaseIterator<T>, IIterator<T>)
+  public
+    constructor Create(AList: TListBase<T>);
+
+    function MoveNext: Boolean;
+
+  end;
+
+  TListReverseIterator<T> = class(TListBaseIterator<T>, IIterator<T>)
   public
     constructor Create(AList: TListBase<T>);
 
@@ -586,7 +610,6 @@ type
     constructor Create(AItems: IIterator<T>); reintroduce; overload;
 
     // IIterable<T>
-    function GetEnumerator: IIterator<T>;
     function Iterate: IIterate<T>;
 
     // ICollection<T>
@@ -1035,7 +1058,7 @@ type
 
   // --- Iterate Implementations ---
 
-  TIterate<T> = class(TInterfacedObject, IIterable<T>, IIterate<T>)
+  TIterate<T> = class(TInterfacedObject, IIterate<T>, IIterable<T>)
   private
     function GetItem(AIndex: Integer): T;
 
@@ -1356,6 +1379,18 @@ type
 
   public
     constructor Create(AIterable: IIterable<T>; AItem: T);
+
+    // IIterable<T>
+    function GetEnumerator: IIterator<T>; override;
+
+  end;
+
+  TListReverseIterate<T> = class(TIterate<T>, IIterable<T>, IIterate<T>)
+  private
+    FListBase: TListBase<T>;
+
+  public
+    constructor Create(AListBase: TListBase<T>);
 
     // IIterable<T>
     function GetEnumerator: IIterator<T>; override;
@@ -1840,6 +1875,11 @@ begin
   Result := FCompare;
 end;
 
+function TListBase<T>.GetEnumerator: IIterator<T>;
+begin
+  Result := TListIterator<T>.Create(Self);
+end;
+
 function TListBase<T>.GetEquate: TFunc<T, T, Boolean>;
 begin
   Result := FEquate;
@@ -1885,6 +1925,11 @@ begin
   DoRemoveRange(AIndex, ACount);
 end;
 
+function TListBase<T>.Reverse: IIterate<T>;
+begin
+  Result := TListReverseIterate<T>.Create(Self);
+end;
+
 function TListBase<T>.Extract(AIndex: Integer): T;
 begin
   RangeCheck(AIndex);
@@ -1892,23 +1937,16 @@ begin
   RemoveAt(AIndex);
 end;
 
-{ TListIterator<T> }
+{ TListBaseIterator<T> }
 
-function TListIterator<T>.GetCurrent: T;
+function TListBaseIterator<T>.GetCurrent: T;
 begin
   Result := FList[FCurrent];
 end;
 
-constructor TListIterator<T>.Create(AList: TListBase<T>);
+constructor TListBaseIterator<T>.Create(AList: TListBase<T>);
 begin
   FList := AList;
-  FCurrent := -1;
-end;
-
-function TListIterator<T>.MoveNext: Boolean;
-begin
-  Inc(FCurrent);
-  Result := FCurrent <> FList.Count;
 end;
 
 { TList<T> }
@@ -2079,11 +2117,6 @@ constructor TSortedList<T>.Create(AItems: IIterator<T>);
 begin
   Create;
   AddRange(AItems);
-end;
-
-function TSortedList<T>.GetEnumerator: IIterator<T>;
-begin
-  Result := TListIterator<T>.Create(Self);
 end;
 
 function TSortedList<T>.Iterate: IIterate<T>;
@@ -4040,6 +4073,46 @@ end;
 function TIntRangeIterate.GetEnumerator: IIterator<Integer>;
 begin
   Result := TIterator.Create(FStart, FStop, FStep);
+end;
+
+{ TListReverseIterator<T> }
+
+constructor TListReverseIterator<T>.Create(AList: TListBase<T>);
+begin
+  inherited;
+  FCurrent := FList.Count;
+end;
+
+function TListReverseIterator<T>.MoveNext: Boolean;
+begin
+  Dec(FCurrent);
+  Result := FCurrent >= 0;
+end;
+
+{ TListReverseIterate<T> }
+
+constructor TListReverseIterate<T>.Create(AListBase: TListBase<T>);
+begin
+  FListBase := AListBase;
+end;
+
+function TListReverseIterate<T>.GetEnumerator: IIterator<T>;
+begin
+  Result := TListReverseIterator<T>.Create(FListBase);
+end;
+
+{ TListIterator<T> }
+
+constructor TListIterator<T>.Create(AList: TListBase<T>);
+begin
+  inherited;
+  FCurrent := -1;
+end;
+
+function TListIterator<T>.MoveNext: Boolean;
+begin
+  Inc(FCurrent);
+  Result := FCurrent < FList.Count;
 end;
 
 end.
