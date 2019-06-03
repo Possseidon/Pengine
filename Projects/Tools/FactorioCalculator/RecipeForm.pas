@@ -3,6 +3,9 @@ unit RecipeForm;
 interface
 
 uses
+  Winapi.Windows,
+  Winapi.Messages,
+
   System.SysUtils,
   System.Classes,
   System.Math,
@@ -33,7 +36,6 @@ type
 
   TfrmRecipes = class(TForm)
     gbCraftingMachineType: TGroupBox;
-    pbCraftingMachine: TPaintBox;
     pnlMachineArray: TPanel;
     lbCount: TLabel;
     lbPerformance: TLabel;
@@ -48,6 +50,7 @@ type
     lbRecipeName: TLabel;
     btnRemove: TButton;
     tmrResize: TTimer;
+    pbCraftingMachine: TPaintBox;
     procedure btnRemoveClick(Sender: TObject);
     procedure edtPerformanceChange(Sender: TObject);
     procedure FormDeactivate(Sender: TObject);
@@ -85,7 +88,7 @@ type
     procedure UpdateGroupName;
     procedure UpdateRecipeName;
 
-    procedure MakeOpaque(AControl: TControl);
+    procedure ModifyControlStyle(AControl: TControl; AAdd: TControlStyle; ARemove: TControlStyle = []);
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -114,8 +117,15 @@ end;
 constructor TfrmRecipes.Create(AOwner: TComponent);
 begin
   inherited;
-  MakeOpaque(gbCraftingMachineType);
-  MakeOpaque(gbRecipe);
+  ModifyControlStyle(pbCraftingMachine, [csOpaque], [csParentBackground]);
+  ModifyControlStyle(pbGroup, [csOpaque], [csParentBackground]);
+  ModifyControlStyle(pbRecipe, [csOpaque], [csParentBackground]);
+  ModifyControlStyle(gbCraftingMachineType, [csOpaque], [csParentBackground]);
+  ModifyControlStyle(gbRecipe, [csOpaque], [csParentBackground]);
+  ModifyControlStyle(pnlMachineArray, [csOpaque], [csParentBackground]);
+  // ModifyControlStyle(pbCraftingMachine);
+  // MakeOpaque(gbCraftingMachineType);
+  // MakeOpaque(gbRecipe);
 end;
 
 procedure TfrmRecipes.btnRemoveClick(Sender: TObject);
@@ -185,7 +195,9 @@ procedure TfrmRecipes.MachineArrayChange;
 var
   GroupExists: Boolean;
 begin
-  Invalidate;
+  pbCraftingMachine.Invalidate;
+  pbGroup.Invalidate;
+  pbRecipe.Invalidate;
   lbMachineName.Caption := string(FMachineArray.CraftingMachine.DisplayName);
 
   GroupExists := Groups.Any(
@@ -207,19 +219,21 @@ begin
   Close;
 end;
 
-procedure TfrmRecipes.MakeOpaque(AControl: TControl);
+procedure TfrmRecipes.ModifyControlStyle(AControl: TControl; AAdd: TControlStyle; ARemove: TControlStyle);
 begin
-  AControl.ControlStyle := AControl.ControlStyle + [csOpaque];
+  AControl.ControlStyle := AControl.ControlStyle + AAdd - ARemove;
 end;
 
 procedure TfrmRecipes.pbCraftingMachinePaint(Sender: TObject);
 var
   G: IGPGraphics;
+  C: TGPGraphicsContainer;
   I: Integer;
   Machine: TFactorio.TCraftingMachine;
   BoxType: TBoxDrawType;
 begin
   G := pbCraftingMachine.ToGPGraphics;
+  C := G.BeginContainer;
   I := 0;
   for Machine in Factorio.CraftingMachineOrder do
   begin
@@ -232,6 +246,7 @@ begin
     G.DrawImage(Machine.Icon, 2 + I * 38, 2);
     Inc(I);
   end;
+  G.EndContainer(C);
 end;
 
 procedure TfrmRecipes.pbGroupPaint(Sender: TObject);
@@ -240,8 +255,10 @@ var
   I: Integer;
   Group: TFactorio.TItemGroup;
   BoxType: TBoxDrawType;
+  C: TGPGraphicsContainer;
 begin
   G := pbGroup.ToGPGraphics;
+  C := G.BeginContainer;
   I := 0;
   for Group in Groups do
   begin
@@ -254,6 +271,7 @@ begin
     G.DrawImage(Group.Icon, 2 + I * 70, 2);
     Inc(I);
   end;
+  G.EndContainer(C);
 end;
 
 function TfrmRecipes.Groups: IIterate<TFactorio.TItemGroup>;
@@ -294,7 +312,8 @@ begin
   if X >= Groups.Count then
     Exit;
   FSelectedGroup := Groups.Items[X];
-  Invalidate;
+  pbGroup.Invalidate;
+  pbRecipe.Invalidate;
   UpdateSize;
   UpdateGroupName;
 end;
@@ -316,12 +335,14 @@ end;
 procedure TfrmRecipes.pbRecipePaint(Sender: TObject);
 var
   G: IGPGraphics;
+  C: TGPGraphicsContainer;
   Pos: TIntVector2;
   SubgroupRecipes: IIterate<TFactorio.TRecipe>;
   Recipe: TFactorio.TRecipe;
   BoxType: TBoxDrawType;
 begin
   G := pbRecipe.ToGPGraphics;
+  C := G.BeginContainer;
   Pos := 0;
   for SubgroupRecipes in Recipes do
   begin
@@ -339,6 +360,7 @@ begin
     Pos.X := 0;
     Inc(Pos.Y);
   end;
+  G.EndContainer(C);
 end;
 
 function TfrmRecipes.RecipeHeight: Integer;

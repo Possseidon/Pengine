@@ -31,26 +31,24 @@ object frmRecipes: TfrmRecipes
       Left = 5
       Top = 18
       Width = 250
-      Height = 36
+      Height = 38
       Align = alTop
       OnMouseDown = pbCraftingMachineMouseDown
       OnPaint = pbCraftingMachinePaint
-      ExplicitWidth = 178
-      ExplicitHeight = 32
     end
     object pnlMachineArray: TPanel
       Left = 2
-      Top = 57
+      Top = 59
       Width = 256
-      Height = 113
+      Height = 111
       Align = alClient
       BevelOuter = bvNone
       TabOrder = 0
-      ExplicitWidth = 184
-      ExplicitHeight = 81
+      ExplicitTop = 57
+      ExplicitHeight = 113
       DesignSize = (
         256
-        113)
+        111)
       object lbCount: TLabel
         Left = 6
         Top = 53
@@ -133,9 +131,6 @@ object frmRecipes: TfrmRecipes
     Align = alClient
     Caption = 'Recipe'
     TabOrder = 1
-    ExplicitTop = 149
-    ExplicitWidth = 188
-    ExplicitHeight = 171
     object pbRecipe: TPaintBox
       AlignWithMargins = True
       Left = 5
@@ -206,7 +201,7 @@ object frmRecipes: TfrmRecipes
     Enabled = False
     Interval = 20
     OnTimer = tmrResizeTimer
-    Left = 27
-    Top = 43
+    Left = 115
+    Top = 123
   end
 end
