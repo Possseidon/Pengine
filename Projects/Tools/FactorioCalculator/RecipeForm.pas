@@ -53,11 +53,13 @@ type
     pbCraftingMachine: TPaintBox;
     procedure btnRemoveClick(Sender: TObject);
     procedure edtPerformanceChange(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormDeactivate(Sender: TObject);
     procedure pbCraftingMachineMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure pbCraftingMachinePaint(Sender: TObject);
     procedure pbGroupPaint(Sender: TObject);
     procedure pbGroupMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure pbRecipeDblClick(Sender: TObject);
     procedure pbRecipeMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure pbRecipePaint(Sender: TObject);
     procedure seCountChange(Sender: TObject);
@@ -154,14 +156,14 @@ procedure TfrmRecipes.edtPerformanceChange(Sender: TObject);
 var
   Value: Single;
 begin
-  if TryStrToFloat(edtPerformance.Text, Value) then
+  if TryStrToFloat(edtPerformance.Text, Value, FormatSettings.Invariant) then
     FMachineArray.Performance := Value / 100;
 end;
 
 procedure TfrmRecipes.Execute(AMachineArray: TMachineArray);
 begin
-  Left := Mouse.CursorPos.X;
-  Top := Mouse.CursorPos.Y;
+  Left := Mouse.CursorPos.X + 100;
+  Top := Mouse.CursorPos.Y - 100;
 
   FMachineArray := AMachineArray;
   FMachineArray.OnRemove.Add(MachineArrayDestroy);
@@ -171,18 +173,26 @@ begin
   MachineArrayChange;
 
   seCount.Text := IntToStr(FMachineArray.Count);
-  edtPerformance.Text := PrettyFloat(FMachineArray.Performance * 100);
+  edtPerformance.Text := PrettyFloat(Single(FMachineArray.Performance * 100));
 
+  ClientWidth := FTargetWidth;
+  ClientHeight := FTargetHeight;
+  MakeFullyVisible;
   Show;
 end;
 
-procedure TfrmRecipes.FormDeactivate(Sender: TObject);
+procedure TfrmRecipes.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   if FMachineArray <> nil then
   begin
     FMachineArray.OnRemove.Remove(MachineArrayDestroy);
     FMachineArray.OnChange.Remove(MachineArrayChange);
+    FMachineArray := nil;
   end;
+end;
+
+procedure TfrmRecipes.FormDeactivate(Sender: TObject);
+begin
   Close;
 end;
 
@@ -318,10 +328,17 @@ begin
   UpdateGroupName;
 end;
 
+procedure TfrmRecipes.pbRecipeDblClick(Sender: TObject);
+begin
+  Close;
+end;
+
 procedure TfrmRecipes.pbRecipeMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   SubgroupRecipes: IIterate<TFactorio.TRecipe>;
 begin
+  if FMachineArray = nil then
+    Exit;
   Y := Max(Y, 0) div 38;
   if Y >= Recipes.Count then
     Exit;
@@ -395,7 +412,7 @@ procedure TfrmRecipes.seCountChange(Sender: TObject);
 var
   Value: Integer;
 begin
-  if TryStrToInt(seCount.Text, Value) then
+  if TryStrToInt(seCount.Text, Value) and InRange(Value, seCount.MinValue, seCount.MaxValue) then
     FMachineArray.Count := Value;
 end;
 

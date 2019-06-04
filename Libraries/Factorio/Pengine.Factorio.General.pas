@@ -818,6 +818,8 @@ var
   G: IGPGraphics;
   Font: IGPFont;
   Brush: IGPBrush;
+  Pen: IGPPen;
+  BgBrush: IGPBrush;
 begin
   Result := TGPBitmap.Create(IconSize, IconSize);
 
@@ -825,7 +827,10 @@ begin
   G.TextRenderingHint := TextRenderingHintAntiAlias;
   Font := TGPFont.Create('Tahoma', 7);
   Brush := TGPSolidBrush.Create(TGPColor.Black);
+  Pen := TGPPen.Create(TGPColor.Black);
+  BgBrush := TGPLinearGradientBrush.Create(TGPRectF.Create(0, 0, IconSize, IconSize), $3FFF0000, $3F7F0000, 90);
 
+  G.FillRectangle(BgBrush, 0, 0, IconSize, IconSize);
   G.DrawString(
     string(DisplayName).Replace(' ', #10#13),
     Font,

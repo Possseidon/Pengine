@@ -29,6 +29,8 @@ type
   private
     FFactory: TFactory;
     FDragMachineArray: TMachineArray;
+    FDragInput: TMachineInput;
+    FDragOutput: TMachineOutput;
     FDragPos: TVector2;
 
   protected
@@ -61,6 +63,9 @@ begin
   Factory.OnMachineArrayAdd.Add(Invalidate);
   Factory.OnMachineArrayRemove.Add(Invalidate);
   Factory.OnMachineArrayChange.Add(Invalidate);
+  Factory.OnConnectionAdd.Add(Invalidate);
+  Factory.OnConnectionRemove.Add(Invalidate);
+  Factory.OnConnectionChange.Add(Invalidate);
 end;
 
 destructor TfrmFactory.Destroy;
@@ -72,13 +77,25 @@ end;
 procedure TfrmFactory.FrameMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   MachineArray: TMachineArray;
+  Input: TMachineInput;
+  Output: TMachineOutput;
 begin
   MachineArray := FFactory.MachineArrayAt(Vec2(X, Y));
   if MachineArray <> nil then
   begin
     if Button = mbLeft then
     begin
-      FDragMachineArray := MachineArray;
+      Input := MachineArray.InputAt(Vec2(X, Y));
+      if Input <> nil then
+        FDragInput := Input
+      else
+      begin
+        Output := MachineArray.OutputAt(Vec2(X, Y));
+        if Output <> nil then
+          FDragOutput := Output
+        else
+          FDragMachineArray := MachineArray;
+      end;
       FDragPos := Vec2(X, Y);
     end
     else if Button = mbRight then
@@ -87,7 +104,7 @@ begin
   else
   begin
     if Button = mbLeft then
-      MachineArray := FFactory.AddMachineArray(Vec2(X, Y), frmMain.Factorio.CraftingMachine['assembling-machine-1']);
+      FFactory.AddMachineArray(Vec2(X, Y), frmMain.Factorio.CraftingMachine['assembling-machine-1']);
   end;
 end;
 
@@ -101,7 +118,33 @@ begin
 end;
 
 procedure TfrmFactory.FrameMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  MachineArray: TMachineArray;
+  Output: TMachineOutput;
+  Input: TMachineInput;
 begin
+  if FDragOutput <> nil then
+  begin
+    MachineArray := Factory.MachineArrayAt(Vec2(X, Y));
+    if MachineArray <> nil then
+    begin
+      Input := MachineArray.InputAt(Vec2(X, Y));
+      if Input <> nil then
+        FDragOutput.ToggleConnection(Input);
+    end;
+    FDragOutput := nil;
+  end;
+  if FDragInput <> nil then
+  begin
+    MachineArray := Factory.MachineArrayAt(Vec2(X, Y));
+    if MachineArray <> nil then
+    begin
+      Output := MachineArray.OutputAt(Vec2(X, Y));
+      if Output <> nil then
+        FDragInput.ToggleConnection(Output);
+    end;
+    FDragInput := nil;
+  end;
   FDragMachineArray := nil;
 end;
 
@@ -110,6 +153,7 @@ var
   G: IGPGraphics;
 begin
   G := TGPGraphics.Create(DC);
+  G.SmoothingMode := SmoothingModeAntiAlias;
   G.TextRenderingHint := TextRenderingHintAntiAlias;
   Factory.Draw(G);
 end;

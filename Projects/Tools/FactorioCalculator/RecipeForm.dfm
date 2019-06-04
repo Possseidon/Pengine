@@ -14,6 +14,7 @@ object frmRecipes: TfrmRecipes
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  OnClose = FormClose
   OnDeactivate = FormDeactivate
   PixelsPerInch = 96
   TextHeight = 13
@@ -44,8 +45,6 @@ object frmRecipes: TfrmRecipes
       Align = alClient
       BevelOuter = bvNone
       TabOrder = 0
-      ExplicitTop = 57
-      ExplicitHeight = 113
       DesignSize = (
         256
         111)
@@ -96,7 +95,7 @@ object frmRecipes: TfrmRecipes
         Width = 83
         Height = 22
         Anchors = [akTop, akRight]
-        MaxValue = 2147483647
+        MaxValue = 999
         MinValue = 1
         TabOrder = 0
         Value = 1
@@ -138,6 +137,7 @@ object frmRecipes: TfrmRecipes
       Width = 250
       Height = 58
       Align = alClient
+      OnDblClick = pbRecipeDblClick
       OnMouseDown = pbRecipeMouseDown
       OnPaint = pbRecipePaint
       ExplicitLeft = 7
