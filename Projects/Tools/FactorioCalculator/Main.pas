@@ -63,6 +63,12 @@ implementation
 
 constructor TfrmMain.Create(AOwner: TComponent);
 begin
+  TODO
+  // Still some event missing event handler bug... oof
+  // Reproduce:
+  // 1) Build gear, gear, transport-belt
+  // 2) Connect both gears to the treansport-belt
+  // 3) Remove the belt
   FFactorio := TFactorio.Create;
   inherited;
 end;

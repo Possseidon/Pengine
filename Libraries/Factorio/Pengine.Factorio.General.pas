@@ -349,22 +349,13 @@ type
       property CraftingSpeed: Single read FCraftingSpeed;
       property CraftingCategories: IReadonlyList<TRecipeCategory> read GetCraftingCategories;
 
-      function CanCraft(ARecipe: TRecipe): Boolean; virtual;
+      function CanCraft(ARecipe: TRecipe): Boolean;
 
     end;
 
     TAssemblingMachine = class(TCraftingMachine)
-    private
-      FIngredientCount: Integer;
-
     public
-      constructor Create(AFactorio: TFactorio; L: TLuaState); override;
-
       class function GetType: TPrototype.TType; override;
-
-      function CanCraft(ARecipe: TRecipe): Boolean; override;
-
-      property IngredientCount: Integer read FIngredientCount;
 
     end;
 
@@ -1386,39 +1377,9 @@ end;
 
 { TFactorio.TAssemblingMachine }
 
-constructor TFactorio.TAssemblingMachine.Create(AFactorio: TFactorio; L: TLuaState);
-begin
-  inherited;
-
-  if L.GetField('ingredient_count') = ltNumber then
-    FIngredientCount := L.ToInteger
-  else if Name = 'assembling-machine-1' then
-    FIngredientCount := 2
-  else if Name = 'assembling-machine-2' then
-    FIngredientCount := 4
-  else if Name = 'assembling-machine-3' then
-    FIngredientCount := 6
-  else if Name = 'centrifuge' then
-    FIngredientCount := 2
-  else if Name = 'rocket-silo' then
-    FIngredientCount := 3
-  else if Name = 'chemical-plant' then
-    FIngredientCount := 4
-  else if Name = 'oil-refinery' then
-    FIngredientCount := 3
-  else
-    raise EFactorio.CreateFmt('Unknown assembling machine "%s".', [Name]);
-  L.Pop;
-end;
-
 class function TFactorio.TAssemblingMachine.GetType: TPrototype.TType;
 begin
   Result := ptAssemblingMachine;
-end;
-
-function TFactorio.TAssemblingMachine.CanCraft(ARecipe: TRecipe): Boolean;
-begin
-  Result := inherited and (ARecipe.Ingredients.Count <= IngredientCount);
 end;
 
 { TFactorio.TRocketSilo }
