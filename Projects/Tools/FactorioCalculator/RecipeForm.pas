@@ -109,7 +109,8 @@ implementation
 {$R *.dfm}
 
 
-uses Main;
+uses
+  Main;
 
 function TfrmRecipes.CraftingMachinesWidth: Integer;
 begin
@@ -292,11 +293,7 @@ begin
       Result := Group.Subgroups.Iterate.Any(
         function(Subgroup: TFactorio.TItemSubgroup): Boolean
         begin
-          Result := Subgroup.Recipes.Iterate.Any(
-            function(Recipe: TFactorio.TRecipe): Boolean
-            begin
-              Result := FMachineArray.CraftingMachine.CraftingCategories.Contains(Recipe.Category);
-            end);
+          Result := Subgroup.Recipes.Iterate.Any(FMachineArray.CraftingMachine.CanCraft);
         end);
     end);
 end;
@@ -390,11 +387,7 @@ begin
   Result := Subgroups.Generic.Map < IIterate < TFactorio.TRecipe >> (
     function(Subgroup: TFactorio.TItemSubgroup): IIterate<TFactorio.TRecipe>
     begin
-      Result := Subgroup.Recipes.Iterate.Where(
-        function(Recipe: TFactorio.TRecipe): Boolean
-        begin
-          Result := FMachineArray.CraftingMachine.CraftingCategories.Contains(Recipe.Category);
-        end);
+      Result := Subgroup.Recipes.Iterate.Where(FMachineArray.CraftingMachine.CanCraft);
     end);
 end;
 
@@ -418,6 +411,8 @@ end;
 
 function TfrmRecipes.Subgroups: IIterate<TFactorio.TItemSubgroup>;
 begin
+  if FSelectedGroup = nil then
+    Exit(TEmptyIterable<TFactorio.TItemSubgroup>.Create.Iterate);
   Result := FSelectedGroup.Subgroups.Iterate.Where(
     function(Subgroup: TFactorio.TItemSubgroup): Boolean
     begin
@@ -442,7 +437,10 @@ end;
 
 procedure TfrmRecipes.UpdateGroupName;
 begin
-  lbGroupName.Caption := string(FSelectedGroup.DisplayName);
+  if FSelectedGroup <> nil then
+    lbGroupName.Caption := string(FSelectedGroup.DisplayName)
+  else
+    lbGroupName.Caption := '[none]';
 end;
 
 procedure TfrmRecipes.UpdateRecipeName;

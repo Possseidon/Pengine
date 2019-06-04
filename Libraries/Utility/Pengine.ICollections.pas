@@ -1428,6 +1428,22 @@ type
 
   end;
 
+  TEmptyIterator<T> = class(TInterfacedObject, IIterator<T>)
+  private
+    function GetCurrent: T;
+
+  public
+    function MoveNext: Boolean;
+
+  end;
+
+  TEmptyIterable<T> = class(TInterfacedObject, IIterable<T>)
+  public
+    function GetEnumerator: IIterator<T>;
+    function Iterate: IIterate<T>;
+
+  end;
+
 function IntRange(ACount: Integer): IIterate<Integer>; overload;
 function IntRange(AStart, AStop: Integer; AStep: Integer = 1): IIterate<Integer>; overload;
 
@@ -4113,6 +4129,30 @@ function TListIterator<T>.MoveNext: Boolean;
 begin
   Inc(FCurrent);
   Result := FCurrent < FList.Count;
+end;
+
+{ TEmptyIterator<T> }
+
+function TEmptyIterator<T>.GetCurrent: T;
+begin
+  Exit(Default(T));
+end;
+
+function TEmptyIterator<T>.MoveNext: Boolean;
+begin
+  Result := False;
+end;
+
+{ TEmptyIterable<T> }
+
+function TEmptyIterable<T>.GetEnumerator: IIterator<T>;
+begin
+  Result := TEmptyIterator<T>.Create;
+end;
+
+function TEmptyIterable<T>.Iterate: IIterate<T>;
+begin
+  Result := TIterableIterate<T>.Create(Self);
 end;
 
 end.

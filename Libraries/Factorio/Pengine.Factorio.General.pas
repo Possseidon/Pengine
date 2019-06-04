@@ -349,11 +349,22 @@ type
       property CraftingSpeed: Single read FCraftingSpeed;
       property CraftingCategories: IReadonlyList<TRecipeCategory> read GetCraftingCategories;
 
+      function CanCraft(ARecipe: TRecipe): Boolean; virtual;
+
     end;
 
     TAssemblingMachine = class(TCraftingMachine)
+    private
+      FIngredientCount: Integer;
+
     public
+      constructor Create(AFactorio: TFactorio; L: TLuaState); override;
+
       class function GetType: TPrototype.TType; override;
+
+      function CanCraft(ARecipe: TRecipe): Boolean; override;
+
+      property IngredientCount: Integer read FIngredientCount;
 
     end;
 
@@ -561,10 +572,10 @@ const
     'defines = setmetatable({}, {__index = function(t) return t end})'#10 +
     'local paths = {'#10 +
     '  package.path,'#10 +
-    '  ";data/core/lualib/?.lua",'#10 +
-    '  ";data/core/?.lua",'#10 +
-    '  ";data/base/lualib/?.lua",'#10 +
-    '  ";data/base/?.lua"'#10 +
+    '  ";data\\core\\lualib\\?.lua",'#10 +
+    '  ";data\\core\\?.lua",'#10 +
+    '  ";data\\base\\lualib\\?.lua",'#10 +
+    '  ";data\\base\\?.lua"'#10 +
     '}'#10 +
     'package.path = table.concat(paths, ";") '#10 +
     'require "dataloader"'#10 +
@@ -1016,6 +1027,11 @@ end;
 
 { TFactorio.TCraftingMachine }
 
+function TFactorio.TCraftingMachine.CanCraft(ARecipe: TRecipe): Boolean;
+begin
+  Result := CraftingCategories.Contains(ARecipe.Category);
+end;
+
 constructor TFactorio.TCraftingMachine.Create(AFactorio: TFactorio; L: TLuaState);
 begin
   inherited;
@@ -1370,9 +1386,39 @@ end;
 
 { TFactorio.TAssemblingMachine }
 
+constructor TFactorio.TAssemblingMachine.Create(AFactorio: TFactorio; L: TLuaState);
+begin
+  inherited;
+
+  if L.GetField('ingredient_count') = ltNumber then
+    FIngredientCount := L.ToInteger
+  else if Name = 'assembling-machine-1' then
+    FIngredientCount := 2
+  else if Name = 'assembling-machine-2' then
+    FIngredientCount := 4
+  else if Name = 'assembling-machine-3' then
+    FIngredientCount := 6
+  else if Name = 'centrifuge' then
+    FIngredientCount := 2
+  else if Name = 'rocket-silo' then
+    FIngredientCount := 3
+  else if Name = 'chemical-plant' then
+    FIngredientCount := 4
+  else if Name = 'oil-refinery' then
+    FIngredientCount := 3
+  else
+    raise EFactorio.CreateFmt('Unknown assembling machine "%s".', [Name]);
+  L.Pop;
+end;
+
 class function TFactorio.TAssemblingMachine.GetType: TPrototype.TType;
 begin
   Result := ptAssemblingMachine;
+end;
+
+function TFactorio.TAssemblingMachine.CanCraft(ARecipe: TRecipe): Boolean;
+begin
+  Result := inherited and (ARecipe.Ingredients.Count <= IngredientCount);
 end;
 
 { TFactorio.TRocketSilo }
