@@ -170,6 +170,8 @@ type
 
     TItemOrFluid = class;
 
+    TCraftingMachine = class;
+
     TRecipe = class(TPrototype)
     public type
 
@@ -205,7 +207,7 @@ type
       public
         constructor Create(AFactorio: TFactorio; L: TLuaState);
 
-        property Probabiliy: Single read FProbability;
+        property Probability: Single read FProbability;
 
       end;
 
@@ -241,9 +243,15 @@ type
       property Group: TItemGroup read GetGroup;
       property Subgroup: TItemSubgroup read GetSubgroup;
 
+      function FindCraftingMachine: TCraftingMachine;
+
     end;
 
-    TItemOrFluid = class(TGrouped);
+    TItemOrFluid = class(TGrouped)
+    public
+      function FindRecipe: TRecipe;
+
+    end;
 
     TItem = class abstract(TItemOrFluid)
     private
@@ -966,6 +974,14 @@ begin
     L.Pop;
 end;
 
+function TFactorio.TRecipe.FindCraftingMachine: TCraftingMachine;
+begin
+  for Result in Factorio.CraftingMachineOrder do
+    if (Result.Name <> 'escape-pod-assembler') and Result.CanCraft(Self) then
+      Exit;
+  Result := nil;
+end;
+
 function TFactorio.TRecipe.GetCategory: TRecipeCategory;
 begin
   if FCategory = nil then
@@ -1394,6 +1410,25 @@ end;
 class function TFactorio.TFurnace.GetType: TPrototype.TType;
 begin
   Result := ptFurnace;
+end;
+
+{ TFactorio.TItemOrFluid }
+
+function TFactorio.TItemOrFluid.FindRecipe: TRecipe;
+var
+  Group: TItemGroup;
+  Subgroup: TItemSubgroup;
+begin
+  for Group in Factorio.ItemGroupOrder do
+    for Subgroup in Group.Subgroups do
+      for Result in Subgroup.Recipes do
+        if Result.Results.Iterate.Any(
+          function(ItemStack: TRecipe.TResult): Boolean
+          begin
+            Result := ItemStack.Item = Self;
+          end) then
+          Exit;        
+  Result := nil;
 end;
 
 end.

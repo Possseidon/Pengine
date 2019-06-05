@@ -5,7 +5,9 @@ uses
   Main in 'Main.pas' {frmMain},
   FactoryDefine in 'FactoryDefine.pas',
   RecipeForm in 'RecipeForm.pas' {frmRecipes},
-  FactoryFrame in 'FactoryFrame.pas' {frmFactory: TFrame};
+  FactoryFrame in 'FactoryFrame.pas' {frmFactory: TFrame},
+  Vcl.Themes,
+  Vcl.Styles;
 
 {$R *.res}
 

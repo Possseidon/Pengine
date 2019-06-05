@@ -35,11 +35,10 @@ type
 
   private
     FMachineArray: TMachineArray;
-    FItemStack: TFactorio.TRecipe.TItemStack;
     FConnections: IList<TMachineConnection>;
     FOnRemove: TEvent;
 
-    function GetItemsPerSecond: Single;
+    function GetItemsPerSecond: Single; virtual;
     function GetCraftingMachine: TFactorio.TCraftingMachine;
     function GetRecipe: TFactorio.TRecipe;
     function GetOnRemove: TEvent.TAccess;
@@ -52,10 +51,11 @@ type
 
     function GetIndex: Integer; virtual; abstract;
     procedure SetIndex(const Value: Integer); virtual; abstract;
+    function GetItemStack: TFactorio.TRecipe.TItemStack; virtual; abstract;
     function GetRatio: Single; virtual; abstract;
 
   protected
-    constructor Create(AMachineArray: TMachineArray; AItemStack: TFactorio.TRecipe.TItemStack);
+    constructor Create(AMachineArray: TMachineArray);
 
   public
     destructor Destroy; override;
@@ -65,7 +65,7 @@ type
     property CraftingMachine: TFactorio.TCraftingMachine read GetCraftingMachine;
     property Recipe: TFactorio.TRecipe read GetRecipe;
 
-    property ItemStack: TFactorio.TRecipe.TItemStack read FItemStack;
+    property ItemStack: TFactorio.TRecipe.TItemStack read GetItemStack;
     property ItemsPerSecond: Single read GetItemsPerSecond;
     property Ratio: Single read GetRatio;
 
@@ -83,15 +83,21 @@ type
   TMachineOutput = class;
 
   TMachineInput = class(TMachineIO)
+  private
+    FIngredient: TFactorio.TRecipe.TIngredient;
+
   protected
     function GetPos: TVector2; override;
 
     function GetIndex: Integer; override;
     procedure SetIndex(const Value: Integer); override;
+    function GetItemStack: TFactorio.TRecipe.TItemStack; override;
     function GetRatio: Single; override;
 
   public
-    constructor Create(AMachineArray: TMachineArray; AItemStack: TFactorio.TRecipe.TItemStack);
+    constructor Create(AMachineArray: TMachineArray; AIngredient: TFactorio.TRecipe.TIngredient);
+
+    property Ingredient: TFactorio.TRecipe.TIngredient read FIngredient;
 
     function FindConnection(AOutput: TMachineOutput): TMachineConnection;
     function IsConnected(AOutput: TMachineOutput): Boolean;
@@ -105,15 +111,23 @@ type
   end;
 
   TMachineOutput = class(TMachineIO)
+  private
+    FResult: TFactorio.TRecipe.TResult;
+
   protected
     function GetPos: TVector2; override;
 
     function GetIndex: Integer; override;
     procedure SetIndex(const Value: Integer); override;
+    function GetItemStack: TFactorio.TRecipe.TItemStack; override;
     function GetRatio: Single; override;
 
+    function GetItemsPerSecond: Single; override;
+
   public
-    constructor Create(AMachineArray: TMachineArray; AItemStack: TFactorio.TRecipe.TItemStack);
+    constructor Create(AMachineArray: TMachineArray; AResult: TFactorio.TRecipe.TResult);
+
+    property Result: TFactorio.TRecipe.TResult read FResult;
 
     function FindConnection(AInput: TMachineInput): TMachineConnection;
     function IsConnected(AInput: TMachineInput): Boolean;
@@ -151,8 +165,6 @@ type
     property Input: TMachineInput read FInput;
 
     property ItemsPerSecond: Single read GetItemsPerSecond;
-
-    procedure Draw(G: IGPGraphics);
 
     property OnRemove: TEvent.TAccess read GetOnRemove;
 
@@ -427,9 +439,11 @@ end;
 
 procedure TFactory.Draw(G: IGPGraphics);
 var
+  ConnectionNet: IConnectionNet;
   MachineArray: TMachineArray;
 begin
-
+  for ConnectionNet in ConnectionNets do
+    ConnectionNet.Draw(G);
   for MachineArray in MachineArrays do
     MachineArray.Draw(G);
 end;
@@ -513,6 +527,7 @@ end;
 
 procedure TFactory.NotifyConnectionRemove(AConnection: TMachineConnection);
 begin
+  FConnectionNets := nil;
   FOnConnectionRemove.Execute(TConnectionEventInfo.Create(Self, AConnection));
 end;
 
@@ -546,6 +561,8 @@ var
     MachineIO: TMachineIO;
   begin
     for MachineIO in ConnectionNet.Outputs do
+      Used.Add(MachineIO);
+    for MachineIO in ConnectionNet.Inputs do
       Used.Add(MachineIO);
     FConnectionNets.Add(ConnectionNet);
   end;
@@ -776,17 +793,18 @@ end;
 
 procedure TMachineArray.GenerateIO;
 var
-  ItemStack: TFactorio.TRecipe.TItemStack;
+  Ingredient: TFactorio.TRecipe.TIngredient;
+  Result: TFactorio.TRecipe.TResult;
 begin
   FInputs.Clear;
   FOutputs.Clear;
   if not HasRecipe then
     Exit;
 
-  for ItemStack in Recipe.Ingredients do
-    FInputs.Add(TMachineInput.Create(Self, ItemStack));
-  for ItemStack in Recipe.Results do
-    FOutputs.Add(TMachineOutput.Create(Self, ItemStack));
+  for Ingredient in Recipe.Ingredients do
+    FInputs.Add(TMachineInput.Create(Self, Ingredient));
+  for Result in Recipe.Results do
+    FOutputs.Add(TMachineOutput.Create(Self, Result));
 end;
 
 function TMachineArray.GetBounds: TBounds2;
@@ -866,6 +884,8 @@ begin
   if Recipe = Value then
     Exit;
   FRecipe := Value;
+  if not HasCraftingMachine or not CraftingMachine.CanCraft(Recipe) then
+    CraftingMachine := Recipe.FindCraftingMachine;
   GenerateIO;
   Change;
 end;
@@ -880,10 +900,9 @@ end;
 
 { TFactoryIO }
 
-constructor TMachineIO.Create(AMachineArray: TMachineArray; AItemStack: TFactorio.TRecipe.TItemStack);
+constructor TMachineIO.Create(AMachineArray: TMachineArray);
 begin
   FMachineArray := AMachineArray;
-  FItemStack := AItemStack;
 end;
 
 destructor TMachineIO.Destroy;
@@ -935,11 +954,11 @@ end;
 function TMachineIO.GetItemsPerSecond: Single;
 begin
   Result :=
-    ItemStack.Amount *
-    CraftingMachine.CraftingSpeed *
-    MachineArray.Count *
-    MachineArray.Performance /
-    Recipe.EnergyRequired;
+    ItemStack.Amount
+    * CraftingMachine.CraftingSpeed
+    * MachineArray.Count
+    * MachineArray.Performance
+    / Recipe.EnergyRequired;
 end;
 
 function TMachineIO.GetOnRemove: TEvent.TAccess;
@@ -968,44 +987,6 @@ begin
   inherited;
 end;
 
-procedure TMachineConnection.Draw(G: IGPGraphics);
-var
-  Pen: IGPPen;
-  Path: TArray<TGPPointF>;
-  Color: TColorRGBA;
-  Center: TVector2;
-  Font: IGPFont;
-  FontBrush: IGPBrush;
-  RatioText: string;
-  TextSize: TGPRectF;
-begin
-  {
-    if Ratio <= 1 then
-    Color := TColorRGBA.HSV(Ratio * 2, 0.8, 1, 0.5)
-    else
-    Color := TColorRGBA.HSV(4 - 0.5 / Ratio, 0.8, 1, 0.5);
-  }
-  Color := TColorRGBA.Create(0, 1, 0, 0.5);
-  Pen := TGPPen.Create(Color, 20);
-  Pen.StartCap := LineCapRound;
-  Pen.EndCap := LineCapArrowAnchor;
-  Path := [
-    TGPPointF.Create(Output.Pos.X + 32, Output.Pos.Y + 16),
-    TGPPointF.Create((Output.Pos.X + Input.Pos.X) / 2 + 16, Output.Pos.Y + 16),
-    TGPPointF.Create((Output.Pos.X + Input.Pos.X) / 2 + 16, Input.Pos.Y + 16),
-    TGPPointF.Create(Input.Pos.X, Input.Pos.Y + 16)
-    ];
-  G.DrawBeziers(Pen, Path);
-
-  Center := (Input.Pos + Output.Pos) / 2 + 16;
-  Font := TGPFont.Create('Tahoma', 12);
-  RatioText := Format('%3.3g%%', [ItemsPerSecond / Input.ItemsPerSecond * 100]);
-  TextSize := G.MeasureString(RatioText, Font, TGPPointF.Create(0, 0));
-  FontBrush := TGPSolidBrush.Create($FF000000);
-  G.DrawString(RatioText, Font, TGPPointF.Create(Center.X - TextSize.Width / 2, Center.Y - TextSize.Height / 2),
-    FontBrush);
-end;
-
 function TMachineConnection.GetItemsPerSecond: Single;
 begin
   Result := Min(Output.ItemsPerSecond, Input.ItemsPerSecond);
@@ -1028,9 +1009,10 @@ begin
   Result := AOutput.Connect(Self);
 end;
 
-constructor TMachineInput.Create(AMachineArray: TMachineArray; AItemStack: TFactorio.TRecipe.TItemStack);
+constructor TMachineInput.Create(AMachineArray: TMachineArray; AIngredient: TFactorio.TRecipe.TIngredient);
 begin
-  inherited;
+  inherited Create(AMachineArray);
+  FIngredient := AIngredient;
   FConnections := TList<TMachineConnection>.Create;
 end;
 
@@ -1053,6 +1035,11 @@ end;
 function TMachineInput.GetIndex: Integer;
 begin
   Result := MachineArray.Inputs.IndexOf(Self);
+end;
+
+function TMachineInput.GetItemStack: TFactorio.TRecipe.TItemStack;
+begin
+  Result := FIngredient;
 end;
 
 function TMachineInput.GetPos: TVector2;
@@ -1105,9 +1092,10 @@ begin
   AInput.FConnections.Add(Result);
 end;
 
-constructor TMachineOutput.Create(AMachineArray: TMachineArray; AItemStack: TFactorio.TRecipe.TItemStack);
+constructor TMachineOutput.Create(AMachineArray: TMachineArray; AResult: TFactorio.TRecipe.TResult);
 begin
-  inherited;
+  inherited Create(AMachineArray);
+  FResult := AResult;
   FConnections := TObjectList<TMachineConnection>.Create;
 end;
 
@@ -1137,6 +1125,16 @@ end;
 function TMachineOutput.GetIndex: Integer;
 begin
   Result := MachineArray.Outputs.IndexOf(Self);
+end;
+
+function TMachineOutput.GetItemsPerSecond: Single;
+begin
+  Result := inherited * Self.Result.Probability;
+end;
+
+function TMachineOutput.GetItemStack: TFactorio.TRecipe.TItemStack;
+begin
+  Result := FResult;
 end;
 
 function TMachineOutput.GetPos: TVector2;
@@ -1225,21 +1223,86 @@ begin
 end;
 
 procedure TConnectionNet.Draw(G: IGPGraphics);
+var
+  Pen: IGPPen;
+  Path: TArray<TGPPointF>;
+  Color: TColorRGBA;
+  Font: IGPFont;
+  FontBrush: IGPBrush;
+  RatioText: string;
+  TextSize: TGPRectF;
+  MachineIO: TMachineIO;
 begin
+  if Inputs.Empty or Outputs.Empty then
+    Exit;
 
+  if Effectivity <= 1 then
+    Color := TColorRGBA.HSV(Effectivity * 2, 0.5, 1, 1)
+  else
+    Color := TColorRGBA.HSV(4 - 2 / Effectivity, 0.5, 1);
+
+  Pen := TGPPen.Create(Color, 20);
+  Pen.StartCap := LineCapRound;
+  Pen.EndCap := LineCapRound;
+
+  for MachineIO in Outputs do
+  begin
+    G.DrawLines(Pen, [
+      TGPPointF.Create(MachineIO.Pos.X + 32, MachineIO.Pos.Y + 16),
+      TGPPointF.Create(Center.X, MachineIO.Pos.Y + 16),
+      TGPPointF.Create(Center.X, Center.Y)]);
+  end;
+
+  Pen.EndCap := LineCapArrowAnchor;
+
+  for MachineIO in Inputs do
+  begin
+    G.DrawLines(Pen, [
+      TGPPointF.Create(Center.X, Center.Y),
+      TGPPointF.Create(Center.X, MachineIO.Pos.Y + 16),
+      TGPPointF.Create(MachineIO.Pos.X, MachineIO.Pos.Y + 16)]);
+  end;
+
+  Font := TGPFont.Create('Tahoma', 12, [FontStyleBold]);
+  RatioText := Format('%3.3g/s'#10'%3.3g%%', [ItemsPerSecond, Effectivity * 100]);
+  TextSize := G.MeasureString(RatioText, Font, TGPPointF.Create(0, 0));
+  FontBrush := TGPSolidBrush.Create($FF000000);
+  G.DrawString(
+    RatioText,
+    Font,
+    TGPPointF.Create(Center.X - TextSize.Width / 2, Center.Y - TextSize.Height / 2),
+    FontBrush);
 end;
 
 function TConnectionNet.GetCenter: TVector2;
 var
   Output: TMachineOutput;
   Input: TMachineInput;
+  Bounds: TBounds2;
 begin
-  Result := 0;
-  for Output in Outputs do
-    Result := Result + Output.Pos;
+  if Outputs.Empty or Inputs.Empty then
+    Exit(0);
+
+  Bounds.C1.X := Outputs.First.Pos.X;
+  for Output in Outputs.Iterate.Skip(1) do
+    Bounds.C1.X := Max(Bounds.C1.X, Output.Pos.X);
+  Bounds.C2.X := Inputs.First.Pos.X;
+  for Input in Inputs.Iterate.Skip(1) do
+    Bounds.C2.X := Min(Bounds.C2.X, Input.Pos.X);
+
+  Bounds.C1.Y := Outputs.First.Pos.Y;
+  Bounds.C2.Y := Outputs.First.Pos.Y;
+  for Output in Outputs.Iterate.Skip(1) do
+  begin
+    Bounds.C1.Y := Min(Bounds.C1.Y, Output.Pos.Y);
+    Bounds.C2.Y := Max(Bounds.C2.Y, Output.Pos.Y);
+  end;
   for Input in Inputs do
-    Result := Result + Input.Pos;
-  Result := Result / (Outputs.Count + Inputs.Count) + 16;
+  begin
+    Bounds.C1.Y := Min(Bounds.C1.Y, Input.Pos.Y);
+    Bounds.C2.Y := Max(Bounds.C2.Y, Input.Pos.Y);
+  end;
+  Result := Bounds.Center + 16;
 end;
 
 function TConnectionNet.GetEffectivity: Single;

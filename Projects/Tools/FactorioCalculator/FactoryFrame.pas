@@ -19,6 +19,7 @@ uses
 
   Pengine.Vector,
   Pengine.Utility,
+  Pengine.Factorio.General,
 
   FactoryDefine;
 
@@ -33,6 +34,7 @@ type
     FConfigureMachineArray: TMachineArray;
     FDragInput: TMachineInput;
     FDragOutput: TMachineOutput;
+    FDragCreate: Boolean;
     FDragPos: TOpt<TVector2>;
     FCamera: TVector2;
 
@@ -90,22 +92,35 @@ procedure TfrmFactory.DrawConnection(G: IGPGraphics);
 var
   Pen: IGPPen;
   Start, Stop: TVector2;
+  MachineArray: TMachineArray;
 begin
   if (FDragInput = nil) and (FDragOutput = nil) then
     Exit;
-  Pen := TGPPen.Create($7F7F7FFF, 16);
+  MachineArray := Factory.MachineArrayAt(MouseToFactory(FDragPos));
+
+  if (FDragInput <> nil) and (MachineArray = FDragInput.MachineArray) then
+      Exit;
+  if (FDragOutput <> nil) and (MachineArray = FDragOutput.MachineArray) then
+      Exit;
+
+  if FDragCreate then
+    Pen := TGPPen.Create($7FFF7F7F, 16)
+  else
+    Pen := TGPPen.Create($7F7F7FFF, 16);
   Pen.StartCap := LineCapRound;
   Pen.EndCap := LineCapArrowAnchor;
   if FDragInput <> nil then
   begin
-    Start := FDragPos;
+    Start := MouseToFactory(FDragPos);
     Stop := FDragInput.Pos + Vec2(0, 16);
   end
   else
   begin
     Start := FDragOutput.Pos + Vec2(32, 16);
-    Stop := FDragPos;
+    Stop := MouseToFactory(FDragPos);
   end;
+  Start := Start;
+  Stop := Stop;
   G.DrawLine(Pen, Start.X, Start.Y, Stop.X, Stop.Y);
 end;
 
@@ -137,7 +152,17 @@ begin
       FDragMachineArray := MachineArray;
     end
     else if Button = mbRight then
+    begin
       FConfigureMachineArray := MachineArray;
+      Input := MachineArray.InputAt(MouseToFactory(X, Y));
+      if Input <> nil then
+      begin
+        FDragInput := Input;
+        FDragCreate := True;
+        FDragPos := Vec2(X, Y);
+        Exit;
+      end;
+    end;
   end
   else
   begin
@@ -192,6 +217,7 @@ var
   MachineArray: TMachineArray;
   Output: TMachineOutput;
   Input: TMachineInput;
+  Recipe: TFactorio.TRecipe;
 begin
   FDragPos.Clear;
   FDragMachineArray := nil;
@@ -203,6 +229,10 @@ begin
     begin
       frmRecipes.Execute(MachineArray);
       FConfigureMachineArray := nil;
+      FDragInput := nil;
+      FDragOutput := nil;
+      Invalidate;
+      FDragCreate := False;
       Exit;
     end;
     Input := MachineArray.InputAt(MouseToFactory(X, Y));
@@ -224,7 +254,26 @@ begin
   if FDragInput <> nil then
   begin
     Invalidate;
-    if Output <> nil then
+    if FDragCreate then
+    begin
+      Recipe := FDragInput.Ingredient.Item.FindRecipe;
+      if Recipe <> nil then
+      begin
+        MachineArray := Factory.AddMachineArray;
+        MachineArray.Recipe := Recipe;
+        MachineArray.Pos := MouseToFactory(X, Y) - MachineArray.Bounds.Size / 2;
+        for Output in MachineArray.Outputs do
+        begin
+          if Output.ItemStack.Item = FDragInput.ItemStack.Item then
+          begin
+            FDragInput.Connect(Output);
+            Break;
+          end;
+        end;
+      end;
+      FDragCreate := False;
+    end
+    else if Output <> nil then
       FDragInput.ToggleConnection(Output);
     FDragInput := nil;
   end;
