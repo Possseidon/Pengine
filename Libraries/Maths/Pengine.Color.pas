@@ -5,6 +5,8 @@ interface
 uses
   Vcl.Graphics,
 
+  GdiPlus,
+
   Pengine.Vector;
 
 type
@@ -47,6 +49,8 @@ type
     class function Rainbow(H: Single; A: Single = 1): TColorRGBA; static;
 
     class operator Implicit(AValue: TColor): TColorRGBA;
+    class operator Implicit(AValue: TColorRGBA): TGPColor;
+    class operator Implicit(AValue: TGPColor): TColorRGBA;
 
     function ToWinColor: TColor;
     function ToBytes: TBytes;
@@ -100,6 +104,8 @@ type
     class operator Implicit(AValue: TColorRGB): TColorRGBA;
     class operator Implicit(AValue: TColor): TColorRGB;
     class operator Implicit(AValue: Single): TColorRGB;
+    class operator Implicit(AValue: TColorRGB): TGPColor;
+    class operator Implicit(AValue: TGPColor): TColorRGB;
 
     function ToWinColor: TColor;
     function ToBytes: TBytes;
@@ -333,6 +339,27 @@ begin
   Result := TColorRGB.Gray(AValue);
 end;
 
+class operator TColorRGB.Implicit(AValue: TGPColor): TColorRGB;
+var
+  B: TBytes;
+begin
+  B.R := AValue.R;
+  B.G := AValue.G;
+  B.B := AValue.B;
+  Result := B.Convert;
+end;
+
+class operator TColorRGB.Implicit(AValue: TColorRGB): TGPColor;
+var
+  B: TBytes;
+begin
+  B := AValue.ToBytes;
+  Result.R := B.R;
+  Result.G := B.G;
+  Result.B := B.B;
+  Result.A := 1;
+end;
+
 { TColorRGBA }
 
 class operator TColorRGBA.Add(A, B: TColorRGBA): TColorRGBA;
@@ -418,6 +445,28 @@ class function TColorRGBA.HSV(H, S, V: Single; A: Single): TColorRGBA;
 begin
   Result := TColorRGB.HSV(H, S, V);
   Result.A := A;
+end;
+
+class operator TColorRGBA.Implicit(AValue: TGPColor): TColorRGBA;
+var
+  B: TBytes;
+begin
+  B.R := AValue.R;
+  B.G := AValue.G;
+  B.B := AValue.B;
+  B.A := AValue.A;
+  Result := B.Convert;
+end;
+
+class operator TColorRGBA.Implicit(AValue: TColorRGBA): TGPColor;
+var
+  B: TBytes;
+begin
+  B := AValue.ToBytes;
+  Result.R := B.R;
+  Result.G := B.G;
+  Result.B := B.B;
+  Result.A := B.A;
 end;
 
 class function TColorRGBA.Gray(V: Single; A: Single): TColorRGBA;

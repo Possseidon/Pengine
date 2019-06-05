@@ -206,7 +206,7 @@ type
   end;
 
   /// <summary>A map, which is readonly.</summary>
-  IReadonlyMap<K, V> = interface(IReadonlyCollection<TPair<K, V>>)
+  IReadonlyMap<K, V> = interface(IReadonlyCollection < TPair < K, V >> )
     function GetItem(AKey: K): V;
 
     property Items[AKey: K]: V read GetItem; default;
@@ -291,6 +291,13 @@ type
     procedure InsertRange(AIndex: Integer; AItems: array of T); overload;
     procedure InsertRange(AIndex: Integer; AItems: IIterable<T>); overload;
     procedure InsertRange(AIndex: Integer; AItems: IIterator<T>); overload;
+
+    procedure Move(AFrom, ATo: Integer); overload;
+    procedure Move(AItem: T; AIndex: Integer); overload;
+
+    procedure Swap(AIndex1, AIndex2: Integer); overload;
+    procedure Swap(AItem: T; AIndex: Integer); overload;
+    procedure Swap(AItem1, AItem2: T); overload;
 
     function TrySort: Boolean;
     procedure Sort;
@@ -378,7 +385,7 @@ type
   end;
 
   /// <summary>A key-value map.</summary>
-  IMap<K, V> = interface(ICollection<TPair<K, V>>)
+  IMap<K, V> = interface(ICollection < TPair < K, V >> )
     function GetItem(AKey: K): V;
     procedure SetItem(AKey: K; AValue: V);
     function GetHashKey: TFunc<K, Cardinal>;
@@ -590,6 +597,13 @@ type
     procedure AddRange(AItems: IIterator<T>); overload;
 
     function IndexOf(AItem: T): Integer;
+
+    procedure Move(AFrom, ATo: Integer); overload;
+    procedure Move(AItem: T; AIndex: Integer); overload;
+
+    procedure Swap(AIndex1, AIndex2: Integer); overload;
+    procedure Swap(AItem: T; AIndex: Integer); overload;
+    procedure Swap(AItem1, AItem2: T); overload;
 
     function TrySort: Boolean;
     procedure Sort;
@@ -819,7 +833,7 @@ type
   end;
 
   TMap<K, V> = class(THashBase<TPair<K, V>, K>, IHashCollection<K>, IMap<K, V>, ICollection<TPair<K, V>>,
-    IIterable<TPair<K, V>>, IReadonlyMap<K, V>, IReadonlyCollection<TPair<K, V>>)
+    IIterable<TPair<K, V>>, IReadonlyMap<K, V>, IReadonlyCollection < TPair < K, V >> )
   private type
 
     TCollection = class(TInterfacedObject)
@@ -925,8 +939,8 @@ type
   public
     constructor Create; overload; override;
     constructor Create(APairs: array of TPair<K, V>); reintroduce; overload;
-    constructor Create(APairs: IIterator<TPair<K, V>>); reintroduce; overload;
-    constructor Create(APairs: IIterable<TPair<K, V>>); reintroduce; overload;
+    constructor Create(APairs: IIterator < TPair < K, V >> ); reintroduce; overload;
+    constructor Create(APairs: IIterable < TPair < K, V >> ); reintroduce; overload;
 
     // IIterable<TPair<K, V>>
     function GetEnumerator: IIterator<TPair<K, V>>;
@@ -943,8 +957,8 @@ type
     function Extract(APair: TPair<K, V>): TPair<K, V>; overload;
 
     procedure AddRange(APairs: array of TPair<K, V>); overload;
-    procedure AddRange(APairs: IIterable<TPair<K, V>>); overload;
-    procedure AddRange(APairs: IIterator<TPair<K, V>>); overload;
+    procedure AddRange(APairs: IIterable < TPair < K, V >> ); overload;
+    procedure AddRange(APairs: IIterator < TPair < K, V >> ); overload;
 
     function ReadonlyCollection: IReadonlyCollection<TPair<K, V>>;
 
@@ -978,7 +992,7 @@ type
   end;
 
   TObjectMap<K: class; V> = class(TMap<K, V>, IObjectMap<K, V>, IHashCollection<K>, IMap<K, V>,
-    ICollection<TPair<K, V>>, IIterable<TPair<K, V>>, IReadonlyMap<K, V>, IReadonlyCollection<TPair<K, V>>)
+    ICollection<TPair<K, V>>, IIterable<TPair<K, V>>, IReadonlyMap<K, V>, IReadonlyCollection < TPair < K, V >> )
   private
     FOwnsKeys: Boolean;
 
@@ -1003,7 +1017,7 @@ type
   end;
 
   TToObjectMap<K; V: class> = class(TMap<K, V>, IToObjectMap<K, V>, IHashCollection<K>, IMap<K, V>,
-    ICollection<TPair<K, V>>, IIterable<TPair<K, V>>, IReadonlyMap<K, V>, IReadonlyCollection<TPair<K, V>>)
+    ICollection<TPair<K, V>>, IIterable<TPair<K, V>>, IReadonlyMap<K, V>, IReadonlyCollection < TPair < K, V >> )
   private
     FOwnsValues: Boolean;
 
@@ -1028,7 +1042,7 @@ type
   end;
 
   TObjectObjectMap<K, V: class> = class(TMap<K, V>, IObjectObjectMap<K, V>, IHashCollection<K>, IMap<K, V>,
-    ICollection<TPair<K, V>>, IIterable<TPair<K, V>>, IReadonlyMap<K, V>, IReadonlyCollection<TPair<K, V>>)
+    ICollection<TPair<K, V>>, IIterable<TPair<K, V>>, IReadonlyMap<K, V>, IReadonlyCollection < TPair < K, V >> )
   private
     FOwnsKeys: Boolean;
     FOwnsValues: Boolean;
@@ -2005,6 +2019,18 @@ begin
   Result := TIterableIterate<T>.Create(Self);
 end;
 
+procedure TList<T>.Move(AFrom, ATo: Integer);
+begin
+  if AFrom = ATo then
+    Exit;
+  Insert(ATo, Extract(AFrom));
+end;
+
+procedure TList<T>.Move(AItem: T; AIndex: Integer);
+begin
+  Move(IndexOf(AItem), AIndex);
+end;
+
 function TList<T>.ReadonlyCollection: IReadonlyCollection<T>;
 begin
   Result := Self;
@@ -2086,6 +2112,27 @@ procedure TList<T>.Sort;
 begin
   if not TrySort then
     raise EListError.Create('Invalid sort function.');
+end;
+
+procedure TList<T>.Swap(AIndex1, AIndex2: Integer);
+var
+  Tmp: T;
+begin
+  if AIndex1 = AIndex2 then
+    Exit;
+  Tmp := FItems[AIndex1];
+  FItems[AIndex1] := FItems[AIndex2];
+  FItems[AIndex2] := Tmp;
+end;
+
+procedure TList<T>.Swap(AItem: T; AIndex: Integer);
+begin
+  Swap(IndexOf(AItem), AIndex);
+end;
+
+procedure TList<T>.Swap(AItem1, AItem2: T);
+begin
+  Swap(IndexOf(AItem1), IndexOf(AItem2));
 end;
 
 function TList<T>.Copy: IList<T>;
@@ -2250,7 +2297,7 @@ var
   Item: T;
 begin
   if OwnsValues then
-    for Item in Self do
+    for Item in Reverse do
       Item.Free;
   inherited;
 end;
@@ -2260,7 +2307,7 @@ var
   Item: T;
 begin
   if OwnsValues then
-    for Item in Self do
+    for Item in Reverse do
       Item.Free;
   inherited;
 end;
@@ -2294,7 +2341,7 @@ begin
   RangeCheck(AIndex);
   RangeCheck(AIndex + ACount - 1);
   if OwnsValues then
-    for I := AIndex to AIndex + ACount - 1 do
+    for I := AIndex + ACount - 1 downto AIndex do
       Items[AIndex].Free;
   DoRemoveRange(AIndex, ACount);
 end;
@@ -2322,7 +2369,7 @@ var
   Item: T;
 begin
   if OwnsValues then
-    for Item in Self do
+    for Item in Reverse do
       Item.Free;
   inherited;
 end;
@@ -2332,7 +2379,7 @@ var
   Item: T;
 begin
   if OwnsValues then
-    for Item in Self do
+    for Item in Reverse do
       Item.Free;
   inherited;
 end;
@@ -2372,7 +2419,7 @@ begin
   RangeCheck(AIndex);
   RangeCheck(AIndex + ACount - 1);
   if OwnsValues then
-    for I := AIndex to AIndex + ACount - 1 do
+    for I := AIndex + ACount - 1 downto AIndex do
       Items[AIndex].Free;
   DoRemoveRange(AIndex, ACount);
 end;
@@ -2943,13 +2990,13 @@ begin
   AddRange(APairs);
 end;
 
-constructor TMap<K, V>.Create(APairs: IIterator<TPair<K, V>>);
+constructor TMap<K, V>.Create(APairs: IIterator < TPair < K, V >> );
 begin
   Create;
   AddRange(APairs);
 end;
 
-constructor TMap<K, V>.Create(APairs: IIterable<TPair<K, V>>);
+constructor TMap<K, V>.Create(APairs: IIterable < TPair < K, V >> );
 begin
   Create;
   AddRange(APairs);
@@ -2962,7 +3009,7 @@ end;
 
 function TMap<K, V>.Iterate: IIterate<TPair<K, V>>;
 begin
-  Result := TIterableIterate<TPair<K, V>>.Create(Self);
+  Result := TIterableIterate < TPair < K, V >>.Create(Self);
 end;
 
 function TMap<K, V>.Empty: Boolean;
@@ -3057,7 +3104,7 @@ begin
     Add(Pair);
 end;
 
-procedure TMap<K, V>.AddRange(APairs: IIterable<TPair<K, V>>);
+procedure TMap<K, V>.AddRange(APairs: IIterable < TPair < K, V >> );
 begin
   EnsureCapacity(Count + APairs.Iterate.Count);
   AddRange(APairs.GetEnumerator);
@@ -3078,7 +3125,7 @@ begin
   end;
 end;
 
-procedure TMap<K, V>.AddRange(APairs: IIterator<TPair<K, V>>);
+procedure TMap<K, V>.AddRange(APairs: IIterator < TPair < K, V >> );
 begin
   while APairs.MoveNext do
     Add(APairs.Current);
@@ -4135,7 +4182,7 @@ end;
 
 function TEmptyIterator<T>.GetCurrent: T;
 begin
-  Exit(Default(T));
+  Exit(Default (T));
 end;
 
 function TEmptyIterator<T>.MoveNext: Boolean;

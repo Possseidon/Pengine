@@ -27,7 +27,7 @@ uses
 
   FactoryDefine,
   RecipeForm,
-  FactoryFrame;
+  FactoryFrame, System.Actions, Vcl.ActnList;
 
 type
   TfrmMain = class(TForm)
@@ -41,14 +41,32 @@ type
     Saveas1: TMenuItem;
     N2: TMenuItem;
     frmFactory: TfrmFactory;
+    alMain: TActionList;
+    actNew: TAction;
+    actSaveAs: TAction;
+    actSave: TAction;
+    actOpen: TAction;
+    actExit: TAction;
+    odOpen: TOpenDialog;
+    sdSave: TSaveDialog;
+    procedure actExitExecute(Sender: TObject);
+    procedure actNewExecute(Sender: TObject);
+    procedure actOpenExecute(Sender: TObject);
+    procedure actSaveAsExecute(Sender: TObject);
+    procedure actSaveExecute(Sender: TObject);
   private
     FFactorio: TFactorio;
+    FFilename: string;
+    procedure SetFilename(const Value: string);
+    procedure UpdateCaption;
 
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
     property Factorio: TFactorio read FFactorio;
+
+    property Filename: string read FFilename write SetFilename;
 
   end;
 
@@ -63,20 +81,66 @@ implementation
 
 constructor TfrmMain.Create(AOwner: TComponent);
 begin
-  TODO
-  // Still some event missing event handler bug... oof
-  // Reproduce:
-  // 1) Build gear, gear, transport-belt
-  // 2) Connect both gears to the treansport-belt
-  // 3) Remove the belt
   FFactorio := TFactorio.Create;
   inherited;
+  UpdateCaption;
 end;
 
 destructor TfrmMain.Destroy;
 begin
   inherited;
   FFactorio.Free;
+end;
+
+procedure TfrmMain.UpdateCaption;
+begin
+  if Filename.IsEmpty then
+    Caption := 'Factorio Calculator'
+  else
+    Caption := Format('%s - Factorio Calculator', [ChangeFileExt(ExtractFileName(Filename), '')]);
+end;
+
+procedure TfrmMain.SetFilename(const Value: string);
+begin
+  if Filename = Value then
+    Exit;
+  FFilename := Value;
+  UpdateCaption;
+end;
+
+procedure TfrmMain.actExitExecute(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TfrmMain.actNewExecute(Sender: TObject);
+begin
+  frmFactory.Factory.Clear;
+  Filename := '';
+end;
+
+procedure TfrmMain.actOpenExecute(Sender: TObject);
+begin
+  if not odOpen.Execute then
+    Exit;
+  Filename := odOpen.FileName;
+  frmFactory.Factory.LoadFromFile(Filename);
+end;
+
+procedure TfrmMain.actSaveAsExecute(Sender: TObject);
+begin
+  if not sdSave.Execute then
+    Exit;
+  Filename := sdSave.FileName;
+  frmFactory.Factory.SaveToFile(Filename);
+end;
+
+procedure TfrmMain.actSaveExecute(Sender: TObject);
+begin
+  if Filename.IsEmpty then
+    actSaveAsExecute(Sender)
+  else
+    frmFactory.Factory.SaveToFile(Filename);
 end;
 
 end.

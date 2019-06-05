@@ -209,7 +209,10 @@ begin
   pbCraftingMachine.Invalidate;
   pbGroup.Invalidate;
   pbRecipe.Invalidate;
-  lbMachineName.Caption := string(FMachineArray.CraftingMachine.DisplayName);
+  if FMachineArray.HasCraftingMachine then
+    lbMachineName.Caption := string(FMachineArray.CraftingMachine.DisplayName)
+  else
+    lbMachineName.Caption := '[none]';
 
   GroupExists := Groups.Any(
     function(Group: TFactorio.TItemGroup): Boolean
@@ -287,6 +290,8 @@ end;
 
 function TfrmRecipes.Groups: IIterate<TFactorio.TItemGroup>;
 begin
+  if not FMachineArray.HasCraftingMachine then
+    Exit(TEmptyIterable<TFactorio.TItemGroup>.Create.Iterate);
   Result := Factorio.ItemGroupOrder.Iterate.Where(
     function(Group: TFactorio.TItemGroup): Boolean
     begin
@@ -384,6 +389,9 @@ end;
 
 function TfrmRecipes.Recipes: IIterate<IIterate<TFactorio.TRecipe>>;
 begin
+  if not FMachineArray.HasCraftingMachine then
+    Exit(TEmptyIterable<IIterate<TFactorio.TRecipe>>.Create.Iterate);
+
   Result := Subgroups.Generic.Map < IIterate < TFactorio.TRecipe >> (
     function(Subgroup: TFactorio.TItemSubgroup): IIterate<TFactorio.TRecipe>
     begin
