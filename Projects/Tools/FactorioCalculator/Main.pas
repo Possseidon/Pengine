@@ -27,7 +27,9 @@ uses
 
   FactoryDefine,
   RecipeForm,
-  FactoryFrame, System.Actions, Vcl.ActnList;
+  FactoryFrame,
+  System.Actions,
+  Vcl.ActnList;
 
 type
   TfrmMain = class(TForm)
@@ -54,6 +56,8 @@ type
     procedure actOpenExecute(Sender: TObject);
     procedure actSaveAsExecute(Sender: TObject);
     procedure actSaveExecute(Sender: TObject);
+    procedure FormMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta:
+      Integer; MousePos: TPoint; var Handled: Boolean);
   private
     FFactorio: TFactorio;
     FFilename: string;
@@ -123,7 +127,7 @@ procedure TfrmMain.actOpenExecute(Sender: TObject);
 begin
   if not odOpen.Execute then
     Exit;
-  Filename := odOpen.FileName;
+  Filename := odOpen.Filename;
   frmFactory.Factory.LoadFromFile(Filename);
 end;
 
@@ -131,7 +135,7 @@ procedure TfrmMain.actSaveAsExecute(Sender: TObject);
 begin
   if not sdSave.Execute then
     Exit;
-  Filename := sdSave.FileName;
+  Filename := sdSave.Filename;
   frmFactory.Factory.SaveToFile(Filename);
 end;
 
@@ -141,6 +145,14 @@ begin
     actSaveAsExecute(Sender)
   else
     frmFactory.Factory.SaveToFile(Filename);
+end;
+
+procedure TfrmMain.FormMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint;
+  var Handled: Boolean);
+begin
+  MousePos := frmFactory.ScreenToClient(MousePos);
+  if frmFactory.BoundsRect.Contains(MousePos) then
+    frmFactory.OnMouseWheel(Sender, Shift, WheelDelta, MousePos, Handled);
 end;
 
 end.

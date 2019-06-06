@@ -7,7 +7,8 @@ uses
   RecipeForm in 'RecipeForm.pas' {frmRecipes},
   FactoryFrame in 'FactoryFrame.pas' {frmFactory: TFrame},
   Vcl.Themes,
-  Vcl.Styles;
+  Vcl.Styles,
+  ActionRecorder in 'ActionRecorder.pas';
 
 {$R *.res}
 

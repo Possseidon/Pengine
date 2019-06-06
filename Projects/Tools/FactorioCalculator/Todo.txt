@@ -1,8 +1,10 @@
 --- TODO ---
 
-- Change connections to only use ConnectionNet
-- Saving connections
-- Auto balancing
-- Modules
-- Draggable ConnectionNet-Center
-- Zooming
+[ ] Change connections to only use ConnectionNet
+[ ] Saving connections
+[ ] Auto balancing
+[ ] Modules
+[ ] Draggable ConnectionNet-Center
+[X] Zooming
+[ ] Undo-Redo
+[ ] Customizable data Path

@@ -7,4 +7,6 @@ object frmFactory: TfrmFactory
   OnMouseDown = FrameMouseDown
   OnMouseMove = FrameMouseMove
   OnMouseUp = FrameMouseUp
+  OnMouseWheel = FrameMouseWheel
+  OnResize = FrameResize
 end
