@@ -25,17 +25,16 @@ type
 
   TFactory = class;
   TMachineArray = class;
-  TMachineConnection = class;
+  IConnectionNet = interface;
 
-  TMachineIO = class
+  TMachinePort = class
   public type
 
-    TEventInfo = TSenderEventInfo<TMachineIO>;
+    TEventInfo = TSenderEventInfo<TMachinePort>;
     TEvent = TEvent<TEventInfo>;
 
   private
     FMachineArray: TMachineArray;
-    FConnections: IList<TMachineConnection>;
     FOnRemove: TEvent;
 
     function GetItemsPerSecond: Single; virtual;
@@ -47,12 +46,11 @@ type
     function GetBounds: TBounds2;
 
     procedure DrawItemAmount(G: IGPGraphics; APos: TVector2);
-    function GetConnections: IReadonlyList<TMachineConnection>;
-
+    
     function GetIndex: Integer; virtual; abstract;
     procedure SetIndex(const Value: Integer); virtual; abstract;
     function GetItemStack: TFactorio.TRecipe.TItemStack; virtual; abstract;
-    function GetRatio: Single; virtual; abstract;
+    function GetConnectionNet: IConnectionNet;
 
   protected
     constructor Create(AMachineArray: TMachineArray);
@@ -67,9 +65,9 @@ type
 
     property ItemStack: TFactorio.TRecipe.TItemStack read GetItemStack;
     property ItemsPerSecond: Single read GetItemsPerSecond;
-    property Ratio: Single read GetRatio;
 
-    property Connections: IReadonlyList<TMachineConnection> read GetConnections;
+    function IsConnected: Boolean;
+    property ConnectionNet: IConnectionNet read GetConnectionNet;
 
     property Pos: TVector2 read GetPos;
     property Bounds: TBounds2 read GetBounds;
@@ -82,7 +80,7 @@ type
 
   TMachineOutput = class;
 
-  TMachineInput = class(TMachineIO)
+  TMachineInput = class(TMachinePort)
   private
     FIngredient: TFactorio.TRecipe.TIngredient;
 
@@ -92,25 +90,17 @@ type
     function GetIndex: Integer; override;
     procedure SetIndex(const Value: Integer); override;
     function GetItemStack: TFactorio.TRecipe.TItemStack; override;
-    function GetRatio: Single; override;
 
   public
     constructor Create(AMachineArray: TMachineArray; AIngredient: TFactorio.TRecipe.TIngredient);
 
     property Ingredient: TFactorio.TRecipe.TIngredient read FIngredient;
 
-    function FindConnection(AOutput: TMachineOutput): TMachineConnection;
-    function IsConnected(AOutput: TMachineOutput): Boolean;
-    function Connect(AOutput: TMachineOutput): TMachineConnection;
-    procedure Disconnect(AOutput: TMachineOutput);
-    procedure RemoveConnection(AConnection: TMachineConnection);
-    function ToggleConnection(AOutput: TMachineOutput): Boolean;
-
     procedure Draw(G: IGPGraphics); override;
 
   end;
 
-  TMachineOutput = class(TMachineIO)
+  TMachineOutput = class(TMachinePort)
   private
     FResult: TFactorio.TRecipe.TResult;
 
@@ -120,7 +110,6 @@ type
     function GetIndex: Integer; override;
     procedure SetIndex(const Value: Integer); override;
     function GetItemStack: TFactorio.TRecipe.TItemStack; override;
-    function GetRatio: Single; override;
 
     function GetItemsPerSecond: Single; override;
 
@@ -129,44 +118,7 @@ type
 
     property Result: TFactorio.TRecipe.TResult read FResult;
 
-    function FindConnection(AInput: TMachineInput): TMachineConnection;
-    function IsConnected(AInput: TMachineInput): Boolean;
-    function Connect(AInput: TMachineInput): TMachineConnection;
-    procedure Disconnect(AInput: TMachineInput);
-    procedure RemoveConnection(AConnection: TMachineConnection);
-    function ToggleConnection(AInput: TMachineInput): Boolean;
-
     procedure Draw(G: IGPGraphics); override;
-
-  end;
-
-  TMachineConnection = class
-  public type
-
-    TEventInfo = TSenderEventInfo<TMachineConnection>;
-
-    TEvent = TEvent<TEventInfo>;
-
-  private
-    FOutput: TMachineOutput;
-    FInput: TMachineInput;
-    FOnRemove: TEvent;
-
-    function GetOnRemove: TEvent.TAccess;
-    function GetItemsPerSecond: Single;
-
-  public
-    constructor Create(AOutput: TMachineOutput; AInput: TMachineInput);
-    destructor Destroy; override;
-
-    procedure Remove;
-
-    property Output: TMachineOutput read FOutput;
-    property Input: TMachineInput read FInput;
-
-    property ItemsPerSecond: Single read GetItemsPerSecond;
-
-    property OnRemove: TEvent.TAccess read GetOnRemove;
 
   end;
 
@@ -200,10 +152,10 @@ type
     procedure SetPerformance(const Value: Single);
     function GetBounds: TBounds2;
 
-    procedure GenerateIO;
+    procedure GeneratePorts;
     function GetInputs: IReadonlyList<TMachineInput>;
     function GetOutputs: IReadonlyList<TMachineOutput>;
-    function GetIOHeight: Integer;
+    function GetPortHeight: Integer;
 
   public
     constructor Create(AFactory: TFactory);
@@ -231,12 +183,13 @@ type
     property Outputs: IReadonlyList<TMachineOutput> read GetOutputs;
     function HasCustomOutputOrder: Boolean;
 
-    property IOHeight: Integer read GetIOHeight;
+    property PortHeight: Integer read GetPortHeight;
 
     property OnChange: TEvent.TAccess read GetOnChange;
     property OnRemove: TEvent.TAccess read GetOnRemove;
     procedure Draw(G: IGPGraphics);
 
+    function PortAt(APos: TVector2): TMachinePort;
     function InputAt(APos: TVector2): TMachineInput;
     function OutputAt(APos: TVector2): TMachineOutput;
 
@@ -247,15 +200,26 @@ type
   end;
 
   IConnectionNet = interface
-    function GetOutputs: IReadonlyList<TMachineOutput>;
-    function GetInputs: IReadonlyList<TMachineInput>;
-    function GetConnections: IReadonlyList<TMachineConnection>;
-    function GetEffectivity: Single;
-    function GetItemsPerSecond: Single;
-    function GetInputPerSecond: Single;
+    function GetMachinePorts: IReadonlyList<TMachinePort>;
+    function GetOutputs: IIterate<TMachineOutput>;
+    function GetInputs: IIterate<TMachineInput>;
+    function GetItemType: TFactorio.TItemOrFluid;
     function GetOutputPerSecond: Single;
+    function GetInputPerSecond: Single;
+    function GetItemsPerSecond: Single;
+    function GetEffectivity: Single;
     function GetCenter: TVector2;
+    function GetOnChange: TEvent<TSenderEventInfo<IConnectionNet>>.TAccess;
+    function GetOnRemove: TEvent<TSenderEventInfo<IConnectionNet>>.TAccess;
 
+    property MachinePorts: IReadonlyList<TMachinePort> read GetMachinePorts;
+    property Outputs: IIterate<TMachineOutput> read GetOutputs;
+    property Inputs: IIterate<TMachineInput> read GetInputs;
+
+    function Add(AMachinePort: TMachinePort): Boolean;
+    procedure Remove(AMachinePort: TMachinePort);
+
+    property ItemType: TFactorio.TItemOrFluid read GetItemType;
     property OutputPerSecond: Single read GetOutputPerSecond;
     property InputPerSecond: Single read GetInputPerSecond;
     property ItemsPerSecond: Single read GetItemsPerSecond;
@@ -264,37 +228,56 @@ type
     property Center: TVector2 read GetCenter;
 
     procedure Draw(G: IGPGraphics);
+
+    property OnChange: TEvent<TSenderEventInfo<IConnectionNet>>.TAccess read GetOnChange;
+    property OnRemove: TEvent<TSenderEventInfo<IConnectionNet>>.TAccess read GetOnRemove;
 
   end;
 
   TConnectionNet = class(TInterfacedObject, IConnectionNet)
-  private
-    FOutputs: IList<TMachineOutput>;
-    FInputs: IList<TMachineInput>;
-    FConnections: IList<TMachineConnection>;
+  public type
 
-    function GetOutputs: IReadonlyList<TMachineOutput>;
-    function GetInputs: IReadonlyList<TMachineInput>;
-    function GetConnections: IReadonlyList<TMachineConnection>;
+    TEventInfo = TSenderEventInfo<IConnectionNet>;
+
+    TEvent = TEvent<TEventInfo>;
+
+  private
+    FFactory: TFactory;
+    FMachinePorts: IList<TMachinePort>;
+    FOnChange: TEvent;
+    FOnRemove: TEvent;
+
+    function GetMachinePorts: IReadonlyList<TMachinePort>;
+    function GetOutputs: IIterate<TMachineOutput>;
+    function GetInputs: IIterate<TMachineInput>;
+
+    function GetOutputPerSecond: Single;
+    function GetInputPerSecond: Single;
     function GetEffectivity: Single;
     function GetItemsPerSecond: Single;
-    function GetInputPerSecond: Single;
-    function GetOutputPerSecond: Single;
+
     function GetCenter: TVector2;
 
-    procedure AddRecursive(AInput: TMachineInput); overload;
-    procedure AddRecursive(AOutput: TMachineOutput); overload;
+    function GetOnChange: TEvent.TAccess;
+    function GetOnRemove: TEvent.TAccess;
 
-    procedure Init;
+    procedure Change;
+    function GetItemType: TFactorio.TItemOrFluid;
 
   public
-    constructor Create(AInput: TMachineInput); overload;
-    constructor Create(AOutput: TMachineOutput); overload;
+    constructor Create(AFactory: TFactory);
+    destructor Destroy; override;
 
-    property Outputs: IReadonlyList<TMachineOutput> read GetOutputs;
-    property Inputs: IReadonlyList<TMachineInput> read GetInputs;
-    property Connection: IReadonlyList<TMachineConnection> read GetConnections;
+    property Factory: TFactory read FFactory;
 
+    property MachinePorts: IReadonlyList<TMachinePort> read GetMachinePorts;
+    property Outputs: IIterate<TMachineOutput> read GetOutputs;
+    property Inputs: IIterate<TMachineInput> read GetInputs;
+
+    function Add(AMachinePort: TMachinePort): Boolean;
+    procedure Remove(AMachinePort: TMachinePort);
+
+    property ItemType: TFactorio.TItemOrFluid read GetItemType;
     property OutputPerSecond: Single read GetOutputPerSecond;
     property InputPerSecond: Single read GetInputPerSecond;
     property ItemsPerSecond: Single read GetItemsPerSecond;
@@ -303,6 +286,9 @@ type
     property Center: TVector2 read GetCenter;
 
     procedure Draw(G: IGPGraphics);
+
+    property OnChange: TEvent.TAccess read GetOnChange;
+    property OnRemove: TEvent.TAccess read GetOnRemove;
 
   end;
 
@@ -326,18 +312,18 @@ type
 
     TMachineArrayEvent = TEvent<TMachineArrayEventInfo>;
 
-    TConnectionEventInfo = class(TEventInfo)
+    TConnectionNetEventInfo = class(TEventInfo)
     private
-      FConnection: TMachineConnection;
+      FConnectionNet: IConnectionNet;
 
     public
-      constructor Create(ASender: TFactory; AConnection: TMachineConnection);
+      constructor Create(ASender: TFactory; AConnectionNet: IConnectionNet);
 
-      property Connection: TMachineConnection read FConnection;
+      property ConnectionNet: IConnectionNet read FConnectionNet;
 
     end;
 
-    TConnectionEvent = TEvent<TConnectionEventInfo>;
+    TConnectionNetEvent = TEvent<TConnectionNetEventInfo>;
 
   private
     FFactorio: TFactorio;
@@ -346,28 +332,28 @@ type
     FOnMachineArrayAdd: TMachineArrayEvent;
     FOnMachineArrayChange: TMachineArrayEvent;
     FOnMachineArrayRemove: TMachineArrayEvent;
-    FOnConnectionAdd: TConnectionEvent;
-    FOnConnectionChange: TConnectionEvent;
-    FOnConnectionRemove: TConnectionEvent;
+    FOnConnectionNetAdd: TConnectionNetEvent;
+    FOnConnectionNetChange: TConnectionNetEvent;
+    FOnConnectionNetRemove: TConnectionNetEvent;
 
     function GetMachineArrays: IReadonlyList<TMachineArray>;
+    function GetConnectionNets: IReadonlyList<IConnectionNet>;
 
     procedure MachineArrayChange(AInfo: TMachineArray.TEventInfo);
     procedure MachineArrayRemove(AInfo: TMachineArray.TEventInfo);
+    procedure ConnectionNetChange(AInfo: TConnectionNet.TEventInfo);
+    procedure ConnectionNetRemove(AInfo: TConnectionNet.TEventInfo);
+
     function GetOnMachineArrayAdd: TMachineArrayEvent.TAccess;
     function GetOnMachineArrayChange: TMachineArrayEvent.TAccess;
     function GetOnMachineArrayRemove: TMachineArrayEvent.TAccess;
 
-    procedure NotifyConnectionAdd(AConnection: TMachineConnection);
-    procedure NotifyConnectionChange(AConnection: TMachineConnection);
-    procedure NotifyConnectionRemove(AConnection: TMachineConnection);
-
-    function GetOnConnectionAdd: TConnectionEvent.TAccess;
-    function GetOnConnectionChange: TConnectionEvent.TAccess;
-    function GetOnConnectionRemove: TConnectionEvent.TAccess;
+    function GetOnConnectionNetAdd: TConnectionNetEvent.TAccess;
+    function GetOnConnectionNetChange: TConnectionNetEvent.TAccess;
+    function GetOnConnectionNetRemove: TConnectionNetEvent.TAccess;
 
     function CreateMachineArray: TMachineArray;
-    function GetConnectionNets: IReadonlyList<IConnectionNet>;
+    function CreateConnectionNet: IConnectionNet;
 
   public
     constructor Create(AFactorio: TFactorio);
@@ -381,19 +367,27 @@ type
     function AddMachineArray: TMachineArray;
     procedure RemoveMachineArray(AMachineArray: TMachineArray);
 
+    property ConnectionNets: IReadonlyList<IConnectionNet> read GetConnectionNets;
+    function AddConnectionNet(A, B: TMachinePort): IConnectionNet;
+    procedure RemoveConnectionNet(AConnectionNet: IConnectionNet);
+
+    procedure Connect(A, B: TMachinePort);
+    procedure Disconnect(AMachinePort: TMachinePort);
+    procedure ToggleConnection(A, B: TMachinePort);
+    function FindConnectionNetFor(AMachinePort: TMachinePort): IConnectionNet;
+
     procedure Clear;
 
     property OnMachineArrayAdd: TMachineArrayEvent.TAccess read GetOnMachineArrayAdd;
     property OnMachineArrayRemove: TMachineArrayEvent.TAccess read GetOnMachineArrayRemove;
     property OnMachineArrayChange: TMachineArrayEvent.TAccess read GetOnMachineArrayChange;
 
-    property OnConnectionAdd: TConnectionEvent.TAccess read GetOnConnectionAdd;
-    property OnConnectionRemove: TConnectionEvent.TAccess read GetOnConnectionRemove;
-    property OnConnectionChange: TConnectionEvent.TAccess read GetOnConnectionChange;
+    property OnConnectionNetAdd: TConnectionNetEvent.TAccess read GetOnConnectionNetAdd;
+    property OnConnectionNetRemove: TConnectionNetEvent.TAccess read GetOnConnectionNetRemove;
+    property OnConnectionNetChange: TConnectionNetEvent.TAccess read GetOnConnectionNetChange;
 
     function MachineArrayAt(APos: TVector2): TMachineArray;
-
-    property ConnectionNets: IReadonlyList<IConnectionNet> read GetConnectionNets;
+    function MachinePortAt(APos: TVector2): TMachinePort;
 
     procedure Draw(G: IGPGraphics);
 
@@ -407,6 +401,13 @@ implementation
 
 { TFactory }
 
+function TFactory.AddConnectionNet(A, B: TMachinePort): IConnectionNet;
+begin
+  Result := CreateConnectionNet;
+  if Result.Add(A) and Result.Add(B) then
+    FConnectionNets.Add(Result);
+end;
+
 function TFactory.AddMachineArray: TMachineArray;
 begin
   Result := CreateMachineArray;
@@ -418,10 +419,57 @@ begin
   FMachineArrays.Clear;
 end;
 
+procedure TFactory.Connect(A, B: TMachinePort);
+var
+  Port: TMachinePort;
+begin
+  if A = B then
+    Exit;
+  if A.IsConnected then
+  begin
+    if B.IsConnected then
+    begin
+      if A.ConnectionNet = B.ConnectionNet then
+        Exit;
+      for Port in B.ConnectionNet.MachinePorts do
+        A.ConnectionNet.Add(Port);
+      RemoveConnectionNet(B.ConnectionNet);
+    end
+    else
+      A.ConnectionNet.Add(B);
+  end
+  else
+  begin
+    if B.IsConnected then
+      B.ConnectionNet.Add(A)
+    else
+      AddConnectionNet(A, B);
+  end;
+end;
+
+procedure TFactory.ConnectionNetChange(AInfo: TConnectionNet.TEventInfo);
+begin
+  FOnConnectionNetAdd.Execute(TConnectionNetEventInfo.Create(Self, AInfo.Sender));
+end;
+
+procedure TFactory.ConnectionNetRemove(AInfo: TConnectionNet.TEventInfo);
+begin
+  FOnConnectionNetRemove.Execute(TConnectionNetEventInfo.Create(Self, AInfo.Sender));
+end;
+
 constructor TFactory.Create(AFactorio: TFactorio);
 begin
   FFactorio := AFactorio;
   FMachineArrays := TObjectList<TMachineArray>.Create;
+  FConnectionNets := TList<IConnectionNet>.Create;
+end;
+
+function TFactory.CreateConnectionNet: IConnectionNet;
+begin
+  Result := TConnectionNet.Create(Self);
+  Result.OnChange.Add(ConnectionNetChange);
+  Result.OnRemove.Add(ConnectionNetRemove);
+  FOnConnectionNetAdd.Execute(TConnectionNetEventInfo.Create(Self, Result));
 end;
 
 function TFactory.CreateMachineArray: TMachineArray;
@@ -437,6 +485,12 @@ begin
   ASerializer.DefineList<TMachineArray>('MachineArrays', FMachineArrays, CreateMachineArray);
 end;
 
+procedure TFactory.Disconnect(AMachinePort: TMachinePort);
+begin
+  if AMachinePort.IsConnected then
+    AMachinePort.ConnectionNet.Remove(AMachinePort);
+end;
+
 procedure TFactory.Draw(G: IGPGraphics);
 var
   ConnectionNet: IConnectionNet;
@@ -448,24 +502,34 @@ begin
     MachineArray.Draw(G);
 end;
 
+function TFactory.FindConnectionNetFor(AMachinePort: TMachinePort): IConnectionNet;
+var
+  ConnectionNet: IConnectionNet;
+begin
+  for ConnectionNet in FConnectionNets do
+    if ConnectionNet.MachinePorts.Contains(AMachinePort) then
+      Exit(ConnectionNet);
+  Result := nil;
+end;
+
 function TFactory.GetMachineArrays: IReadonlyList<TMachineArray>;
 begin
   Result := FMachineArrays.ReadonlyList;
 end;
 
-function TFactory.GetOnConnectionAdd: TConnectionEvent.TAccess;
+function TFactory.GetOnConnectionNetAdd: TConnectionNetEvent.TAccess;
 begin
-  Result := FOnConnectionAdd.Access;
+  Result := FOnConnectionNetAdd.Access;
 end;
 
-function TFactory.GetOnConnectionChange: TConnectionEvent.TAccess;
+function TFactory.GetOnConnectionNetChange: TConnectionNetEvent.TAccess;
 begin
-  Result := FOnConnectionChange.Access;
+  Result := FOnConnectionNetChange.Access;
 end;
 
-function TFactory.GetOnConnectionRemove: TConnectionEvent.TAccess;
+function TFactory.GetOnConnectionNetRemove: TConnectionNetEvent.TAccess;
 begin
-  Result := FOnConnectionRemove.Access;
+  Result := FOnConnectionNetRemove.Access;
 end;
 
 function TFactory.GetOnMachineArrayAdd: TMachineArrayEvent.TAccess;
@@ -513,22 +577,19 @@ begin
   FOnMachineArrayRemove.Execute(TMachineArrayEventInfo.Create(Self, AInfo.Sender));
 end;
 
-procedure TFactory.NotifyConnectionAdd(AConnection: TMachineConnection);
+function TFactory.MachinePortAt(APos: TVector2): TMachinePort;
+var
+  MachineArray: TMachineArray;
 begin
-  FConnectionNets := nil;
-  FOnConnectionAdd.Execute(TConnectionEventInfo.Create(Self, AConnection));
+  MachineArray := MachineArrayAt(APos);
+  if MachineArray = nil then
+    Exit(nil);
+  Result := MachineArray.InputAt(APos);
 end;
 
-procedure TFactory.NotifyConnectionChange(AConnection: TMachineConnection);
+procedure TFactory.RemoveConnectionNet(AConnectionNet: IConnectionNet);
 begin
-  FConnectionNets := nil;
-  FOnConnectionChange.Execute(TConnectionEventInfo.Create(Self, AConnection));
-end;
-
-procedure TFactory.NotifyConnectionRemove(AConnection: TMachineConnection);
-begin
-  FConnectionNets := nil;
-  FOnConnectionRemove.Execute(TConnectionEventInfo.Create(Self, AConnection));
+  FConnectionNets.Remove(AConnectionNet);
 end;
 
 procedure TFactory.RemoveMachineArray(AMachineArray: TMachineArray);
@@ -548,48 +609,16 @@ begin
   end;
 end;
 
-function TFactory.GetConnectionNets: IReadonlyList<IConnectionNet>;
-var
-  Used: ISet<TMachineIO>;
-  MachineArray: TMachineArray;
-  ConnectionNet: TConnectionNet;
-  Input: TMachineInput;
-  Output: TMachineOutput;
-
-  procedure AddConnectionNet;
-  var
-    MachineIO: TMachineIO;
-  begin
-    for MachineIO in ConnectionNet.Outputs do
-      Used.Add(MachineIO);
-    for MachineIO in ConnectionNet.Inputs do
-      Used.Add(MachineIO);
-    FConnectionNets.Add(ConnectionNet);
-  end;
-
+procedure TFactory.ToggleConnection(A, B: TMachinePort);
 begin
-  if FConnectionNets = nil then
-  begin
-    Used := TSet<TMachineIO>.Create;
-    FConnectionNets := TList<IConnectionNet>.Create;
-    for MachineArray in MachineArrays do
-    begin
-      for Output in MachineArray.Outputs do
-      begin
-        if Used.Contains(Output) then
-          Continue;
-        ConnectionNet := TConnectionNet.Create(Output);
-        AddConnectionNet;
-      end;
-      for Input in MachineArray.Inputs do
-      begin
-        if Used.Contains(Input) then
-          Continue;
-        ConnectionNet := TConnectionNet.Create(Input);
-        AddConnectionNet;
-      end;
-    end;
-  end;
+  if A.IsConnected and (A.ConnectionNet = B.ConnectionNet) then
+    Disconnect(A)
+  else
+    Connect(A, B);
+end;
+
+function TFactory.GetConnectionNets: IReadonlyList<IConnectionNet>;
+begin
   Result := FConnectionNets.ReadonlyList;
 end;
 
@@ -617,7 +646,7 @@ end;
 procedure TMachineArray.DefineJStorage(ASerializer: TJSerializer);
 var
   JArray: TJArray;
-  MachineIO: TMachineIO;
+  MachinePort: TMachinePort;
   I: Integer;
 begin
   ASerializer.Define('PosX', FPos.X);
@@ -634,15 +663,15 @@ begin
         if HasCustomInputOrder then
         begin
           JArray := ASerializer.Value.AddArray('InputOrder');
-          for MachineIO in Inputs do
-            JArray.Add(string(MachineIO.ItemStack.Name));
+          for MachinePort in Inputs do
+            JArray.Add(string(MachinePort.ItemStack.Name));
         end;
 
         if HasCustomOutputOrder then
         begin
           JArray := ASerializer.Value.AddArray('OutputOrder');
-          for MachineIO in Outputs do
-            JArray.Add(string(MachineIO.ItemStack.Name));
+          for MachinePort in Outputs do
+            JArray.Add(string(MachinePort.ItemStack.Name));
         end;
 
       end;
@@ -654,13 +683,13 @@ begin
 
         if ASerializer.Value.Get('InputOrder', JArray) then
         begin
-          for MachineIO in Inputs do
+          for MachinePort in Inputs do
           begin
             for I := 0 to JArray.MaxIndex do
             begin
-              if string(MachineIO.ItemStack.Name) = JArray[I] then
+              if string(MachinePort.ItemStack.Name) = JArray[I] then
               begin
-                MachineIO.Index := I;
+                MachinePort.Index := I;
                 Break;
               end;
             end;
@@ -669,13 +698,13 @@ begin
 
         if ASerializer.Value.Get('OutputOrder', JArray) then
         begin
-          for MachineIO in Outputs do
+          for MachinePort in Outputs do
           begin
             for I := 0 to JArray.MaxIndex do
             begin
-              if string(MachineIO.ItemStack.Name) = JArray[I] then
+              if string(MachinePort.ItemStack.Name) = JArray[I] then
               begin
-                MachineIO.Index := I;
+                MachinePort.Index := I;
                 Break;
               end;
             end;
@@ -703,7 +732,7 @@ var
   Font: IGPFont;
   FontBrush: IGPBrush;
   BgBrush: IGPBrush;
-  MachineIO: TMachineIO;
+  MachinePort: TMachinePort;
 begin
   B := Bounds;
   Rect := TGPRectF.Create(B.C1.X, B.C1.Y, B.Width, B.Height);
@@ -720,10 +749,10 @@ begin
   if HasCraftingMachine then
     G.DrawImage(CraftingMachine.Icon, Pos.X + 32, Pos.Y);
 
-  for MachineIO in Inputs do
-    MachineIO.Draw(G);
-  for MachineIO in Outputs do
-    MachineIO.Draw(G);
+  for MachinePort in Inputs do
+    MachinePort.Draw(G);
+  for MachinePort in Outputs do
+    MachinePort.Draw(G);
 
   if HasRecipe and (Recipe.Icon <> Recipe.Results.First.Item.Icon) then
     G.DrawImage(Recipe.Icon, Pos.X + 64, Pos.Y);
@@ -786,12 +815,19 @@ begin
   Result := nil;
 end;
 
+function TMachineArray.PortAt(APos: TVector2): TMachinePort;
+begin
+  Result := InputAt(APos);
+  if Result = nil then
+    Result := OutputAt(APos);
+end;
+
 procedure TMachineArray.Remove;
 begin
   Factory.RemoveMachineArray(Self);
 end;
 
-procedure TMachineArray.GenerateIO;
+procedure TMachineArray.GeneratePorts;
 var
   Ingredient: TFactorio.TRecipe.TIngredient;
   Result: TFactorio.TRecipe.TResult;
@@ -809,7 +845,7 @@ end;
 
 function TMachineArray.GetBounds: TBounds2;
 begin
-  Result := Pos.Bounds(Vec2(96, 40 + IOHeight * 48));
+  Result := Pos.Bounds(Vec2(96, 40 + PortHeight * 48));
 end;
 
 function TMachineArray.GetInputs: IReadonlyList<TMachineInput>;
@@ -817,7 +853,7 @@ begin
   Result := FInputs.ReadonlyList;
 end;
 
-function TMachineArray.GetIOHeight: Integer;
+function TMachineArray.GetPortHeight: Integer;
 begin
   Result := Max(Inputs.Count, Outputs.Count);
 end;
@@ -886,7 +922,7 @@ begin
   FRecipe := Value;
   if not HasCraftingMachine or not CraftingMachine.CanCraft(Recipe) then
     CraftingMachine := Recipe.FindCraftingMachine;
-  GenerateIO;
+  GeneratePorts;
   Change;
 end;
 
@@ -898,24 +934,22 @@ begin
   FMachineArray := AMachineArray;
 end;
 
-{ TFactoryIO }
+{ TFactoryPort }
 
-constructor TMachineIO.Create(AMachineArray: TMachineArray);
+constructor TMachinePort.Create(AMachineArray: TMachineArray);
 begin
   FMachineArray := AMachineArray;
 end;
 
-destructor TMachineIO.Destroy;
-var
-  Connection: TMachineConnection;
+destructor TMachinePort.Destroy;
 begin
-  for Connection in Connections.Reverse do
-    Connection.Remove;
+  if IsConnected then
+    ConnectionNet.Remove(Self);
   FOnRemove.Execute(TEventInfo.Create(Self));
   inherited;
 end;
 
-procedure TMachineIO.Draw(G: IGPGraphics);
+procedure TMachinePort.Draw(G: IGPGraphics);
 var
   Font: IGPFont;
   FontBrush: IGPSolidBrush;
@@ -926,7 +960,7 @@ begin
   G.DrawImage(ItemStack.Item.Icon, Pos.X, Pos.Y);
 end;
 
-procedure TMachineIO.DrawItemAmount(G: IGPGraphics; APos: TVector2);
+procedure TMachinePort.DrawItemAmount(G: IGPGraphics; APos: TVector2);
 var
   Font: IGPFont;
   FontBrush: IGPBrush;
@@ -936,22 +970,22 @@ begin
   G.DrawString(Format('%3.3g/s', [ItemsPerSecond]), Font, TGPPointF.Create(APos.X, APos.Y + 8), FontBrush);
 end;
 
-function TMachineIO.GetBounds: TBounds2;
+function TMachinePort.GetBounds: TBounds2;
 begin
   Result := Pos.Bounds(32);
 end;
 
-function TMachineIO.GetConnections: IReadonlyList<TMachineConnection>;
+function TMachinePort.GetConnectionNet: IConnectionNet;
 begin
-  Result := FConnections.ReadonlyList;
+  Result := MachineArray.Factory.FindConnectionNetFor(Self);
 end;
 
-function TMachineIO.GetCraftingMachine: TFactorio.TCraftingMachine;
+function TMachinePort.GetCraftingMachine: TFactorio.TCraftingMachine;
 begin
   Result := MachineArray.CraftingMachine;
 end;
 
-function TMachineIO.GetItemsPerSecond: Single;
+function TMachinePort.GetItemsPerSecond: Single;
 begin
   Result :=
     ItemStack.Amount
@@ -961,75 +995,33 @@ begin
     / Recipe.EnergyRequired;
 end;
 
-function TMachineIO.GetOnRemove: TEvent.TAccess;
+function TMachinePort.GetOnRemove: TEvent.TAccess;
 begin
   Result := FOnRemove.Access;
 end;
 
-function TMachineIO.GetRecipe: TFactorio.TRecipe;
+function TMachinePort.GetRecipe: TFactorio.TRecipe;
 begin
   Result := MachineArray.Recipe;
 end;
 
-{ TMachineConnection }
-
-constructor TMachineConnection.Create(AOutput: TMachineOutput; AInput: TMachineInput);
+function TMachinePort.IsConnected: Boolean;
 begin
-  FOutput := AOutput;
-  FInput := AInput;
-  Input.MachineArray.Factory.NotifyConnectionAdd(Self);
-end;
-
-destructor TMachineConnection.Destroy;
-begin
-  Input.MachineArray.Factory.NotifyConnectionRemove(Self);
-  FOnRemove.Execute(TEventInfo.Create(Self));
-  inherited;
-end;
-
-function TMachineConnection.GetItemsPerSecond: Single;
-begin
-  Result := Min(Output.ItemsPerSecond, Input.ItemsPerSecond);
-end;
-
-function TMachineConnection.GetOnRemove: TEvent.TAccess;
-begin
-  Result := FOnRemove.Access;
-end;
-
-procedure TMachineConnection.Remove;
-begin
-  Output.RemoveConnection(Self);
+  Result := ConnectionNet <> nil;
 end;
 
 { TMachineInput }
-
-function TMachineInput.Connect(AOutput: TMachineOutput): TMachineConnection;
-begin
-  Result := AOutput.Connect(Self);
-end;
 
 constructor TMachineInput.Create(AMachineArray: TMachineArray; AIngredient: TFactorio.TRecipe.TIngredient);
 begin
   inherited Create(AMachineArray);
   FIngredient := AIngredient;
-  FConnections := TList<TMachineConnection>.Create;
-end;
-
-procedure TMachineInput.Disconnect(AOutput: TMachineOutput);
-begin
-  AOutput.Disconnect(Self);
 end;
 
 procedure TMachineInput.Draw(G: IGPGraphics);
 begin
   inherited;
   DrawItemAmount(G, Pos - Vec2(36, 0));
-end;
-
-function TMachineInput.FindConnection(AOutput: TMachineOutput): TMachineConnection;
-begin
-  Result := AOutput.FindConnection(Self);
 end;
 
 function TMachineInput.GetIndex: Integer;
@@ -1046,29 +1038,8 @@ function TMachineInput.GetPos: TVector2;
 var
   Offset: Integer;
 begin
-  Offset := MachineArray.IOHeight - MachineArray.Inputs.Count;
+  Offset := MachineArray.PortHeight - MachineArray.Inputs.Count;
   Result := MachineArray.Pos + Vec2(0, 56 + (Index + Offset / 2) * 48);
-end;
-
-function TMachineInput.GetRatio: Single;
-var
-  Connection: TMachineConnection;
-  AllOut: Single;
-begin
-  AllOut := 0;
-  for Connection in Connections do
-    AllOut := AllOut + Connection.Output.ItemsPerSecond;
-  Result := AllOut / ItemsPerSecond;
-end;
-
-function TMachineInput.IsConnected(AOutput: TMachineOutput): Boolean;
-begin
-  Result := AOutput.IsConnected(Self);
-end;
-
-procedure TMachineInput.RemoveConnection(AConnection: TMachineConnection);
-begin
-  AConnection.Output.RemoveConnection(AConnection);
 end;
 
 procedure TMachineInput.SetIndex(const Value: Integer);
@@ -1076,50 +1047,18 @@ begin
   MachineArray.SetInputIndex(Self, Value);
 end;
 
-function TMachineInput.ToggleConnection(AOutput: TMachineOutput): Boolean;
-begin
-  Result := AOutput.ToggleConnection(Self);
-end;
-
 { TMachineOutput }
-
-function TMachineOutput.Connect(AInput: TMachineInput): TMachineConnection;
-begin
-  if ItemStack.Item <> AInput.ItemStack.Item then
-    Exit(nil);
-  Result := TMachineConnection.Create(Self, AInput);
-  FConnections.Add(Result);
-  AInput.FConnections.Add(Result);
-end;
 
 constructor TMachineOutput.Create(AMachineArray: TMachineArray; AResult: TFactorio.TRecipe.TResult);
 begin
   inherited Create(AMachineArray);
   FResult := AResult;
-  FConnections := TObjectList<TMachineConnection>.Create;
-end;
-
-procedure TMachineOutput.Disconnect(AInput: TMachineInput);
-var
-  Connection: TMachineConnection;
-begin
-  Connection := FindConnection(AInput);
-  if Connection <> nil then
-    RemoveConnection(Connection);
 end;
 
 procedure TMachineOutput.Draw(G: IGPGraphics);
 begin
   inherited;
   DrawItemAmount(G, Pos + Vec2(36, 0));
-end;
-
-function TMachineOutput.FindConnection(AInput: TMachineInput): TMachineConnection;
-begin
-  for Result in FConnections do
-    if Result.Input = AInput then
-      Exit;
-  Result := nil;
 end;
 
 function TMachineOutput.GetIndex: Integer;
@@ -1141,30 +1080,8 @@ function TMachineOutput.GetPos: TVector2;
 var
   Offset: Integer;
 begin
-  Offset := MachineArray.IOHeight - MachineArray.Outputs.Count;
+  Offset := MachineArray.PortHeight - MachineArray.Outputs.Count;
   Result := MachineArray.Pos + Vec2(64, 56 + (Index + Offset / 2) * 48);
-end;
-
-function TMachineOutput.GetRatio: Single;
-var
-  Connection: TMachineConnection;
-  AllIn: Single;
-begin
-  AllIn := 0;
-  for Connection in Connections do
-    AllIn := AllIn + Connection.Input.ItemsPerSecond;
-  Result := ItemsPerSecond / AllIn;
-end;
-
-function TMachineOutput.IsConnected(AInput: TMachineInput): Boolean;
-begin
-  Result := FindConnection(AInput) <> nil;
-end;
-
-procedure TMachineOutput.RemoveConnection(AConnection: TMachineConnection);
-begin
-  AConnection.Input.FConnections.Remove(AConnection);
-  FConnections.Remove(AConnection);
 end;
 
 procedure TMachineOutput.SetIndex(const Value: Integer);
@@ -1172,137 +1089,49 @@ begin
   MachineArray.SetOutputIndex(Self, Value);
 end;
 
-function TMachineOutput.ToggleConnection(AInput: TMachineInput): Boolean;
-var
-  Connection: TMachineConnection;
-begin
-  Connection := FindConnection(AInput);
-  if Connection <> nil then
-    Connection.Remove
-  else
-    Exit(Connect(AInput) <> nil);
-  Result := True;
-end;
-
-{ TFactory.TConnectionEventInfo }
-
-constructor TFactory.TConnectionEventInfo.Create(ASender: TFactory; AConnection: TMachineConnection);
-begin
-  inherited Create(ASender);
-  FConnection := AConnection;
-end;
-
 { TConnectionNet }
 
-function TConnectionNet.GetOutputs: IReadonlyList<TMachineOutput>;
+function TConnectionNet.GetMachinePorts: IReadonlyList<TMachinePort>;
 begin
-  Result := FOutputs.ReadonlyList;
+  Result := FMachinePorts.ReadonlyList;
 end;
 
-procedure TConnectionNet.Init;
+function TConnectionNet.GetOutputs: IIterate<TMachineOutput>;
 begin
-  FOutputs := TList<TMachineOutput>.Create;
-  FInputs := TList<TMachineInput>.Create;
-  FConnections := TList<TMachineConnection>.Create;
+  Result := FMachinePorts.Iterate.Generic.OfType<TMachineOutput>;
 end;
 
-function TConnectionNet.GetInputs: IReadonlyList<TMachineInput>;
+function TConnectionNet.GetInputs: IIterate<TMachineInput>;
 begin
-  Result := FInputs.ReadonlyList;
+  Result := FMachinePorts.Iterate.Generic.OfType<TMachineInput>;
 end;
 
-function TConnectionNet.GetConnections: IReadonlyList<TMachineConnection>;
+function TConnectionNet.GetOnChange: TEvent.TAccess;
 begin
-  Result := FConnections.ReadonlyList;
+  Result := FOnChange.Access;
 end;
 
-constructor TConnectionNet.Create(AInput: TMachineInput);
+function TConnectionNet.GetOnRemove: TEvent.TAccess;
 begin
-  Init;
-  AddRecursive(AInput);
+  Result := FOnRemove.Access;
 end;
 
-procedure TConnectionNet.Draw(G: IGPGraphics);
-var
-  Pen: IGPPen;
-  Path: TArray<TGPPointF>;
-  Color: TColorRGBA;
-  Font: IGPFont;
-  FontBrush: IGPBrush;
-  RatioText: string;
-  TextSize: TGPRectF;
-  MachineIO: TMachineIO;
-begin
-  if Inputs.Empty or Outputs.Empty then
-    Exit;
-
-  if Effectivity <= 1 then
-    Color := TColorRGBA.HSV(Effectivity * 2, 0.5, 1, 1)
-  else
-    Color := TColorRGBA.HSV(4 - 2 / Effectivity, 0.5, 1);
-
-  Pen := TGPPen.Create(Color, 20);
-  Pen.StartCap := LineCapRound;
-  Pen.EndCap := LineCapRound;
-
-  for MachineIO in Outputs do
-  begin
-    G.DrawLines(Pen, [
-      TGPPointF.Create(MachineIO.Pos.X + 32, MachineIO.Pos.Y + 16),
-      TGPPointF.Create(Center.X, MachineIO.Pos.Y + 16),
-      TGPPointF.Create(Center.X, Center.Y)]);
-  end;
-
-  Pen.EndCap := LineCapArrowAnchor;
-
-  for MachineIO in Inputs do
-  begin
-    G.DrawLines(Pen, [
-      TGPPointF.Create(Center.X, Center.Y),
-      TGPPointF.Create(Center.X, MachineIO.Pos.Y + 16),
-      TGPPointF.Create(MachineIO.Pos.X, MachineIO.Pos.Y + 16)]);
-  end;
-
-  Font := TGPFont.Create('Tahoma', 12, [FontStyleBold]);
-  RatioText := Format('%3.3g/s'#10'%3.3g%%', [ItemsPerSecond, Effectivity * 100]);
-  TextSize := G.MeasureString(RatioText, Font, TGPPointF.Create(0, 0));
-  FontBrush := TGPSolidBrush.Create($FF000000);
-  G.DrawString(
-    RatioText,
-    Font,
-    TGPPointF.Create(Center.X - TextSize.Width / 2, Center.Y - TextSize.Height / 2),
-    FontBrush);
-end;
-
-function TConnectionNet.GetCenter: TVector2;
+function TConnectionNet.GetOutputPerSecond: Single;
 var
   Output: TMachineOutput;
-  Input: TMachineInput;
-  Bounds: TBounds2;
 begin
-  if Outputs.Empty or Inputs.Empty then
-    Exit(0);
+  Result := 0;
+  for Output in Outputs do
+    Result := Result + Output.ItemsPerSecond;
+end;
 
-  Bounds.C1.X := Outputs.First.Pos.X;
-  for Output in Outputs.Iterate.Skip(1) do
-    Bounds.C1.X := Max(Bounds.C1.X, Output.Pos.X);
-  Bounds.C2.X := Inputs.First.Pos.X;
-  for Input in Inputs.Iterate.Skip(1) do
-    Bounds.C2.X := Min(Bounds.C2.X, Input.Pos.X);
-
-  Bounds.C1.Y := Outputs.First.Pos.Y;
-  Bounds.C2.Y := Outputs.First.Pos.Y;
-  for Output in Outputs.Iterate.Skip(1) do
-  begin
-    Bounds.C1.Y := Min(Bounds.C1.Y, Output.Pos.Y);
-    Bounds.C2.Y := Max(Bounds.C2.Y, Output.Pos.Y);
-  end;
+function TConnectionNet.GetInputPerSecond: Single;
+var
+  Input: TMachineInput;
+begin
+  Result := 0;
   for Input in Inputs do
-  begin
-    Bounds.C1.Y := Min(Bounds.C1.Y, Input.Pos.Y);
-    Bounds.C2.Y := Max(Bounds.C2.Y, Input.Pos.Y);
-  end;
-  Result := Bounds.Center + 16;
+    Result := Result + Input.ItemsPerSecond;
 end;
 
 function TConnectionNet.GetEffectivity: Single;
@@ -1321,48 +1150,155 @@ begin
   Result := Min(OutputPerSecond, InputPerSecond)
 end;
 
-function TConnectionNet.GetInputPerSecond: Single;
-var
-  Input: TMachineInput;
+function TConnectionNet.GetItemType: TFactorio.TItemOrFluid;
 begin
-  Result := 0;
-  for Input in Inputs do
-    Result := Result + Input.ItemsPerSecond;
+  if MachinePorts.Empty then
+    Exit(nil);
+  Result := MachinePorts.First.ItemStack.Item;
 end;
 
-function TConnectionNet.GetOutputPerSecond: Single;
+function TConnectionNet.GetCenter: TVector2;
 var
   Output: TMachineOutput;
+  Input: TMachineInput;
+  Bounds: TBounds2;
 begin
-  Result := 0;
+  if Outputs.Empty and Inputs.Empty then
+    Exit(0);
+
+  if not Outputs.Empty then
+  begin
+    Bounds.C1.X := Outputs.First.Pos.X;
+    for Output in Outputs.Iterate.Skip(1) do
+      Bounds.C1.X := Max(Bounds.C1.X, Output.Pos.X);
+  end;
+  if not Inputs.Empty then
+  begin
+    Bounds.C2.X := Inputs.First.Pos.X;
+    for Input in Inputs.Iterate.Skip(1) do
+      Bounds.C2.X := Min(Bounds.C2.X, Input.Pos.X);
+  end;
+  if Outputs.Empty then
+    Bounds.C1.X := Bounds.C2.X - 128;
+  if Inputs.Empty then
+    Bounds.C2.X := Bounds.C1.X + 128;
+
+  if Inputs.Empty then
+  begin
+    Bounds.C1.Y := Outputs.First.Pos.Y;
+    Bounds.C2.Y := Outputs.First.Pos.Y;
+  end
+  else
+  begin
+    Bounds.C1.Y := Inputs.First.Pos.Y;
+    Bounds.C2.Y := Inputs.First.Pos.Y;
+  end;
+
   for Output in Outputs do
-    Result := Result + Output.ItemsPerSecond;
+  begin
+    Bounds.C1.Y := Min(Bounds.C1.Y, Output.Pos.Y);
+    Bounds.C2.Y := Max(Bounds.C2.Y, Output.Pos.Y);
+  end;
+  for Input in Inputs do
+  begin
+    Bounds.C1.Y := Min(Bounds.C1.Y, Input.Pos.Y);
+    Bounds.C2.Y := Max(Bounds.C2.Y, Input.Pos.Y);
+  end;
+
+  Result := Bounds.Center + 16;
 end;
 
-procedure TConnectionNet.AddRecursive(AOutput: TMachineOutput);
+procedure TConnectionNet.Change;
+begin
+  FOnChange.Execute(TEventInfo.Create(Self));
+end;
+
+function TConnectionNet.Add(AMachinePort: TMachinePort): Boolean;
+begin
+  if not FMachinePorts.Empty and (AMachinePort.ItemStack.Item <> ItemType) then
+    Exit(False);
+  if FMachinePorts.Contains(AMachinePort) then
+    Exit(False);
+  FMachinePorts.Add(AMachinePort);
+  Result := True;
+end;
+
+procedure TConnectionNet.Remove(AMachinePort: TMachinePort);
+begin
+  FMachinePorts.Remove(AMachinePort);
+  if MachinePorts.Count <= 1 then
+    Factory.RemoveConnectionNet(Self);
+end;
+
+constructor TConnectionNet.Create(AFactory: TFactory);
+begin
+  FFactory := AFactory;
+  FMachinePorts := TList<TMachinePort>.Create;
+end;
+
+destructor TConnectionNet.Destroy;
+begin
+  FOnRemove.Execute(TEventInfo.Create(Self));
+  inherited;
+end;
+
+procedure TConnectionNet.Draw(G: IGPGraphics);
 var
-  Connection: TMachineConnection;
+  Pen: IGPPen;
+  Color: TColorRGBA;
+  Font: IGPFont;
+  FontBrush: IGPBrush;
+  RatioText: string;
+  TextSize: TGPRectF;
+  MachinePort: TMachinePort;
 begin
-  FOutputs.Add(AOutput);
-  for Connection in AOutput.Connections do
-    if not Inputs.Contains(Connection.Input) then
-      AddRecursive(Connection.Input);
+  if Inputs.Empty and Outputs.Empty then
+    Exit;
+
+  if Effectivity <= 1 then
+    Color := TColorRGBA.HSV(Effectivity * 2, 0.5, 1, 1)
+  else
+    Color := TColorRGBA.HSV(4 - 2 / Effectivity, 0.5, 1);
+
+  Pen := TGPPen.Create(Color, 20);
+  Pen.StartCap := LineCapRound;
+  Pen.EndCap := LineCapRound;
+
+  for MachinePort in Outputs do
+  begin
+    G.DrawLines(Pen, [
+      TGPPointF.Create(MachinePort.Pos.X + 32, MachinePort.Pos.Y + 16),
+      TGPPointF.Create(Center.X, MachinePort.Pos.Y + 16),
+      TGPPointF.Create(Center.X, Center.Y)]);
+  end;
+
+  Pen.EndCap := LineCapArrowAnchor;
+
+  for MachinePort in Inputs do
+  begin
+    G.DrawLines(Pen, [
+      TGPPointF.Create(Center.X, Center.Y),
+      TGPPointF.Create(Center.X, MachinePort.Pos.Y + 16),
+      TGPPointF.Create(MachinePort.Pos.X, MachinePort.Pos.Y + 16)]);
+  end;
+
+  Font := TGPFont.Create('Tahoma', 12, [FontStyleBold]);
+  RatioText := Format('%3.3g/s'#10'%3.3g%%', [ItemsPerSecond, Effectivity * 100]);
+  TextSize := G.MeasureString(RatioText, Font, TGPPointF.Create(0, 0));
+  FontBrush := TGPSolidBrush.Create($FF000000);
+  G.DrawString(
+    RatioText,
+    Font,
+    TGPPointF.Create(Center.X - TextSize.Width / 2, Center.Y - TextSize.Height / 2),
+    FontBrush);
 end;
 
-procedure TConnectionNet.AddRecursive(AInput: TMachineInput);
-var
-  Connection: TMachineConnection;
-begin
-  FInputs.Add(AInput);
-  for Connection in AInput.Connections do
-    if not Outputs.Contains(Connection.Output) then
-      AddRecursive(Connection.Output);
-end;
+{ TFactory.TConnectionNetEventInfo }
 
-constructor TConnectionNet.Create(AOutput: TMachineOutput);
+constructor TFactory.TConnectionNetEventInfo.Create(ASender: TFactory; AConnectionNet: IConnectionNet);
 begin
-  Init;
-  AddRecursive(AOutput);
+  inherited Create(ASender);
+  FConnectionNet := AConnectionNet;
 end;
 
 end.

@@ -88,6 +88,7 @@ type
     function Zip<U, R>(AIterable: IIterable<U>; AFunc: TFunc<T, U, R>): IIterate<R>; overload;
     function ToMapK<V>(AIterable: IIterable<V>): IMap<T, V>;
     function ToMapV<V>(AIterable: IIterable<V>): IMap<V, T>;
+    function OfType<R: class>: IIterate<R>;
 
   end;
 
@@ -1671,6 +1672,17 @@ end;
 function TGenericWrapper<T>.Map<R>(AFunc: TFunc<T, R>): IIterate<R>;
 begin
   Result := TMapIterate<T, R>.Create(FIterate, AFunc);
+end;
+
+function TGenericWrapper<T>.OfType<R>: IIterate<R>;
+begin
+  if GetTypeKind(T) <> tkClass then
+    raise EIterateError.Create('Invalid type for OfType-Iteration.');
+  Result := IIterate<R>(FIterate.Where(
+    function(Item: T): Boolean
+    begin
+      Result := Item is R;
+    end));
 end;
 
 function TGenericWrapper<T>.ToMapK<V>(AIterable: IIterable<V>): IMap<T, V>;

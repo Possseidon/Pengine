@@ -65,14 +65,13 @@ type
     procedure FrameMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure FrameMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure FrameMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta:
-        Integer; MousePos: TPoint; var Handled: Boolean);
+      Integer; MousePos: TPoint; var Handled: Boolean);
     procedure FrameResize(Sender: TObject);
   private
     FFactory: TFactory;
     FDragMachineArray: TMachineArray;
     FConfigureMachineArray: TMachineArray;
-    FDragInput: TMachineInput;
-    FDragOutput: TMachineOutput;
+    FDragMachinePort: TMachinePort;
     FDragCreate: Boolean;
     FDragPos: TOpt<TVector2>;
     FCamera: TCamera;
@@ -128,9 +127,9 @@ begin
   Factory.OnMachineArrayAdd.Add(Invalidate);
   Factory.OnMachineArrayRemove.Add(Invalidate);
   Factory.OnMachineArrayChange.Add(Invalidate);
-  Factory.OnConnectionAdd.Add(Invalidate);
-  Factory.OnConnectionRemove.Add(Invalidate);
-  Factory.OnConnectionChange.Add(Invalidate);
+  Factory.OnConnectionNetAdd.Add(Invalidate);
+  Factory.OnConnectionNetRemove.Add(Invalidate);
+  Factory.OnConnectionNetChange.Add(Invalidate);
 end;
 
 destructor TfrmFactory.Destroy;
@@ -146,14 +145,12 @@ var
   Start, Stop: TVector2;
   MachineArray: TMachineArray;
 begin
-  if (FDragInput = nil) and (FDragOutput = nil) then
+  if FDragMachinePort = nil then
     Exit;
   MachineArray := Factory.MachineArrayAt(MouseToFactory(FDragPos));
 
-  if (FDragInput <> nil) and (MachineArray = FDragInput.MachineArray) then
-      Exit;
-  if (FDragOutput <> nil) and (MachineArray = FDragOutput.MachineArray) then
-      Exit;
+  if (FDragMachinePort <> nil) and (MachineArray = FDragMachinePort.MachineArray) then
+    Exit;
 
   if FDragCreate then
     Pen := TGPPen.Create($7FFF7F7F, 16)
@@ -161,14 +158,14 @@ begin
     Pen := TGPPen.Create($7F7F7FFF, 16);
   Pen.StartCap := LineCapRound;
   Pen.EndCap := LineCapArrowAnchor;
-  if FDragInput <> nil then
+  if FDragMachinePort is TMachineInput then
   begin
     Start := MouseToFactory(FDragPos);
-    Stop := FDragInput.Pos + Vec2(0, 16);
+    Stop := FDragMachinePort.Pos + Vec2(0, 16);
   end
   else
   begin
-    Start := FDragOutput.Pos + Vec2(32, 16);
+    Start := FDragMachinePort.Pos + Vec2(32, 16);
     Stop := MouseToFactory(FDragPos);
   end;
   Start := Start;
@@ -179,8 +176,7 @@ end;
 procedure TfrmFactory.FrameMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   MachineArray: TMachineArray;
-  Input: TMachineInput;
-  Output: TMachineOutput;
+  Port: TMachinePort;
 begin
   MouseCapture := True;
   if Button in [mbLeft, mbMiddle] then
@@ -190,16 +186,10 @@ begin
   begin
     if Button = mbLeft then
     begin
-      Input := MachineArray.InputAt(MouseToFactory(X, Y));
-      if Input <> nil then
+      Port := MachineArray.PortAt(MouseToFactory(X, Y));
+      if Port <> nil then
       begin
-        FDragInput := Input;
-        Exit;
-      end;
-      Output := MachineArray.OutputAt(MouseToFactory(X, Y));
-      if Output <> nil then
-      begin
-        FDragOutput := Output;
+        FDragMachinePort := Port;
         Exit;
       end;
       FDragMachineArray := MachineArray;
@@ -207,10 +197,10 @@ begin
     else if Button = mbRight then
     begin
       FConfigureMachineArray := MachineArray;
-      Input := MachineArray.InputAt(MouseToFactory(X, Y));
-      if Input <> nil then
+      Port := MachineArray.InputAt(MouseToFactory(X, Y));
+      if Port <> nil then
       begin
-        FDragInput := Input;
+        FDragMachinePort := Port;
         FDragCreate := True;
         FDragPos := Vec2(X, Y);
         Exit;
@@ -230,33 +220,16 @@ end;
 
 procedure TfrmFactory.FrameMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
 var
-  MachineArray: TMachineArray;
-  Input: TMachineInput;
-  Output: TMachineOutput;
+  Port: TMachinePort;
 begin
   if FDragMachineArray <> nil then
     FDragMachineArray.Pos := FDragMachineArray.Pos + MouseToFactory(X, Y) - MouseToFactory(FDragPos)
-  else if FDragInput <> nil then
+  else if FDragMachinePort <> nil then
   begin
     Invalidate;
-    MachineArray := Factory.MachineArrayAt(MouseToFactory(X, Y));
-    if MachineArray = FDragInput.MachineArray then
-    begin
-      Input := MachineArray.InputAt(MouseToFactory(X, Y));
-      if (Input <> nil) and (Input <> FDragInput) then
-        FDragInput.Index := Input.Index;
-    end;
-  end
-  else if FDragOutput <> nil then
-  begin
-    Invalidate;
-    MachineArray := Factory.MachineArrayAt(MouseToFactory(X, Y));
-    if MachineArray = FDragOutput.MachineArray then
-    begin
-      Output := MachineArray.OutputAt(MouseToFactory(X, Y));
-      if (Output <> nil) and (Output <> FDragOutput) then
-        FDragOutput.Index := Output.Index;
-    end;
+    Port := Factory.MachinePortAt(MouseToFactory(X, Y));
+    if (Port <> nil) and (Port <> FDragMachinePort) and (Port.MachineArray = FDragMachinePort.MachineArray) then
+      FDragMachinePort.Index := Port.Index;
   end
   else if FDragPos.HasValue then
     Camera.Move(FDragPos - Vec2(X, Y));
@@ -268,8 +241,8 @@ end;
 procedure TfrmFactory.FrameMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   MachineArray: TMachineArray;
+  Port: TMachinePort;
   Output: TMachineOutput;
-  Input: TMachineInput;
   Recipe: TFactorio.TRecipe;
 begin
   MouseCapture := False;
@@ -283,34 +256,25 @@ begin
     begin
       frmRecipes.Execute(MachineArray);
       FConfigureMachineArray := nil;
-      FDragInput := nil;
-      FDragOutput := nil;
+      FDragMachinePort := nil;
       Invalidate;
       FDragCreate := False;
       Exit;
     end;
-    Input := MachineArray.InputAt(MouseToFactory(X, Y));
-    Output := MachineArray.OutputAt(MouseToFactory(X, Y));
+    Port := MachineArray.PortAt(MouseToFactory(X, Y));
   end
   else
-  begin
-    Input := nil;
-    Output := nil;
-  end;
+    Port := nil;
+  FConfigureMachineArray := nil;
 
-  if FDragOutput <> nil then
+  if FDragMachinePort <> nil then
   begin
     Invalidate;
-    if Input <> nil then
-      FDragOutput.ToggleConnection(Input);
-    FDragOutput := nil;
-  end;
-  if FDragInput <> nil then
-  begin
-    Invalidate;
+
     if FDragCreate then
     begin
-      Recipe := FDragInput.Ingredient.Item.FindRecipe;
+      Assert(FDragMachinePort is TMachineInput);
+      Recipe := TMachineInput(FDragMachinePort).Ingredient.Item.FindRecipe;
       if Recipe <> nil then
       begin
         MachineArray := Factory.AddMachineArray;
@@ -318,21 +282,19 @@ begin
         MachineArray.Pos := MouseToFactory(X, Y) - MachineArray.Bounds.Size / 2;
         for Output in MachineArray.Outputs do
         begin
-          if Output.ItemStack.Item = FDragInput.ItemStack.Item then
+          if Output.ItemStack.Item = FDragMachinePort.ItemStack.Item then
           begin
-            FDragInput.Connect(Output);
+            Factory.ToggleConnection(FDragMachinePort, Output);
             Break;
           end;
         end;
       end;
       FDragCreate := False;
     end
-    else if Output <> nil then
-      FDragInput.ToggleConnection(Output);
-    FDragInput := nil;
+    else if (Port <> nil) and (FDragMachinePort <> Port) then
+      Factory.ToggleConnection(FDragMachinePort, Port);
+    FDragMachinePort := nil;
   end;
-
-  FConfigureMachineArray := nil;
 end;
 
 function TfrmFactory.MouseToFactory(X, Y: Single): TVector2;
@@ -360,7 +322,7 @@ begin
 end;
 
 procedure TfrmFactory.FrameMouseWheel(Sender: TObject; Shift: TShiftState;
-    WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+  WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
 var
   Zoom: Single;
 begin

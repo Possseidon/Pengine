@@ -1,6 +1,6 @@
 --- TODO ---
 
-[ ] Change connections to only use ConnectionNet
+[X] Change connections to only use ConnectionNet
 [ ] Saving connections
 [ ] Auto balancing
 [ ] Modules
