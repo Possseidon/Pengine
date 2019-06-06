@@ -14,6 +14,8 @@ uses
 
 type
 
+  EJSerialization = class(Exception);
+
   TJSerializer = class;
 
   IJSerializable = interface
@@ -107,8 +109,8 @@ type
     procedure DefineArray<T: constructor, IJSerializable>(AName: string; AArray: TArray<T>); overload;
     procedure DefineArray<T: IJSerializable>(AName: string; AArray: TArray<T>; AInstantiator: TFunc<T>); overload;
 
-    procedure DefineList<T: constructor, IJSerializable>(AName: string; AList: IList<T>); overload;
-    procedure DefineList<T: IJSerializable>(AName: string; AList: IList<T>; AInstantiator: TFunc<T>); overload;
+    procedure DefineList<T: constructor, IJSerializable>(AName: string; AList: IListBase<T>); overload;
+    procedure DefineList<T: IJSerializable>(AName: string; AList: IListBase<T>; AInstantiator: TFunc<T>); overload;
 
     // Enum
     procedure DefineEnum<T: record >(AName: string; var AEnum: T; AEnumToName: TFunc<T, string>;
@@ -118,7 +120,7 @@ type
     // Set
     procedure DefineSet<T>(AName: string; var ASet: T; AEnumToName: TFunc<Byte, string>;
       ANameToEnum: TFunc<string, Byte>); overload;
-    procedure DefineSet<T; N>(AName: string; var ASet: T; const ANames: N); overload;
+    procedure DefineSet<T, N>(AName: string; var ASet: T; const ANames: N); overload;
 
     property Mode: TMode read FMode;
     function IsStoring: Boolean;
@@ -480,10 +482,10 @@ var
   Names: PString;
 begin
   if GetTypeKind(T) <> tkEnumeration then
-    raise Exception.Create('Enumeration type expected.');
+    raise EJSerialization.Create('Enumeration type expected.');
   if (GetTypeKind(N) <> tkArray) or
     (GetTypeData(TypeInfo(N)).ArrayData.ElType^ <> TypeInfo(string)) then
-    raise Exception.Create('Static array of string expected.');
+    raise EJSerialization.Create('Static array of string expected.');
 
   Names := @ANames;
   DefineEnum<T>(AName, AEnum,
@@ -518,7 +520,7 @@ begin
       end;
 
       if not Found then
-        raise EJSONError.Create('Invalid enum value.');
+        raise EJSerialization.Create('Invalid enum value.');
 
       case SizeOf(T) of
         1:
@@ -538,7 +540,7 @@ var
   EnumValue: Integer;
 begin
   if GetTypeKind(T) <> tkEnumeration then
-    raise Exception.Create('Enumeration type expected.');
+    raise EJSerialization.Create('Enumeration type expected.');
 
   case Mode of
     smSerialize:
@@ -548,7 +550,7 @@ begin
   end;
 end;
 
-procedure TJSerializer.DefineList<T>(AName: string; AList: IList<T>);
+procedure TJSerializer.DefineList<T>(AName: string; AList: IListBase<T>);
 begin
   DefineList<T>(AName, AList,
     function: T
@@ -557,7 +559,7 @@ begin
     end);
 end;
 
-procedure TJSerializer.DefineList<T>(AName: string; AList: IList<T>; AInstantiator: TFunc<T>);
+procedure TJSerializer.DefineList<T>(AName: string; AList: IListBase<T>; AInstantiator: TFunc<T>);
 var
   JArray: TJArray;
   Item: T;
@@ -589,10 +591,10 @@ var
   EnumType: PTypeInfo;
 begin
   if GetTypeKind(T) <> tkSet then
-    raise Exception.Create('Set type expected.');
+    raise EJSerialization.Create('Set type expected.');
   if (GetTypeKind(N) <> tkArray) or
     (GetTypeData(TypeInfo(N)).ArrayData.ElType^ <> TypeInfo(string)) then
-    raise Exception.Create('Static array of string expected.');
+    raise EJSerialization.Create('Static array of string expected.');
 
   EnumType := GetTypeData(TypeInfo(T)).CompType^;
 
@@ -607,7 +609,7 @@ begin
       for Result := GetTypeData(EnumType).MinValue to GetTypeData(EnumType).MaxValue do
         if AName = Names[Result] then
           Exit;
-      raise EJSONError.Create('Invalid set value.');
+      raise EJSerialization.Create('Invalid set value.');
     end
     );
 end;
@@ -621,7 +623,7 @@ var
   JValue: TJValue;
 begin
   if GetTypeKind(T) <> tkSet then
-    raise Exception.Create('Set type expected.');
+    raise EJSerialization.Create('Set type expected.');
 
   EnumType := GetTypeData(TypeInfo(T)).CompType^;
 

@@ -1,4 +1,4 @@
-unit ActionRecorder;
+unit Pengine.ActionRecorder;
 
 interface
 
@@ -38,21 +38,21 @@ type
 
   end;
 
-  TActionRecorder = class
+  TActionRecorder<T: TUndoableAction> = class
   private
-    FActions: IObjectList<TUndoableAction>;
+    FActions: IObjectList<T>;
     FLastActionIndex: Integer;
 
-    function GetActions: IReadonlyList<TUndoableAction>;
-    function GetLastAction: TUndoableAction;
+    function GetActions: IReadonlyList<T>;
+    function GetLastAction: T;
 
   public
     constructor Create;
 
-    property Actions: IReadonlyList<TUndoableAction> read GetActions;
-    property LastAction: TUndoableAction read GetLastAction;
+    property Actions: IReadonlyList<T> read GetActions;
+    property LastAction: T read GetLastAction;
 
-    procedure Execute(AAction: TUndoableAction);
+    procedure Execute(AAction: T);
 
     function CanUndo: Boolean;
     procedure Undo;
@@ -61,44 +61,46 @@ type
     procedure Redo;
 
   end;
+  
+  TActionRecorder = TActionRecorder<TUndoableAction>;
 
 implementation
 
-{ TActionRecorder }
+{ TActionRecorder<T> }
 
-function TActionRecorder.CanRedo: Boolean;
+function TActionRecorder<T>.CanRedo: Boolean;
 begin
   Result := FLastActionIndex < FActions.MaxIndex;
 end;
 
-function TActionRecorder.CanUndo: Boolean;
+function TActionRecorder<T>.CanUndo: Boolean;
 begin
   Result := FLastActionIndex >= 0;
 end;
 
-constructor TActionRecorder.Create;
+constructor TActionRecorder<T>.Create;
 begin
   FActions := TObjectList<TUndoableAction>.Create;
 end;
 
-procedure TActionRecorder.Execute(AAction: TUndoableAction);
+procedure TActionRecorder<T>.Execute(AAction: TUndoableAction);
 begin
   FActions.Add(AAction);
   AAction.Execute;
   Inc(FLastActionIndex);
 end;
 
-function TActionRecorder.GetActions: IReadonlyList<TUndoableAction>;
+function TActionRecorder<T>.GetActions: IReadonlyList<TUndoableAction>;
 begin
   Result := FActions.ReadonlyList;
 end;
 
-function TActionRecorder.GetLastAction: TUndoableAction;
+function TActionRecorder<T>.GetLastAction: TUndoableAction;
 begin
   Result := FActions[FLastActionIndex];
 end;
 
-procedure TActionRecorder.Redo;
+procedure TActionRecorder<T>.Redo;
 begin
   if not CanRedo then
     Exit;
@@ -106,7 +108,7 @@ begin
   LastAction.Execute;
 end;
 
-procedure TActionRecorder.Undo;
+procedure TActionRecorder<T>.Undo;
 begin
   if not CanUndo then
     Exit;

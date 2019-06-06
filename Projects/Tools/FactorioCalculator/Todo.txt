@@ -1,7 +1,7 @@
 --- TODO ---
 
 [X] Change connections to only use ConnectionNet
-[ ] Saving connections
+[X] Saving connections
 [ ] Auto balancing
 [ ] Modules
 [ ] Draggable ConnectionNet-Center

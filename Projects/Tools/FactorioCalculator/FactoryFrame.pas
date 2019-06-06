@@ -64,17 +64,19 @@ type
     procedure FrameMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure FrameMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure FrameMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-    procedure FrameMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta:
-      Integer; MousePos: TPoint; var Handled: Boolean);
+    procedure FrameMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint;
+      var Handled: Boolean);
     procedure FrameResize(Sender: TObject);
   private
     FFactory: TFactory;
     FDragMachineArray: TMachineArray;
+    FDragOffset: TVector2;
     FConfigureMachineArray: TMachineArray;
     FDragMachinePort: TMachinePort;
     FDragCreate: Boolean;
     FDragPos: TOpt<TVector2>;
     FCamera: TCamera;
+    FGridSnap: TOpt<Single>;
 
     procedure DrawConnection(G: IGPGraphics);
 
@@ -84,6 +86,8 @@ type
     function FactoryToMouse(APos: TVector2): TVector2;
     function MouseToFactory(X, Y: Single): TVector2; overload;
     function MouseToFactory(APos: TVector2): TVector2; overload;
+
+    function SnapToGrid(APos: TVector2): TVector2;
 
   protected
     procedure PaintWindow(DC: HDC); override;
@@ -95,6 +99,7 @@ type
     property Factory: TFactory read FFactory;
 
     property Camera: TCamera read FCamera;
+    property GridSnap: TOpt<Single> read FGridSnap write FGridSnap;
 
   end;
 
@@ -119,6 +124,8 @@ begin
   inherited;
   ControlState := ControlState + [csCustomPaint];
   ControlStyle := ControlStyle + [csOpaque];
+
+  FGridSnap := 8;
 
   FCamera := TCamera.Create;
   FCamera.OnChange.Add(Invalidate);
@@ -193,6 +200,7 @@ begin
         Exit;
       end;
       FDragMachineArray := MachineArray;
+      FDragOffset := MouseToFactory(X, Y) - MachineArray.Pos;
     end
     else if Button = mbRight then
     begin
@@ -212,7 +220,7 @@ begin
     if Button = mbRight then
     begin
       MachineArray := FFactory.AddMachineArray;
-      MachineArray.Pos := MouseToFactory(X, Y) - MachineArray.Bounds.Size / 2;
+      MachineArray.Pos := SnapToGrid(MouseToFactory(X, Y) - MachineArray.Bounds.Size / 2);
       MachineArray.CraftingMachine := frmMain.Factorio.CraftingMachine['assembling-machine-1'];
     end;
   end;
@@ -223,12 +231,14 @@ var
   Port: TMachinePort;
 begin
   if FDragMachineArray <> nil then
-    FDragMachineArray.Pos := FDragMachineArray.Pos + MouseToFactory(X, Y) - MouseToFactory(FDragPos)
+    FDragMachineArray.Pos := SnapToGrid(MouseToFactory(X, Y) - FDragOffset)
   else if FDragMachinePort <> nil then
   begin
     Invalidate;
     Port := Factory.MachinePortAt(MouseToFactory(X, Y));
-    if (Port <> nil) and (Port <> FDragMachinePort) and (Port.MachineArray = FDragMachinePort.MachineArray) then
+    if (Port <> nil) and (Port <> FDragMachinePort)
+      and (Port.MachineArray = FDragMachinePort.MachineArray)
+      and (Port.ClassType = FDragMachinePort.ClassType) then
       FDragMachinePort.Index := Port.Index;
   end
   else if FDragPos.HasValue then
@@ -279,7 +289,7 @@ begin
       begin
         MachineArray := Factory.AddMachineArray;
         MachineArray.Recipe := Recipe;
-        MachineArray.Pos := MouseToFactory(X, Y) - MachineArray.Bounds.Size / 2;
+        MachineArray.Pos := SnapToGrid(MouseToFactory(X, Y) - MachineArray.Bounds.Size / 2);
         for Output in MachineArray.Outputs do
         begin
           if Output.ItemStack.Item = FDragMachinePort.ItemStack.Item then
@@ -334,6 +344,14 @@ end;
 procedure TfrmFactory.FrameResize(Sender: TObject);
 begin
   Invalidate;
+end;
+
+function TfrmFactory.SnapToGrid(APos: TVector2): TVector2;
+begin
+  if not GridSnap.HasValue then
+    Exit;
+  Result := (APos / GridSnap.Value + 0.5).Floor;
+  Result := Result * GridSnap.Value;
 end;
 
 function TfrmFactory.MouseToFactory(APos: TVector2): TVector2;

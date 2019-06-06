@@ -46,7 +46,7 @@ type
     function GetBounds: TBounds2;
 
     procedure DrawItemAmount(G: IGPGraphics; APos: TVector2);
-    
+
     function GetIndex: Integer; virtual; abstract;
     procedure SetIndex(const Value: Integer); virtual; abstract;
     function GetItemStack: TFactorio.TRecipe.TItemStack; virtual; abstract;
@@ -141,21 +141,26 @@ type
     FOnChange: TEvent;
     FOnRemove: TEvent;
 
+    function GetIndex: Integer;
+
+    procedure SetPos(const Value: TVector2);
+    function GetBounds: TBounds2;
+
+    procedure SetCount(const Value: Integer);
+    procedure SetPerformance(const Value: Single);
+
+    procedure SetCraftingMachine(const Value: TFactorio.TCraftingMachine);
+    procedure SetRecipe(const Value: TFactorio.TRecipe);
+
+    function GetInputs: IReadonlyList<TMachineInput>;
+    function GetOutputs: IReadonlyList<TMachineOutput>;
+    function GetPortHeight: Integer;
+
     function GetOnChange: TEvent.TAccess;
     function GetOnRemove: TEvent.TAccess;
 
     procedure Change;
-    procedure SetCraftingMachine(const Value: TFactorio.TCraftingMachine);
-    procedure SetCount(const Value: Integer);
-    procedure SetPos(const Value: TVector2);
-    procedure SetRecipe(const Value: TFactorio.TRecipe);
-    procedure SetPerformance(const Value: Single);
-    function GetBounds: TBounds2;
-
     procedure GeneratePorts;
-    function GetInputs: IReadonlyList<TMachineInput>;
-    function GetOutputs: IReadonlyList<TMachineOutput>;
-    function GetPortHeight: Integer;
 
   public
     constructor Create(AFactory: TFactory);
@@ -163,15 +168,16 @@ type
     procedure Remove;
 
     property Factory: TFactory read FFactory;
+    property Index: Integer read GetIndex;
 
     property Pos: TVector2 read FPos write SetPos;
     property Bounds: TBounds2 read GetBounds;
 
-    function HasCraftingMachine: Boolean;
-    property CraftingMachine: TFactorio.TCraftingMachine read FCraftingMachine write SetCraftingMachine;
     property Count: Integer read FCount write SetCount;
     property Performance: Single read FPerformance write SetPerformance;
 
+    function HasCraftingMachine: Boolean;
+    property CraftingMachine: TFactorio.TCraftingMachine read FCraftingMachine write SetCraftingMachine;
     function HasRecipe: Boolean;
     property Recipe: TFactorio.TRecipe read FRecipe write SetRecipe;
 
@@ -187,6 +193,7 @@ type
 
     property OnChange: TEvent.TAccess read GetOnChange;
     property OnRemove: TEvent.TAccess read GetOnRemove;
+
     procedure Draw(G: IGPGraphics);
 
     function PortAt(APos: TVector2): TMachinePort;
@@ -199,7 +206,7 @@ type
 
   end;
 
-  IConnectionNet = interface
+  IConnectionNet = interface(IJSerializable)
     function GetMachinePorts: IReadonlyList<TMachinePort>;
     function GetOutputs: IIterate<TMachineOutput>;
     function GetInputs: IIterate<TMachineInput>;
@@ -234,7 +241,7 @@ type
 
   end;
 
-  TConnectionNet = class(TInterfacedObject, IConnectionNet)
+  TConnectionNet = class(TInterfacedObject, IConnectionNet, IJSerializable)
   public type
 
     TEventInfo = TSenderEventInfo<IConnectionNet>;
@@ -251,6 +258,7 @@ type
     function GetOutputs: IIterate<TMachineOutput>;
     function GetInputs: IIterate<TMachineInput>;
 
+    function GetItemType: TFactorio.TItemOrFluid;
     function GetOutputPerSecond: Single;
     function GetInputPerSecond: Single;
     function GetEffectivity: Single;
@@ -262,7 +270,6 @@ type
     function GetOnRemove: TEvent.TAccess;
 
     procedure Change;
-    function GetItemType: TFactorio.TItemOrFluid;
 
   public
     constructor Create(AFactory: TFactory);
@@ -278,6 +285,8 @@ type
     procedure Remove(AMachinePort: TMachinePort);
 
     property ItemType: TFactorio.TItemOrFluid read GetItemType;
+    function IsFluid: Boolean;
+
     property OutputPerSecond: Single read GetOutputPerSecond;
     property InputPerSecond: Single read GetInputPerSecond;
     property ItemsPerSecond: Single read GetItemsPerSecond;
@@ -289,6 +298,10 @@ type
 
     property OnChange: TEvent.TAccess read GetOnChange;
     property OnRemove: TEvent.TAccess read GetOnRemove;
+
+    // IJSerializable
+    function GetJVersion: Integer;
+    procedure DefineJStorage(ASerializer: TJSerializer);
 
   end;
 
@@ -483,6 +496,7 @@ end;
 procedure TFactory.DefineJStorage(ASerializer: TJSerializer);
 begin
   ASerializer.DefineList<TMachineArray>('MachineArrays', FMachineArrays, CreateMachineArray);
+  ASerializer.DefineList<IConnectionNet>('ConnectionNets', FConnectionNets, CreateConnectionNet);
 end;
 
 procedure TFactory.Disconnect(AMachinePort: TMachinePort);
@@ -845,7 +859,12 @@ end;
 
 function TMachineArray.GetBounds: TBounds2;
 begin
-  Result := Pos.Bounds(Vec2(96, 40 + PortHeight * 48));
+  Result := Pos.Bounds(Vec2(96, 32 + PortHeight * 48));
+end;
+
+function TMachineArray.GetIndex: Integer;
+begin
+  Result := Factory.MachineArrays.IndexOf(Self);
 end;
 
 function TMachineArray.GetInputs: IReadonlyList<TMachineInput>;
@@ -920,7 +939,7 @@ begin
   if Recipe = Value then
     Exit;
   FRecipe := Value;
-  if not HasCraftingMachine or not CraftingMachine.CanCraft(Recipe) then
+  if HasRecipe and not(HasCraftingMachine and CraftingMachine.CanCraft(Recipe)) then
     CraftingMachine := Recipe.FindCraftingMachine;
   GeneratePorts;
   Change;
@@ -1039,7 +1058,7 @@ var
   Offset: Integer;
 begin
   Offset := MachineArray.PortHeight - MachineArray.Inputs.Count;
-  Result := MachineArray.Pos + Vec2(0, 56 + (Index + Offset / 2) * 48);
+  Result := MachineArray.Pos + Vec2(0, 48 + (Index + Offset / 2) * 48);
 end;
 
 procedure TMachineInput.SetIndex(const Value: Integer);
@@ -1081,7 +1100,7 @@ var
   Offset: Integer;
 begin
   Offset := MachineArray.PortHeight - MachineArray.Outputs.Count;
-  Result := MachineArray.Pos + Vec2(64, 56 + (Index + Offset / 2) * 48);
+  Result := MachineArray.Pos + Vec2(64, 48 + (Index + Offset / 2) * 48);
 end;
 
 procedure TMachineOutput.SetIndex(const Value: Integer);
@@ -1099,6 +1118,13 @@ end;
 function TConnectionNet.GetOutputs: IIterate<TMachineOutput>;
 begin
   Result := FMachinePorts.Iterate.Generic.OfType<TMachineOutput>;
+end;
+
+function TConnectionNet.IsFluid: Boolean;
+begin
+  if MachinePorts.Empty then
+    Exit(False);
+  Result := MachinePorts.First.ItemStack.IsFluid;
 end;
 
 function TConnectionNet.GetInputs: IIterate<TMachineInput>;
@@ -1155,6 +1181,11 @@ begin
   if MachinePorts.Empty then
     Exit(nil);
   Result := MachinePorts.First.ItemStack.Item;
+end;
+
+function TConnectionNet.GetJVersion: Integer;
+begin
+  Result := 0;
 end;
 
 function TConnectionNet.GetCenter: TVector2;
@@ -1236,6 +1267,42 @@ begin
   FMachinePorts := TList<TMachinePort>.Create;
 end;
 
+procedure TConnectionNet.DefineJStorage(ASerializer: TJSerializer);
+var
+  JConnections: TJArray;
+  Port: TMachinePort;
+  LoadedItemType: AnsiString;
+  JPort: TJValue;
+begin
+  // Define('PosX', FPos.X);
+  // Define('PosY', FPos.Y);
+
+  case ASerializer.Mode of
+    smSerialize:
+      begin
+        ASerializer.Value['Item'] := string(ItemType.Name);
+        JConnections := ASerializer.Value.AddArray('Outputs');
+        for Port in Outputs do
+          JConnections.Add(Port.MachineArray.Index);
+        JConnections := ASerializer.Value.AddArray('Inputs');
+        for Port in Inputs do
+          JConnections.Add(Port.MachineArray.Index);
+      end;
+    smUnserialize:
+      begin
+        LoadedItemType := AnsiString(ASerializer.Value['Item'].AsString);
+        for JPort in ASerializer.Value['Outputs'].AsArray do
+          for Port in Factory.MachineArrays[JPort.AsInt].Outputs do
+            if Port.ItemStack.Item.Name = LoadedItemType then
+              Add(Port);
+        for JPort in ASerializer.Value['Inputs'].AsArray do
+          for Port in Factory.MachineArrays[JPort.AsInt].Inputs do
+            if Port.ItemStack.Item.Name = LoadedItemType then
+              Add(Port);
+      end;
+  end;
+end;
+
 destructor TConnectionNet.Destroy;
 begin
   FOnRemove.Execute(TEventInfo.Create(Self));
@@ -1243,6 +1310,9 @@ begin
 end;
 
 procedure TConnectionNet.Draw(G: IGPGraphics);
+// const
+// BezierConst = 0.55191502449;
+// BezierConst = 0.9;
 var
   Pen: IGPPen;
   Color: TColorRGBA;
@@ -1251,6 +1321,10 @@ var
   RatioText: string;
   TextSize: TGPRectF;
   MachinePort: TMachinePort;
+  I: Integer;
+  Belts: ISortedList<TFactorio.TTransportBelt>;
+  Path: IGPGraphicsPath;
+  // A, B, C, D: TVector2;
 begin
   if Inputs.Empty and Outputs.Empty then
     Exit;
@@ -1258,14 +1332,21 @@ begin
   if Effectivity <= 1 then
     Color := TColorRGBA.HSV(Effectivity * 2, 0.5, 1, 1)
   else
-    Color := TColorRGBA.HSV(4 - 2 / Effectivity, 0.5, 1);
+    Color := TColorRGBA.HSV(5 - 3 / Effectivity, 0.5, 1);
 
-  Pen := TGPPen.Create(Color, 20);
+  Pen := TGPPen.Create(Color, 16);
   Pen.StartCap := LineCapRound;
   Pen.EndCap := LineCapRound;
 
   for MachinePort in Outputs do
   begin
+    {
+      A := MachinePort.Pos + Vec2(32, 16);
+      B := Center;
+      C := Vec2(A.X + (B.X - A.X) * BezierConst, A.Y);
+      D := Vec2(B.X, B.Y + (A.Y - B.Y) * BezierConst);
+      G.DrawBezier(Pen, A.X, A.Y, C.X, C.Y, D.X, D.Y, B.X, B.Y);
+    }
     G.DrawLines(Pen, [
       TGPPointF.Create(MachinePort.Pos.X + 32, MachinePort.Pos.Y + 16),
       TGPPointF.Create(Center.X, MachinePort.Pos.Y + 16),
@@ -1276,21 +1357,59 @@ begin
 
   for MachinePort in Inputs do
   begin
+    {
+      A := Center;
+      B := MachinePort.Pos + Vec2(0, 16);
+      C := Vec2(A.X, A.Y + (B.Y - A.Y) * BezierConst);
+      D := Vec2(B.X + (A.X - B.X) * BezierConst, B.Y);
+      G.DrawBezier(Pen, A.X, A.Y, C.X, C.Y, D.X, D.Y, B.X, B.Y);
+    }
     G.DrawLines(Pen, [
       TGPPointF.Create(Center.X, Center.Y),
       TGPPointF.Create(Center.X, MachinePort.Pos.Y + 16),
       TGPPointF.Create(MachinePort.Pos.X, MachinePort.Pos.Y + 16)]);
   end;
 
-  Font := TGPFont.Create('Tahoma', 12, [FontStyleBold]);
-  RatioText := Format('%3.3g/s'#10'%3.3g%%', [ItemsPerSecond, Effectivity * 100]);
+  Font := TGPFont.Create('Tahoma', 10, [FontStyleBold]);
+  RatioText := Format('%3.3g/s %3.3g%%', [ItemsPerSecond, Effectivity * 100]);
   TextSize := G.MeasureString(RatioText, Font, TGPPointF.Create(0, 0));
   FontBrush := TGPSolidBrush.Create($FF000000);
-  G.DrawString(
-    RatioText,
-    Font,
-    TGPPointF.Create(Center.X - TextSize.Width / 2, Center.Y - TextSize.Height / 2),
-    FontBrush);
+
+  if IsFluid then
+  begin
+    G.DrawString(
+      RatioText,
+      Font,
+      TGPPointF.Create(Center.X - TextSize.Width / 2, Center.Y - TextSize.Height / 2),
+      FontBrush);
+  end
+  else
+  begin
+    G.DrawString(
+      RatioText,
+      Font,
+      TGPPointF.Create(Center.X - TextSize.Width / 2, Center.Y - TextSize.Height),
+      FontBrush);
+
+    Belts := TSortedList<TFactorio.TTransportBelt>.Create;
+    Belts.Compare := function(A, B: TFactorio.TTransportBelt): Boolean
+      begin
+        Result := A.Speed < B.Speed;
+      end;
+    Belts.AddRange(Factory.Factorio.TransportBeltOrder.Iterate.Where(
+      function(Belt: TFactorio.TTransportBelt): Boolean
+      begin
+        Result := ItemsPerSecond <= Belt.ItemsPerSecond;
+      end));
+
+    for I := 0 to Belts.MaxIndex do
+    begin
+      if ItemsPerSecond <= Belts[I].ItemsPerSecond / 2 then
+        G.DrawImage(Belts[I].Icon, Center.X + 8 + (I - Belts.Count / 2) * 32, Center.Y, 16, 32, 0, 0, 16, 32, UnitPixel)
+      else
+        G.DrawImage(Belts[I].Icon, Center.X + (I - Belts.Count / 2) * 32, Center.Y, 32, 32);
+    end;
+  end;
 end;
 
 { TFactory.TConnectionNetEventInfo }

@@ -398,12 +398,15 @@ type
     private
       FSpeed: Single;
 
+      function GetItemsPerSecond: Single;
+
     public
       constructor Create(AFactorio: TFactorio; L: TLuaState); override;
 
       class function GetType: TPrototype.TType; override;
 
       property Speed: Single read FSpeed;
+      property ItemsPerSecond: Single read GetItemsPerSecond;
 
     end;
 
@@ -1094,6 +1097,11 @@ begin
   L.Pop;
 end;
 
+function TFactorio.TTransportBelt.GetItemsPerSecond: Single;
+begin
+  Result := Speed * 60 * 8;
+end;
+
 class function TFactorio.TTransportBelt.GetType: TPrototype.TType;
 begin
   Result := ptTransportBelt;
@@ -1427,7 +1435,7 @@ begin
           begin
             Result := ItemStack.Item = Self;
           end) then
-          Exit;        
+          Exit;
   Result := nil;
 end;
 
