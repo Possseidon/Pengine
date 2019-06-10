@@ -215,7 +215,9 @@ type
     function GetInputPerSecond: Single;
     function GetItemsPerSecond: Single;
     function GetEffectivity: Single;
-    function GetCenter: TVector2;
+    function GetPos: TVector2;
+    procedure SetPos(const Value: TVector2);
+    function GetBounds: TBounds2;
     function GetOnChange: TEvent<TSenderEventInfo<IConnectionNet>>.TAccess;
     function GetOnRemove: TEvent<TSenderEventInfo<IConnectionNet>>.TAccess;
 
@@ -232,7 +234,9 @@ type
     property ItemsPerSecond: Single read GetItemsPerSecond;
     property Effectivity: Single read GetEffectivity;
 
-    property Center: TVector2 read GetCenter;
+    function CalculateCenter: TVector2;
+    property Pos: TVector2 read GetPos write SetPos;
+    property Bounds: TBounds2 read GetBounds;
 
     procedure Draw(G: IGPGraphics);
 
@@ -250,6 +254,7 @@ type
 
   private
     FFactory: TFactory;
+    FPos: TVector2;
     FMachinePorts: IList<TMachinePort>;
     FOnChange: TEvent;
     FOnRemove: TEvent;
@@ -264,7 +269,9 @@ type
     function GetEffectivity: Single;
     function GetItemsPerSecond: Single;
 
-    function GetCenter: TVector2;
+    function GetPos: TVector2;
+    procedure SetPos(const Value: TVector2);
+    function GetBounds: TBounds2;
 
     function GetOnChange: TEvent.TAccess;
     function GetOnRemove: TEvent.TAccess;
@@ -292,7 +299,9 @@ type
     property ItemsPerSecond: Single read GetItemsPerSecond;
     property Effectivity: Single read GetEffectivity;
 
-    property Center: TVector2 read GetCenter;
+    function CalculateCenter: TVector2;
+    property Pos: TVector2 read GetPos write SetPos;
+    property Bounds: TBounds2 read GetBounds;
 
     procedure Draw(G: IGPGraphics);
 
@@ -411,6 +420,27 @@ type
   end;
 
 implementation
+
+procedure FitString(G: IGPGraphics; AFont: IGPFont; AString: string; ABounds: TBounds2);
+var
+  OldSize: Single;
+  R: TGPRectF;
+  B: TBounds2;
+begin
+  OldSize := AFont.Size;
+  G.BeginContainer
+  G.ScaleTransform();
+  while AFont.Size > 5 do
+  begin
+    R := G.MeasureString(AString, AFont, TGPPointF.Create(0, 0));
+    B := Bounds2(Vec2(R.Left, R.Top), Vec2(R.Right, R.Bottom));
+    if B <= ABounds then
+      Break;
+    AFont.Size := AFont.Size - 1;
+  end;
+  G.DrawString(AString, AFont, );
+  AFont.Size := OldSize;
+end;
 
 { TFactory }
 
@@ -761,7 +791,7 @@ begin
   // G.DrawString(Format('%.0f%%', [Performance * 100]), Font, TGPPointF.Create(Pos.X + 40, Pos.Y + 32), FontBrush);
 
   if HasCraftingMachine then
-    G.DrawImage(CraftingMachine.Icon, Pos.X + 32, Pos.Y);
+    G.DrawImage(CraftingMachine.Icon, Pos.X + 32, Pos.Y, 32, 32);
 
   for MachinePort in Inputs do
     MachinePort.Draw(G);
@@ -769,7 +799,7 @@ begin
     MachinePort.Draw(G);
 
   if HasRecipe and (Recipe.Icon <> Recipe.Results.First.Item.Icon) then
-    G.DrawImage(Recipe.Icon, Pos.X + 64, Pos.Y);
+    G.DrawImage(Recipe.Icon, Pos.X + 64, Pos.Y, 32, 32);
 
 end;
 
@@ -976,7 +1006,7 @@ begin
   Font := TGPFont.Create('Tahoma', 8);
   FontBrush := TGPSolidBrush.Create(TGPColor.Black);
   G.DrawString(Format('%dx', [ItemStack.Amount]), Font, TGPPointF.Create(Pos.X + 4, Pos.Y - 16), FontBrush);
-  G.DrawImage(ItemStack.Item.Icon, Pos.X, Pos.Y);
+  G.DrawImage(ItemStack.Item.Icon, Pos.X, Pos.Y, 32, 32);
 end;
 
 procedure TMachinePort.DrawItemAmount(G: IGPGraphics; APos: TVector2);
@@ -1120,6 +1150,11 @@ begin
   Result := FMachinePorts.Iterate.Generic.OfType<TMachineOutput>;
 end;
 
+function TConnectionNet.GetPos: TVector2;
+begin
+  Result := CalculateCenter + FPos;
+end;
+
 function TConnectionNet.IsFluid: Boolean;
 begin
   if MachinePorts.Empty then
@@ -1188,7 +1223,12 @@ begin
   Result := 0;
 end;
 
-function TConnectionNet.GetCenter: TVector2;
+function TConnectionNet.GetBounds: TBounds2;
+begin
+  Result := Bounds2(Pos).Outset(Vec2(64, 32));
+end;
+
+function TConnectionNet.CalculateCenter: TVector2;
 var
   Output: TMachineOutput;
   Input: TMachineInput;
@@ -1261,6 +1301,14 @@ begin
     Factory.RemoveConnectionNet(Self);
 end;
 
+procedure TConnectionNet.SetPos(const Value: TVector2);
+begin
+  if Pos = Value then
+    Exit;
+  FPos := Value - CalculateCenter;
+  Change;
+end;
+
 constructor TConnectionNet.Create(AFactory: TFactory);
 begin
   FFactory := AFactory;
@@ -1323,7 +1371,6 @@ var
   MachinePort: TMachinePort;
   I: Integer;
   Belts: ISortedList<TFactorio.TTransportBelt>;
-  Path: IGPGraphicsPath;
   // A, B, C, D: TVector2;
 begin
   if Inputs.Empty and Outputs.Empty then
@@ -1349,8 +1396,8 @@ begin
     }
     G.DrawLines(Pen, [
       TGPPointF.Create(MachinePort.Pos.X + 32, MachinePort.Pos.Y + 16),
-      TGPPointF.Create(Center.X, MachinePort.Pos.Y + 16),
-      TGPPointF.Create(Center.X, Center.Y)]);
+      TGPPointF.Create(Pos.X, MachinePort.Pos.Y + 16),
+      TGPPointF.Create(Pos.X, Pos.Y)]);
   end;
 
   Pen.EndCap := LineCapArrowAnchor;
@@ -1365,8 +1412,8 @@ begin
       G.DrawBezier(Pen, A.X, A.Y, C.X, C.Y, D.X, D.Y, B.X, B.Y);
     }
     G.DrawLines(Pen, [
-      TGPPointF.Create(Center.X, Center.Y),
-      TGPPointF.Create(Center.X, MachinePort.Pos.Y + 16),
+      TGPPointF.Create(Pos.X, Pos.Y),
+      TGPPointF.Create(Pos.X, MachinePort.Pos.Y + 16),
       TGPPointF.Create(MachinePort.Pos.X, MachinePort.Pos.Y + 16)]);
   end;
 
@@ -1380,7 +1427,7 @@ begin
     G.DrawString(
       RatioText,
       Font,
-      TGPPointF.Create(Center.X - TextSize.Width / 2, Center.Y - TextSize.Height / 2),
+      TGPPointF.Create(Pos.X - TextSize.Width / 2, Pos.Y - TextSize.Height / 2),
       FontBrush);
   end
   else
@@ -1388,7 +1435,7 @@ begin
     G.DrawString(
       RatioText,
       Font,
-      TGPPointF.Create(Center.X - TextSize.Width / 2, Center.Y - TextSize.Height),
+      TGPPointF.Create(Pos.X - TextSize.Width / 2, Pos.Y - TextSize.Height),
       FontBrush);
 
     Belts := TSortedList<TFactorio.TTransportBelt>.Create;
@@ -1405,9 +1452,9 @@ begin
     for I := 0 to Belts.MaxIndex do
     begin
       if ItemsPerSecond <= Belts[I].ItemsPerSecond / 2 then
-        G.DrawImage(Belts[I].Icon, Center.X + 8 + (I - Belts.Count / 2) * 32, Center.Y, 16, 32, 0, 0, 16, 32, UnitPixel)
+        G.DrawImage(Belts[I].Icon, Pos.X + 8 + (I - Belts.Count / 2) * 32, Pos.Y, 16, 32, 0, 0, 16, 32, UnitPixel)
       else
-        G.DrawImage(Belts[I].Icon, Center.X + (I - Belts.Count / 2) * 32, Center.Y, 32, 32);
+        G.DrawImage(Belts[I].Icon, Pos.X + (I - Belts.Count / 2) * 32, Pos.Y, 32, 32);
     end;
   end;
 end;

@@ -73,13 +73,16 @@ type
       FOrder: AnsiString;
       FIconSize: Integer;
       FIconPath: string;
-      FIcon: IGPBitmap;
+      FIconMipmaps: IList<IGPBitmap>;
+      FIconMipmapCount: Integer;
 
-      function GenerateMissingo: IGPBitmap;
+      function GenerateMissingo(AMipmapLayer: Integer): IGPBitmap;
       function GetDisplayName: AnsiString;
 
+      function GetIcon: IGPBitmap;
+
     protected
-      function GetIcon: IGPBitmap; virtual;
+      function GetIconMipmaps: IReadonlyList<IGPBitmap>; virtual;
       function GetOrder: AnsiString; virtual;
 
     public
@@ -98,6 +101,7 @@ type
       property IconSize: Integer read FIconSize;
       property IconPath: string read FIconPath;
       property Icon: IGPBitmap read GetIcon;
+      property IconMipmaps: IReadonlyList<IGPBitmap> read GetIconMipmaps;
 
     end;
 
@@ -226,7 +230,7 @@ type
       function GetSubgroup: TItemSubgroup;
 
     protected
-      function GetIcon: IGPBitmap; override;
+      function GetIconMipmaps: IReadonlyList<IGPBitmap>; override;
       function GetOrder: AnsiString; override;
 
     public
@@ -807,6 +811,12 @@ begin
   if L.GetField('icon') = ltString then
     FIconPath := TFactorio.ExpandPath(string(AnsiString(L.ToString)));
   L.Pop;
+
+  if L.GetField('icon_mipmaps') = ltNumber then
+    FIconMipmapCount := L.ToInteger
+  else
+    FIconMipmapCount := 1;
+  L.Pop;
 end;
 
 class function TFactorio.TPrototype.CreateTyped(AFactorio: TFactorio; L: TLuaState): TPrototype;
@@ -817,37 +827,41 @@ begin
   L.GetField('type');
   Prototype := L.ToString;
   for T := Low(TType) to High(TType) do
+  begin
     if Prototype = PrototypeNames[T] then
     begin
       L.Pop;
       Exit(PrototypeClasses[T].Create(AFactorio, L));
     end;
+  end;
   L.Pop;
   Result := nil;
 end;
 
-function TFactorio.TPrototype.GenerateMissingo: IGPBitmap;
+function TFactorio.TPrototype.GenerateMissingo(AMipmapLayer: Integer): IGPBitmap;
 var
+  Size: Integer;
   G: IGPGraphics;
   Font: IGPFont;
   Brush: IGPBrush;
   Pen: IGPPen;
   BgBrush: IGPBrush;
 begin
-  Result := TGPBitmap.Create(IconSize, IconSize);
+  Size := IconSize shr AMipmapLayer;
+  Result := TGPBitmap.Create(Size, Size);
 
   G := TGPGraphics.Create(Result);
   G.TextRenderingHint := TextRenderingHintAntiAlias;
   Font := TGPFont.Create('Tahoma', 7);
   Brush := TGPSolidBrush.Create(TGPColor.Black);
   Pen := TGPPen.Create(TGPColor.Black);
-  BgBrush := TGPLinearGradientBrush.Create(TGPRectF.Create(0, 0, IconSize, IconSize), $3FFF0000, $3F7F0000, 90);
+  BgBrush := TGPLinearGradientBrush.Create(TGPRectF.Create(0, 0, Size, Size), $3FFF0000, $3F7F0000, 90);
 
-  G.FillRectangle(BgBrush, 0, 0, IconSize, IconSize);
+  G.FillRectangle(BgBrush, 0, 0, Size, Size);
   G.DrawString(
     string(DisplayName).Replace(' ', #10#13),
     Font,
-    TGPRectF.Create(0, 0, IconSize, IconSize),
+    TGPRectF.Create(0, 0, Size, Size),
     TGPStringFormat.Create([StringFormatFlagsNoWrap]),
     Brush);
 end;
@@ -871,14 +885,39 @@ end;
 
 function TFactorio.TPrototype.GetIcon: IGPBitmap;
 begin
-  if FIcon = nil then
+  Result := IconMipmaps[0];
+end;
+
+function TFactorio.TPrototype.GetIconMipmaps: IReadonlyList<IGPBitmap>;
+var
+  I, Size, X: Integer;
+  FullImage, MipmapImage: IGPBitmap;
+  G: IGPGraphics;
+begin
+  if FIconMipmaps = nil then
   begin
+    FIconMipmaps := TList<IGPBitmap>.Create;
     if FIconPath.IsEmpty or not FileExists(FIconPath) then
-      FIcon := GenerateMissingo
+    begin
+      for I := 0 to FIconMipmapCount - 1 do
+        FIconMipmaps.Add(GenerateMissingo(I));
+    end
     else
-      FIcon := TGPBitmap.Create(FIconPath);
+    begin
+      FullImage := TGPBitmap.FromFile(IconPath);
+      X := 0;
+      for I := 0 to FIconMipmapCount - 1 do
+      begin
+        Size := IconSize shr I;
+        MipmapImage := TGPBitmap.Create(Size, Size);
+        G := TGPGraphics.FromImage(MipmapImage);
+        G.DrawImage(FullImage, 0, 0, X, 0, Size, Size, UnitPixel);
+        FIconMipmaps.Add(MipmapImage);
+        Inc(X, Size);
+      end;
+    end;
   end;
-  Result := FIcon;
+  Result := FIconMipmaps.ReadonlyList;
 end;
 
 function TFactorio.TPrototype.GetOrder: AnsiString;
@@ -997,15 +1036,15 @@ begin
   Result := Results.First.Item.Group;
 end;
 
-function TFactorio.TRecipe.GetIcon: IGPBitmap;
+function TFactorio.TRecipe.GetIconMipmaps: IReadonlyList<IGPBitmap>;
 begin
   if not FIconPath.IsEmpty then
     Exit(inherited);
 
   if Results.First.IsFluid then
-    Result := Factorio.Fluid[Results.First.Name].Icon
+    Result := Factorio.Fluid[Results.First.Name].IconMipmaps
   else
-    Result := Factorio.Item[Results.First.Name].Icon;
+    Result := Factorio.Item[Results.First.Name].IconMipmaps;
 end;
 
 function TFactorio.TRecipe.GetIngredients: IReadonlyList<TIngredient>;

@@ -6,5 +6,23 @@
 [ ] Modules
 [ ] Draggable ConnectionNet-Center
 [X] Zooming
-[ ] Undo-Redo
+[ ] Copy function for MachineArray and ConnectionNet
+[ ] ActionRecorder for Undo-Redo
+  - MachineArrays:
+  [ ] CreateMachineArray
+  [ ] RemoveMachineArray
+  [ ] ChangeRecipe
+  [ ] ChangeCraftingMachine
+  [ ] ChangeMachineArrayCount
+  [ ] MoveMachineArray
+  - ConnectionNets:
+  [ ] CreateConnectionNet
+  [ ] RemoveConnectionNet
+  [ ] MoveConnectionNet
+  [ ] AddConnection
+  [ ] RemoveConnection
 [ ] Customizable data Path
+[ ] Icons can be mipmaps... Thanks update
+[ ] Add actual performance (minimum of all ports) to crafting machines to allow chaining connecte
+  [ ] Show actual performance with small red -> green line between crafting machine and ports
+  [ ] Also show actual performance using percentage above said line
