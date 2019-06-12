@@ -95,7 +95,7 @@ object frmRecipes: TfrmRecipes
         Width = 83
         Height = 22
         Anchors = [akTop, akRight]
-        MaxValue = 999
+        MaxValue = 1000000
         MinValue = 1
         TabOrder = 0
         Value = 1

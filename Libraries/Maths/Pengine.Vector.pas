@@ -32,6 +32,9 @@ interface
 { TODO 4 -oPossseidon -cConst :
   Add const to correct arguments }
 
+// TODO: Add more support for simple arguments to avoid shorthand constructors
+// TODO: Add Offset method to vector and bounds, which helps with (a + vec2(1, 2)).something
+
 uses
   System.Math,
   System.SysUtils,

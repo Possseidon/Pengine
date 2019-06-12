@@ -421,25 +421,24 @@ type
 
 implementation
 
-procedure FitString(G: IGPGraphics; AFont: IGPFont; AString: string; ABounds: TBounds2);
+procedure FitString(G: IGPGraphics; AString: string; AFont: IGPFont; ABounds: TBounds2; ABrush: IGPBrush);
 var
-  OldSize: Single;
-  R: TGPRectF;
-  B: TBounds2;
+  Aspect, LongSide: Single;
+  BoundsRect, StringRect, ScalingRect: TGPRectF;
+  C: TGPGraphicsContainer;
 begin
-  OldSize := AFont.Size;
-  G.BeginContainer
-  G.ScaleTransform();
-  while AFont.Size > 5 do
-  begin
-    R := G.MeasureString(AString, AFont, TGPPointF.Create(0, 0));
-    B := Bounds2(Vec2(R.Left, R.Top), Vec2(R.Right, R.Bottom));
-    if B <= ABounds then
-      Break;
-    AFont.Size := AFont.Size - 1;
-  end;
-  G.DrawString(AString, AFont, );
-  AFont.Size := OldSize;
+  Aspect := ABounds.Width / ABounds.Height;
+  BoundsRect := TGPRectF.Create(ABounds.C1.X, ABounds.C1.Y, ABounds.Width, ABounds.Height);
+  StringRect := G.MeasureString(AString, AFont, TGPPointF.Create(0, 0));
+  LongSide := Max(StringRect.Width / Aspect, StringRect.Height);
+  ScalingRect := TGPRectF.Create(0, 0, LongSide * Aspect, LongSide);
+  StringRect.X := (LongSide * Aspect - StringRect.Width) / 2;
+  StringRect.Y := (LongSide - StringRect.Height) / 2;
+  C := G.BeginContainer(BoundsRect, ScalingRect, UnitPixel);
+  G.TextRenderingHint := TextRenderingHintAntiAlias;
+  // G.DrawRectangle(TGPPen.Create($FF000000), StringRect);
+  G.DrawString(AString, AFont, StringRect, TGPStringFormat.Create, ABrush);
+  G.EndContainer(C);
 end;
 
 { TFactory }
@@ -785,9 +784,10 @@ begin
   G.FillRectangle(BgBrush, Rect);
   G.DrawRectangle(Pen, Rect);
 
-  Font := TGPFont.Create('Tahoma', 8);
+  Font := TGPFont.Create('Tahoma', 10);
   FontBrush := TGPSolidBrush.Create(TGPColor.Black);
-  G.DrawString(Format('%dx', [Count]), Font, TGPPointF.Create(Pos.X, Pos.Y + 8), FontBrush);
+  FitString(G, Format('%dx', [Count]), Font, (Pos + Vec2(0, 8)).Bounds(Vec2(32, 16)), FontBrush);
+  // G.DrawString(Format('%dx', [Count]), Font, TGPPointF.Create(Pos.X, Pos.Y + 8), FontBrush);
   // G.DrawString(Format('%.0f%%', [Performance * 100]), Font, TGPPointF.Create(Pos.X + 40, Pos.Y + 32), FontBrush);
 
   if HasCraftingMachine then
@@ -1005,7 +1005,8 @@ var
 begin
   Font := TGPFont.Create('Tahoma', 8);
   FontBrush := TGPSolidBrush.Create(TGPColor.Black);
-  G.DrawString(Format('%dx', [ItemStack.Amount]), Font, TGPPointF.Create(Pos.X + 4, Pos.Y - 16), FontBrush);
+  FitString(G, Format('%dx', [ItemStack.Amount]), Font, (Pos + Vec2(0, -16)).Bounds(Vec2(32, 16)), FontBrush);
+  // G.DrawString(Format('%dx', [ItemStack.Amount]), Font, TGPPointF.Create(Pos.X + 4, Pos.Y - 16), FontBrush);
   G.DrawImage(ItemStack.Item.Icon, Pos.X, Pos.Y, 32, 32);
 end;
 
@@ -1016,7 +1017,8 @@ var
 begin
   Font := TGPFont.Create('Tahoma', 8);
   FontBrush := TGPSolidBrush.Create(TGPColor.Black);
-  G.DrawString(Format('%3.3g/s', [ItemsPerSecond]), Font, TGPPointF.Create(APos.X, APos.Y + 8), FontBrush);
+  FitString(G, Format('%.3g/s', [ItemsPerSecond], TFormatSettings.Invariant), Font, (APos + Vec2(0, 8)).Bounds(Vec2(32, 16)), FontBrush);
+  // G.DrawString(Format('%3.3g/s', [ItemsPerSecond]), Font, TGPPointF.Create(APos.X, APos.Y + 8), FontBrush);
 end;
 
 function TMachinePort.GetBounds: TBounds2;
@@ -1070,7 +1072,7 @@ end;
 procedure TMachineInput.Draw(G: IGPGraphics);
 begin
   inherited;
-  DrawItemAmount(G, Pos - Vec2(36, 0));
+  DrawItemAmount(G, Pos - Vec2(32, 0));
 end;
 
 function TMachineInput.GetIndex: Integer;
@@ -1107,7 +1109,7 @@ end;
 procedure TMachineOutput.Draw(G: IGPGraphics);
 begin
   inherited;
-  DrawItemAmount(G, Pos + Vec2(36, 0));
+  DrawItemAmount(G, Pos + Vec2(32, 0));
 end;
 
 function TMachineOutput.GetIndex: Integer;
