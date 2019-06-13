@@ -148,6 +148,7 @@ type
 
     procedure SetCount(const Value: Integer);
     procedure SetPerformance(const Value: Single);
+    function GetActualPerformance: Single;
 
     procedure SetCraftingMachine(const Value: TFactorio.TCraftingMachine);
     procedure SetRecipe(const Value: TFactorio.TRecipe);
@@ -175,6 +176,7 @@ type
 
     property Count: Integer read FCount write SetCount;
     property Performance: Single read FPerformance write SetPerformance;
+    property ActualPerformance: Single read GetActualPerformance;
 
     function HasCraftingMachine: Boolean;
     property CraftingMachine: TFactorio.TCraftingMachine read FCraftingMachine write SetCraftingMachine;
@@ -266,8 +268,8 @@ type
     function GetItemType: TFactorio.TItemOrFluid;
     function GetOutputPerSecond: Single;
     function GetInputPerSecond: Single;
-    function GetEffectivity: Single;
     function GetItemsPerSecond: Single;
+    function GetEffectivity: Single;
 
     function GetPos: TVector2;
     procedure SetPos(const Value: TVector2);
@@ -786,7 +788,7 @@ begin
 
   Font := TGPFont.Create('Tahoma', 10);
   FontBrush := TGPSolidBrush.Create(TGPColor.Black);
-  FitString(G, Format('%dx', [Count]), Font, (Pos + Vec2(0, 8)).Bounds(Vec2(32, 16)), FontBrush);
+  FitString(G, Format('%dx', [Count]), Font, Pos.Offset(0, 8).Bounds(32, 16), FontBrush);
   // G.DrawString(Format('%dx', [Count]), Font, TGPPointF.Create(Pos.X, Pos.Y + 8), FontBrush);
   // G.DrawString(Format('%.0f%%', [Performance * 100]), Font, TGPPointF.Create(Pos.X + 40, Pos.Y + 32), FontBrush);
 
@@ -885,6 +887,19 @@ begin
     FInputs.Add(TMachineInput.Create(Self, Ingredient));
   for Result in Recipe.Results do
     FOutputs.Add(TMachineOutput.Create(Self, Result));
+end;
+
+function TMachineArray.GetActualPerformance: Single;
+var
+  Input: TMachineInput;
+begin
+  Result := 1;
+  for Input in Inputs do
+  begin
+    if not Input.IsConnected then
+      Continue;
+    Result := Min(Result, Input.ConnectionNet.Effectivity);
+  end;
 end;
 
 function TMachineArray.GetBounds: TBounds2;
@@ -1005,7 +1020,7 @@ var
 begin
   Font := TGPFont.Create('Tahoma', 8);
   FontBrush := TGPSolidBrush.Create(TGPColor.Black);
-  FitString(G, Format('%dx', [ItemStack.Amount]), Font, (Pos + Vec2(0, -16)).Bounds(Vec2(32, 16)), FontBrush);
+  FitString(G, Format('%dx', [ItemStack.Amount]), Font, Pos.Offset(0, -16).Bounds(32, 16), FontBrush);
   // G.DrawString(Format('%dx', [ItemStack.Amount]), Font, TGPPointF.Create(Pos.X + 4, Pos.Y - 16), FontBrush);
   G.DrawImage(ItemStack.Item.Icon, Pos.X, Pos.Y, 32, 32);
 end;
@@ -1017,7 +1032,7 @@ var
 begin
   Font := TGPFont.Create('Tahoma', 8);
   FontBrush := TGPSolidBrush.Create(TGPColor.Black);
-  FitString(G, Format('%.3g/s', [ItemsPerSecond], TFormatSettings.Invariant), Font, (APos + Vec2(0, 8)).Bounds(Vec2(32, 16)), FontBrush);
+  FitString(G, Format('%.3g/s', [ItemsPerSecond], TFormatSettings.Invariant), Font, APos.Offset(0, 8).Bounds(32, 16), FontBrush);
   // G.DrawString(Format('%3.3g/s', [ItemsPerSecond]), Font, TGPPointF.Create(APos.X, APos.Y + 8), FontBrush);
 end;
 
@@ -1205,7 +1220,7 @@ begin
   if IPS = 0 then
     Result := Infinity
   else
-    Result := OutputPerSecond / InputPerSecond;
+    Result := OutputPerSecond / IPS;
 end;
 
 function TConnectionNet.GetItemsPerSecond: Single;

@@ -22,7 +22,7 @@
   [ ] AddConnection
   [ ] RemoveConnection
 [ ] Customizable data Path
-[ ] Icons can be mipmaps... Thanks update
-[ ] Add actual performance (minimum of all ports) to crafting machines to allow chaining connecte
+[X] Icons can be mipmaps... Thanks update
+[ ] Add actual performance (minimum of all ports) to crafting machines to allow chaining connected machines
   [ ] Show actual performance with small red -> green line between crafting machine and ports
   [ ] Also show actual performance using percentage above said line

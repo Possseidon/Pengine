@@ -114,13 +114,13 @@ type
     class operator Implicit(V: Single): TVector2;
     class operator Implicit(const AVector: TIntVector2): TVector2;
 
-{$REGION 'All versions of rearrangement TVector2'}
+    {$REGION 'All versions of rearrangement TVector2'}
     property XX: TVector2 read GetXX;
     property XY: TVector2 read GetXY write SetXY;
     property YX: TVector2 read GetYX write SetYX;
     property YY: TVector2 read GetYY;
+    {$ENDREGION}
 
-{$ENDREGION}
     class operator Add(const A, B: TVector2): TVector2;
     class operator Subtract(const A, B: TVector2): TVector2;
     class operator Multiply(const A, B: TVector2): TVector2;
@@ -194,6 +194,11 @@ type
     function Min(const A: TVector2): TVector2;
     /// <returns>A vector with the greater components of both vectors.</returns>
     function Max(const A: TVector2): TVector2;
+
+    /// <returns>A vector, that is offset by the specified amount.</returns>
+    function Offset(const A: TVector2): TVector2; overload; inline;
+    /// <returns>A vector, that is offset by the specified amount.</returns>
+    function Offset(X, Y: Single): TVector2; overload; inline;
 
     /// <returns>A set of all basic directions, that the vector is pointing to.</returns>
     /// <remarks>Therefore bdLeft and bdRight etc. are mutually exclusive, as each axis can have only one direction.</remarks>
@@ -432,6 +437,11 @@ type
     /// <returns>A vector with the greater components of both vectors.</returns>
     function Max(const A: TVector3): TVector3;
 
+    /// <returns>A vector, that is offset by the specified amount.</returns>
+    function Offset(const A: TVector3): TVector3; overload; inline;
+    /// <returns>A vector, that is offset by the specified amount.</returns>
+    function Offset(X, Y, Z: Single): TVector3; overload; inline;
+
     /// <returns>A set of all basic directions, that the vector is pointing to.</returns>
     /// <remarks>Therefore bdLeft and bdRight etc. are mutually exclusive, as each axis can have only one direction.</remarks>
     function Dirs: TBasicDirs3;
@@ -577,6 +587,8 @@ type
     function Inset(AAmount: Single): TBounds1;
     /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: Single): TBounds1;
+    /// <returns>Bounds, that are offset by the specified amount.</returns>
+    function Offset(AAmount: Single): TBounds1; inline;
 
     /// <returns>The bounds with all values rounded down.</returns>
     function Floor: TIntBounds1;
@@ -744,6 +756,10 @@ type
     function Inset(AAmount: TVector2): TBounds2;
     /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: TVector2): TBounds2;
+    /// <returns>Bounds, that are offset by the specified amount.</returns>
+    function Offset(AAmount: TVector2): TBounds2; overload; inline;
+    /// <returns>Bounds, that are offset by the specified amount.</returns>
+    function Offset(AAmountX, AAmountY: Single): TBounds2; overload; inline;
 
     /// <returns>The bounds with all values rounded down.</returns>
     function Floor: TIntBounds2;
@@ -959,6 +975,10 @@ type
     function Inset(AAmount: TVector3): TBounds3;
     /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: TVector3): TBounds3;
+    /// <returns>Bounds, that are offset by the specified amount.</returns>
+    function Offset(AAmount: TVector3): TBounds3; overload; inline;
+    /// <returns>Bounds, that are offset by the specified amount.</returns>
+    function Offset(AAmountX, AAmountY, AAmountZ: Single): TBounds3; overload; inline;
 
     /// <returns>The bounds with all values rounded down.</returns>
     function Floor: TIntBounds3;
@@ -1271,14 +1291,18 @@ type
   TVector2Helper = record helper for TVector2
     /// <returns>Creates a <see cref="Pengine.Vector|TLine2"/> between two vectors.</returns>
     function LineTo(const A: TVector2): TLine2;
-    function Bounds(const ASize: TVector2): TBounds2;
+    function Bounds(const ASize: TVector2): TBounds2; overload;
+    function Bounds(ASizeX, ASizeY: Single): TBounds2; overload;
+
   end;
 
   /// <summary>Record helper for <see cref="Pengine.Vector|TVector3"/></summary>
   TVector3Helper = record helper for TVector3
     /// <returns>Creates a <see cref="Pengine.Vector|TLine3"/> between two vectors.</returns>
     function LineTo(const A: TVector3): TLine3;
-    function Bounds(const ASize: TVector3): TBounds3;
+    function Bounds(const ASize: TVector3): TBounds3; overload;
+    function Bounds(ASizeX, ASizeY, ASizeZ: Single): TBounds3; overload;
+
   end;
 
   /// <summary>Represents a 2-Dimensional plane, described by one support vector S and two direction vectors X and Y.</summary>
@@ -2051,6 +2075,16 @@ begin
   Result := (A.X <> B.X) or (A.Y <> B.Y);
 end;
 
+function TVector2.Offset(X, Y: Single): TVector2;
+begin
+  Result := Offset(Vec2(X, Y));
+end;
+
+function TVector2.Offset(const A: TVector2): TVector2;
+begin
+  Result := Self + A;
+end;
+
 class operator TVector2.LessThan(const A, B: TVector2): Boolean;
 begin
   Result := (A.X < B.X) and (A.Y < B.Y);
@@ -2730,6 +2764,16 @@ begin
   Result := (A.X <> B.X) or (A.Y <> B.Y) or (A.Z <> B.Z);
 end;
 
+function TVector3.Offset(X, Y, Z: Single): TVector3;
+begin
+  Result := Offset(Vec3(X, Y, Z));
+end;
+
+function TVector3.Offset(const A: TVector3): TVector3;
+begin
+  Result := Self + A;
+end;
+
 class operator TVector3.LessThan(const A, B: TVector3): Boolean;
 begin
   Result := (A.X < B.X) and (A.Y < B.Y) and (A.Z < B.Z);
@@ -3071,6 +3115,11 @@ begin
   Result.C2 := C2 - AAmount;
 end;
 
+function TBounds1.Offset(AAmount: Single): TBounds1;
+begin
+  Result := Self + AAmount;
+end;
+
 function TBounds1.Outset(AAmount: Single): TBounds1;
 begin
   Result.C1 := C1 - AAmount;
@@ -3336,6 +3385,16 @@ function TBounds2.Inset(AAmount: TVector2): TBounds2;
 begin
   Result.C1 := C1 + AAmount;
   Result.C2 := C2 - AAmount;
+end;
+
+function TBounds2.Offset(AAmount: TVector2): TBounds2;
+begin
+  Result := Self + AAmount;
+end;
+
+function TBounds2.Offset(AAmountX, AAmountY: Single): TBounds2;
+begin
+  Result := Offset(Vec2(AAmountX, AAmountY));
 end;
 
 function TBounds2.Outset(AAmount: TVector2): TBounds2;
@@ -3732,6 +3791,16 @@ function TBounds3.Inset(AAmount: TVector3): TBounds3;
 begin
   Result.C1 := C1 + AAmount;
   Result.C2 := C2 - AAmount;
+end;
+
+function TBounds3.Offset(AAmount: TVector3): TBounds3;
+begin
+  Result := Self + AAmount;
+end;
+
+function TBounds3.Offset(AAmountX, AAmountY, AAmountZ: Single): TBounds3;
+begin
+  Result := Offset(Vec3(AAmountX, AAmountY, AAmountZ));
 end;
 
 function TBounds3.Outset(AAmount: TVector3): TBounds3;
@@ -4376,6 +4445,11 @@ begin
   Result.Create(Self, Self + ASize);
 end;
 
+function TVector2Helper.Bounds(ASizeX, ASizeY: Single): TBounds2;
+begin
+  Result := Bounds(Vec2(ASizeX, ASizeY));
+end;
+
 function TVector2Helper.LineTo(const A: TVector2): TLine2;
 begin
   Result.Create(Self, VectorTo(A));
@@ -4386,6 +4460,11 @@ end;
 function TVector3Helper.Bounds(const ASize: TVector3): TBounds3;
 begin
   Result.Create(Self, Self + ASize);
+end;
+
+function TVector3Helper.Bounds(ASizeX, ASizeY, ASizeZ: Single): TBounds3;
+begin
+  Result := Bounds(Vec3(ASizeX, ASizeY, ASizeZ));
 end;
 
 function TVector3Helper.LineTo(const A: TVector3): TLine3;

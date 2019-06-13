@@ -11,9 +11,9 @@ uses
 
 type
 
-  /// <summary>A vertex-index for a triangle in range: <c>[0, 3)</c></summary>
+  /// <summary>A vertex-index for a triangle in range: <c>[0, 2]</c></summary>
   TTriangleIndex = 0 .. 2;
-  /// <summary>A vertex-index for a render-quad in range: <c>[0, 6)</c></summary>
+  /// <summary>A vertex-index for a render-quad in range: <c>[0, 5]</c></summary>
   TQuadIndex = 0 .. 5;
 
   /// <summary>Describes one of the three axes: <c>caX, caY, caZ</c> and also contains <c>caNone</c> to specify no axis.</summary>
@@ -141,13 +141,13 @@ type
     class operator Implicit(A: TIntVector2): TPoint;
     class operator Implicit(A: TPoint): TIntVector2;
 
-{$REGION 'All versions of rearrangement TIntVector2'}
+    {$REGION 'All versions of rearrangement TIntVector2'}
     property XX: TIntVector2 read GetXX;
     property XY: TIntVector2 read GetXY write SetXY;
     property YX: TIntVector2 read GetYX write SetYX;
     property YY: TIntVector2 read GetYY;
+    {$ENDREGION}
 
-{$ENDREGION}
     class operator Add(const A, B: TIntVector2): TIntVector2;
     class operator Subtract(const A, B: TIntVector2): TIntVector2;
     class operator Multiply(const A, B: TIntVector2): TIntVector2;
@@ -164,7 +164,7 @@ type
     class operator GreaterThan(const A, B: TIntVector2): Boolean;
     class operator GreaterThanOrEqual(const A, B: TIntVector2): Boolean;
 
-    class operator In (const A, B: TIntVector2): Boolean; inline;
+    class operator In(const A, B: TIntVector2): Boolean; inline;
 
     /// <returns>A string representative in the form: <c>[X|Y]</c></returns>
     /// <remarks>Direct implicit conversion to string is possible.</remarks>
@@ -179,6 +179,9 @@ type
     function Min(const A: TIntVector2): TIntVector2;
     /// <returns>A vector with the greater components of both vectors.</returns>
     function Max(const A: TIntVector2): TIntVector2;
+
+    /// <returns>A vector, that is offset by the specified amount.</returns>
+    function Offset(const A: TIntVector2): TIntVector2; inline;
 
     /// <returns>A vector, which is Rotate by 90° counter-clockwise.</returns>
     function Cross: TIntVector2;
@@ -267,7 +270,7 @@ type
 
     class operator Implicit(V: Integer): TIntVector3; inline;
 
-{$REGION 'All versions of rearrangement TIntVector2'}
+    {$REGION 'All versions of rearrangement TIntVector2'}
     property XX: TIntVector2 read GetXX;
     property XY: TIntVector2 read GetXY write SetXY;
     property XZ: TIntVector2 read GetXZ write SetXZ;
@@ -277,9 +280,9 @@ type
     property ZX: TIntVector2 read GetZX write SetZX;
     property ZY: TIntVector2 read GetZY write SetZY;
     property ZZ: TIntVector2 read GetZZ;
+    {$ENDREGION}
 
-{$ENDREGION}
-{$REGION 'All versions of rearrangement TIntVector3'}
+    {$REGION 'All versions of rearrangement TIntVector3'}
     property XXX: TIntVector3 read GetXXX;
     property XXY: TIntVector3 read GetXXY;
     property XXZ: TIntVector3 read GetXXZ;
@@ -307,8 +310,8 @@ type
     property ZZX: TIntVector3 read GetZZX;
     property ZZY: TIntVector3 read GetZZY;
     property ZZZ: TIntVector3 read GetZZZ;
+    {$ENDREGION}
 
-{$ENDREGION}
     class operator Add(const A, B: TIntVector3): TIntVector3;
     class operator Subtract(const A, B: TIntVector3): TIntVector3;
     class operator Multiply(const A, B: TIntVector3): TIntVector3;
@@ -325,7 +328,7 @@ type
     class operator GreaterThan(const A, B: TIntVector3): Boolean;
     class operator GreaterThanOrEqual(const A, B: TIntVector3): Boolean;
 
-    class operator In (const A, B: TIntVector3): Boolean; inline;
+    class operator In(const A, B: TIntVector3): Boolean; inline;
 
     /// <returns>A string representative in the form: <c>[X|Y|Z]</c></returns>
     /// <remarks>Direct implicit conversion to string is possible.</remarks>
@@ -340,6 +343,9 @@ type
     function Min(const A: TIntVector3): TIntVector3;
     /// <returns>A vector with the greater components of both vectors.</returns>
     function Max(const A: TIntVector3): TIntVector3;
+
+    /// <returns>A vector, that is offset by the specified amount.</returns>
+    function Offset(const A: TIntVector3): TIntVector3; inline;
 
   end;
 
@@ -378,7 +384,6 @@ type
     /// <summary>The (usually) higher value of the bounds.</summary>
     C2: Integer;
 
-  public
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds1"/> with the specified range.</summary>
     constructor Create(AC1, AC2: Integer); overload;
     /// <summary>Creates a <see cref="Pengine.IntMaths|TIntBounds1"/> with both bounds laying on the same, given value.</summary>
@@ -411,6 +416,8 @@ type
     function Inset(AAmount: Integer): TIntBounds1;
     /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: Integer): TIntBounds1;
+    /// <returns>Bounds, that are offset by the specified amount.</returns>
+    function Offset(AAmount: Integer): TIntBounds1; inline;
 
     class operator Add(const A, B: TIntBounds1): TIntBounds1;
     class operator Subtract(const A, B: TIntBounds1): TIntBounds1;
@@ -530,6 +537,8 @@ type
     function Inset(AAmount: TIntVector2): TIntBounds2;
     /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: TIntVector2): TIntBounds2;
+    /// <returns>Bounds, that are offset by the specified amount.</returns>
+    function Offset(AAmount: TIntVector2): TIntBounds2; inline;
 
     class operator Add(const A, B: TIntBounds2): TIntBounds2;
     class operator Subtract(const A, B: TIntBounds2): TIntBounds2;
@@ -557,11 +566,11 @@ type
   end;
 
   /// <summary>
-  /// Represents 2-Dimensional bounds <c>[C1, C2)</c> using two <see cref="Pengine.IntMaths|TIntVector2"/>.
+  /// Represents 3-Dimensional bounds <c>[C1, C2]</c> using two <see cref="Pengine.IntMaths|TIntVector2"/>.
   /// <p>Shorthand constructor using: <see cref="Pengine.IntMaths|IBounds2"/></p>
   /// </summary>
   /// <remarks>
-  /// For better performance, most functions assume, that the bounds are normalized: <c>C1 &lt;= C2</c><p/>
+  /// For better performance, most functions assume, that the bounds are normalized: <c>C1 &lt;= C2 + 1</c><p/>
   /// Iteration with a <c>for-in</c> loop is possible.
   /// </remarks>
   TIntBounds3 = record
@@ -625,6 +634,16 @@ type
     /// <returns>The volume of the bounds.</returns>
     function Volume: Integer;
 
+    /// <returns>The horizontal length of the bounds.</returns>
+    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
+    function Width: Integer; inline;
+    /// <returns>The vertical length of the bounds.</returns>
+    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
+    function Height: Integer; inline;
+    /// <returns>The depth of the bounds.</returns>
+    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
+    function Depth: Integer; inline;
+
     /// <summary>Resembles both X-Components of the bounds as a <see cref="Pengine.Vector|TIntBounds1"/>.</summary>
     /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property LineX: TIntBounds1 read GetLineX write SetLineX;
@@ -654,16 +673,6 @@ type
     /// <remarks>/!\ You cannot change the result directly, as it creates a copy of the values.</remarks>
     property PlaneXZ: TIntBounds2 read GetPlaneXZ write SetPlaneXZ;
 
-    /// <returns>The horizontal length of the bounds.</returns>
-    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
-    function Width: Integer; inline;
-    /// <returns>The vertical length of the bounds.</returns>
-    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
-    function Height: Integer; inline;
-    /// <returns>The depth of the bounds.</returns>
-    /// <remarks>Gives a negative length for non-normalized bounds.</remarks>
-    function Depth: Integer; inline;
-
     /// <returns>The center point between C1 and C2 rounded down.</returns>
     function Center: TIntVector3; inline;
 
@@ -676,7 +685,7 @@ type
     /// <returns>The given value in the interval: <c>[C1, C2]</c></returns>
     function RangedMod(AValue: TIntVector3): TIntVector3;
 
-    /// <returns>True, if C1 &lt;= C2</returns>
+    /// <returns>True, if C1 &lt;= C2 + 1</returns>
     function Normalized: Boolean; inline;
     /// <returns>The normalized version of the bounds.</summary>
     function Normalize: TIntBounds3;
@@ -685,16 +694,16 @@ type
     function Inset(AAmount: TIntVector3): TIntBounds3;
     /// <returns>The bounds with C1 being decreased and C2 being increased by the specified amount.</summary>
     function Outset(AAmount: TIntVector3): TIntBounds3;
+    /// <returns>Bounds, that are offset by the specified amount.</returns>
+    function Offset(AAmount: TIntBounds3): TIntBounds3; inline;
 
     class operator Add(const A, B: TIntBounds3): TIntBounds3;
     class operator Subtract(const A, B: TIntBounds3): TIntBounds3;
     class operator Multiply(const A, B: TIntBounds3): TIntBounds3;
     class operator IntDivide(const A, B: TIntBounds3): TIntBounds3;
 
-    // inclusive
-    class operator in (const A, B: TIntBounds3): Boolean;
-    // exclusive
-    class operator in (const A: TIntVector3; const B: TIntBounds3): Boolean;
+    class operator In(const A, B: TIntBounds3): Boolean;
+    class operator In(const A: TIntVector3; const B: TIntBounds3): Boolean;
 
     class operator Equal(const A, B: TIntBounds3): Boolean;
     class operator NotEqual(const A, B: TIntBounds3): Boolean;
@@ -712,7 +721,6 @@ type
 
   end;
 
-  // TODO: XmlDoc
   TIntBounds1Iterator = class
   private
     FCurrent: Integer;
@@ -726,7 +734,6 @@ type
 
   end;
 
-  // TODO: XmlDoc
   TIntBounds1ReverseIterator = class
   private
     FCurrent: Integer;
@@ -740,7 +747,6 @@ type
 
   end;
 
-  // TODO: XmlDoc
   TIntBounds2Iterator = class
   private
     FCurrent: TIntVector2;
@@ -755,7 +761,6 @@ type
 
   end;
 
-  // TODO: XmlDoc
   TIntBounds2ReverseIterator = class
   private
     FCurrent: TIntVector2;
@@ -770,7 +775,6 @@ type
 
   end;
 
-  // TODO: XmlDoc
   TIntBounds3Iterator = class
   private
     FCurrent: TIntVector3;
@@ -785,7 +789,6 @@ type
 
   end;
 
-  // TODO: XmlDoc
   TIntBounds3ReverseIterator = class
   private
     FCurrent: TIntVector3;
@@ -804,12 +807,14 @@ type
   public
     /// <returns>A <see cref="Pengine.IntMaths|TIntBounds2"/> for the interval: <c>[Self, Self + ASize)</c></returns>
     function Bounds(ASize: TIntVector2): TIntBounds2;
+
   end;
 
   TIntVector3Helper = record helper for TIntVector3
   public
     /// <returns>A <see cref="Pengine.IntMaths|TIntBounds3"/> for the interval: <c>[Self, Self + ASize)</c></returns>
     function Bounds(ASize: TIntVector3): TIntBounds3;
+
   end;
 
 const
@@ -1144,6 +1149,11 @@ end;
 class operator TIntVector2.NotEqual(const A, B: TIntVector2): Boolean;
 begin
   Result := (A.X <> B.X) or (A.Y <> B.Y);
+end;
+
+function TIntVector2.Offset(const A: TIntVector2): TIntVector2;
+begin
+  Result := Self + A;
 end;
 
 class operator TIntVector2.LessThan(const A, B: TIntVector2): Boolean;
@@ -1683,6 +1693,11 @@ begin
   Result := (A.X <> B.X) or (A.Y <> B.Y) or (A.Z <> B.Z);
 end;
 
+function TIntVector3.Offset(const A: TIntVector3): TIntVector3;
+begin
+  Result := Self + A;
+end;
+
 class operator TIntVector3.LessThan(const A, B: TIntVector3): Boolean;
 begin
   Result := (A.X < B.X) and (A.Y < B.Y) and (A.Z < B.Z);
@@ -1824,6 +1839,11 @@ function TIntBounds1.Inset(AAmount: Integer): TIntBounds1;
 begin
   Result.C1 := C1 + AAmount;
   Result.C2 := C2 - AAmount;
+end;
+
+function TIntBounds1.Offset(AAmount: Integer): TIntBounds1;
+begin
+  Result := Self + AAmount;
 end;
 
 function TIntBounds1.Outset(AAmount: Integer): TIntBounds1;
@@ -2015,6 +2035,11 @@ function TIntBounds2.Inset(AAmount: TIntVector2): TIntBounds2;
 begin
   Result.C1 := C1 + AAmount;
   Result.C2 := C2 - AAmount;
+end;
+
+function TIntBounds2.Offset(AAmount: TIntVector2): TIntBounds2;
+begin
+  Result := Self + AAmount;
 end;
 
 function TIntBounds2.Outset(AAmount: TIntVector2): TIntBounds2;
@@ -2293,6 +2318,11 @@ function TIntBounds3.Inset(AAmount: TIntVector3): TIntBounds3;
 begin
   Result.C1 := C1 + AAmount;
   Result.C2 := C2 - AAmount;
+end;
+
+function TIntBounds3.Offset(AAmount: TIntBounds3): TIntBounds3;
+begin
+  Result := Self + AAmount;
 end;
 
 function TIntBounds3.Outset(AAmount: TIntVector3): TIntBounds3;
