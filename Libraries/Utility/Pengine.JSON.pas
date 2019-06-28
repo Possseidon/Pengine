@@ -8,11 +8,9 @@ uses
   System.IOUtils,
 
   Pengine.IntMaths,
-  Pengine.Collections,
-  Pengine.HashCollections,
   Pengine.Hasher,
   Pengine.Parsing,
-  Pengine.CollectionInterfaces,
+  Pengine.ICollections,
   Pengine.Formatting,
   Pengine.Utility;
 
@@ -191,6 +189,25 @@ type
       class operator Implicit(ANumber: Single): TJValue; static; inline;
       class operator Implicit(ANumber: Int64): TJValue; static; inline;
       class operator Implicit(AValue: Boolean): TJValue; static; inline;
+
+      // Primitive Arrays -> TJValue
+      class operator Implicit(APairs: System.TArray<TJPair>): TJValue; static; inline;
+      class operator Implicit(ATexts: System.TArray<string>): TJValue; static; inline;
+      class operator Implicit(ANumbers: System.TArray<TNumber>): TJValue; static; inline;
+      class operator Implicit(ANumbers: System.TArray<Double>): TJValue; static; inline;
+      class operator Implicit(ANumbers: System.TArray<Single>): TJValue; static; inline;
+      class operator Implicit(ANumbers: System.TArray<Int64>): TJValue; static; inline;
+      class operator Implicit(ANumbers: System.TArray<Integer>): TJValue; static; inline;
+      class operator Implicit(AValues: System.TArray<Boolean>): TJValue; static; inline;
+
+      // Primitive Iterables -> TJValue
+      class operator Implicit(ATexts: IIterable<string>): TJValue; static; inline;     {
+      class operator Implicit(ANumbers: IIterable<TNumber>): TJValue; static; inline;
+      class operator Implicit(ANumbers: IIterable<Double>): TJValue; static; inline;
+      class operator Implicit(ANumbers: IIterable<Single>): TJValue; static; inline;
+      class operator Implicit(ANumbers: IIterable<Int64>): TJValue; static; inline;
+      class operator Implicit(ANumbers: IIterable<Integer>): TJValue; static; inline;
+      class operator Implicit(AValues: IIterable<Boolean>): TJValue; static; inline;    }
 
       // TJValue -> Primitves
       class operator Implicit(AValue: TJValue): string; static; inline;
@@ -453,13 +470,9 @@ type
 
     TPair = TPair<string, TJBase>;
 
-    TOrder = TArray<TPair>;
-
-    TMap = TMap<string, TJBase, TStringHasher>;
-
   private
-    FOrder: TOrder;
-    FMap: TMap;
+    FOrder: IList<TPair>;
+    FMap: IMap<string, TJBase>;
 
     function GetValue(AKey: string): TJValue;
     procedure SetValue(AKey: string; const Value: TJValue); overload;
@@ -584,10 +597,8 @@ type
 
     end;
 
-    TValues = TArray<TJBase>;
-
   private
-    FValues: TValues;
+    FValues: IList<TJBase>;
 
     function GetValue(AIndex: Integer): TJValue;
     procedure SetValue(AIndex: Integer; const Value: TJValue);
@@ -865,7 +876,58 @@ type
 
   end;
 
+function NewJPair(AKey: string; AValue: TJValue): TJPair;
+function NewJArray(AValues: array of const): TJArray;
+
 implementation
+
+function NewJPair(AKey: string; AValue: TJValue): TJPair;
+begin
+  Result.Create(AKey, AValue);
+end;
+
+function VarRecJValue(AValue: TVarRec): TJValue;
+begin
+  case AValue.VType of
+    vtInteger:
+      Exit(AValue.VInteger);
+    vtBoolean:
+      Exit(AValue.VBoolean);
+    vtChar:
+      Exit(string(AValue.VChar));
+    vtExtended:
+      Exit(AValue.VExtended^);
+    vtString:
+      Exit(string(AValue.VString^));
+    vtPointer:
+      if AValue.VPointer = nil then
+        Exit(TJNull.Create);
+    //vtPChar:         ; // (VPChar: _PAnsiChr);
+    //vtObject:        ; // (VObject: TObject);
+    //vtClass:         ; // (VClass: TClass);
+    //vtWideChar:      ; // (VWideChar: WideChar);
+    //vtPWideChar:     ; // (VPWideChar: PWideChar);
+    //vtAnsiString:    ; // (VAnsiString: Pointer);
+    //vtCurrency:      ; // (VCurrency: PCurrency);
+    //vtVariant:       ; // (VVariant: PVariant);
+    //vtInterface:     ; // (VInterface: Pointer);
+    //vtWideString:    ; // (VWideString: Pointer);
+    vtInt64:
+      Exit(AValue.VInt64^);
+    vtUnicodeString:
+      Exit(string(AValue.VUnicodeString));
+  end;
+  raise EJSONError.Create('Cannot convert Variant to JSON-Value.');
+end;
+
+function NewJArray(AValues: array of const): TJArray;
+var
+  Value: TVarRec;
+begin
+  Result := TJArray.Create;
+  for Value in AValues do
+    Result.Add(VarRecJValue(Value));
+end;
 
 { TJBase }
 
@@ -1267,6 +1329,87 @@ end;
 class operator TJBase.TJValue.Implicit(AValue: TJValue): Boolean;
 begin
   Result := AValue.AsBool;
+end;
+
+class operator TJBase.TJValue.Implicit(APairs: System.TArray<TJPair>): TJValue;
+var
+  Pair: TJPair;
+begin
+  Result := TJObject.Create;
+  for Pair in APairs do
+    Result[Pair.Key] := Pair.Value;
+end;
+
+class operator TJBase.TJValue.Implicit(ATexts: IIterable<string>): TJValue;
+var
+  Item: string;
+begin
+  Result := TJArray.Create;
+  for Item in ATexts do
+    Result.Add(Item);
+end;
+
+class operator TJBase.TJValue.Implicit(ANumbers: System.TArray<Integer>): TJValue;
+var
+  Item: Integer;
+begin
+  Result := TJArray.Create;
+  for Item in ANumbers do
+    Result.Add(Item);
+end;
+
+class operator TJBase.TJValue.Implicit(ANumbers: System.TArray<Double>): TJValue;
+var
+  Item: Double;
+begin
+  Result := TJArray.Create;
+  for Item in ANumbers do
+    Result.Add(Item);
+end;
+
+class operator TJBase.TJValue.Implicit(ANumbers: System.TArray<TNumber>): TJValue;
+var
+  Item: TNumber;
+begin
+  Result := TJArray.Create;
+  for Item in ANumbers do
+    Result.Add(Item);
+end;
+
+class operator TJBase.TJValue.Implicit(ATexts: System.TArray<string>): TJValue;
+var
+  Item: string;
+begin
+  Result := TJArray.Create;
+  for Item in ATexts do
+    Result.Add(Item);
+end;
+
+class operator TJBase.TJValue.Implicit(AValues: System.TArray<Boolean>): TJValue;
+var
+  Item: Boolean;
+begin
+  Result := TJArray.Create;
+  for Item in AValues do
+    Result.Add(Item);
+end;
+
+class operator TJBase.TJValue.Implicit(ANumbers: System.TArray<Int64>): TJValue;
+var
+  Item: Int64;
+begin
+  Result := TJArray.Create;
+  for Item in ANumbers do
+    Result.Add(Item);
+end;
+
+class operator TJBase.TJValue.Implicit(ANumbers: System.TArray<Single>): TJValue;
+var
+  Item: Single;
+begin
+  Result := TJArray.Create;
+  for Item in ANumbers do
+    Result.Add(Item);
 end;
 
 class operator TJBase.TJValue.LogicalOr(AValue: TJValue; ADefault: string): string;
@@ -1717,7 +1860,7 @@ procedure TJObject.ChangeIndex(AFrom, ATo: Integer);
 var
   I: Integer;
 begin
-  FOrder.SetIndex(AFrom, ATo);
+  FOrder.Move(AFrom, ATo);
   for I := Min(AFrom, ATo) to Max(AFrom, ATo) do
     FOrder[I].Value.FIndex := I;
 end;
@@ -1742,8 +1885,8 @@ end;
 
 constructor TJObject.Create;
 begin
-  FOrder := TOrder.Create;
-  FMap := TMap.Create;
+  FOrder := TList<TPair>.Create;
+  FMap := TMap<string, TJBase>.Create;
 end;
 
 class function TJObject.CreateFromFile(APath: string): TJObject;
@@ -1754,8 +1897,6 @@ end;
 destructor TJObject.Destroy;
 begin
   Clear;
-  FMap.Free;
-  FOrder.Free;
   inherited;
 end;
 
@@ -1901,7 +2042,7 @@ procedure TJObject.RemoveItem(AIndex: Integer);
 var
   I: Integer;
 begin
-  FMap.TryRemove(FOrder[AIndex].Key);
+  FMap.Remove(FOrder[AIndex].Key);
   FOrder.RemoveAt(AIndex);
   for I := AIndex to MaxIndex do
     FOrder[I].Value.FIndex := I;
@@ -2114,13 +2255,12 @@ begin
     raise EJSONError.Create('Cannot assign value to array.');
   FValues.Clear;
   FValues.Capacity := TJArray(AFrom).Count;
-  FValues.ForceCount(FValues.Capacity);
   for I := 0 to TJArray(AFrom).FValues.MaxIndex do
   begin
     Value := TJArray(AFrom).Values[I].Copy;
     Value.FIndex := I;
     Value.FParent := Self;
-    FValues[I] := Value;
+    FValues.Add(Value);
   end;
 end;
 
@@ -2128,7 +2268,7 @@ procedure TJArray.ChangeIndex(AFrom, ATo: Integer);
 var
   I: Integer;
 begin
-  FValues.SetIndex(AFrom, ATo);
+  FValues.Move(AFrom, ATo);
   for I := Min(AFrom, ATo) to Max(AFrom, ATo) do
     FValues[I].FIndex := I;
 end;
@@ -2152,7 +2292,7 @@ end;
 
 constructor TJArray.Create;
 begin
-  FValues := TValues.Create;
+  FValues := TList<TJBase>.Create;
 end;
 
 class function TJArray.CreateFromFile(APath: string): TJArray;
@@ -2163,7 +2303,6 @@ end;
 destructor TJArray.Destroy;
 begin
   Clear;
-  FValues.Free;
   inherited;
 end;
 
@@ -2253,7 +2392,7 @@ end;
 
 function TJArray.GetValue(AIndex: Integer): TJValue;
 begin
-  if not FValues.RangeCheck(AIndex) then
+  if AIndex > FValues.MaxIndex then
     Values[AIndex] := TJNull.Create;
   Result := FValues[AIndex];
 end;
@@ -2266,7 +2405,7 @@ begin
     Result := AValue.Copy
   else
     Result := AValue;
-  FValues.Insert(Result, AIndex);
+  FValues.Insert(AIndex, Result);
   Result.Value.FParent := Self;
   for I := AIndex to FValues.MaxIndex do
     FValues[I].FIndex := I;
@@ -2333,7 +2472,7 @@ begin
   else
     JValue := Value.FValue;
   JValue.FParent := Self;
-  if FValues.RangeCheck(AIndex) then
+  if AIndex < FValues.Count then
   begin
     FValues[AIndex].FParent := nil;
     FValues[AIndex].Free;

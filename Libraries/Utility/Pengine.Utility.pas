@@ -114,7 +114,7 @@ implementation
 
 function GetBitCount(ANum: NativeUInt): Integer;
 asm
-  {$IFDEF CPUX64}
+  {$IFDEF WIN64}
   POPCNT    rax, ANum
   {$ELSE}
   POPCNT    eax, ANum
@@ -127,12 +127,12 @@ end;
 function Rol(I: Cardinal; N: ShortInt): Cardinal;
 asm
 {$IFDEF WIN64}
-  mov eax, I
-  mov cl, N
-  rol eax, cl
+  MOV eax, I
+  MOV cl, N
+  ROL eax, cl
 {$ELSE}
-  mov cl, N
-  rol I, cl
+  MOV cl, N
+  ROL I, cl
 {$ENDIF}
 end;
 

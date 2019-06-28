@@ -3,7 +3,7 @@ object frmMain: TfrmMain
   Top = 0
   AlphaBlend = True
   Caption = 'Nucleator'
-  ClientHeight = 517
+  ClientHeight = 518
   ClientWidth = 800
   Color = clBtnFace
   Constraints.MinHeight = 576
@@ -22,7 +22,7 @@ object frmMain: TfrmMain
   TextHeight = 13
   object spltChart: TSplitter
     Left = 0
-    Top = 244
+    Top = 245
     Width = 800
     Height = 5
     Cursor = crVSplit
@@ -32,19 +32,17 @@ object frmMain: TfrmMain
     MinSize = 250
     ResizeStyle = rsUpdate
     ExplicitLeft = -8
-    ExplicitTop = 245
   end
   object gbChart: TGroupBox
     AlignWithMargins = True
     Left = 3
-    Top = 252
+    Top = 253
     Width = 794
     Height = 262
     Align = alBottom
     Caption = 'Chart'
     ParentBackground = False
     TabOrder = 0
-    ExplicitWidth = 787
     object tcStatistics: TChart
       Left = 2
       Top = 15
@@ -71,8 +69,6 @@ object frmMain: TfrmMain
       Align = alClient
       BevelOuter = bvNone
       TabOrder = 0
-      ExplicitWidth = 783
-      ExplicitHeight = 244
       DefaultCanvas = 'TGDIPlusCanvas'
       ColorPaletteIndex = 2
       object Series1: TFastLineSeries
@@ -164,24 +160,21 @@ object frmMain: TfrmMain
     Left = 0
     Top = 0
     Width = 800
-    Height = 244
+    Height = 245
     Align = alClient
     BevelOuter = bvNone
     FullRepaint = False
     TabOrder = 1
-    ExplicitWidth = 793
-    ExplicitHeight = 360
     object gbEvolution: TGroupBox
       AlignWithMargins = True
       Left = 3
       Top = 3
       Width = 523
-      Height = 238
+      Height = 239
       Align = alLeft
       Caption = 'Evolution'
       ParentBackground = False
       TabOrder = 0
-      ExplicitHeight = 239
       object lbGeneration: TLabel
         Left = 10
         Top = 21
@@ -265,19 +258,18 @@ object frmMain: TfrmMain
         Left = 280
         Top = 18
         Width = 238
-        Height = 215
+        Height = 216
         Align = alRight
         Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'Population'
         ParentBackground = False
         TabOrder = 2
-        ExplicitHeight = 216
         object lvPopulation: TListView
           AlignWithMargins = True
           Left = 5
           Top = 18
           Width = 228
-          Height = 192
+          Height = 193
           Align = alClient
           Columns = <
             item
@@ -305,7 +297,6 @@ object frmMain: TfrmMain
           OnColumnClick = lvPopulationColumnClick
           OnCompare = lvPopulationCompare
           OnSelectItem = lvPopulationSelectItem
-          ExplicitHeight = 193
         end
       end
       object seGeneration: TSpinEdit
@@ -432,19 +423,17 @@ object frmMain: TfrmMain
       Left = 529
       Top = 0
       Width = 271
-      Height = 244
+      Height = 245
       Align = alClient
       Caption = '3D Preview'
       ParentBackground = False
       TabOrder = 1
-      ExplicitWidth = 264
-      ExplicitHeight = 245
       inline frmPreview: TfrmPreview
         AlignWithMargins = True
         Left = 5
         Top = 18
         Width = 261
-        Height = 221
+        Height = 222
         Align = alClient
         Color = clBlack
         ParentBackground = False
@@ -452,7 +441,7 @@ object frmMain: TfrmMain
         TabOrder = 0
         ExplicitLeft = 5
         ExplicitTop = 18
-        ExplicitWidth = 254
+        ExplicitWidth = 261
         ExplicitHeight = 222
       end
     end

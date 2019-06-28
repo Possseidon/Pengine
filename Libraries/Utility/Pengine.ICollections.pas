@@ -15,15 +15,26 @@ type
   EDefaultError = class(Exception);
 
   TDefault<T> = class
+  private class var
+    FEquateFunc: TFunc<T, T, Boolean>;
+    FCompareFunc: TFunc<T, T, Boolean>;
+    FHashFunc: TFunc<T, Cardinal>;
+
   private
     class function HashString(A: UnicodeString): Cardinal; overload; static; inline;
     class function HashString(A: WideString): Cardinal; overload; static; inline;
     class function HashString(A: AnsiString): Cardinal; overload; static; inline;
 
   public
+    class constructor Create;
+
     class function Equate(A, B: T): Boolean; static;
     class function Compare(A, B: T): Boolean; static;
     class function Hash(A: T): Cardinal; static;
+
+    class property EquateFunc: TFunc<T, T, Boolean> read FEquateFunc;
+    class property CompareFunc: TFunc<T, T, Boolean> read FCompareFunc;
+    class property HashFunc: TFunc<T, Cardinal> read FHashFunc;
 
   end;
 
@@ -1476,6 +1487,13 @@ end;
 
 { TDefault<T> }
 
+class constructor TDefault<T>.Create;
+begin
+  FEquateFunc := Equate;
+  FCompareFunc := Compare;
+  FHashFunc := Hash;
+end;
+
 class function TDefault<T>.Equate(A, B: T): Boolean;
 begin
   if (GetTypeKind(T) = tkRecord) and IsManagedType(T) then
@@ -1733,8 +1751,8 @@ end;
 
 constructor TListBase<T>.Create;
 begin
-  FEquate := TDefault<T>.Equate;
-  FCompare := TDefault<T>.Compare;
+  FEquate := TDefault<T>.EquateFunc;
+  FCompare := TDefault<T>.CompareFunc;
 end;
 
 procedure TListBase<T>.EnsureCapacity(ACount: Integer);
@@ -1932,7 +1950,7 @@ begin
   if Assigned(Value) then
     FCompare := Value
   else
-    FCompare := TDefault<T>.Compare;
+    FCompare := TDefault<T>.CompareFunc;
 end;
 
 procedure TListBase<T>.SetEquate(const Value: TFunc<T, T, Boolean>);
@@ -1940,7 +1958,7 @@ begin
   if Assigned(Value) then
     FEquate := Value
   else
-    FEquate := TDefault<T>.Equate;
+    FEquate := TDefault<T>.EquateFunc;
 end;
 
 function TListBase<T>.Empty: Boolean;
@@ -2479,8 +2497,8 @@ end;
 constructor THashBase<T, K>.Create;
 begin
   FAutoRehash := True;
-  FHash := TDefault<K>.Hash;
-  FEquate := TDefault<K>.Equate;
+  FHash := TDefault<K>.HashFunc;
+  FEquate := TDefault<K>.EquateFunc;
 end;
 
 function THashBase<T, K>.Empty: Boolean;
@@ -2533,7 +2551,7 @@ begin
   if Assigned(Value) then
     FEquate := Value
   else
-    FEquate := TDefault<K>.Equate;
+    FEquate := TDefault<K>.EquateFunc;
 end;
 
 procedure THashBase<T, K>.SetHash(const Value: TFunc<K, Cardinal>);
@@ -2541,7 +2559,7 @@ begin
   if Assigned(Value) then
     FHash := Value
   else
-    FHash := TDefault<K>.Hash;
+    FHash := TDefault<K>.HashFunc;
 end;
 
 procedure THashBase<T, K>.AddHashValue(AValue: THashValue<T>);
@@ -2982,7 +3000,7 @@ begin
   if Assigned(Value) then
     FEquateValue := Value
   else
-    FEquateValue := TDefault<V>.Equate;
+    FEquateValue := TDefault<V>.EquateFunc;
 end;
 
 procedure TMap<K, V>.SetHashKey(const Value: TFunc<K, Cardinal>);
@@ -2993,7 +3011,7 @@ end;
 constructor TMap<K, V>.Create;
 begin
   inherited;
-  FEquateValue := TDefault<V>.Equate;
+  FEquateValue := TDefault<V>.EquateFunc;
 end;
 
 constructor TMap<K, V>.Create(APairs: array of TPair<K, V>);
@@ -3973,7 +3991,7 @@ end;
 { TZipIterate<T, U, R>.TIterator }
 
 constructor TZipIterate<T, U, R>.TIterator.Create(AIterator1: IIterator<T>; AIterator2: IIterator<U>;
-  AFunc: TFunc<T, U, R>);
+AFunc: TFunc<T, U, R>);
 begin
   FIterator1 := AIterator1;
   FIterator2 := AIterator2;

@@ -400,7 +400,7 @@ var
 begin
   SpinEdit := Sender as TSpinEdit;
   Tmp := Settings.ReactorSize;
-  Tmp[TCoordAxis(SpinEdit.Tag)] := EnsureRange(SpinEdit.Value, SpinEdit.MinValue, SpinEdit.MaxValue);
+  Tmp[TCoordAxis(Ord(caX) + SpinEdit.Tag)] := EnsureRange(SpinEdit.Value, SpinEdit.MinValue, SpinEdit.MaxValue);
   Settings.ReactorSize := Tmp;
 end;
 
@@ -409,7 +409,7 @@ var
   SpinEdit: TSpinEdit;
 begin
   SpinEdit := Sender as TSpinEdit;
-  SpinEdit.Value := Settings.ReactorSize[TCoordAxis(SpinEdit.Tag)];
+  SpinEdit.Value := Settings.ReactorSize[TCoordAxis(Ord(caX) + SpinEdit.Tag)];
 end;
 
 { TDefaultGeneratorFunction }

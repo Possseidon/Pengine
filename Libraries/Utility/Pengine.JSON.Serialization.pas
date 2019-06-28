@@ -10,7 +10,8 @@ uses
 
   Pengine.Collections,
   Pengine.ICollections,
-  Pengine.JSON;
+  Pengine.JSON,
+  Pengine.Utility;
 
 type
 
@@ -24,45 +25,14 @@ type
 
   end;
 
-  TJArraySerializer = class
+  TJStaticSerializerClass = class of TJStaticSerializer;
+
+  TJStaticSerializer = class(TObject);
+
+  TJStaticSerializer<T> = class(TJStaticSerializer)
   public
-    procedure Serialize(AValue: TJArray); virtual; abstract;
-    procedure Unserialize(AValue: TJArray); virtual; abstract;
-
-  end;
-
-  TJArraySerializer<T> = class(TJArraySerializer)
-  private
-    FData: T;
-
-  protected
-    property Data: T read FData;
-
-  public
-    constructor Create(AData: T);
-
-  end;
-
-  TJArrayRefSerializer = class
-  public
-    procedure Serialize(AValue: TJArray); virtual; abstract;
-    procedure Unserialize(AValue: TJArray); virtual; abstract;
-
-  end;
-
-  TJArrayRefSerializer<T> = class(TJArrayRefSerializer)
-  public type
-
-    PT = ^T;
-
-  private
-    FData: PT;
-
-  protected
-    property Data: PT read FData;
-
-  public
-    constructor Create(AData: PT);
+    class function Serialize(AValue: T): TJValue; virtual; abstract;
+    class function Unserialize(AJValue: TJValue): T; virtual; abstract;
 
   end;
 
@@ -85,43 +55,6 @@ type
     class function Serialize(AObject: IJSerializable; AVersion: Integer = -1): TJObject;
     class procedure Unserialize(AObject: IJSerializable; AValue: TJObject);
 
-    // Normal Values
-    procedure Define(AName: string; var ANumber: Int64); overload;
-    procedure Define(AName: string; var ANumber: Integer); overload;
-    procedure Define(AName: string; var ANumber: Single); overload;
-    procedure Define(AName: string; var ANumber: Double); overload;
-    procedure Define(AName: string; var AText: string); overload;
-    procedure Define(AName: string; var AValue: Boolean); overload;
-
-    // Serializable Objects
-    procedure Define(AName: string; AObject: IJSerializable; AVersion: Integer = -1); overload;
-    procedure Define(AName: string; ASerializer: TJArraySerializer); overload;
-    procedure Define(AName: string; ASerializer: TJArrayRefSerializer); overload;
-
-    // Arrays
-    procedure DefineArray(AName: string; AArray: TArray<Integer>); overload;
-    procedure DefineArray(AName: string; AArray: TArray<Int64>); overload;
-    procedure DefineArray(AName: string; AArray: TArray<Single>); overload;
-    procedure DefineArray(AName: string; AArray: TArray<Double>); overload;
-    procedure DefineArray(AName: string; AArray: TArray<string>); overload;
-
-    // Arrays of Serializable
-    procedure DefineArray<T: constructor, IJSerializable>(AName: string; AArray: TArray<T>); overload;
-    procedure DefineArray<T: IJSerializable>(AName: string; AArray: TArray<T>; AInstantiator: TFunc<T>); overload;
-
-    procedure DefineList<T: constructor, IJSerializable>(AName: string; AList: IListBase<T>); overload;
-    procedure DefineList<T: IJSerializable>(AName: string; AList: IListBase<T>; AInstantiator: TFunc<T>); overload;
-
-    // Enum
-    procedure DefineEnum<T: record >(AName: string; var AEnum: T; AEnumToName: TFunc<T, string>;
-      ANameToEnum: TFunc<string, T>); overload;
-    procedure DefineEnum<T: record; N>(AName: string; var AEnum: T; const ANames: N); overload;
-
-    // Set
-    procedure DefineSet<T>(AName: string; var ASet: T; AEnumToName: TFunc<Byte, string>;
-      ANameToEnum: TFunc<string, Byte>); overload;
-    procedure DefineSet<T, N>(AName: string; var ASet: T; const ANames: N); overload;
-
     property Mode: TMode read FMode;
     function IsStoring: Boolean;
     function IsLoading: Boolean;
@@ -131,33 +64,95 @@ type
 
     property Version: Integer read FVersion;
 
+    // Primitives
+    procedure Define(AName: string; var ANumber: Int64); overload;
+    procedure Define(AName: string; var ANumber: Integer); overload;
+    procedure Define(AName: string; var ANumber: Single); overload;
+    procedure Define(AName: string; var ANumber: Double); overload;
+    procedure Define(AName: string; var AText: string); overload;
+    procedure Define(AName: string; var AValue: Boolean); overload;
+
+    // Nullable Primitives
+    procedure DefineNullable(AName: string; var ANumber: TOpt<Int64>); overload;
+    procedure DefineNullable(AName: string; var ANumber: TOpt<Integer>); overload;
+    procedure DefineNullable(AName: string; var ANumber: TOpt<Single>); overload;
+    procedure DefineNullable(AName: string; var ANumber: TOpt<Double>); overload;
+    procedure DefineNullable(AName: string; var AText: TOpt<string>); overload;
+    procedure DefineNullable(AName: string; var AValue: TOpt<Boolean>); overload;
+
+    // Primitive Arrays
+    procedure DefineArray(AName: string; AArray: TArray<Integer>); overload;
+    procedure DefineArray(AName: string; AArray: TArray<Int64>); overload;
+    procedure DefineArray(AName: string; AArray: TArray<Single>); overload;
+    procedure DefineArray(AName: string; AArray: TArray<Double>); overload;
+    procedure DefineArray(AName: string; AArray: TArray<string>); overload;
+    procedure DefineArray(AName: string; AArray: TArray<Boolean>); overload;
+
+    // Primitive Collections
+    procedure DefineCollection(AName: string; ACollection: ICollection<Integer>); overload;
+    procedure DefineCollection(AName: string; ACollection: ICollection<Int64>); overload;
+    procedure DefineCollection(AName: string; ACollection: ICollection<Single>); overload;
+    procedure DefineCollection(AName: string; ACollection: ICollection<Double>); overload;
+    procedure DefineCollection(AName: string; ACollection: ICollection<string>); overload;
+    procedure DefineCollection(AName: string; ACollection: ICollection<Boolean>); overload;
+
+    // Serializable Objects
+    procedure Define(AName: string; AObject: IJSerializable); overload;
+    procedure DefineNullable<T: constructor, IJSerializable>(AName: string; var AObject: T); overload;
+    procedure DefineNullable<T: IJSerializable>(AName: string; var AObject: T; AInstantiator: TFunc<T>); overload;
+
+    // Static Serializer
+    procedure DefineCustom<T; S: TJStaticSerializer<T> //
+      >(AName: string; var AValue: T); overload;
+
+    // Serializable Arrays
+    procedure DefineArray<T: constructor, IJSerializable>(AName: string; AArray: TArray<T>); overload;
+    procedure DefineArray<T: IJSerializable>(AName: string; AArray: TArray<T>; AInstantiator: TFunc<T>); overload;
+
+    // Serializable Collections
+    procedure DefineCollection<T: constructor, IJSerializable>(AName: string; ACollection: ICollection<T>); overload;
+    procedure DefineCollection<T: IJSerializable>(AName: string; ACollection: ICollection<T>;
+      AInstantiator: TFunc<T>); overload;
+
+    // TODO: ICollection<TPair<string, T>> primitive and serializable
+
+    // Enum
+    procedure DefineEnum<T: record >(AName: string; var AEnum: T; AEnumToName: TFunc<T, string>;
+      ANameToEnum: TFunc<string, T>); overload;
+    procedure DefineEnum<T: record >(AName: string; var AEnum: T; const ANames: array of string); overload;
+
+    // Set
+    procedure DefineSet<T>(AName: string; var ASet: T; AEnumToName: TFunc<Byte, string>;
+      ANameToEnum: TFunc<string, Byte>); overload;
+    procedure DefineSet<T>(AName: string; var ASet: T; const ANames: array of string); overload;
+
   end;
 
 implementation
 
 { TJSerializer }
 
+constructor TJSerializer.Create(AValue: TJObject);
+begin
+  FMode := smUnserialize;
+  FValue := AValue;
+  FVersion := Value['_VERSION'] or 0;
+end;
+
+constructor TJSerializer.Create(AVersion: Integer);
+begin
+  FMode := smSerialize;
+  FValue := TJObject.Create;
+  FVersion := AVersion;
+  if Version <> 0 then
+    Value['_VERSION'] := Version;
+end;
+
 destructor TJSerializer.Destroy;
 begin
   if IsStoring then
     FValue.Free;
   inherited;
-end;
-
-function TJSerializer.IsLoading: Boolean;
-begin
-  Result := Mode = smUnserialize;
-end;
-
-function TJSerializer.IsStoring: Boolean;
-begin
-  Result := Mode = smSerialize;
-end;
-
-function TJSerializer.OwnValue: TJObject;
-begin
-  Result := FValue;
-  FValue := nil;
 end;
 
 class function TJSerializer.Serialize(AObject: IJSerializable; AVersion: Integer): TJObject;
@@ -177,115 +172,6 @@ begin
   end;
 end;
 
-procedure TJSerializer.Define(AName: string; var ANumber: Single);
-var
-  JValue: TJValue;
-begin
-  case Mode of
-    smSerialize:
-      Value[AName] := ANumber;
-    smUnserialize:
-      if Value.Get(AName, JValue) then
-        ANumber := JValue;
-  end;
-end;
-
-procedure TJSerializer.Define(AName: string; var ANumber: Double);
-var
-  JValue: TJValue;
-begin
-  case Mode of
-    smSerialize:
-      Value[AName] := ANumber;
-    smUnserialize:
-      if Value.Get(AName, JValue) then
-        ANumber := JValue;
-  end;
-end;
-
-procedure TJSerializer.Define(AName: string; var ANumber: Int64);
-var
-  JValue: TJValue;
-begin
-  case Mode of
-    smSerialize:
-      Value[AName] := ANumber;
-    smUnserialize:
-      if Value.Get(AName, JValue) then
-        ANumber := JValue;
-  end;
-end;
-
-procedure TJSerializer.Define(AName: string; var ANumber: Integer);
-var
-  JValue: TJValue;
-begin
-  case Mode of
-    smSerialize:
-      Value[AName] := ANumber;
-    smUnserialize:
-      if Value.Get(AName, JValue) then
-        ANumber := JValue;
-  end;
-end;
-
-constructor TJSerializer.Create(AValue: TJObject);
-begin
-  FMode := smUnserialize;
-  FValue := AValue;
-  FVersion := Value['_VERSION'] or 0;
-end;
-
-constructor TJSerializer.Create(AVersion: Integer);
-begin
-  FMode := smSerialize;
-  FValue := TJObject.Create;
-  FVersion := AVersion;
-  if Version <> 0 then
-    Value['_VERSION'] := Version;
-end;
-
-procedure TJSerializer.Define(AName: string; AObject: IJSerializable; AVersion: Integer);
-var
-  JValue: TJValue;
-begin
-  if AObject = nil then
-    Exit;
-  case Mode of
-    smSerialize:
-      Value[AName] := TJSerializer.Serialize(AObject, AVersion);
-    smUnserialize:
-      if Value.Get(AName, JValue) then
-        TJSerializer.Unserialize(AObject, JValue);
-  end;
-end;
-
-procedure TJSerializer.Define(AName: string; var AValue: Boolean);
-var
-  JValue: TJValue;
-begin
-  case Mode of
-    smSerialize:
-      Value[AName] := AValue;
-    smUnserialize:
-      if Value.Get(AName, JValue) then
-        AValue := JValue;
-  end;
-end;
-
-procedure TJSerializer.Define(AName: string; var AText: string);
-var
-  JValue: TJValue;
-begin
-  case Mode of
-    smSerialize:
-      Value[AName] := AText;
-    smUnserialize:
-      if Value.Get(AName, JValue) then
-        AText := JValue;
-  end;
-end;
-
 class procedure TJSerializer.Unserialize(AObject: IJSerializable; AValue: TJObject);
 var
   Serializer: TJSerializer;
@@ -300,44 +186,110 @@ begin
   end;
 end;
 
-procedure TJSerializer.Define(AName: string; ASerializer: TJArraySerializer);
-var
-  V: TJValue;
+function TJSerializer.IsStoring: Boolean;
 begin
-  try
-    case Mode of
-      smSerialize:
-        begin
-          ASerializer.Serialize(V.AddArray(AName));
-        end;
-      smUnserialize:
-        if Value.Get(AName, V) then
-          ASerializer.Unserialize(V.AsArray);
-    end;
+  Result := Mode = smSerialize;
+end;
 
-  finally
-    ASerializer.Free;
+function TJSerializer.IsLoading: Boolean;
+begin
+  Result := Mode = smUnserialize;
+end;
 
+function TJSerializer.OwnValue: TJObject;
+begin
+  Result := FValue;
+  FValue := nil;
+end;
+
+procedure TJSerializer.Define(AName: string; var ANumber: Int64);
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := ANumber;
+    smUnserialize:
+      ANumber := Value[AName];
   end;
 end;
 
-procedure TJSerializer.Define(AName: string; ASerializer: TJArrayRefSerializer);
-var
-  JValue: TJValue;
+procedure TJSerializer.Define(AName: string; var ANumber: Integer);
 begin
-  try
-    case Mode of
-      smSerialize:
-        ASerializer.Serialize(Value.AddArray(AName));
-      smUnserialize:
-        if Value.Get(AName, JValue) then
-          ASerializer.Unserialize(JValue);
-    end;
-
-  finally
-    ASerializer.Free;
-
+  case Mode of
+    smSerialize:
+      Value[AName] := ANumber;
+    smUnserialize:
+      ANumber := Value[AName];
   end;
+end;
+
+procedure TJSerializer.Define(AName: string; var ANumber: Single);
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := ANumber;
+    smUnserialize:
+      ANumber := Value[AName];
+  end;
+end;
+
+procedure TJSerializer.Define(AName: string; var ANumber: Double);
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := ANumber;
+    smUnserialize:
+      ANumber := Value[AName];
+  end;
+end;
+
+procedure TJSerializer.Define(AName: string; var AText: string);
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := AText;
+    smUnserialize:
+      AText := Value[AName];
+  end;
+end;
+
+procedure TJSerializer.Define(AName: string; var AValue: Boolean);
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := AValue;
+    smUnserialize:
+      AValue := Value[AName];
+  end;
+end;
+
+procedure TJSerializer.DefineNullable(AName: string; var ANumber: TOpt<Int64>);
+begin
+  raise ENotImplemented.Create('Not implemented!');
+end;
+
+procedure TJSerializer.DefineNullable(AName: string; var ANumber: TOpt<Integer>);
+begin
+  raise ENotImplemented.Create('Not implemented!');
+end;
+
+procedure TJSerializer.DefineNullable(AName: string; var ANumber: TOpt<Single>);
+begin
+  raise ENotImplemented.Create('Not implemented!');
+end;
+
+procedure TJSerializer.DefineNullable(AName: string; var ANumber: TOpt<Double>);
+begin
+  raise ENotImplemented.Create('Not implemented!');
+end;
+
+procedure TJSerializer.DefineNullable(AName: string; var AText: TOpt<string>);
+begin
+  raise ENotImplemented.Create('Not implemented!');
+end;
+
+procedure TJSerializer.DefineNullable(AName: string; var AValue: TOpt<Boolean>);
+begin
+  raise ENotImplemented.Create('Not implemented!');
 end;
 
 procedure TJSerializer.DefineArray(AName: string; AArray: TArray<Integer>);
@@ -450,6 +402,119 @@ begin
   end;
 end;
 
+procedure TJSerializer.DefineArray(AName: string; AArray: TArray<Boolean>);
+begin
+  raise ENotImplemented.Create('Not implemented!');
+end;
+
+procedure TJSerializer.DefineCollection(AName: string; ACollection: ICollection<Integer>);
+var
+  JArray: TJArray;
+  Item: Integer;
+  JValue: TJValue;
+begin
+  case Mode of
+    smSerialize:
+      begin
+        JArray := Value.AddArray(AName);
+        for Item in ACollection do
+          JArray.Add(Item);
+      end;
+    smUnserialize:
+      begin
+        ACollection.Clear;
+        for JValue in Value[AName].AsArray do
+          ACollection.Add(JValue);
+      end;
+  end;
+end;
+
+procedure TJSerializer.DefineCollection(AName: string; ACollection: ICollection<Int64>);
+begin
+  raise ENotImplemented.Create('Not implemented!');
+end;
+
+procedure TJSerializer.DefineCollection(AName: string; ACollection: ICollection<Single>);
+begin
+  raise ENotImplemented.Create('Not implemented!');
+end;
+
+procedure TJSerializer.DefineCollection(AName: string; ACollection: ICollection<Double>);
+begin
+  raise ENotImplemented.Create('Not implemented!');
+end;
+
+procedure TJSerializer.DefineCollection(AName: string; ACollection: ICollection<string>);
+begin
+  raise ENotImplemented.Create('Not implemented!');
+end;
+
+procedure TJSerializer.DefineCollection(AName: string; ACollection: ICollection<Boolean>);
+begin
+  raise ENotImplemented.Create('Not implemented!');
+end;
+
+procedure TJSerializer.Define(AName: string; AObject: IJSerializable);
+var
+  JObject: TJObject;
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := Serialize(AObject, Version);
+    smUnserialize:
+      if Value.Get(AName, JObject) then
+        Unserialize(AObject, JObject);
+  end;
+end;
+
+procedure TJSerializer.DefineNullable<T>(AName: string; var AObject: T);
+begin
+  DefineNullable<T>(AName, AObject,
+    function: T
+    begin
+      Result := T.Create;
+    end);
+end;
+
+procedure TJSerializer.DefineNullable<T>(AName: string; var AObject: T; AInstantiator: TFunc<T>);
+var
+  JValue: TJValue;
+begin
+  case Mode of
+    smSerialize:
+      if AObject <> nil then
+        Value[AName] := Serialize(AObject);
+    smUnserialize:
+      if Value.Get(AName, JValue) then
+      begin
+        AObject := AInstantiator;
+        Unserialize(AObject, JValue);
+      end;
+  end;
+end;
+
+procedure TJSerializer.DefineCustom<T, S>(AName: string; var AValue: T);
+var
+  JValue: TJValue;
+begin
+  case Mode of
+    smSerialize:
+      Value[AName] := S.Serialize(AValue);
+    smUnserialize:
+      if Value.Get(AName, JValue) then
+        AValue := S.Unserialize(JValue);
+  end;
+end;
+
+procedure TJSerializer.DefineArray<T>(AName: string; AArray: TArray<T>);
+begin
+  DefineArray<T>(AName, AArray,
+    function: T
+    begin
+      Result := T.Create;
+    end);
+end;
+
 procedure TJSerializer.DefineArray<T>(AName: string; AArray: TArray<T>; AInstantiator: TFunc<T>);
 var
   JArray: TJArray;
@@ -477,17 +542,66 @@ begin
   end;
 end;
 
-procedure TJSerializer.DefineEnum<T, N>(AName: string; var AEnum: T; const ANames: N);
+procedure TJSerializer.DefineCollection<T>(AName: string; ACollection: ICollection<T>);
+begin
+  DefineCollection<T>(AName, ACollection,
+    function: T
+    begin
+      Result := T.Create;
+    end);
+end;
+
+procedure TJSerializer.DefineCollection<T>(AName: string; ACollection: ICollection<T>; AInstantiator: TFunc<T>);
+var
+  JArray: TJArray;
+  Item: T;
+  JValue: TJValue;
+begin
+  case Mode of
+    smSerialize:
+      begin
+        JArray := Value.AddArray(AName);
+        for Item in ACollection do
+          JArray.Add(TJSerializer.Serialize(Item));
+      end;
+    smUnserialize:
+      begin
+        ACollection.Clear;
+        for JValue in Value[AName].AsArray do
+        begin
+          Item := AInstantiator;
+          TJSerializer.Unserialize(Item, JValue);
+          ACollection.Add(Item);
+        end;
+      end;
+  end;
+end;
+
+procedure TJSerializer.DefineEnum<T>(AName: string; var AEnum: T; AEnumToName: TFunc<T, string>;
+ANameToEnum: TFunc<string, T>);
+var
+  EnumValue: Integer;
+begin
+  if GetTypeKind(T) <> tkEnumeration then
+    raise EJSerialization.Create('Enumeration type expected.');
+
+  case Mode of
+    smSerialize:
+      Value[AName] := AEnumToName(AEnum);
+    smUnserialize:
+      AEnum := ANameToEnum(Value[AName]);
+  end;
+end;
+
+procedure TJSerializer.DefineEnum<T>(AName: string; var AEnum: T; const ANames: array of string);
 var
   Names: PString;
 begin
   if GetTypeKind(T) <> tkEnumeration then
     raise EJSerialization.Create('Enumeration type expected.');
-  if (GetTypeKind(N) <> tkArray) or
-    (GetTypeData(TypeInfo(N)).ArrayData.ElType^ <> TypeInfo(string)) then
-    raise EJSerialization.Create('Static array of string expected.');
 
-  Names := @ANames;
+  // ok, as the anonymous methods don't leave this scope
+  Names := @ANames[0];
   DefineEnum<T>(AName, AEnum,
     function(AEnum: T): string
     var
@@ -534,86 +648,6 @@ begin
     );
 end;
 
-procedure TJSerializer.DefineEnum<T>(AName: string; var AEnum: T; AEnumToName: TFunc<T, string>;
-ANameToEnum: TFunc<string, T>);
-var
-  EnumValue: Integer;
-begin
-  if GetTypeKind(T) <> tkEnumeration then
-    raise EJSerialization.Create('Enumeration type expected.');
-
-  case Mode of
-    smSerialize:
-      Value[AName] := AEnumToName(AEnum);
-    smUnserialize:
-      AEnum := ANameToEnum(Value[AName]);
-  end;
-end;
-
-procedure TJSerializer.DefineList<T>(AName: string; AList: IListBase<T>);
-begin
-  DefineList<T>(AName, AList,
-    function: T
-    begin
-      Result := T.Create;
-    end);
-end;
-
-procedure TJSerializer.DefineList<T>(AName: string; AList: IListBase<T>; AInstantiator: TFunc<T>);
-var
-  JArray: TJArray;
-  Item: T;
-  JValue: TJValue;
-begin
-  case Mode of
-    smSerialize:
-      begin
-        JArray := Value.AddArray(AName);
-        for Item in AList do
-          JArray.Add(TJSerializer.Serialize(Item));
-      end;
-    smUnserialize:
-      begin
-        AList.Clear;
-        for JValue in Value[AName].AsArray do
-        begin
-          Item := AInstantiator;
-          TJSerializer.Unserialize(Item, JValue);
-          AList.Add(Item);
-        end;
-      end;
-  end;
-end;
-
-procedure TJSerializer.DefineSet<T, N>(AName: string; var ASet: T; const ANames: N);
-var
-  Names: PString;
-  EnumType: PTypeInfo;
-begin
-  if GetTypeKind(T) <> tkSet then
-    raise EJSerialization.Create('Set type expected.');
-  if (GetTypeKind(N) <> tkArray) or
-    (GetTypeData(TypeInfo(N)).ArrayData.ElType^ <> TypeInfo(string)) then
-    raise EJSerialization.Create('Static array of string expected.');
-
-  EnumType := GetTypeData(TypeInfo(T)).CompType^;
-
-  Names := @ANames;
-  DefineSet(AName, ASet,
-    function(AEnum: Byte): string
-    begin
-      Result := Names[AEnum];
-    end,
-    function(AName: string): Byte
-    begin
-      for Result := GetTypeData(EnumType).MinValue to GetTypeData(EnumType).MaxValue do
-        if AName = Names[Result] then
-          Exit;
-      raise EJSerialization.Create('Invalid set value.');
-    end
-    );
-end;
-
 procedure TJSerializer.DefineSet<T>(AName: string; var ASet: T; AEnumToName: TFunc<Byte, string>;
 ANameToEnum: TFunc<string, Byte>);
 var
@@ -652,27 +686,31 @@ begin
   end;
 end;
 
-procedure TJSerializer.DefineArray<T>(AName: string; AArray: TArray<T>);
+procedure TJSerializer.DefineSet<T>(AName: string; var ASet: T; const ANames: array of string);
+var
+  EnumType: PTypeInfo;
+  Names: PString;
 begin
-  DefineArray<T>(AName, AArray,
-    function: T
+  if GetTypeKind(T) <> tkSet then
+    raise EJSerialization.Create('Set type expected.');
+
+  EnumType := GetTypeData(TypeInfo(T)).CompType^;
+
+  // ok, as the anonymous methods don't leave this scope
+  Names := @ANames[0];
+  DefineSet(AName, ASet,
+    function(AEnum: Byte): string
     begin
-      Result := T.Create;
-    end);
-end;
-
-{ TJArraySerializer<T> }
-
-constructor TJArraySerializer<T>.Create(AData: T);
-begin
-  FData := AData;
-end;
-
-{ TJArrayRefSerializer<T> }
-
-constructor TJArrayRefSerializer<T>.Create(AData: PT);
-begin
-  FData := AData;
+      Result := Names[AEnum];
+    end,
+    function(AName: string): Byte
+    begin
+      for Result := GetTypeData(EnumType).MinValue to GetTypeData(EnumType).MaxValue do
+        if AName = Names[Result] then
+          Exit;
+      raise EJSerialization.Create('Invalid set value.');
+    end
+    );
 end;
 
 end.
