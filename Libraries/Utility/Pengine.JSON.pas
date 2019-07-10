@@ -14,6 +14,8 @@ uses
   Pengine.Formatting,
   Pengine.Utility;
 
+// TODO: Cleanup of implicit JValue conversion, NewJPair and NewJArray
+
 type
 
   EJSONError = class(Exception);

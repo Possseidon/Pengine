@@ -69,10 +69,10 @@ type
     actStartStop1: TMenuItem;
     N4: TMenuItem;
     tcStatistics: TChart;
-    Series1: TFastLineSeries;
-    Series2: TFastLineSeries;
-    Series3: TFastLineSeries;
-    Series4: TPointSeries;
+    seMinValues: TFastLineSeries;
+    seAvgValues: TFastLineSeries;
+    seMaxValues: TFastLineSeries;
+    seAllValues: TPointSeries;
     aeAppEvents: TApplicationEvents;
     pnlTop: TPanel;
     gbEvolution: TGroupBox;
@@ -132,16 +132,10 @@ type
     function GetCurrentGeneration: TEvolutionGeneration;
 
     function FormatStat(AValue: Single; Digits: Integer): string;
-    function GetChartValues(const Index: Integer): TChartSeries;
 
   public
     property Evolution: TReactorEvolution read FEvolution;
     property CurrentGeneration: TEvolutionGeneration read GetCurrentGeneration;
-
-    property ChartMinValues: TChartSeries index 0 read GetChartValues;
-    property ChartAvgValues: TChartSeries index 1 read GetChartValues;
-    property ChartMaxValues: TChartSeries index 2 read GetChartValues;
-    property ChartAllValues: TChartSeries index 3 read GetChartValues;
 
   end;
 
@@ -249,11 +243,11 @@ end;
 
 procedure TfrmMain.lvPopulationCompare(Sender: TObject; Item1, Item2: TListItem; Data: Integer; var Compare: Integer);
 var
-  A, B: TRatedReactor;
+  A, B: TReactorRating;
   Settings: IEvolutionSettings;
 begin
-  A := TObject(Item1.Data) as TRatedReactor;
-  B := TObject(Item2.Data) as TRatedReactor;
+  A := TObject(Item1.Data) as TReactorRating;
+  B := TObject(Item2.Data) as TReactorRating;
   Settings := CurrentGeneration.Settings;
   case Abs(FSortColumn) of
     1:
@@ -313,8 +307,7 @@ end;
 procedure TfrmMain.UpdatePopulation;
 var
   Generation: TEvolutionGeneration;
-  I: Integer;
-  Reactor: TRatedReactor;
+  ReactorRating: TReactorRating;
   Item: TListItem;
 begin
   FSortColumn := 1;
@@ -322,15 +315,14 @@ begin
   lvPopulation.Items.BeginUpdate;
   lvPopulation.Items.Clear;
   try
-    for I := 0 to Generation.Reactors.MaxIndex do
+    for ReactorRating in Generation.ReactorRatings do
     begin
-      Reactor := Generation.Reactors[I];
       Item := lvPopulation.Items.Add;
-      Item.Data := Reactor;
-      Item.Caption := FormatStat(Reactor.Fitness, 0);
-      Item.SubItems.Add(FormatStat(Reactor.Efficiency, 2));
-      Item.SubItems.Add(FormatStat(Reactor.PowerGeneration, 0));
-      Item.SubItems.Add(FormatStat(Reactor.NetHeatGeneration, 0));
+      Item.Data := ReactorRating;
+      Item.Caption := FormatStat(ReactorRating.Fitness, 0);
+      Item.SubItems.Add(FormatStat(ReactorRating.Efficiency, 2));
+      Item.SubItems.Add(FormatStat(ReactorRating.PowerGeneration, 0));
+      Item.SubItems.Add(FormatStat(ReactorRating.NetHeatGeneration, 0));
     end;
 
   finally
@@ -352,9 +344,9 @@ begin
     for I := FLoggedChartValues to FEvolution.Generations.MaxIndex do
     begin
       Stats := FEvolution.Generations[I].FitnessStats;
-      ChartMinValues.AddXY(I + 1, Stats.Worst);
-      ChartAvgValues.AddXY(I + 1, Stats.Average);
-      ChartMaxValues.AddXY(I + 1, Stats.Best);
+      seMinValues.AddXY(I + 1, Stats.Worst);
+      seAvgValues.AddXY(I + 1, Stats.Average);
+      seMaxValues.AddXY(I + 1, Stats.Best);
       // for Reactor in Generation.Reactors do
       // ChartAllValues.AddXY(I, Reactor.Fitness);
     end;
@@ -385,16 +377,11 @@ begin
   Result := Format('%.' + Digits.ToString + 'f', [AValue], FormatSettings.Invariant);
 end;
 
-function TfrmMain.GetChartValues(const Index: Integer): TChartSeries;
-begin
-  Result := tcStatistics.Series[Index];
-end;
-
 procedure TfrmMain.lvPopulationSelectItem(Sender: TObject; Item: TListItem; Selected: Boolean);
 begin
   if not Selected then
     Exit;
-  frmPreview.Reactor := TObject(Item.Data) as TRatedReactor;
+  frmPreview.ReactorRating := TObject(Item.Data) as TReactorRating;
 end;
 
 end.

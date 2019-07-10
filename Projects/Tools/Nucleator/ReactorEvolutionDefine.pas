@@ -4,77 +4,91 @@ interface
 
 uses
   System.SysUtils,
+  System.Math,
 
-  Pengine.CollectionInterfaces,
-  Pengine.Collections,
+  Pengine.ICollections,
   Pengine.IntMaths,
 
-  ReactorDefine,
-  System.Math;
+  ReactorDefine;
 
 type
 
-  TRatedReactor = class(TReactor)
+  IEvolutionSettings = interface;
+
+  TReactorRating = class
   private
-    FFitness: Single;
-    FHeatGeneration: Single;
+    FReactor: TReactor;
     FPowerGeneration: Single;
+    FHeatGeneration: Single;
     FNetHeatGeneration: Single;
+    FFitness: Single;
+
+    function GetCellCount: Integer;
+    function GetCoolingRate: Single;
+    function GetEfficiency: Single;
+    function GetHeatFactor: Single;
 
   public
+    constructor Create(AReactor: TReactor; ASettings: IEvolutionSettings);
+    destructor Destroy; override;
+
+    property Reactor: TReactor read FReactor;
+
+    property CellCount: Integer read GetCellCount;
+    property Efficiency: Single read GetEfficiency;
+    property HeatFactor: Single read GetHeatFactor;
+    property CoolingRate: Single read GetCoolingRate;
+
+    property PowerGeneration: Single read FPowerGeneration;
+    property HeatGeneration: Single read FHeatGeneration;
+    property NetHeatGeneration: Single read FNetHeatGeneration;
+
     property Fitness: Single read FFitness;
-    function PowerGeneration: Single; overload;
-    function HeatGeneration: Single; overload;
-    function NetHeatGeneration: Single; overload;
 
   end;
-
-  IEvolutionSettings = interface;
 
   TEvolutionGeneration = class
   public type
 
     TStats = record
       Best: Single;
-      Average: Single;
+      Median: Single;
       Worst: Single;
+      Average: Single;
     end;
-
-    TReactors = TObjectArray<TRatedReactor>;
 
   private
     FSettings: IEvolutionSettings;
-    FReactors: TReactors;
+    FReactorRatings: ISortedObjectList<TReactorRating>;
 
-    function GetReactors: TReactors.TReader;
     function GetPopulationSize: Integer;
 
-    function GetBest: TRatedReactor;
-    function GetWorst: TRatedReactor;
+    function GetBest: TReactorRating;
+    function GetWorst: TReactorRating;
 
     function GetFitnessStats: TStats;
     function GetEfficiencyStats: TStats;
     function GetPowerGenerationStats: TStats;
     function GetNetHeatGenerationStats: TStats;
 
-    function CreateStats(AValueExtractor: TFunc<TRatedReactor, Single>; ALowerBetter: Boolean = False): TStats;
+    function CreateStats(AValueExtractor: TFunc<TReactorRating, Single>; ALowerBetter: Boolean = False): TStats;
     function GetSettings: IEvolutionSettings;
+    function GetReactorRatings: IReadonlyList<TReactorRating>;
 
   public
     constructor Create(ASettings: IEvolutionSettings; AParentGeneration: TEvolutionGeneration = nil); overload;
-    destructor Destroy; override;
 
     property Settings: IEvolutionSettings read GetSettings;
 
     /// <summary>Ordered by fitness from best to worst.</summary>
-    property Reactors: TReactors.TReader read GetReactors;
+    property ReactorRatings: IReadonlyList<TReactorRating> read GetReactorRatings;
     /// <summary>The reactor count.</summary>
     property PopulationSize: Integer read GetPopulationSize;
 
     /// <summary>The reactor with the best fitness of this generation.</summary>
-    property Best: TRatedReactor read GetBest;
+    property Best: TReactorRating read GetBest;
     /// <summary>The reactor with the worst fitness of this generation.</summary>
-    property Worst: TRatedReactor read GetWorst;
+    property Worst: TReactorRating read GetWorst;
 
     /// <summary>Worst, average and best fitnesses of this generation.</summary>
     property FitnessStats: TStats read GetFitnessStats;
@@ -102,7 +116,7 @@ type
 
   IFitnessFunction = interface(IEvolutionFunction)
     ['{CBC54E5B-6AB4-47A6-9A1A-B245A4297997}']
-    function Calculate(AReactor: TRatedReactor): Single;
+    function Calculate(AReactor: TReactor; ASettings: IEvolutionSettings): Single;
 
     function Copy(ASettings: IEvolutionSettings): IFitnessFunction;
 
@@ -110,7 +124,7 @@ type
 
   IGeneratorFunction = interface(IEvolutionFunction)
     ['{3CC45E2C-4779-4FE4-AC75-51F3C59BD7A4}']
-    function GetEnumerator: IIterator<TRatedReactor>;
+    function Generator: IIterable<TReactor>;
 
     function Copy(ASettings: IEvolutionSettings): IGeneratorFunction;
 
@@ -150,7 +164,7 @@ type
     procedure SetBlockTypes(const Value: TReactor.TBlockTypes);
     function GetBlockType(ABlockType: TReactor.TBlockType): Boolean;
     procedure SetBlockType(ABlockType: TReactor.TBlockType; const Value: Boolean);
-    function GetBlockTypeArray: TArray<TReactor.TBlockType>.TReader;
+    function GetBlockTypeList: IList<TReactor.TBlockType>;
 
     function GetPopulationSize: Integer;
     procedure SetPopulationSize(const Value: Integer);
@@ -168,7 +182,7 @@ type
 
     property BlockTypes: TReactor.TBlockTypes read GetBlockTypes write SetBlockTypes;
     property HasBlockType[ABlockType: TReactor.TBlockType]: Boolean read GetBlockType write SetBlockType;
-    property BlockTypeArray: TArray<TReactor.TBlockType>.TReader read GetBlockTypeArray;
+    property BlockTypeList: IList<TReactor.TBlockType> read GetBlockTypeList;
 
     property PopulationSize: Integer read GetPopulationSize write SetPopulationSize;
     property GeneratorFunction: IGeneratorFunction read GetGeneratorFunction;
@@ -211,29 +225,30 @@ type
 
   TFitnessFunction = class abstract(TEvolutionFunction, IFitnessFunction)
   public
-    function Calculate(AReactor: TRatedReactor): Single; virtual; abstract;
+    function Calculate(AReactor: TReactor; ASettings: IEvolutionSettings): Single; virtual; abstract;
 
     function Copy(ASettings: IEvolutionSettings): IFitnessFunction;
 
   end;
 
-  IReactorIterator = IIterator<TRatedReactor>;
-
-  TGeneratorFunction = class abstract(TEvolutionFunction, IGeneratorFunction)
+  TGeneratorFunction = class abstract(TEvolutionFunction, IGeneratorFunction, IIterable<TReactor>)
   public
-    function GetEnumerator: IReactorIterator; virtual; abstract;
+    function Generator: IIterable<TReactor>;
+
+    function GetEnumerator: IIterator<TReactor>; virtual; abstract;
+    function Iterate: IIterate<TReactor>;
 
     function Copy(ASettings: IEvolutionSettings): IGeneratorFunction;
 
   end;
 
-  TReactorGenerator = class abstract(TInterfacedObject, IReactorIterator)
+  TReactorGenerator = class abstract(TInterfacedObject, IIterator<TReactor>)
   private
     FSettings: IEvolutionSettings;
     FCurrentIndex: Integer;
-    FCurrent: TRatedReactor;
+    FCurrent: TReactor;
 
-    function GetCurrent: TRatedReactor;
+    function GetCurrent: TReactor;
 
   protected
     procedure Generate(AReactor: TReactor; AIndex: Integer); virtual; abstract;
@@ -242,7 +257,7 @@ type
     constructor Create(ASettings: IEvolutionSettings); virtual;
 
     function MoveNext: Boolean;
-    property Current: TRatedReactor read GetCurrent;
+    property Current: TReactor read GetCurrent;
 
     property Settings: IEvolutionSettings read FSettings;
 
@@ -275,10 +290,6 @@ type
   end;
 
   TEvolutionSettings = class(TInterfacedObject, IEvolutionSettings)
-  public type
-
-    TBlockTypeArray = TArray<TReactor.TBlockType>;
-
   private
     FReactorSize: TIntVector3;
     FFuelBasePower: Single;
@@ -288,7 +299,7 @@ type
     FMutationFunction: IMutationFunction;
     FFitnessFunction: IFitnessFunction;
     FBlockTypes: TReactor.TBlockTypes;
-    FBlockTypeArray: TBlockTypeArray;
+    FBlockTypeList: IList<TReactor.TBlockType>;
 
     function GetReactorSize: TIntVector3;
     procedure SetReactorSize(const Value: TIntVector3);
@@ -308,7 +319,7 @@ type
     procedure SetBlockTypes(const Value: TReactor.TBlockTypes);
     function GetBlockType(ABlockType: TReactor.TBlockType): Boolean;
     procedure SetBlockType(ABlockType: TReactor.TBlockType; const Value: Boolean);
-    function GetBlockTypeArray: TBlockTypeArray.TReader;
+    function GetBlockTypeList: IList<TReactor.TBlockType>;
 
     function GetPopulationSize: Integer;
     procedure SetPopulationSize(const Value: Integer);
@@ -318,7 +329,6 @@ type
 
   public
     constructor Create;
-    destructor Destroy; override;
 
     property ReactorSize: TIntVector3 read GetReactorSize write SetReactorSize;
     property ReactorSizeX: Integer read GetReactorSizeX write SetReactorSizeX;
@@ -330,7 +340,7 @@ type
 
     property BlockTypes: TReactor.TBlockTypes read GetBlockTypes write SetBlockTypes;
     property HasBlockType[ABlockType: TReactor.TBlockType]: Boolean read GetBlockType write SetBlockType;
-    property BlockTypeArray: TBlockTypeArray.TReader read GetBlockTypeArray;
+    property BlockTypeList: IList<TReactor.TBlockType> read GetBlockTypeList;
 
     property PopulationSize: Integer read GetPopulationSize write SetPopulationSize;
     property GeneratorFunction: IGeneratorFunction read GetGeneratorFunction;
@@ -347,44 +357,38 @@ type
   end;
 
   TReactorEvolution = class
-  public type
-
-    TGenerations = TObjectArray<TEvolutionGeneration>;
-
   private
   class var
-    FGeneratorFunctions: TArray<TGeneratorFunctionClass>;
-    FMutationFunctions: TArray<TMutationFunctionClass>;
-    FFitnessFunctions: TArray<TFitnessFunctionClass>;
+    FGeneratorFunctions: IList<TGeneratorFunctionClass>;
+    FMutationFunctions: IList<TMutationFunctionClass>;
+    FFitnessFunctions: IList<TFitnessFunctionClass>;
 
-    class function GetGeneratorFunctions: TArray<TGeneratorFunctionClass>.TReader; static;
-    class function GetMutationFunctions: TArray<TMutationFunctionClass>.TReader; static;
-    class function GetFitnessFunctions: TArray<TFitnessFunctionClass>.TReader; static;
+    class function GetGeneratorFunctions: IReadonlyList<TGeneratorFunctionClass>; static;
+    class function GetMutationFunctions: IReadonlyList<TMutationFunctionClass>; static;
+    class function GetFitnessFunctions: IReadonlyList<TFitnessFunctionClass>; static;
 
   public
     class constructor Create;
-    class destructor Destroy;
 
     class procedure RegisterFunction(AGeneratorFunctionClass: TGeneratorFunctionClass); overload;
     class procedure RegisterFunction(AMutationFunctionClass: TMutationFunctionClass); overload;
     class procedure RegisterFunction(AFitnessFunctionClass: TFitnessFunctionClass); overload;
 
-    class property GeneratorFunctions: TArray<TGeneratorFunctionClass>.TReader read GetGeneratorFunctions;
-    class property MutationFunctions: TArray<TMutationFunctionClass>.TReader read GetMutationFunctions;
-    class property FitnessFunctions: TArray<TFitnessFunctionClass>.TReader read GetFitnessFunctions;
+    class property GeneratorFunctions: IReadonlyList<TGeneratorFunctionClass> read GetGeneratorFunctions;
+    class property MutationFunctions: IReadonlyList<TMutationFunctionClass> read GetMutationFunctions;
+    class property FitnessFunctions: IReadonlyList<TFitnessFunctionClass> read GetFitnessFunctions;
 
   private
     FSettings: IEvolutionSettings;
-    FGenerations: TGenerations;
+    FGenerations: IObjectList<TEvolutionGeneration>;
 
-    function GetGenerations: TGenerations.TReader;
+    function GetGenerations: IReadonlyList<TEvolutionGeneration>;
     function GetSettings: IEvolutionSettings;
 
   public
     constructor Create(ASettings: IEvolutionSettings);
-    destructor Destroy; override;
 
-    property Generations: TGenerations.TReader read GetGenerations;
+    property Generations: IReadonlyList<TEvolutionGeneration> read GetGenerations;
 
     property Settings: IEvolutionSettings read GetSettings;
 
@@ -398,12 +402,15 @@ implementation
 
 constructor TEvolutionGeneration.Create(ASettings: IEvolutionSettings; AParentGeneration: TEvolutionGeneration);
 var
-  Reactor: TRatedReactor;
   Generator: IGeneratorFunction;
 begin
   FSettings := ASettings;
-  FReactors := TReactors.Create;
-  FReactors.Capacity := ASettings.PopulationSize;
+  FReactorRatings := TSortedObjectList<TReactorRating>.Create;
+  FReactorRatings.Capacity := ASettings.PopulationSize;
+  FReactorRatings.Compare := function(A, B: TReactorRating): Boolean
+    begin
+      Result := A.Fitness > B.Fitness;
+    end;
 
   if AParentGeneration = nil then
   begin
@@ -415,72 +422,59 @@ begin
     Generator := ASettings.MutationFunction;
   end;
 
-  for Reactor in Generator do
-  begin
-    Reactor.FPowerGeneration := Reactor.PowerGeneration(Settings.FuelBasePower);
-    Reactor.FHeatGeneration := Reactor.HeatGeneration(Settings.FuelBaseHeat);
-    Reactor.FNetHeatGeneration := Reactor.NetHeatGeneration(Settings.FuelBaseHeat);
-    Reactor.FFitness := ASettings.FitnessFunction.Calculate(Reactor);
-    FReactors.Add(Reactor);
-  end;
-  FReactors.Sort(
-    function(A, B: TRatedReactor): Boolean
+  FReactorRatings.AddRange(Generator.Generator.Iterate.Generic.Map<TReactorRating>(
+    function(Reactor: TReactor): TReactorRating
     begin
-      Result := A.Fitness > B.Fitness;
+      Result := TReactorRating.Create(Reactor, Settings);
     end
-    );
+  ));
+
 end;
 
-function TEvolutionGeneration.CreateStats(AValueExtractor: TFunc<TRatedReactor, Single>; ALowerBetter: Boolean): TStats;
+function TEvolutionGeneration.CreateStats(AValueExtractor: TFunc<TReactorRating, Single>; ALowerBetter: Boolean): TStats;
 var
   I: Integer;
   Value: Single;
 begin
-  if Reactors.Empty then
+  if ReactorRatings.Empty then
     Value := NaN
   else
-    Value := AValueExtractor(Reactors[0]);
+    Value := AValueExtractor(ReactorRatings[0]);
   Result.Worst := Value;
   Result.Average := Value;
   Result.Best := Value;
 
   if ALowerBetter then
-    for I := 1 to Reactors.MaxIndex do
+    for I := 1 to ReactorRatings.MaxIndex do
     begin
-      Value := AValueExtractor(Reactors[I]);
+      Value := AValueExtractor(ReactorRatings[I]);
       Result.Best := Min(Result.Best, Value);
       Result.Worst := Max(Result.Worst, Value);
       Result.Average := Result.Average + Value;
     end
   else
-    for I := 1 to Reactors.MaxIndex do
+    for I := 1 to ReactorRatings.MaxIndex do
     begin
-      Value := AValueExtractor(Reactors[I]);
+      Value := AValueExtractor(ReactorRatings[I]);
       Result.Best := Max(Result.Best, Value);
       Result.Worst := Min(Result.Worst, Value);
       Result.Average := Result.Average + Value;
     end;
 
-  Result.Average := Result.Average / Reactors.Count;
+  Result.Average := Result.Average / ReactorRatings.Count;
 end;
 
-destructor TEvolutionGeneration.Destroy;
+function TEvolutionGeneration.GetBest: TReactorRating;
 begin
-  FReactors.Free;
-  inherited;
-end;
-
-function TEvolutionGeneration.GetBest: TRatedReactor;
-begin
-  Result := Reactors.First;
+  Result := ReactorRatings.First;
 end;
 
 function TEvolutionGeneration.GetEfficiencyStats: TStats;
 begin
   Result := CreateStats(
-    function(AReactor: TRatedReactor): Single
+    function(ReactorRating: TReactorRating): Single
     begin
-      Result := AReactor.Efficiency;
+      Result := ReactorRating.Efficiency;
     end
     );
 end;
@@ -488,9 +482,9 @@ end;
 function TEvolutionGeneration.GetFitnessStats: TStats;
 begin
   Result := CreateStats(
-    function(AReactor: TRatedReactor): Single
+    function(ReactorRating: TReactorRating): Single
     begin
-      Result := AReactor.Fitness;
+      Result := ReactorRating.Fitness;
     end
     );
 end;
@@ -498,31 +492,31 @@ end;
 function TEvolutionGeneration.GetNetHeatGenerationStats: TStats;
 begin
   Result := CreateStats(
-    function(AReactor: TRatedReactor): Single
+   function(ReactorRating: TReactorRating): Single
     begin
-      Result := AReactor.NetHeatGeneration;
+      Result := ReactorRating.NetHeatGeneration;
     end,
     True);
 end;
 
 function TEvolutionGeneration.GetPopulationSize: Integer;
 begin
-  Result := Reactors.Count;
+  Result := ReactorRatings.Count;
 end;
 
 function TEvolutionGeneration.GetPowerGenerationStats: TStats;
 begin
   Result := CreateStats(
-    function(AReactor: TRatedReactor): Single
+   function(ReactorRating: TReactorRating): Single
     begin
-      Result := AReactor.PowerGeneration;
+      Result := ReactorRating.PowerGeneration;
     end
     );
 end;
 
-function TEvolutionGeneration.GetReactors: TReactors.TReader;
+function TEvolutionGeneration.GetReactorRatings: IReadonlyList<TReactorRating>;
 begin
-  Result := FReactors.Reader;
+  Result := FReactorRatings.ReadonlyList;
 end;
 
 function TEvolutionGeneration.GetSettings: IEvolutionSettings;
@@ -530,9 +524,9 @@ begin
   Result := FSettings.Copy;
 end;
 
-function TEvolutionGeneration.GetWorst: TRatedReactor;
+function TEvolutionGeneration.GetWorst: TReactorRating;
 begin
-  Result := Reactors.Last;
+  Result := ReactorRatings.Last;
 end;
 
 { TReactorEvolution }
@@ -540,13 +534,8 @@ end;
 constructor TReactorEvolution.Create(ASettings: IEvolutionSettings);
 begin
   FSettings := ASettings.Copy;
-  FGenerations := TGenerations.Create;
+  FGenerations := TObjectList<TEvolutionGeneration>.Create;
   FGenerations.Add(TEvolutionGeneration.Create(FSettings));
-end;
-
-destructor TReactorEvolution.Destroy;
-begin
-  FGenerations.Free;
 end;
 
 procedure TReactorEvolution.Evolve;
@@ -556,36 +545,29 @@ end;
 
 class constructor TReactorEvolution.Create;
 begin
-  FGeneratorFunctions := TArray<TGeneratorFunctionClass>.Create;
-  FMutationFunctions := TArray<TMutationFunctionClass>.Create;
-  FFitnessFunctions := TArray<TFitnessFunctionClass>.Create;
+  FGeneratorFunctions := TList<TGeneratorFunctionClass>.Create;
+  FMutationFunctions := TList<TMutationFunctionClass>.Create;
+  FFitnessFunctions := TList<TFitnessFunctionClass>.Create;
 end;
 
-class destructor TReactorEvolution.Destroy;
+class function TReactorEvolution.GetFitnessFunctions: IReadonlyList<TFitnessFunctionClass>;
 begin
-  FGeneratorFunctions.Free;
-  FMutationFunctions.Free;
-  FFitnessFunctions.Free;
+  Result := FFitnessFunctions.ReadonlyList;
 end;
 
-class function TReactorEvolution.GetFitnessFunctions: TArray<TFitnessFunctionClass>.TReader;
+function TReactorEvolution.GetGenerations: IReadonlyList<TEvolutionGeneration>;
 begin
-  Result := FFitnessFunctions.Reader;
+  Result := FGenerations.ReadonlyList;
 end;
 
-function TReactorEvolution.GetGenerations: TGenerations.TReader;
+class function TReactorEvolution.GetGeneratorFunctions: IReadonlyList<TGeneratorFunctionClass>;
 begin
-  Result := FGenerations.Reader;
+  Result := FGeneratorFunctions.ReadonlyList;
 end;
 
-class function TReactorEvolution.GetGeneratorFunctions: TArray<TGeneratorFunctionClass>.TReader;
+class function TReactorEvolution.GetMutationFunctions: IReadonlyList<TMutationFunctionClass>;
 begin
-  Result := FGeneratorFunctions.Reader;
-end;
-
-class function TReactorEvolution.GetMutationFunctions: TArray<TMutationFunctionClass>.TReader;
-begin
-  Result := FMutationFunctions.Reader;
+  Result := FMutationFunctions.ReadonlyList;
 end;
 
 function TReactorEvolution.GetSettings: IEvolutionSettings;
@@ -616,7 +598,7 @@ begin
   FCurrentIndex := -1;
 end;
 
-function TReactorGenerator.GetCurrent: TRatedReactor;
+function TReactorGenerator.GetCurrent: TReactor;
 begin
   Result := FCurrent;
 end;
@@ -627,9 +609,8 @@ begin
   Result := FCurrentIndex < Settings.PopulationSize;
   if Result then
   begin
-    FCurrent := TRatedReactor.Create(Settings.ReactorSize);
+    FCurrent := TReactor.Create(Settings.ReactorSize);
     Generate(FCurrent, FCurrentIndex);
-    FCurrent.Lock;
   end;
 end;
 
@@ -719,7 +700,7 @@ end;
 
 procedure TEvolutionSettings.SetBlockTypes(const Value: TReactor.TBlockTypes);
 begin
-  FreeAndNil(FBlockTypeArray);
+  FBlockTypeList := nil;
   FBlockTypes := Value;
 end;
 
@@ -728,22 +709,22 @@ begin
   Result := ABlockType in FBlockTypes;
 end;
 
-function TEvolutionSettings.GetBlockTypeArray: TBlockTypeArray.TReader;
+function TEvolutionSettings.GetBlockTypeList: IList<TReactor.TBlockType>;
 var
   BlockType: TReactor.TBlockType;
 begin
-  if FBlockTypeArray = nil then
+  if FBlockTypeList = nil then
   begin
-    FBlockTypeArray := TBlockTypeArray.Create;
+    FBlockTypeList := TList<TReactor.TBlockType>.Create;
     for BlockType in BlockTypes do
-      FBlockTypeArray.Add(BlockType);
+      FBlockTypeList.Add(BlockType);
   end;
-  Result := FBlockTypeArray.Reader;
+  Result := FBlockTypeList;
 end;
 
 procedure TEvolutionSettings.SetBlockType(ABlockType: TReactor.TBlockType; const Value: Boolean);
 begin
-  FreeAndNil(FBlockTypeArray);
+  FBlockTypeList := nil;
   if Value then
     Include(FBlockTypes, ABlockType)
   else
@@ -782,12 +763,6 @@ begin
   FuelBaseHeat := 10;
   PopulationSize := 20;
   BlockTypes := TReactor.BlockTypes;
-end;
-
-destructor TEvolutionSettings.Destroy;
-begin
-  FBlockTypeArray.Free;
-  inherited;
 end;
 
 procedure TEvolutionSettings.SetGeneratorFunction(AClass: TGeneratorFunctionClass);
@@ -876,21 +851,14 @@ begin
   Assert(Supports(inherited Copy(ASettings), IGeneratorFunction, Result));
 end;
 
-{ TRatedReactor }
-
-function TRatedReactor.HeatGeneration: Single;
+function TGeneratorFunction.Generator: IIterable<TReactor>;
 begin
-  Result := FHeatGeneration;
+  Result := Self;
 end;
 
-function TRatedReactor.NetHeatGeneration: Single;
+function TGeneratorFunction.Iterate: IIterate<TReactor>;
 begin
-  Result := FNetHeatGeneration;
-end;
-
-function TRatedReactor.PowerGeneration: Single;
-begin
-  Result := FPowerGeneration;
+  Result := TIterableIterate<TReactor>.Create(Self);
 end;
 
 { TReactorMutator }
@@ -899,6 +867,46 @@ constructor TReactorMutator.Create(AParentGeneration: TEvolutionGeneration);
 begin
   inherited Create(AParentGeneration.Settings);
   FParentGeneration := AParentGeneration;
+end;
+
+{ TReactorRating }
+
+constructor TReactorRating.Create(AReactor: TReactor; ASettings: IEvolutionSettings);
+var
+  Calculation: TReactor.TCalculation;
+begin
+  FReactor := AReactor;
+  Calculation := Reactor.Calculation;
+  FPowerGeneration := Calculation.PowerGeneration(ASettings.FuelBasePower);
+  FHeatGeneration := Calculation.HeatGeneration(ASettings.FuelBaseHeat);
+  FNetHeatGeneration := Calculation.NetHeatGeneration(ASettings.FuelBaseHeat);
+  FFitness := ASettings.FitnessFunction.Calculate(Reactor, ASettings);
+end;
+
+destructor TReactorRating.Destroy;
+begin
+  FReactor.Free;
+  inherited;
+end;
+
+function TReactorRating.GetCellCount: Integer;
+begin
+  Result := Reactor.Calculation.CellCount;
+end;
+
+function TReactorRating.GetCoolingRate: Single;
+begin
+  Result := Reactor.Calculation.CoolingRate;
+end;
+
+function TReactorRating.GetEfficiency: Single;
+begin
+  Result := Reactor.Calculation.Efficiency;
+end;
+
+function TReactorRating.GetHeatFactor: Single;
+begin
+  Result := Reactor.Calculation.HeatFactor;
 end;
 
 end.

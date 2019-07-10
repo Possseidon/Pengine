@@ -81,7 +81,7 @@ type
     FContext: TGLContext;
     FCamera: TCamera;
     FTextureAtlas: TTextureAtlas;
-    FReactor: TRatedReactor;
+    FReactorRating: TReactorRating;
     FModelGLProgram: TGLProgram;
     FSkyboxGLProgram: TGLProgram;
     FSkybox: TSkybox;
@@ -94,7 +94,7 @@ type
     function GetSize: TIntVector2;
 
     procedure Render;
-    procedure SetReactor(const Value: TRatedReactor);
+    procedure SetReactorRating(const Value: TReactorRating);
 
   protected
     procedure WndProc(var Message: TMessage); override;
@@ -108,7 +108,7 @@ type
     destructor Destroy; override;
 
     property Size: TIntVector2 read GetSize;
-    property Reactor: TRatedReactor read FReactor write SetReactor;
+    property ReactorRating: TReactorRating read FReactorRating write SetReactorRating;
 
   end;
 
@@ -215,11 +215,11 @@ begin
   FContext.Render;
 end;
 
-procedure TfrmPreview.SetReactor(const Value: TRatedReactor);
+procedure TfrmPreview.SetReactorRating(const Value: TReactorRating);
 begin
-  FReactor := Value;
+  FReactorRating := Value;
   InitGL;
-  FReactorVAO.Reactor := Value;
+  FReactorVAO.Reactor := Value.Reactor;
   Invalidate;
 end;
 

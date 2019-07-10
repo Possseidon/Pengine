@@ -5,14 +5,13 @@ interface
 uses
   System.SysUtils,
 
-  Pengine.IntMaths,
-  Pengine.Interfaces;
+  Pengine.IntMaths;
 
 type
 
   EReactor = class(Exception);
 
-  TReactor = class(TInterfaceBase)
+  TReactor = class
   public type
 
     TBlockType = (
@@ -40,9 +39,35 @@ type
 
     TBlockData = record
       DisplayName: string;
-      // Description: string;
+      Description: string;
       TextureName: string;
       CoolerValue: Single;
+    end;
+
+    TCalculation = class
+    private
+      FReactor: TReactor;
+      FCellCount: Integer;
+      FEfficiency: Single;
+      FHeatFactor: Single;
+      FCoolingRate: Single;
+
+      procedure Calculate;
+
+    public
+      constructor Create(AReactor: TReactor);
+
+      property Reactor: TReactor read FReactor;
+
+      property CellCount: Integer read FCellCount;
+      property Efficiency: Single read FEfficiency;
+      property HeatFactor: Single read FHeatFactor;
+      property CoolingRate: Single read FCoolingRate;
+
+      function PowerGeneration(ABasePower: Single): Single;
+      function HeatGeneration(ABaseHeat: Single): Single;
+      function NetHeatGeneration(ABaseHeat: Single): Single;
+
     end;
 
   public const
@@ -58,143 +83,124 @@ type
 
     BlockData: array [TBlockType] of TBlockData = (
       // Air
-      (DisplayName: 'Air'),
+      (DisplayName: 'Air';
+      Description: 'An empty space inside of the reactor.'),
 
       // Reactor Cell
       (DisplayName: 'Reactor Cell';
+      Description: 'Generates energy and produces heat.';
       TextureName: 'CELL_BLOCK'),
 
       // Moderator Block
       (DisplayName: 'Moderator Block';
+      Description: 'Increases efficiency when placed besides reactor cells.';
       TextureName: 'INGOT_BLOCK_GRAPHITE'),
 
       // Cooler
       (DisplayName: 'Water Cooler';
+      Description: 'Must touch at least one Reactor Cell or active moderator block.';
       TextureName: 'COOLER_WATER';
       CoolerValue: 20),
 
       (DisplayName: 'Redstone Cooler';
+      Description: 'Must touch at least one Reactor Cell.';
       TextureName: 'COOLER_REDSTONE';
       CoolerValue: 80),
 
       (DisplayName: 'Quartz Cooler';
+      Description: 'Must touch at least one active moderator block.';
       TextureName: 'COOLER_QUARTZ';
       CoolerValue: 80),
 
       (DisplayName: 'Gold Cooler';
+      Description: 'Must touch at least one active Water Cooler and one active Redstone Cooler.';
       TextureName: 'COOLER_GOLD';
       CoolerValue: 120),
 
       (DisplayName: 'Glowstone Cooler';
+      Description: 'Must touch at least two active moderator blocks.';
       TextureName: 'COOLER_GLOWSTONE';
       CoolerValue: 120),
 
       (DisplayName: 'Lapis Cooler';
+      Description: 'Must touch at least one Reactor Cell and one Reactor Casing.';
       TextureName: 'COOLER_LAPIS';
       CoolerValue: 100),
 
       (DisplayName: 'Diamond Cooler';
+      Description: 'Must touch at least one active Water Cooler and one active Quartz Cooler.';
       TextureName: 'COOLER_DIAMOND';
       CoolerValue: 120),
 
       (DisplayName: 'Liquid Helium Cooler';
+      Description: 'Must touch exactly one active Redstone Cooler and at least one Reactor Casing.';
       TextureName: 'COOLER_HELIUM';
       CoolerValue: 120),
 
       (DisplayName: 'Enderium Cooler';
+      Description: 'Must touch exactly three Reactor Casings at exactly one vertex.';
       TextureName: 'COOLER_ENDERIUM';
       CoolerValue: 140),
 
       (DisplayName: 'Cryotheum Cooler';
+      Description: 'Must touch at least two Reactor Cells.';
       TextureName: 'COOLER_CRYOTHEUM';
       CoolerValue: 140),
 
       (DisplayName: 'Iron Cooler';
+      Description: 'Must touch at least one active Gold Cooler.';
       TextureName: 'COOLER_IRON';
       CoolerValue: 60),
 
       (DisplayName: 'Emerald Cooler';
+      Description: 'Must touch at least one active moderator block and one Reactor Cell.';
       TextureName: 'COOLER_EMERALD';
       CoolerValue: 140),
 
       (DisplayName: 'Copper Cooler';
+      Description: 'Must touch at least one active Glowstone Cooler.';
       TextureName: 'COOLER_COPPER';
       CoolerValue: 60),
 
       (DisplayName: 'Tin Cooler';
+      Description: 'Must be at least between two active Lapis Coolers along the same axis.';
       TextureName: 'COOLER_TIN';
       CoolerValue: 80),
 
       (DisplayName: 'Magnesium Cooler';
+      Description: 'Must touch at least one Reactor Casing and one active moderator block.';
       TextureName: 'COOLER_MAGNESIUM';
       CoolerValue: 100)
       );
 
-    {
-      Water Cooler 	         20 h/t   Must touch at least one Reactor Cell or active moderator block.
-      Redstone Cooler 	     80 h/t  	Must touch at least one Reactor Cell.
-      Quartz Cooler 	       80 h/t	  Must touch at least one active moderator block.
-      Gold Cooler 	         120 h/t 	Must touch at least one active Water Cooler and one active Redstone Cooler.
-      Glowstone Cooler 	     120 h/t 	Must touch at least two active moderator blocks.
-      Lapis Cooler 	         100 h/t 	Must touch at least one Reactor Cell and one Reactor Casing.
-      Diamond Cooler 	       120 h/t 	Must touch at least one active Water Cooler and one active Quartz Cooler.
-      Liquid Helium Cooler 	 120 h/t 	Must touch exactly one active Redstone Cooler and at least one Reactor Casing.
-      Enderium Cooler        140 h/t 	Must touch exactly three Reactor Casings at exactly one vertex.
-      Cryotheum Cooler 	     140 h/t 	Must touch at least two Reactor Cells.
-      Iron Cooler 	         60 h/t	  Must touch at least one active Gold Cooler.
-      Emerald Cooler 	       140 h/t 	Must touch at least one active moderator block and one Reactor Cell.
-      Copper Cooler 	       60 h/t	  Must touch at least one active Glowstone Cooler.
-      Tin Cooler 	           80 h/t 	Must be at least between two active Lapis Coolers along the same axis.
-      Magnesium Cooler 	     100 h/t 	Must touch at least one Reactor Casing and one active moderator block.
-    }
-
   private
-    FBlocks: array of array of array of TBlockType;
-    FLocked: Boolean;
-    FCalculated: Boolean;
-    FCellCount: Integer;
-    FEfficiency: Single;
-    FHeatFactor: Single;
-    FCoolingRate: Single;
+    FBlocks: array of TBlockType;
+    FSize: TIntVector3;
+    FCalculation: TCalculation;
 
-    function GetSize: TIntVector3;
+    function PosToIndex(APos: TIntVector3): Integer; inline;
+    function IndexToPos(AIndex: Integer): TIntVector3; inline;
+
     procedure SetSize(const Value: TIntVector3);
     function GetBlock(APos: TIntVector3): TBlockType;
     procedure SetBlock(APos: TIntVector3; const Value: TBlockType);
 
     procedure PosCheck(APos: TIntVector3); inline;
-    procedure LockCheck; inline;
 
-    function GetCellCount: Integer;
-    function GetEfficiency: Single;
-    function GetHeatFactor: Single;
-    function GetCoolingRate: Single;
-
-    // Calculation
-    procedure Calculate;
-    procedure EnsureCalculated; inline;
+    function GetCalculation: TCalculation;
 
   public
     constructor Create(ASize: TIntVector3);
+    destructor Destroy; override;
 
     procedure Assign(AFrom: TReactor);
     function Copy: TReactor;
 
-    property Locked: Boolean read FLocked;
-    procedure Lock;
-
-    property Size: TIntVector3 read GetSize write SetSize;
+    property Size: TIntVector3 read FSize write SetSize;
     property Blocks[APos: TIntVector3]: TBlockType read GetBlock write SetBlock; default;
     procedure Clear;
 
-    property CellCount: Integer read GetCellCount;
-    property Efficiency: Single read GetEfficiency;
-    property HeatFactor: Single read GetHeatFactor;
-    property CoolingRate: Single read GetCoolingRate;
-
-    function PowerGeneration(ABasePower: Single): Single;
-    function HeatGeneration(ABaseHeat: Single): Single;
-    function NetHeatGeneration(ABaseHeat: Single): Single;
+    property Calculation: TCalculation read GetCalculation;
 
   end;
 
@@ -205,94 +211,97 @@ implementation
 function TReactor.GetBlock(APos: TIntVector3): TBlockType;
 begin
   if APos in Size then
-    Exit(FBlocks[APos.X, APos.Y, APos.Z]);
+    Exit(FBlocks[PosToIndex(APos)]);
   Result := rbAir;
 end;
 
-function TReactor.GetCellCount: Integer;
+function TReactor.GetCalculation: TCalculation;
 begin
-  EnsureCalculated;
-  Result := FCellCount;
+  if FCalculation = nil then
+    FCalculation := TCalculation.Create(Self);
+  Result := FCalculation;
 end;
 
-function TReactor.GetCoolingRate: Single;
+function TReactor.IndexToPos(AIndex: Integer): TIntVector3;
 begin
-  EnsureCalculated;
-  Result := FCoolingRate;
-end;
-
-function TReactor.GetEfficiency: Single;
-begin
-  EnsureCalculated;
-  Result := FEfficiency;
-end;
-
-function TReactor.GetHeatFactor: Single;
-begin
-  EnsureCalculated;
-  Result := FHeatFactor;
-end;
-
-function TReactor.GetSize: TIntVector3;
-begin
-  Result.X := Length(FBlocks);
-  if Result.X = 0 then
-    Exit(0);
-  Result.Y := Length(FBlocks[0]);
-  Result.Z := Length(FBlocks[0, 0]);
-end;
-
-function TReactor.HeatGeneration(ABaseHeat: Single): Single;
-begin
-  Result := ABaseHeat * CellCount * HeatFactor;
-end;
-
-procedure TReactor.Lock;
-begin
-  FLocked := True;
-end;
-
-function TReactor.NetHeatGeneration(ABaseHeat: Single): Single;
-begin
-  Result := HeatGeneration(ABaseHeat) - CoolingRate;
-end;
-
-function TReactor.PowerGeneration(ABasePower: Single): Single;
-begin
-  Result := ABasePower * CellCount * Efficiency;
+  Result.Create(
+    AIndex mod Size.X,
+    AIndex div Size.X mod Size.Y,
+    AIndex div (Size.X * Size.Y) mod Size.Z
+    );
 end;
 
 procedure TReactor.SetBlock(APos: TIntVector3; const Value: TBlockType);
 begin
-  LockCheck;
   PosCheck(APos);
-  FBlocks[APos.X, APos.Y, APos.Z] := Value;
-  FCalculated := False;
+  FreeAndNil(FCalculation);
+  FBlocks[PosToIndex(APos)] := Value;
 end;
 
 procedure TReactor.SetSize(const Value: TIntVector3);
 begin
-  LockCheck;
   if Size = Value then
     Exit;
   if Value in SizeLimits then
   begin
-    FCalculated := False;
-    SetLength(FBlocks, Value.X, Value.Y, Value.Z);
+    FSize := Value;
+    SetLength(FBlocks, Size.Volume);
+    Clear;
   end
   else
     raise EReactor.CreateFmt('Reactor size must be in range %s.', [SizeLimits.ToString]);
 end;
 
-procedure TReactor.EnsureCalculated;
+procedure TReactor.Clear;
+var
+  I: Integer;
 begin
-  if FCalculated then
-    Exit;
-  Calculate;
+  FreeAndNil(FCalculation);
+  for I := 0 to Length(FBlocks) - 1 do
+    FBlocks[I] := rbAir;
 end;
 
-procedure TReactor.Calculate;
+function TReactor.Copy: TReactor;
+begin
+  Result := TReactor.Create(Self.Size);
+  Result.Assign(Self);
+end;
+
+constructor TReactor.Create(ASize: TIntVector3);
+begin
+  Size := ASize;
+end;
+
+destructor TReactor.Destroy;
+begin
+  FCalculation.Free;
+  inherited;
+end;
+
+procedure TReactor.PosCheck(APos: TIntVector3);
+begin
+  if not(APos in Size) then
+    raise EReactor.Create('Reactor block position out of range.');
+end;
+
+function TReactor.PosToIndex(APos: TIntVector3): Integer;
+begin
+  Result := APos.X + Size.X * (APos.Y + APos.Z * Size.Y);
+end;
+
+procedure TReactor.Assign(AFrom: TReactor);
 var
+  I: Integer;
+begin
+  FreeAndNil(FCalculation);
+  Size := AFrom.Size;
+  for I := 0 to Length(FBlocks) - 1 do
+    FBlocks[I] := AFrom.FBlocks[I];
+end;
+
+{ TReactor.TCalculation }
+
+procedure TReactor.TCalculation.Calculate;var
   Data: array of array of array of Byte;
   ResultHeatFactor, ResultEfficiency, ResultCoolingRate: Single;
   ResultCellCount: Integer;
@@ -310,11 +319,11 @@ var
       CurrentPos := APos + Vec3Dir[Dir];
       for I := 1 to 4 do
       begin
-        if Blocks[CurrentPos] <> rbModeratorBlock then
+        if Reactor[CurrentPos] <> rbModeratorBlock then
           Break;
         CurrentPos := CurrentPos + Vec3Dir[Dir];
       end;
-      if Blocks[CurrentPos] = rbReactorCell then
+      if Reactor[CurrentPos] = rbReactorCell then
         Inc(Result);
     end;
   end;
@@ -347,7 +356,7 @@ var
     for Dir := Low(TBasicDir3) to High(TBasicDir3) do
     begin
       CheckPos := APos + Vec3Dir[Dir];
-      if Blocks[CheckPos] = rbReactorCell then
+      if Reactor[CheckPos] = rbReactorCell then
       begin
         CellEfficiency := GetCell(CheckPos);
         ResultEfficiency := ResultEfficiency + CellEfficiency / 6;
@@ -396,7 +405,7 @@ var
     begin
       Result := 0;
       for Dir := Low(TBasicDir3) to High(TBasicDir3) do
-        if Blocks[APos + Vec3Dir[Dir]] = rbReactorCell then
+        if Reactor[APos + Vec3Dir[Dir]] = rbReactorCell then
           Inc(Result);
     end;
 
@@ -409,7 +418,7 @@ var
       for Dir := Low(TBasicDir3) to High(TBasicDir3) do
       begin
         CheckPos := APos + Vec3Dir[Dir];
-        if (Blocks[CheckPos] = ABlockType) and (Get(CheckPos) = 2) then
+        if (Reactor[CheckPos] = ABlockType) and (Get(CheckPos) = 2) then
           Inc(Result);
       end;
     end;
@@ -431,8 +440,8 @@ var
         A := APos + Vec3Axis[Axis];
         B := APos - Vec3Axis[Axis];
         if (A in Size) and (B in Size) and
-          (Blocks[A] = rbLapisCooler) and (Get(A) = 2) and
-          (Blocks[B] = rbLapisCooler) and (Get(B) = 2) then
+          (Reactor[A] = rbLapisCooler) and (Get(A) = 2) and
+          (Reactor[B] = rbLapisCooler) and (Get(B) = 2) then
           Exit(True);
       end;
       Result := False;
@@ -441,7 +450,7 @@ var
   var
     BlockType: TBlockType;
   begin
-    BlockType := Blocks[APos];
+    BlockType := Reactor[APos];
     case BlockType of
       rbReactorCell:
         Exit(GetCell(APos));
@@ -494,7 +503,7 @@ begin
   ResultHeatFactor := 0;
   ResultCoolingRate := 0;
 
-  Size := Self.Size;
+  Size := Reactor.Size;
   SetLength(Data, Size.X, Size.Y, Size.Z);
 
   for Pos in Size do
@@ -512,56 +521,27 @@ begin
     FHeatFactor := 0;
   end;
   FCoolingRate := ResultCoolingRate;
-
-  FCalculated := True;
 end;
 
-procedure TReactor.Clear;
-var
-  Pos: TIntVector3;
+constructor TReactor.TCalculation.Create(AReactor: TReactor);
 begin
-  LockCheck;
-  for Pos in Size do
-    FreeAndNil(FBlocks[Pos.X, Pos.Y, Pos.Z]);
+  FReactor := AReactor;
+  Calculate;
 end;
 
-function TReactor.Copy: TReactor;
+function TReactor.TCalculation.HeatGeneration(ABaseHeat: Single): Single;
 begin
-  Result := TReactor.Create(Self.Size);
-  Result.Assign(Self);
+  Result := ABaseHeat * CellCount * HeatFactor;
 end;
 
-constructor TReactor.Create(ASize: TIntVector3);
+function TReactor.TCalculation.NetHeatGeneration(ABaseHeat: Single): Single;
 begin
-  Size := ASize;
+  Result := HeatGeneration(ABaseHeat) - CoolingRate;
 end;
 
-procedure TReactor.LockCheck;
+function TReactor.TCalculation.PowerGeneration(ABasePower: Single): Single;
 begin
-  if Locked then
-    raise EReactor.Create('Reactor is locked and cannot be modified.');
-end;
-
-procedure TReactor.PosCheck(APos: TIntVector3);
-begin
-  if not(APos in Size) then
-    raise EReactor.Create('Reactor block position out of range.');
-end;
-
-procedure TReactor.Assign(AFrom: TReactor);
-var
-  Pos: TIntVector3;
-begin
-  LockCheck;
-  Size := AFrom.Size;
-  for Pos in Size do
-    FBlocks[Pos.X, Pos.Y, Pos.Z] := AFrom.FBlocks[Pos.X, Pos.Y, Pos.Z];
-
-  FCalculated := AFrom.FCalculated;
-  FCellCount := AFrom.FCellCount;
-  FEfficiency := AFrom.FEfficiency;
-  FHeatFactor := AFrom.HeatFactor;
-  FCoolingRate := AFrom.FCoolingRate;
+  Result := ABasePower * CellCount * Efficiency;
 end;
 
 end.

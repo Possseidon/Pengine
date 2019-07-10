@@ -24,7 +24,7 @@ uses
   Vcl.ExtCtrls,
 
   Pengine.Utility,
-  Pengine.Collections,
+  Pengine.ICollections,
   Pengine.IntMaths,
 
   ReactorDefine,
@@ -50,7 +50,7 @@ type
   public
     class function GetDisplayName: string; override;
 
-    function GetEnumerator: IReactorIterator; override;
+    function GetEnumerator: IIterator<TReactor>; override;
 
   end;
 
@@ -66,7 +66,7 @@ type
   public
     class function GetDisplayName: string; override;
 
-    function GetEnumerator: IReactorIterator; override;
+    function GetEnumerator: IIterator<TReactor>; override;
 
   end;
 
@@ -74,7 +74,7 @@ type
   public
     class function GetDisplayName: string; override;
 
-    function Calculate(AReactor: TRatedReactor): Single; override;
+    function Calculate(AReactor: TReactor; ASettings: IEvolutionSettings): Single; override;
 
   end;
 
@@ -419,7 +419,7 @@ begin
   Result := 'Default';
 end;
 
-function TDefaultGeneratorFunction.GetEnumerator: IReactorIterator;
+function TDefaultGeneratorFunction.GetEnumerator: IIterator<TReactor>;
 begin
   Result := TGenerator.Create(Settings);
 end;
@@ -431,24 +431,27 @@ begin
   Result := 'Default';
 end;
 
-function TDefaultMutationFunction.GetEnumerator: IReactorIterator;
+function TDefaultMutationFunction.GetEnumerator: IIterator<TReactor>;
 begin
   Result := TMutator.Create(ParentGeneration);
 end;
 
 { TDefaultFitnessFunction }
 
-function TDefaultFitnessFunction.Calculate(AReactor: TRatedReactor): Single;
+function TDefaultFitnessFunction.Calculate(AReactor: TReactor; ASettings: IEvolutionSettings): Single;
 var
-  HeatFactor: Single;
+  Efficiency, PowerGeneration, NetHeatGeneration, HeatFactor: Single;
 begin
   // Result := Max(0, AReactor.PowerGeneration - Power(Max(0, AReactor.NetHeatGeneration), 1.5));
   // Result := AReactor.Efficiency * AReactor.PowerGeneration / (1 + Exp(AReactor.NetHeatGeneration));
   // Result := AReactor.Efficiency * AReactor.PowerGeneration - AReactor.NetHeatGeneration;
-  HeatFactor := Exp(-Sqr((AReactor.NetHeatGeneration + 0) / 100));
-  if AReactor.NetHeatGeneration > 0 then
+  Efficiency := AReactor.Calculation.Efficiency;
+  PowerGeneration := AReactor.Calculation.PowerGeneration(ASettings.FuelBasePower);
+  NetHeatGeneration := AReactor.Calculation.NetHeatGeneration(ASettings.FuelBaseHeat);
+  HeatFactor := Exp(-Sqr((NetHeatGeneration + 0) / 100));
+  if NetHeatGeneration > 0 then
     HeatFactor := HeatFactor * 0.8;
-  Result := AReactor.Efficiency * AReactor.PowerGeneration * HeatFactor;
+  Result := Efficiency * PowerGeneration * HeatFactor;
 end;
 
 class function TDefaultFitnessFunction.GetDisplayName: string;
@@ -463,7 +466,7 @@ var
   Pos: TIntVector3;
 begin
   for Pos in AReactor.Size do
-    AReactor.Blocks[Pos] := Settings.BlockTypeArray[Random(Settings.BlockTypeArray.Count)];
+    AReactor.Blocks[Pos] := Settings.BlockTypeList[Random(Settings.BlockTypeList.Count)];
 end;
 
 { TDefaultMutationFunction.TMutator }
@@ -473,12 +476,12 @@ var
   I: Integer;
   NewType: TReactor.TBlockType;
 begin
-  AReactor.Assign(ParentGeneration.Reactors[Random(AIndex) div 2]);
+  AReactor.Assign(ParentGeneration.ReactorRatings[Random(AIndex) div 2].Reactor);
   if AIndex = 0 then
     Exit;
   for I := 0 to 5 * AIndex div Settings.PopulationSize do
   begin
-    NewType := Settings.BlockTypeArray[Random(Settings.BlockTypeArray.Count)];
+    NewType := Settings.BlockTypeList[Random(Settings.BlockTypeList.Count)];
     AReactor.Blocks[TIntVector3.Random(AReactor.Size)] := NewType;
   end;
 end;

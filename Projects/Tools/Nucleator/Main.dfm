@@ -71,7 +71,7 @@ object frmMain: TfrmMain
       TabOrder = 0
       DefaultCanvas = 'TGDIPlusCanvas'
       ColorPaletteIndex = 2
-      object Series1: TFastLineSeries
+      object seMinValues: TFastLineSeries
         Legend.Text = 'Fitness'
         LegendTitle = 'Fitness'
         SeriesColor = 223
@@ -91,7 +91,7 @@ object frmMain: TfrmMain
           B81EA78440608FC2F528178340}
         Detail = {0000000000}
       end
-      object Series2: TFastLineSeries
+      object seAvgValues: TFastLineSeries
         Legend.Text = 'Fitness'
         LegendTitle = 'Fitness'
         SeriesColor = clPurple
@@ -111,7 +111,7 @@ object frmMain: TfrmMain
           289C64954002560E2DF2499540}
         Detail = {0000000000}
       end
-      object Series3: TFastLineSeries
+      object seMaxValues: TFastLineSeries
         Legend.Text = 'Fitness'
         LegendTitle = 'Fitness'
         SeriesColor = clGreen
@@ -131,7 +131,7 @@ object frmMain: TfrmMain
           E4D5F38740A6C2D84220A08940}
         Detail = {0000000000}
       end
-      object Series4: TPointSeries
+      object seAllValues: TPointSeries
         SeriesColor = 10485760
         Title = 'All'
         ClickableLine = False
