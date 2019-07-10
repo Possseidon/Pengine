@@ -38,21 +38,27 @@ type
 
   end;
 
-  TActionRecorder<T: TUndoableAction> = class
+  TActionRecorder = class
   private
-    FActions: IObjectList<T>;
+    FActions: IObjectList<TUndoableAction>;
     FLastActionIndex: Integer;
+    FActionGroup: TUndoableActionGroup;
+    FActionGroupNesting: Integer;
 
-    function GetActions: IReadonlyList<T>;
-    function GetLastAction: T;
+    function GetActions: IReadonlyList<TUndoableAction>;
+    function GetLastAction: TUndoableAction;
+    procedure DoExecute(AAction: TUndoableAction);
 
   public
     constructor Create;
 
-    property Actions: IReadonlyList<T> read GetActions;
-    property LastAction: T read GetLastAction;
+    property Actions: IReadonlyList<TUndoableAction> read GetActions;
+    property LastAction: TUndoableAction read GetLastAction;
 
-    procedure Execute(AAction: T);
+    procedure Execute(AAction: TUndoableAction);
+
+    procedure BeginGroup;
+    procedure EndGroup;
 
     function CanUndo: Boolean;
     procedure Undo;
@@ -61,57 +67,79 @@ type
     procedure Redo;
 
   end;
-  
-  TActionRecorder = TActionRecorder<TUndoableAction>;
 
 implementation
 
-{ TActionRecorder<T> }
+{ TActionRecorder }
 
-function TActionRecorder<T>.CanRedo: Boolean;
+procedure TActionRecorder.BeginGroup;
+begin
+  if FActionGroupNesting = 0 then
+    FActionGroup := TUndoableActionGroup.Create;
+  Inc(FActionGroupNesting);
+end;
+
+function TActionRecorder.CanRedo: Boolean;
 begin
   Result := FLastActionIndex < FActions.MaxIndex;
 end;
 
-function TActionRecorder<T>.CanUndo: Boolean;
+function TActionRecorder.CanUndo: Boolean;
 begin
   Result := FLastActionIndex >= 0;
 end;
 
-constructor TActionRecorder<T>.Create;
+constructor TActionRecorder.Create;
 begin
   FActions := TObjectList<TUndoableAction>.Create;
 end;
 
-procedure TActionRecorder<T>.Execute(AAction: TUndoableAction);
+procedure TActionRecorder.EndGroup;
+begin
+  if FActionGroupNesting = 0 then
+    raise EActionRecorder.Create('EndGroup called without matching BeginGroup.');
+  Dec(FActionGroupNesting);
+  if FActionGroupNesting = 0 then
+    Execute(FActionGroup);
+end;
+
+procedure TActionRecorder.Execute(AAction: TUndoableAction);
+begin
+  if FActionGroupNesting <> 0 then
+    FActionGroup.Add(AAction)
+  else
+    DoExecute(AAction);
+end;
+
+function TActionRecorder.GetActions: IReadonlyList<TUndoableAction>;
+begin
+  Result := FActions.ReadonlyList;
+end;
+
+function TActionRecorder.GetLastAction: TUndoableAction;
+begin
+  Result := FActions[FLastActionIndex];
+end;
+
+procedure TActionRecorder.Redo;
+begin
+  if not CanRedo then
+    raise EActionRecorder.Create('Nothing to redo.');
+  Inc(FLastActionIndex);
+  LastAction.Execute;
+end;
+
+procedure TActionRecorder.DoExecute(AAction: TUndoableAction);
 begin
   FActions.Add(AAction);
   AAction.Execute;
   Inc(FLastActionIndex);
 end;
 
-function TActionRecorder<T>.GetActions: IReadonlyList<TUndoableAction>;
-begin
-  Result := FActions.ReadonlyList;
-end;
-
-function TActionRecorder<T>.GetLastAction: TUndoableAction;
-begin
-  Result := FActions[FLastActionIndex];
-end;
-
-procedure TActionRecorder<T>.Redo;
-begin
-  if not CanRedo then
-    Exit;
-  Inc(FLastActionIndex);
-  LastAction.Execute;
-end;
-
-procedure TActionRecorder<T>.Undo;
+procedure TActionRecorder.Undo;
 begin
   if not CanUndo then
-    Exit;
+    raise EActionRecorder.Create('Nothing to undo.');
   LastAction.Undo;
   Dec(FLastActionIndex);
 end;
@@ -157,4 +185,3 @@ begin
 end;
 
 end.
-

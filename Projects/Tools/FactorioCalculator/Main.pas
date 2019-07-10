@@ -22,6 +22,7 @@ uses
 
   Pengine.DebugConsole,
   Pengine.Vector,
+  Pengine.ActionRecorder,
 
   Pengine.Factorio.General,
 

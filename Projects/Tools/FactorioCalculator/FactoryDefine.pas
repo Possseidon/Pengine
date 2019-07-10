@@ -23,6 +23,8 @@ uses
 
 type
 
+  EFactory = class(Exception);
+
   TFactory = class;
   TMachineArray = class;
   IConnectionNet = interface;
@@ -130,6 +132,7 @@ type
     TEvent = TEvent<TEventInfo>;
 
   private
+    FFactorio: TFactorio;
     FFactory: TFactory;
     FPos: TVector2;
     FRecipe: TFactorio.TRecipe;
@@ -163,13 +166,23 @@ type
     procedure Change;
     procedure GeneratePorts;
 
+    procedure CheckFactory;
+
+    procedure CopyOrder<T: TMachinePort>(AFrom, ATo: IReadonlyList<T>);
+    procedure SetIndex(const Value: Integer);
+
   public
-    constructor Create(AFactory: TFactory);
+    constructor Create(AFactorio: TFactorio); overload;
+    constructor Create(AFactory: TFactory); overload;
     destructor Destroy; override;
     procedure Remove;
 
+    function Copy: TMachineArray;
+    procedure Assign(AFrom: TMachineArray);
+
+    property Factorio: TFactorio read FFactorio;
     property Factory: TFactory read FFactory;
-    property Index: Integer read GetIndex;
+    property Index: Integer read GetIndex write SetIndex;
 
     property Pos: TVector2 read FPos write SetPos;
     property Bounds: TBounds2 read GetBounds;
@@ -180,16 +193,16 @@ type
 
     function HasCraftingMachine: Boolean;
     property CraftingMachine: TFactorio.TCraftingMachine read FCraftingMachine write SetCraftingMachine;
-    function HasRecipe: Boolean;
     property Recipe: TFactorio.TRecipe read FRecipe write SetRecipe;
+    function HasRecipe: Boolean;
 
-    procedure SetInputIndex(AInput: TMachineInput; AIndex: Integer);
     property Inputs: IReadonlyList<TMachineInput> read GetInputs;
     function HasCustomInputOrder: Boolean;
+    procedure SetInputIndex(AInput: TMachineInput; AIndex: Integer);
 
-    procedure SetOutputIndex(AOutput: TMachineOutput; AIndex: Integer);
     property Outputs: IReadonlyList<TMachineOutput> read GetOutputs;
     function HasCustomOutputOrder: Boolean;
+    procedure SetOutputIndex(AOutput: TMachineOutput; AIndex: Integer);
 
     property PortHeight: Integer read GetPortHeight;
 
@@ -255,6 +268,7 @@ type
     TEvent = TEvent<TEventInfo>;
 
   private
+    FFactorio: TFactorio;
     FFactory: TFactory;
     FPos: TVector2;
     FMachinePorts: IList<TMachinePort>;
@@ -284,6 +298,7 @@ type
     constructor Create(AFactory: TFactory);
     destructor Destroy; override;
 
+    property Factorio: TFactorio read FFactorio;
     property Factory: TFactory read FFactory;
 
     property MachinePorts: IReadonlyList<TMachinePort> read GetMachinePorts;
@@ -356,9 +371,11 @@ type
     FOnMachineArrayAdd: TMachineArrayEvent;
     FOnMachineArrayChange: TMachineArrayEvent;
     FOnMachineArrayRemove: TMachineArrayEvent;
+    FOnMachineArrayOrderChange: TEvent;
     FOnConnectionNetAdd: TConnectionNetEvent;
     FOnConnectionNetChange: TConnectionNetEvent;
     FOnConnectionNetRemove: TConnectionNetEvent;
+    FOnConnectionNetOrderChange: TEvent;
 
     function GetMachineArrays: IReadonlyList<TMachineArray>;
     function GetConnectionNets: IReadonlyList<IConnectionNet>;
@@ -378,6 +395,8 @@ type
 
     function CreateMachineArray: TMachineArray;
     function CreateConnectionNet: IConnectionNet;
+    function GetOnConnectionNetIndexChange: TEvent.TAccess;
+    function GetOnMachineArayIndexChange: TEvent.TAccess;
 
   public
     constructor Create(AFactorio: TFactorio);
@@ -390,10 +409,12 @@ type
     property MachineArrays: IReadonlyList<TMachineArray> read GetMachineArrays;
     function AddMachineArray: TMachineArray;
     procedure RemoveMachineArray(AMachineArray: TMachineArray);
+    procedure SetMachineArrayIndex(AMachineArray: TMachineArray; AIndex: Integer);
 
     property ConnectionNets: IReadonlyList<IConnectionNet> read GetConnectionNets;
     function AddConnectionNet(A, B: TMachinePort): IConnectionNet;
     procedure RemoveConnectionNet(AConnectionNet: IConnectionNet);
+    procedure SetConnectionNetIndex(AConnectionNet: IConnectionNet; AIndex: Integer);
 
     procedure Connect(A, B: TMachinePort);
     procedure Disconnect(AMachinePort: TMachinePort);
@@ -405,10 +426,12 @@ type
     property OnMachineArrayAdd: TMachineArrayEvent.TAccess read GetOnMachineArrayAdd;
     property OnMachineArrayRemove: TMachineArrayEvent.TAccess read GetOnMachineArrayRemove;
     property OnMachineArrayChange: TMachineArrayEvent.TAccess read GetOnMachineArrayChange;
+    property OnMachineArrayIndexChange: TEvent.TAccess read GetOnMachineArayIndexChange;
 
     property OnConnectionNetAdd: TConnectionNetEvent.TAccess read GetOnConnectionNetAdd;
     property OnConnectionNetRemove: TConnectionNetEvent.TAccess read GetOnConnectionNetRemove;
     property OnConnectionNetChange: TConnectionNetEvent.TAccess read GetOnConnectionNetChange;
+    property OnConnectionNetIndexChange: TEvent.TAccess read GetOnConnectionNetIndexChange;
 
     function MachineArrayAt(APos: TVector2): TMachineArray;
     function MachinePortAt(APos: TVector2): TMachinePort;
@@ -572,9 +595,19 @@ begin
   Result := FOnConnectionNetChange.Access;
 end;
 
+function TFactory.GetOnConnectionNetIndexChange: TEvent.TAccess;
+begin
+  Result := FOnConnectionNetOrderChange.Access;
+end;
+
 function TFactory.GetOnConnectionNetRemove: TConnectionNetEvent.TAccess;
 begin
   Result := FOnConnectionNetRemove.Access;
+end;
+
+function TFactory.GetOnMachineArayIndexChange: TEvent.TAccess;
+begin
+  Result := FOnMachineArrayOrderChange.Access;
 end;
 
 function TFactory.GetOnMachineArrayAdd: TMachineArrayEvent.TAccess;
@@ -654,6 +687,18 @@ begin
   end;
 end;
 
+procedure TFactory.SetConnectionNetIndex(AConnectionNet: IConnectionNet; AIndex: Integer);
+begin
+  FConnectionNets.Move(AConnectionNet, AIndex);
+  FOnConnectionnetOrderChange.Execute(TEventInfo.Create(Self));
+end;
+
+procedure TFactory.SetMachineArrayIndex(AMachineArray: TMachineArray; AIndex: Integer);
+begin
+  FMachineArrays.Move(AMachineArray, AIndex);
+  FOnMachineArrayOrderChange.Execute(TEventInfo.Create(Self));
+end;
+
 procedure TFactory.ToggleConnection(A, B: TMachinePort);
 begin
   if A.IsConnected and (A.ConnectionNet = B.ConnectionNet) then
@@ -674,18 +719,64 @@ end;
 
 { TMachineArray }
 
+procedure TMachineArray.Assign(AFrom: TMachineArray);
+begin
+  Pos := AFrom.Pos;
+  Recipe := AFrom.Recipe;
+  CraftingMachine := AFrom.CraftingMachine;
+  Count := AFrom.Count;
+  Performance := AFrom.Count;
+  CopyOrder<TMachineInput>(Inputs, AFrom.Inputs);
+  CopyOrder<TMachineOutput>(Outputs, AFrom.Outputs);
+end;
+
 procedure TMachineArray.Change;
 begin
   FOnChange.Execute(TEventInfo.Create(Self));
 end;
 
-constructor TMachineArray.Create(AFactory: TFactory);
+procedure TMachineArray.CheckFactory;
 begin
-  FFactory := AFactory;
+  if Factory = nil then
+    raise EFactory.Create('MachineArray does not have a Factory instance.');
+end;
+
+function TMachineArray.Copy: TMachineArray;
+begin
+  Result := TMachineArray.Create(Factorio);
+  Result.Assign(Self);
+end;
+
+procedure TMachineArray.CopyOrder<T>(AFrom, ATo: IReadonlyList<T>);
+var
+  MachinePort, FromMachinePort: TMachinePort;
+begin
+  for MachinePort in ATo do
+  begin
+    for FromMachinePort in AFrom do
+    begin
+      if MachinePort.ItemStack.Item = FromMachinePort.ItemStack.Item then
+      begin
+        MachinePort.Index := FromMachinePort.Index;
+        Break;
+      end;
+    end;
+  end;
+end;
+
+constructor TMachineArray.Create(AFactorio: TFactorio);
+begin
+  FFactorio := AFactorio;
   FCount := 1;
   FPerformance := 1;
   FInputs := TObjectList<TMachineInput>.Create;
   FOutputs := TObjectList<TMachineOutput>.Create;
+end;
+
+constructor TMachineArray.Create(AFactory: TFactory);
+begin
+  Create(AFactory.Factorio);
+  FFactory := AFactory;
 end;
 
 procedure TMachineArray.DefineJStorage(ASerializer: TJSerializer);
@@ -722,9 +813,8 @@ begin
       end;
     smUnserialize:
       begin
-        CraftingMachine := Factory.Factorio.CraftingMachine
-          [AnsiString(ASerializer.Value['CraftingMachine'].AsString)];
-        Recipe := Factory.Factorio.Recipe[AnsiString(ASerializer.Value['Recipe'].AsString)];
+        CraftingMachine := Factorio.CraftingMachine[AnsiString(ASerializer.Value['CraftingMachine'].AsString)];
+        Recipe := Factorio.Recipe[AnsiString(ASerializer.Value['Recipe'].AsString)];
 
         if ASerializer.Value.Get('InputOrder', JArray) then
         begin
@@ -755,7 +845,6 @@ begin
             end;
           end;
         end;
-
       end;
   end;
 
@@ -870,6 +959,7 @@ end;
 
 procedure TMachineArray.Remove;
 begin
+  CheckFactory;
   Factory.RemoveMachineArray(Self);
 end;
 
@@ -909,6 +999,7 @@ end;
 
 function TMachineArray.GetIndex: Integer;
 begin
+  CheckFactory;
   Result := Factory.MachineArrays.IndexOf(Self);
 end;
 
@@ -941,6 +1032,11 @@ begin
   if HasRecipe and not CraftingMachine.CraftingCategories.Contains(Recipe.Category) then
     Recipe := nil;
   Change;
+end;
+
+procedure TMachineArray.SetIndex(const Value: Integer);
+begin
+  Factory.SetMachineArrayIndex(Self, Value);
 end;
 
 procedure TMachineArray.SetInputIndex(AInput: TMachineInput; AIndex: Integer);
@@ -1032,7 +1128,8 @@ var
 begin
   Font := TGPFont.Create('Tahoma', 8);
   FontBrush := TGPSolidBrush.Create(TGPColor.Black);
-  FitString(G, Format('%.3g/s', [ItemsPerSecond], TFormatSettings.Invariant), Font, APos.Offset(0, 8).Bounds(32, 16), FontBrush);
+  FitString(G, Format('%.3g/s', [ItemsPerSecond], TFormatSettings.Invariant), Font, APos.Offset(0, 8).Bounds(32, 16),
+    FontBrush);
   // G.DrawString(Format('%3.3g/s', [ItemsPerSecond]), Font, TGPPointF.Create(APos.X, APos.Y + 8), FontBrush);
 end;
 
@@ -1043,6 +1140,7 @@ end;
 
 function TMachinePort.GetConnectionNet: IConnectionNet;
 begin
+  MachineArray.CheckFactory;
   Result := MachineArray.Factory.FindConnectionNetFor(Self);
 end;
 
@@ -1328,6 +1426,7 @@ end;
 
 constructor TConnectionNet.Create(AFactory: TFactory);
 begin
+  FFactorio := AFactory.Factorio;
   FFactory := AFactory;
   FMachinePorts := TList<TMachinePort>.Create;
 end;
@@ -1460,7 +1559,7 @@ begin
       begin
         Result := A.Speed < B.Speed;
       end;
-    Belts.AddRange(Factory.Factorio.TransportBeltOrder.Iterate.Where(
+    Belts.AddRange(Factorio.TransportBeltOrder.Iterate.Where(
       function(Belt: TFactorio.TTransportBelt): Boolean
       begin
         Result := ItemsPerSecond <= Belt.ItemsPerSecond;

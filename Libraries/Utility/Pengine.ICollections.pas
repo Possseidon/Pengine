@@ -462,6 +462,32 @@ type
 
   end;
 
+  IStack<T> = interface
+    function GetCount: Integer;
+    function GetTop: T;
+
+    property Count: Integer read GetCount;
+    function Empty: Boolean;
+
+    procedure Push(AItem: T);
+    function Pop: T;
+    property Top: T read GetTop;
+
+  end;
+
+  IQueue<T> = interface
+    function GetCount: Integer;
+    function GetNext: T;
+
+    property Count: Integer read GetCount;
+    function Empty: Boolean;
+
+    procedure Enqueue(AItem: T);
+    function Dequeue: T;
+    property Next: T read GetNext;
+
+  end;
+
   // --- Collection Implementations ---
 
   EListError = class(Exception);
@@ -1079,6 +1105,30 @@ type
 
     property OwnsKeys: Boolean read GetOwnsKeys write SetOwnsKeys;
     property OwnsValues: Boolean read GetOwnsValues write SetOwnsValues;
+
+  end;
+
+  TStack<T> = class(TList<T>, IStack<T>, IList<T>, IListBase<T>, ICollection<T>, IIterable<T>, IReadonlyList<T>,
+    IReadonlyCollection<T>)
+  private
+    function GetTop: T;
+
+  public
+    procedure Push(AItem: T);
+    function Pop: T;
+    property Top: T read GetTop;
+
+  end;
+
+  TQueue<T> = class(TList<T>, IQueue<T>, IList<T>, IListBase<T>, ICollection<T>, IIterable<T>, IReadonlyList<T>,
+    IReadonlyCollection<T>)
+  private
+    function GetNext: T;
+
+  public
+    procedure Enqueue(AItem: T);
+    function Dequeue: T;
+    property Next: T read GetNext;
 
   end;
 
@@ -4230,6 +4280,42 @@ end;
 function TEmptyIterable<T>.Iterate: IIterate<T>;
 begin
   Result := TIterableIterate<T>.Create(Self);
+end;
+
+{ TStack<T> }
+
+function TStack<T>.GetTop: T;
+begin
+  Result := Last;
+end;
+
+function TStack<T>.Pop: T;
+begin
+  Result := Last;
+  RemoveAt(MaxIndex);
+end;
+
+procedure TStack<T>.Push(AItem: T);
+begin
+  Add(AItem);
+end;
+
+{ TQueue<T> }
+
+function TQueue<T>.Dequeue: T;
+begin
+  Result := Items[0];
+  RemoveAt(0);
+end;
+
+procedure TQueue<T>.Enqueue(AItem: T);
+begin
+  Add(AItem);
+end;
+
+function TQueue<T>.GetNext: T;
+begin
+  Result := First;
 end;
 
 end.
