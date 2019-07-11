@@ -424,8 +424,8 @@ type
     class operator Multiply(const A, B: TIntBounds1): TIntBounds1;
     class operator IntDivide(const A, B: TIntBounds1): TIntBounds1;
 
-    class operator in (const A, B: TIntBounds1): Boolean;
-    class operator in (A: Integer; const B: TIntBounds1): Boolean;
+    class operator In(const A, B: TIntBounds1): Boolean; inline;
+    class operator In(A: Integer; const B: TIntBounds1): Boolean; inline;
 
     class operator Equal(const A, B: TIntBounds1): Boolean;
     class operator NotEqual(const A, B: TIntBounds1): Boolean;
@@ -545,8 +545,8 @@ type
     class operator Multiply(const A, B: TIntBounds2): TIntBounds2;
     class operator IntDivide(const A, B: TIntBounds2): TIntBounds2;
 
-    class operator in (const A, B: TIntBounds2): Boolean;
-    class operator in (A: TIntVector2; const B: TIntBounds2): Boolean;
+    class operator In(const A, B: TIntBounds2): Boolean; inline;
+    class operator In(A: TIntVector2; const B: TIntBounds2): Boolean; inline;
 
     class operator Equal(const A, B: TIntBounds2): Boolean;
     class operator NotEqual(const A, B: TIntBounds2): Boolean;
@@ -702,8 +702,8 @@ type
     class operator Multiply(const A, B: TIntBounds3): TIntBounds3;
     class operator IntDivide(const A, B: TIntBounds3): TIntBounds3;
 
-    class operator In(const A, B: TIntBounds3): Boolean;
-    class operator In(const A: TIntVector3; const B: TIntBounds3): Boolean;
+    class operator In(const A, B: TIntBounds3): Boolean; inline;
+    class operator In(const A: TIntVector3; const B: TIntBounds3): Boolean; inline;
 
     class operator Equal(const A, B: TIntBounds3): Boolean;
     class operator NotEqual(const A, B: TIntBounds3): Boolean;

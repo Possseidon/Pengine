@@ -38,6 +38,7 @@ type
     TBlockTypes = set of TBlockType;
 
     TBlockData = record
+      Name: string;
       DisplayName: string;
       Description: string;
       TextureName: string;
@@ -45,24 +46,73 @@ type
     end;
 
     TCalculation = class
+    public type
+
+      TCellEfficiency = 0 .. 7;
+      TModeratorState = (msUnprocessed, msNoCell, msAdjacentCell);
+      TCoolerState = (csUnprocessed, csInactive, csActive);
+
+      // Meaning of actual value of TData:
+      // Any: 0 -> unprocessed
+      // Air: 1 -> processed
+      // Cell: 1 .. 7 -> total connected cells via up to 4 moderator blocks in a straight line
+      // Moderator: 1 .. 2 -> no ajdacent cell / has adjacent cell
+      // Cooler: 1 .. 2 -> inactive / active
+      PData = ^TData;
+
+      TData = record
+        case Integer of
+          0:
+            (Processed: ByteBool);
+          1:
+            (CellEfficiency: TCellEfficiency);
+          2:
+            (ModeratorState: TModeratorState);
+          3:
+            (CoolerState: TCoolerState);
+      end;
+
     private
       FReactor: TReactor;
+      FCalculated: Boolean;
+      FData: array of TData;
       FCellCount: Integer;
       FEfficiency: Single;
       FHeatFactor: Single;
       FCoolingRate: Single;
 
+      function CountRelevantCells(APos: TIntVector3): Integer;
+      function CountWalls(APos: TIntVector3): Integer;
+      function CountCells(APos: TIntVector3): Integer;
+      function CountActive(APos: TIntVector3; ABlockType: TBlockType): Integer;
+      function LapisCheck(APos: TIntVector3): Boolean;
+
+      procedure ProcessReactorCell(APos: TIntVector3; AData: PData);
+      procedure ProcessModeratorBlock(APos: TIntVector3; AData: PData);
+      procedure ProcessCooler(APos: TIntVector3; AData: PData; ACondition: Boolean);
+
+      function GetData(APos: TIntVector3): PData; // inline;
+
+      property Data[APos: TIntVector3]: PData read GetData;
+
       procedure Calculate;
+
+      function GetCellCount: Integer;
+      function GetCoolingRate: Single;
+      function GetEfficiency: Single;
+      function GetHeatFactor: Single;
 
     public
       constructor Create(AReactor: TReactor);
 
+      function IsInactiveCooler(APos: TIntVector3): Boolean;
+
       property Reactor: TReactor read FReactor;
 
-      property CellCount: Integer read FCellCount;
-      property Efficiency: Single read FEfficiency;
-      property HeatFactor: Single read FHeatFactor;
-      property CoolingRate: Single read FCoolingRate;
+      property CellCount: Integer read GetCellCount;
+      property Efficiency: Single read GetEfficiency;
+      property HeatFactor: Single read GetHeatFactor;
+      property CoolingRate: Single read GetCoolingRate;
 
       function PowerGeneration(ABasePower: Single): Single;
       function HeatGeneration(ABaseHeat: Single): Single;
@@ -178,12 +228,12 @@ type
     FSize: TIntVector3;
     FCalculation: TCalculation;
 
-    function PosToIndex(APos: TIntVector3): Integer; inline;
+    function PosToIndex(const APos: TIntVector3): Integer; inline;
     function IndexToPos(AIndex: Integer): TIntVector3; inline;
 
     procedure SetSize(const Value: TIntVector3);
-    function GetBlock(APos: TIntVector3): TBlockType;
-    procedure SetBlock(APos: TIntVector3; const Value: TBlockType);
+    function GetBlock(const APos: TIntVector3): TBlockType;
+    procedure SetBlock(const APos: TIntVector3; const Value: TBlockType);
 
     procedure PosCheck(APos: TIntVector3); inline;
 
@@ -197,8 +247,10 @@ type
     function Copy: TReactor;
 
     property Size: TIntVector3 read FSize write SetSize;
-    property Blocks[APos: TIntVector3]: TBlockType read GetBlock write SetBlock; default;
+    property Blocks[const APos: TIntVector3]: TBlockType read GetBlock write SetBlock; default;
     procedure Clear;
+
+    procedure RemoveInactiveCoolers;
 
     property Calculation: TCalculation read GetCalculation;
 
@@ -208,7 +260,7 @@ implementation
 
 { TReactor }
 
-function TReactor.GetBlock(APos: TIntVector3): TBlockType;
+function TReactor.GetBlock(const APos: TIntVector3): TBlockType;
 begin
   if APos in Size then
     Exit(FBlocks[PosToIndex(APos)]);
@@ -231,7 +283,7 @@ begin
     );
 end;
 
-procedure TReactor.SetBlock(APos: TIntVector3; const Value: TBlockType);
+procedure TReactor.SetBlock(const APos: TIntVector3; const Value: TBlockType);
 begin
   PosCheck(APos);
   FreeAndNil(FCalculation);
@@ -261,6 +313,47 @@ begin
     FBlocks[I] := rbAir;
 end;
 
+procedure TReactor.TCalculation.ProcessCooler(APos: TIntVector3; AData: PData; ACondition: Boolean);
+begin
+  if not ACondition then
+  begin
+    AData.CoolerState := csInactive;
+    Exit;
+  end;
+  AData.CoolerState := csActive;
+  FCoolingRate := FCoolingRate + BlockData[Reactor[APos]].CoolerValue;
+end;
+
+procedure TReactor.TCalculation.ProcessModeratorBlock(APos: TIntVector3; AData: PData);
+var
+  Dir: TBasicDir3;
+  CheckPos: TIntVector3;
+  CellEfficiency: Byte;
+begin
+  AData.ModeratorState := msNoCell;
+  for Dir := Low(TBasicDir3) to High(TBasicDir3) do
+  begin
+    CheckPos := APos + Vec3Dir[Dir];
+    if Reactor[CheckPos] = rbReactorCell then
+    begin
+      CellEfficiency := Data[CheckPos].CellEfficiency;
+      FEfficiency := FEfficiency + CellEfficiency / 6;
+      FHeatFactor := FHeatFactor + CellEfficiency / 3;
+      AData.ModeratorState := msAdjacentCell;
+    end;
+  end;
+  if AData.ModeratorState = msNoCell then
+    FHeatFactor := FHeatFactor + 1;
+end;
+
+procedure TReactor.TCalculation.ProcessReactorCell(APos: TIntVector3; AData: PData);
+begin
+  AData.CellEfficiency := CountRelevantCells(APos) + 1;
+  FEfficiency := FEfficiency + AData.CellEfficiency;
+  FHeatFactor := FHeatFactor + (Sqr(AData.CellEfficiency) + AData.CellEfficiency) div 2;
+  Inc(FCellCount);
+end;
+
 function TReactor.Copy: TReactor;
 begin
   Result := TReactor.Create(Self.Size);
@@ -284,9 +377,21 @@ begin
     raise EReactor.Create('Reactor block position out of range.');
 end;
 
-function TReactor.PosToIndex(APos: TIntVector3): Integer;
+function TReactor.PosToIndex(const APos: TIntVector3): Integer;
 begin
   Result := APos.X + Size.X * (APos.Y + APos.Z * Size.Y);
+end;
+
+procedure TReactor.RemoveInactiveCoolers;
+var
+  Pos: TIntVector3;
+  Calc: TCalculation;
+begin
+  Calc := Calculation;
+  for Pos in Size do
+    if Calc.IsInactiveCooler(Pos) then
+      FBlocks[PosToIndex(Pos)] := rbAir;
+  FreeAndNil(FCalculation);
 end;
 
 procedure TReactor.Assign(AFrom: TReactor);
@@ -301,246 +406,226 @@ end;
 
 { TReactor.TCalculation }
 
-procedure TReactor.TCalculation.Calculate;var
-  Data: array of array of array of Byte;
-  ResultHeatFactor, ResultEfficiency, ResultCoolingRate: Single;
-  ResultCellCount: Integer;
-  Size: TIntVector3;
-
-  function CountRelevantCells(APos: TIntVector3): Integer;
-  var
-    Dir: TBasicDir3;
-    I: Integer;
-    CurrentPos: TIntVector3;
-  begin
-    Result := 0;
-    for Dir := Low(TBasicDir3) to High(TBasicDir3) do
-    begin
-      CurrentPos := APos + Vec3Dir[Dir];
-      for I := 1 to 4 do
-      begin
-        if Reactor[CurrentPos] <> rbModeratorBlock then
-          Break;
-        CurrentPos := CurrentPos + Vec3Dir[Dir];
-      end;
-      if Reactor[CurrentPos] = rbReactorCell then
-        Inc(Result);
-    end;
-  end;
-
-  function ProcessCell(const APos: TIntVector3): Byte;
-  begin
-    Result := CountRelevantCells(APos) + 1;
-    Data[APos.X, APos.Y, APos.Z] := Result;
-    ResultEfficiency := ResultEfficiency + Result;
-    ResultHeatFactor := ResultHeatFactor + (Sqr(Result) + Result) div 2;
-    Inc(ResultCellCount);
-  end;
-
-  function GetCell(const APos: TIntVector3): Byte;
-  begin
-    if not(APos in Size) then
-      Exit(0);
-    Result := Data[APos.X, APos.Y, APos.Z];
-    if Result = 0 then
-      Result := ProcessCell(APos);
-  end;
-
-  function ProcessModerator(const APos: TIntVector3): Byte;
-  var
-    Dir: TBasicDir3;
-    CheckPos: TIntVector3;
-    CellEfficiency: Byte;
-  begin
-    Result := 1;
-    for Dir := Low(TBasicDir3) to High(TBasicDir3) do
-    begin
-      CheckPos := APos + Vec3Dir[Dir];
-      if Reactor[CheckPos] = rbReactorCell then
-      begin
-        CellEfficiency := GetCell(CheckPos);
-        ResultEfficiency := ResultEfficiency + CellEfficiency / 6;
-        ResultHeatFactor := ResultHeatFactor + CellEfficiency / 3;
-        Result := 2;
-      end;
-    end;
-    if Result = 1 then
-      ResultHeatFactor := ResultHeatFactor + 1;
-    Data[APos.X, APos.Y, APos.Z] := Result;
-  end;
-
-  function GetModerator(const APos: TIntVector3): Byte;
-  begin
-    if not(APos in Size) then
-      Exit(0);
-    Result := Data[APos.X, APos.Y, APos.Z];
-    if Result = 0 then
-      Result := ProcessModerator(APos);
-  end;
-
-  function Process(const APos: TIntVector3): Byte;
-
-    function Get(const APos: TIntVector3): Byte;
-    begin
-      if not(APos in Size) then
-        Exit(0);
-      Result := Data[APos.X, APos.Y, APos.Z];
-      if Result = 0 then
-        Result := Process(APos);
-    end;
-
-    function CountWalls(APos: TIntVector3): Integer;
-    var
-      Axis: TCoordAxis3;
-    begin
-      Result := 0;
-      for Axis := Low(TCoordAxis3) to High(TCoordAxis3) do
-        if (APos[Axis] = 0) or (APos[Axis] = Size[Axis] - 1) then
-          Inc(Result);
-    end;
-
-    function CountCells(APos: TIntVector3): Integer;
-    var
-      Dir: TBasicDir3;
-    begin
-      Result := 0;
-      for Dir := Low(TBasicDir3) to High(TBasicDir3) do
-        if Reactor[APos + Vec3Dir[Dir]] = rbReactorCell then
-          Inc(Result);
-    end;
-
-    function CountActive(APos: TIntVector3; ABlockType: TBlockType): Integer;
-    var
-      Dir: TBasicDir3;
-      CheckPos: TIntVector3;
-    begin
-      Result := 0;
-      for Dir := Low(TBasicDir3) to High(TBasicDir3) do
-      begin
-        CheckPos := APos + Vec3Dir[Dir];
-        if (Reactor[CheckPos] = ABlockType) and (Get(CheckPos) = 2) then
-          Inc(Result);
-      end;
-    end;
-
-    function CoolerCheck(ACondition: Boolean): Byte; inline;
-    begin
-      if ACondition then
-        Exit(2);
-      Result := 1;
-    end;
-
-    function CheckLapisAxis(APos: TIntVector3): Boolean;
-    var
-      Axis: TCoordAxis3;
-      A, B: TIntVector3;
-    begin
-      for Axis := Low(TCoordAxis3) to High(TCoordAxis3) do
-      begin
-        A := APos + Vec3Axis[Axis];
-        B := APos - Vec3Axis[Axis];
-        if (A in Size) and (B in Size) and
-          (Reactor[A] = rbLapisCooler) and (Get(A) = 2) and
-          (Reactor[B] = rbLapisCooler) and (Get(B) = 2) then
-          Exit(True);
-      end;
-      Result := False;
-    end;
-
-  var
-    BlockType: TBlockType;
-  begin
-    BlockType := Reactor[APos];
-    case BlockType of
-      rbReactorCell:
-        Exit(GetCell(APos));
-      rbModeratorBlock:
-        Exit(GetModerator(APos));
-      rbWaterCooler:
-        Result := CoolerCheck((CountCells(APos) >= 1) or (CountActive(APos, rbModeratorBlock) >= 1));
-      rbRedstoneCooler:
-        Result := CoolerCheck(CountCells(APos) >= 1);
-      rbQuartzCooler:
-        Result := CoolerCheck(CountActive(APos, rbModeratorBlock) >= 1);
-      rbGoldCooler:
-        Result := CoolerCheck((CountActive(APos, rbWaterCooler) >= 1) and (CountActive(APos, rbRedstoneCooler) >= 1));
-      rbGlowstoneCooler:
-        Result := CoolerCheck(CountActive(APos, rbModeratorBlock) >= 2);
-      rbLapisCooler:
-        Result := CoolerCheck((CountCells(APos) >= 1) and (CountWalls(APos) >= 1));
-      rbDiamondCooler:
-        Result := CoolerCheck((CountActive(APos, rbWaterCooler) >= 1) and (CountActive(APos, rbQuartzCooler) >= 1));
-      rbLiquidHeliumCooler:
-        Result := CoolerCheck((CountActive(APos, rbRedstoneCooler) = 1) and (CountWalls(APos) >= 1));
-      rbEnderiumCooler:
-        Result := CoolerCheck(CountWalls(APos) = 3);
-      rbCryotheumCooler:
-        Result := CoolerCheck(CountCells(APos) >= 2);
-      rbIronCooler:
-        Result := CoolerCheck(CountActive(APos, rbGoldCooler) >= 1);
-      rbEmeralsCooler:
-        Result := CoolerCheck((CountActive(APos, rbModeratorBlock) >= 1) and (CountCells(APos) >= 1));
-      rbCopperCooler:
-        Result := CoolerCheck(CountActive(APos, rbGlowstoneCooler) >= 1);
-      rbTinCooler:
-        Result := CoolerCheck(CheckLapisAxis(APos));
-      rbMagnesiumCooler:
-        Result := CoolerCheck((CountWalls(APos) >= 1) and (CountActive(APos, rbModeratorBlock) >= 1));
-    else
-      // rbAir
-      Exit(0);
-    end;
-    Data[APos.X, APos.Y, APos.Z] := Result;
-    if Result = 2 then
-      ResultCoolingRate := ResultCoolingRate + BlockData[BlockType].CoolerValue;
-  end;
-
+procedure TReactor.TCalculation.Calculate;
 var
   Pos: TIntVector3;
 begin
-  ResultCellCount := 0;
-  ResultEfficiency := 0;
-  ResultHeatFactor := 0;
-  ResultCoolingRate := 0;
+  for Pos in Reactor.Size do
+    GetData(Pos);
 
-  Size := Reactor.Size;
-  SetLength(Data, Size.X, Size.Y, Size.Z);
-
-  for Pos in Size do
-    Process(Pos);
-
-  FCellCount := ResultCellCount;
-  if ResultCellCount > 0 then
+  if FCellCount > 0 then
   begin
-    FEfficiency := ResultEfficiency / ResultCellCount;
-    FHeatFactor := ResultHeatFactor / ResultCellCount;
+    FEfficiency := FEfficiency / FCellCount;
+    FHeatFactor := FHeatFactor / FCellCount;
   end
   else
   begin
     FEfficiency := 0;
     FHeatFactor := 0;
   end;
-  FCoolingRate := ResultCoolingRate;
+  FCalculated := True;
+end;
+
+function TReactor.TCalculation.CountActive(APos: TIntVector3; ABlockType: TBlockType): Integer;
+var
+  Dir: TBasicDir3;
+  CheckPos: TIntVector3;
+begin
+  Result := 0;
+  for Dir := Low(TBasicDir3) to High(TBasicDir3) do
+  begin
+    CheckPos := APos + Vec3Dir[Dir];
+    if (Reactor[CheckPos] = ABlockType) and (Data[CheckPos].CoolerState = csActive) then
+      Inc(Result);
+  end;
+end;
+
+function TReactor.TCalculation.CountCells(APos: TIntVector3): Integer;
+var
+  Dir: TBasicDir3;
+begin
+  Result := 0;
+  for Dir := Low(TBasicDir3) to High(TBasicDir3) do
+    if Reactor[APos + Vec3Dir[Dir]] = rbReactorCell then
+      Inc(Result);
+end;
+
+function TReactor.TCalculation.CountRelevantCells(APos: TIntVector3): Integer;
+var
+  Dir: TBasicDir3;
+  I: Integer;
+  CurrentPos: TIntVector3;
+begin
+  Result := 0;
+  for Dir := Low(TBasicDir3) to High(TBasicDir3) do
+  begin
+    CurrentPos := APos + Vec3Dir[Dir];
+    for I := 1 to 4 do
+    begin
+      if Reactor[CurrentPos] <> rbModeratorBlock then
+        Break;
+      CurrentPos := CurrentPos + Vec3Dir[Dir];
+    end;
+    if Reactor[CurrentPos] = rbReactorCell then
+      Inc(Result);
+  end;
+end;
+
+function TReactor.TCalculation.CountWalls(APos: TIntVector3): Integer;
+var
+  Axis: TCoordAxis3;
+begin
+  Result := 0;
+  for Axis := Low(TCoordAxis3) to High(TCoordAxis3) do
+    if (APos[Axis] = 0) or (APos[Axis] = Reactor.Size[Axis] - 1) then
+      Inc(Result);
 end;
 
 constructor TReactor.TCalculation.Create(AReactor: TReactor);
 begin
   FReactor := AReactor;
-  Calculate;
+  SetLength(FData, Reactor.Size.Volume);
+  FillChar(FData[0], SizeOf(TData) * Length(FData), 0);
+end;
+
+function TReactor.TCalculation.GetCellCount: Integer;
+begin
+  if not FCalculated then
+    Calculate;
+  Result := FCellCount;
+end;
+
+function TReactor.TCalculation.GetCoolingRate: Single;
+begin
+  if not FCalculated then
+    Calculate;
+  Result := FCoolingRate;
+end;
+
+function TReactor.TCalculation.GetData(APos: TIntVector3): PData;
+begin
+  Assert(APos in Reactor.Size);
+  Result := @FData[Reactor.PosToIndex(APos)];
+  if not Result.Processed then
+  begin
+    case Reactor[APos] of
+      rbAir:
+        Result.Processed := True;
+      rbReactorCell:
+        ProcessReactorCell(APos, Result);
+      rbModeratorBlock:
+        ProcessModeratorBlock(APos, Result);
+      rbWaterCooler:
+        ProcessCooler(APos, Result,
+          (CountCells(APos) >= 1) or
+          (CountActive(APos, rbModeratorBlock) >= 1));
+      rbRedstoneCooler:
+        ProcessCooler(APos, Result,
+          (CountCells(APos) >= 1));
+      rbQuartzCooler:
+        ProcessCooler(APos, Result,
+          (CountActive(APos, rbModeratorBlock) >= 1));
+      rbGoldCooler:
+        ProcessCooler(APos, Result,
+          (CountActive(APos, rbWaterCooler) >= 1) and
+          (CountActive(APos, rbRedstoneCooler) >= 1));
+      rbGlowstoneCooler:
+        ProcessCooler(APos, Result,
+          (CountActive(APos, rbModeratorBlock) >= 2));
+      rbLapisCooler:
+        ProcessCooler(APos, Result,
+          (CountCells(APos) >= 1) and
+          (CountWalls(APos) >= 1));
+      rbDiamondCooler:
+        ProcessCooler(APos, Result,
+          (CountActive(APos, rbWaterCooler) >= 1) and
+          (CountActive(APos, rbQuartzCooler) >= 1));
+      rbLiquidHeliumCooler:
+        ProcessCooler(APos, Result,
+          (CountActive(APos, rbRedstoneCooler) = 1) and
+          (CountWalls(APos) >= 1));
+      rbEnderiumCooler:
+        ProcessCooler(APos, Result,
+          (CountWalls(APos) = 3));
+      rbCryotheumCooler:
+        ProcessCooler(APos, Result,
+          (CountCells(APos) >= 2));
+      rbIronCooler:
+        ProcessCooler(APos, Result,
+          (CountActive(APos, rbGoldCooler) >= 1));
+      rbEmeralsCooler:
+        ProcessCooler(APos, Result,
+          (CountActive(APos, rbModeratorBlock) >= 1) and
+          (CountCells(APos) >= 1));
+      rbCopperCooler:
+        ProcessCooler(APos, Result,
+          (CountActive(APos, rbGlowstoneCooler) >= 1));
+      rbTinCooler:
+        ProcessCooler(APos, Result,
+          (LapisCheck(APos)));
+      rbMagnesiumCooler:
+        ProcessCooler(APos, Result,
+          (CountWalls(APos) >= 1) and
+          (CountActive(APos, rbModeratorBlock) >= 1));
+    else
+      raise ENotImplemented.Create('Reactor Block Type not yet implemented.');
+    end;
+  end;
+end;
+
+function TReactor.TCalculation.GetEfficiency: Single;
+begin
+  if not FCalculated then
+    Calculate;
+  Result := FEfficiency;
+end;
+
+function TReactor.TCalculation.GetHeatFactor: Single;
+begin
+  if not FCalculated then
+    Calculate;
+  Result := FHeatFactor;
 end;
 
 function TReactor.TCalculation.HeatGeneration(ABaseHeat: Single): Single;
 begin
+  if not FCalculated then
+    Calculate;
   Result := ABaseHeat * CellCount * HeatFactor;
+end;
+
+function TReactor.TCalculation.IsInactiveCooler(APos: TIntVector3): Boolean;
+begin
+  Result := (Reactor[APos] in CoolerTypes) and (Data[APos].CoolerState = csInactive);
+end;
+
+function TReactor.TCalculation.LapisCheck(APos: TIntVector3): Boolean;
+var
+  Axis: TCoordAxis3;
+  A, B: TIntVector3;
+begin
+  for Axis := Low(TCoordAxis3) to High(TCoordAxis3) do
+  begin
+    A := APos + Vec3Axis[Axis];
+    B := APos - Vec3Axis[Axis];
+    if (Reactor[A] = rbLapisCooler) and (Data[A].CoolerState = csActive) and
+      (Reactor[B] = rbLapisCooler) and (Data[B].CoolerState = csActive) then
+      Exit(True);
+  end;
+  Result := False;
 end;
 
 function TReactor.TCalculation.NetHeatGeneration(ABaseHeat: Single): Single;
 begin
+  if not FCalculated then
+    Calculate;
   Result := HeatGeneration(ABaseHeat) - CoolingRate;
 end;
 
 function TReactor.TCalculation.PowerGeneration(ABasePower: Single): Single;
 begin
+  if not FCalculated then
+    Calculate;
   Result := ABasePower * CellCount * Efficiency;
 end;
 

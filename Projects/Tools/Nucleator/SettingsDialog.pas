@@ -467,6 +467,7 @@ var
 begin
   for Pos in AReactor.Size do
     AReactor.Blocks[Pos] := Settings.BlockTypeList[Random(Settings.BlockTypeList.Count)];
+  AReactor.RemoveInactiveCoolers;
 end;
 
 { TDefaultMutationFunction.TMutator }
@@ -484,6 +485,7 @@ begin
     NewType := Settings.BlockTypeList[Random(Settings.BlockTypeList.Count)];
     AReactor.Blocks[TIntVector3.Random(AReactor.Size)] := NewType;
   end;
+  AReactor.RemoveInactiveCoolers;
 end;
 
 initialization

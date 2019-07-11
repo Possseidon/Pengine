@@ -168,6 +168,7 @@ end;
 procedure TfrmMain.actSingleStepExecute(Sender: TObject);
 begin
   FEvolution.Evolve;
+  UpdateGeneration;
   UpdateBreakthroughs;
   UpdateChart;
 end;
