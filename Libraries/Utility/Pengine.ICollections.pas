@@ -15,7 +15,8 @@ type
   EDefaultError = class(Exception);
 
   TDefault<T> = class
-  private class var
+  private
+  class var
     FEquateFunc: TFunc<T, T, Boolean>;
     FCompareFunc: TFunc<T, T, Boolean>;
     FHashFunc: TFunc<T, Cardinal>;
@@ -473,6 +474,8 @@ type
     function Pop: T;
     property Top: T read GetTop;
 
+    function PopMany: IIterable<T>;
+
   end;
 
   IQueue<T> = interface
@@ -485,6 +488,8 @@ type
     procedure Enqueue(AItem: T);
     function Dequeue: T;
     property Next: T read GetNext;
+
+    function DequeueMany: IIterable<T>;
 
   end;
 
@@ -1110,6 +1115,22 @@ type
 
   TStack<T> = class(TList<T>, IStack<T>, IList<T>, IListBase<T>, ICollection<T>, IIterable<T>, IReadonlyList<T>,
     IReadonlyCollection<T>)
+  public type
+
+    TPopper = class(TInterfacedObject, IIterator<T>)
+    private
+      FStack: IStack<T>;
+      FCurrent: T;
+
+      function GetCurrent: T;
+
+    public
+      constructor Create(AStack: IStack<T>);
+
+      function MoveNext: Boolean;
+
+    end;
+
   private
     function GetTop: T;
 
@@ -1118,10 +1139,30 @@ type
     function Pop: T;
     property Top: T read GetTop;
 
+    function GetEnumerator: IIterator<T>;
+
+    function PopMany: IIterable<T>;
+
   end;
 
   TQueue<T> = class(TList<T>, IQueue<T>, IList<T>, IListBase<T>, ICollection<T>, IIterable<T>, IReadonlyList<T>,
     IReadonlyCollection<T>)
+  public type
+
+    TDequeuer = class(TInterfacedObject, IIterator<T>)
+    private
+      FQueue: IQueue<T>;
+      FCurrent: T;
+
+      function GetCurrent: T;
+
+    public
+      constructor Create(AQueue: IQueue<T>);
+
+      function MoveNext: Boolean;
+
+    end;
+
   private
     function GetNext: T;
 
@@ -1129,6 +1170,10 @@ type
     procedure Enqueue(AItem: T);
     function Dequeue: T;
     property Next: T read GetNext;
+
+    function GetEnumerator: IIterator<T>;
+
+    function DequeueMany: IIterable<T>;
 
   end;
 
@@ -2792,7 +2837,6 @@ end;
 
 procedure TSet<T>.AddRange(AItems: IIterable<T>);
 begin
-  EnsureCapacity(Count + AItems.Iterate.Count);
   AddRange(AItems.GetEnumerator);
 end;
 
@@ -3186,7 +3230,6 @@ end;
 
 procedure TMap<K, V>.AddRange(APairs: IIterable < TPair < K, V >> );
 begin
-  EnsureCapacity(Count + APairs.Iterate.Count);
   AddRange(APairs.GetEnumerator);
 end;
 
@@ -3990,7 +4033,7 @@ end;
 function TRangeIterate<T>.TIterator.MoveNext: Boolean;
 begin
   Dec(FCount);
-  Result := FNotEmpty and FIterator.MoveNext and (FCount >= 0);
+  Result := FNotEmpty and (FCount >= 0) and FIterator.MoveNext;
 end;
 
 { TRangeIterate<T> }
@@ -4284,6 +4327,11 @@ end;
 
 { TStack<T> }
 
+function TStack<T>.GetEnumerator: IIterator<T>;
+begin
+  Result := TPopper.Create(Self);
+end;
+
 function TStack<T>.GetTop: T;
 begin
   Result := Last;
@@ -4293,6 +4341,11 @@ function TStack<T>.Pop: T;
 begin
   Result := Last;
   RemoveAt(MaxIndex);
+end;
+
+function TStack<T>.PopMany: IIterable<T>;
+begin
+  Result := Self;
 end;
 
 procedure TStack<T>.Push(AItem: T);
@@ -4308,14 +4361,62 @@ begin
   RemoveAt(0);
 end;
 
+function TQueue<T>.DequeueMany: IIterable<T>;
+begin
+  Result := Self;
+end;
+
 procedure TQueue<T>.Enqueue(AItem: T);
 begin
   Add(AItem);
 end;
 
+function TQueue<T>.GetEnumerator: IIterator<T>;
+begin
+  Result := TDequeuer.Create(Self);
+end;
+
 function TQueue<T>.GetNext: T;
 begin
   Result := First;
+end;
+
+{ TStack<T>.TPopper }
+
+constructor TStack<T>.TPopper.Create(AStack: IStack<T>);
+begin
+  FStack := AStack;
+end;
+
+function TStack<T>.TPopper.GetCurrent: T;
+begin
+  Result := FCurrent;
+end;
+
+function TStack<T>.TPopper.MoveNext: Boolean;
+begin
+  Result := not FStack.Empty;
+  if Result then
+    FCurrent := FStack.Pop;
+end;
+
+{ TQueue<T>.TDequeuer }
+
+constructor TQueue<T>.TDequeuer.Create(AQueue: IQueue<T>);
+begin
+  FQueue := AQueue;
+end;
+
+function TQueue<T>.TDequeuer.GetCurrent: T;
+begin
+  Result := FCurrent;
+end;
+
+function TQueue<T>.TDequeuer.MoveNext: Boolean;
+begin
+  Result := not FQueue.Empty;
+  if Result then
+    FCurrent := FQueue.Dequeue;
 end;
 
 end.
