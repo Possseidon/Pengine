@@ -67,10 +67,13 @@ type
     DefaultStackSize = $4000;
 
   private
-    class var
-      FPageSize: Cardinal;
+  class var
+    FPageSize: Cardinal;
+    class threadvar
+      FCurrent: TCoroutine;
 
   private
+    FParent: TCoroutine;
     FStack: PByte;
     FAddress: PByte;
     FException: TObject;
@@ -80,12 +83,14 @@ type
 
     function Raised: Boolean;
 
-    /// <summary>This is called at the end of the first switch, runs the coroutine and handles exceptions.</summary>
-    procedure Init;
     /// <summary>This gets the coroutine stack ready so that it starts running on its next switch.</summary>
     procedure FirstSwitch;
+    /// <summary>This is called at the end of the first switch, runs the coroutine and handles exceptions.</summary>
+    procedure Init;
     /// <summary>This is a symmetric switch to or from the coroutine.</summary>
     procedure Switch;
+
+    class function GetCurrent: TCoroutine; static;
 
   protected
     procedure Execute; virtual; abstract;
@@ -106,6 +111,8 @@ type
     function Started: Boolean;
     function Dead: Boolean;
     function Terminated: Boolean;
+
+    class property Current: TCoroutine read GetCurrent;
 
   end;
 
@@ -231,21 +238,14 @@ implementation
 
 { TCoroutine }
 
-procedure TCoroutine.Init;
+function TCoroutine.Raised: Boolean;
 begin
-  Switch;
-  FStarted := True;
-  try
-    Execute;
-  except
-    FException := AcquireExceptionObject;
-  end;
-  FDead := True;
-  Switch;
+  Result := FException <> nil;
 end;
 
 procedure TCoroutine.FirstSwitch;
 asm
+  {$IFDEF WIN32}
   // Push all general purpose registers
   PUSHAD
   // Push XMM registers
@@ -267,30 +267,77 @@ asm
   // Setup Exception Handler, Stack Base Pointer and Stack Limit Pointer
   MOV fs:[0], 0         // Exception Handler
   MOV fs:[4], esp       // Stack Base Pointer
-  MOV ecx, eax.FStack
-  MOV fs:[8], ecx       // Stack Limit Pointer
+  MOV edx, eax.FStack
+  MOV fs:[8], edx       // Stack Limit Pointer
+  {$ELSE}
+  // Push all general purpose registers
+  PUSH RAX
+  PUSH RCX
+  PUSH RDX
+  PUSH RBX
+  PUSH RSP
+  PUSH RBP
+  PUSH RSI
+  PUSH RDI
+  PUSH R8
+  PUSH R9
+  PUSH R10
+  PUSH R11
+  PUSH R12
+  PUSH R13
+  PUSH R14
+  PUSH R15
+  // Push XMM registers
+  SUB rsp, 16 * 16
+  MOVDQU [rsp + 16 * 0], xmm0
+  MOVDQU [rsp + 16 * 1], xmm1
+  MOVDQU [rsp + 16 * 2], xmm2
+  MOVDQU [rsp + 16 * 3], xmm3
+  MOVDQU [rsp + 16 * 4], xmm4
+  MOVDQU [rsp + 16 * 5], xmm5
+  MOVDQU [rsp + 16 * 6], xmm6
+  MOVDQU [rsp + 16 * 7], xmm7
+  MOVDQU [rsp + 16 * 8], xmm8
+  MOVDQU [rsp + 16 * 9], xmm9
+  MOVDQU [rsp + 16 * 10], xmm10
+  MOVDQU [rsp + 16 * 11], xmm11
+  MOVDQU [rsp + 16 * 12], xmm12
+  MOVDQU [rsp + 16 * 13], xmm13
+  MOVDQU [rsp + 16 * 14], xmm14
+  MOVDQU [rsp + 16 * 15], xmm15
+  // Push Exception Handler, Stack Base Pointer and Stack Limit Pointer
+  PUSH gs:[0]
+  PUSH gs:[8]
+  PUSH gs:[16]
+  // Swap current Stack Pointer and the coroutines Stack Pointer
+  XCHG rsp, rcx.FAddress
+  // Setup Exception Handler, Stack Base Pointer and Stack Limit Pointer
+  MOV gs:[0], 0         // Exception Handler
+  MOV gs:[8], rsp       // Stack Base Pointer
+  MOV rdx, rcx.FStack
+  MOV gs:[16], rdx       // Stack Limit Pointer
+  {$ENDIF}
   // Call Init, which switches back immediately, priming the coroutine to run on its next switch
-  CALL Init
+  JMP Init
 end;
 
-procedure TCoroutine.FreeInstance;
+procedure TCoroutine.Init;
 begin
+  Switch;
+  FCurrent := Self;
+  FStarted := True;
   try
-    if Started and not Dead and not Raised then
-      Terminate;
-  finally
-    VirtualFree(FStack, 0, MEM_RELEASE);
-    inherited;
+    Execute;
+  except
+    FException := AcquireExceptionObject;
   end;
-end;
-
-function TCoroutine.Started: Boolean;
-begin
-  Result := FStarted;
+  FDead := True;
+  Switch;
 end;
 
 procedure TCoroutine.Switch;
 asm
+  {$IFDEF WIN32}
   // Push all general purpose registers
   PUSHAD
   // Push XMM registers
@@ -314,43 +361,110 @@ asm
   POP fs:[4]
   POP fs:[0]
   // Pop XMM registers
-  MOVDQU xmm7, [esp + 16 * 7]
-  MOVDQU xmm6, [esp + 16 * 6]
-  MOVDQU xmm5, [esp + 16 * 5]
-  MOVDQU xmm4, [esp + 16 * 4]
-  MOVDQU xmm3, [esp + 16 * 3]
-  MOVDQU xmm2, [esp + 16 * 2]
-  MOVDQU xmm1, [esp + 16 * 1]
   MOVDQU xmm0, [esp + 16 * 0]
+  MOVDQU xmm1, [esp + 16 * 1]
+  MOVDQU xmm2, [esp + 16 * 2]
+  MOVDQU xmm3, [esp + 16 * 3]
+  MOVDQU xmm4, [esp + 16 * 4]
+  MOVDQU xmm5, [esp + 16 * 5]
+  MOVDQU xmm6, [esp + 16 * 6]
+  MOVDQU xmm7, [esp + 16 * 7]
   ADD esp, 16 * 8
   // Pop all general purpose registers
   POPAD
+  {$ELSE}
+  // Push all general purpose registers
+  PUSH RAX
+  PUSH RCX
+  PUSH RDX
+  PUSH RBX
+  PUSH RSP
+  PUSH RBP
+  PUSH RSI
+  PUSH RDI
+  PUSH R8
+  PUSH R9
+  PUSH R10
+  PUSH R11
+  PUSH R12
+  PUSH R13
+  PUSH R14
+  PUSH R15
+  // Push XMM registers
+  SUB rsp, 16 * 16
+  MOVDQU [rsp + 16 * 0], xmm0
+  MOVDQU [rsp + 16 * 1], xmm1
+  MOVDQU [rsp + 16 * 2], xmm2
+  MOVDQU [rsp + 16 * 3], xmm3
+  MOVDQU [rsp + 16 * 4], xmm4
+  MOVDQU [rsp + 16 * 5], xmm5
+  MOVDQU [rsp + 16 * 6], xmm6
+  MOVDQU [rsp + 16 * 7], xmm7
+  MOVDQU [rsp + 16 * 8], xmm8
+  MOVDQU [rsp + 16 * 9], xmm9
+  MOVDQU [rsp + 16 * 10], xmm10
+  MOVDQU [rsp + 16 * 11], xmm11
+  MOVDQU [rsp + 16 * 12], xmm12
+  MOVDQU [rsp + 16 * 13], xmm13
+  MOVDQU [rsp + 16 * 14], xmm14
+  MOVDQU [rsp + 16 * 15], xmm15
+  // Push Exception Handler, Stack Base Pointer and Stack Limit Pointer
+  PUSH gs:[0]
+  PUSH gs:[8]
+  PUSH gs:[16]
+  // Swap current Stack Pointer and the coroutines Stack Pointer
+  XCHG rsp, rcx.FAddress
+  // Pop Exception Handler, Stack Base Pointer and Stack Limit Pointer
+  POP gs:[16]
+  POP gs:[8]
+  POP gs:[0]
+  // Pop XMM registers
+  MOVDQU xmm0, [rsp + 16 * 0]
+  MOVDQU xmm1, [rsp + 16 * 1]
+  MOVDQU xmm2, [rsp + 16 * 2]
+  MOVDQU xmm3, [rsp + 16 * 3]
+  MOVDQU xmm4, [rsp + 16 * 4]
+  MOVDQU xmm5, [rsp + 16 * 5]
+  MOVDQU xmm6, [rsp + 16 * 6]
+  MOVDQU xmm7, [rsp + 16 * 7]
+  MOVDQU xmm8, [rsp + 16 * 8]
+  MOVDQU xmm9, [rsp + 16 * 9]
+  MOVDQU xmm10, [rsp + 16 * 10]
+  MOVDQU xmm11, [rsp + 16 * 11]
+  MOVDQU xmm12, [rsp + 16 * 12]
+  MOVDQU xmm13, [rsp + 16 * 13]
+  MOVDQU xmm14, [rsp + 16 * 14]
+  MOVDQU xmm15, [rsp + 16 * 15]
+  ADD rsp, 16 * 16
+  // Push all general purpose registers
+  POP R15
+  POP R14
+  POP R13
+  POP R12
+  POP R11
+  POP R10
+  POP R9
+  POP R8
+  POP RDI
+  POP RSI
+  POP RBP
+  POP RSP
+  POP RBX
+  POP RDX
+  POP RCX
+  POP RAX
+  {$ENDIF}
 end;
 
-constructor TCoroutine.Create(AStackSize: NativeUInt);
-var
-  OldProtection: Cardinal;
+class function TCoroutine.GetCurrent: TCoroutine;
 begin
-  FStack := VirtualAlloc(nil, FPageSize + AStackSize, MEM_COMMIT or MEM_RESERVE, PAGE_READWRITE);
-  if FStack = nil then
-    raise ECoroutine.Create('Could not allocate stack memory for coroutine.');
-  if not VirtualProtect(FStack, FPageSize, PAGE_NOACCESS, OldProtection) then
-    raise ECoroutine.CreateFmt('Could not setup guard page for coroutine. Error: %d', [GetLastError]);
-
-  FAddress := FStack;
-  Inc(FAddress, FPageSize + AStackSize);
-  FirstSwitch;
+  Result := FCurrent;
 end;
 
-function TCoroutine.Dead: Boolean;
+function TCoroutine.Yield: Boolean;
 begin
-  Result := FDead;
-end;
-
-procedure TCoroutine.Complete;
-begin
-  while Resume do
-      ; // nothing
+  Switch;
+  Result := not FTerminated;
 end;
 
 class constructor TCoroutine.Create;
@@ -361,15 +475,35 @@ begin
   FPageSize := SysInfo.dwPageSize;
 end;
 
-function TCoroutine.Yield: Boolean;
+constructor TCoroutine.Create(AStackSize: NativeUInt);
+var
+  OldProtect: Cardinal;
 begin
-  Switch;
-  Result := not FTerminated;
+  {$IFDEF WIN32}
+  Assert(AStackSize mod 4 = 0, 'Coroutine stacksize must be aligned by 4 bytes.');
+  {$ELSE}
+  Assert(AStackSize mod 16 = 0, 'Coroutine stacksize must be aligned by 16 bytes.');
+  {$ENDIF}
+  FStack := VirtualAlloc(nil, FPageSize + AStackSize, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+  if FStack = nil then
+    raise ECoroutine.Create('Could not allocate stack memory for coroutine.');
+  if not VirtualProtect(FStack, FPageSize, PAGE_NOACCESS, OldProtect) then
+    raise ECoroutine.CreateFmt('Could not setup guard page for coroutine. Error: %d', [GetLastError]);
+
+  FAddress := FStack;
+  Inc(FAddress, FPageSize + AStackSize{$IFDEF CPUX64} - 16{$ENDIF});
+  FirstSwitch;
 end;
 
-function TCoroutine.Raised: Boolean;
+procedure TCoroutine.FreeInstance;
 begin
-  Result := FException <> nil;
+  try
+    if Started and not Dead and not Raised then
+      Terminate;
+  finally
+    VirtualFree(FStack, 0, MEM_RELEASE);
+    inherited;
+  end;
 end;
 
 function TCoroutine.Resume: Boolean;
@@ -378,10 +512,20 @@ begin
     raise ECoroutine.Create('Cannot resume coroutine, that raised an exception.');
   if Dead then
     raise ECoroutine.Create('Cannot resume dead coroutine.');
+  FParent := FCurrent;
+  FCurrent := Self;
   Switch;
+  FCurrent := FParent;
+  FParent := nil;
   Result := not Dead;
   if Raised then
     raise FException;
+end;
+
+procedure TCoroutine.Complete;
+begin
+  while Resume do
+      ; // nothing
 end;
 
 procedure TCoroutine.Terminate;
@@ -395,6 +539,16 @@ begin
   FTerminated := True;
   while Resume do
       ; // nothing
+end;
+
+function TCoroutine.Started: Boolean;
+begin
+  Result := FStarted;
+end;
+
+function TCoroutine.Dead: Boolean;
+begin
+  Result := FDead;
 end;
 
 function TCoroutine.Terminated: Boolean;
