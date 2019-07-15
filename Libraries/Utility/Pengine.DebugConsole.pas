@@ -34,6 +34,7 @@ implementation
 
 var
   Lock: TCriticalSection;
+  OldExitProc: procedure;
 
   {$ENDIF}
 
@@ -130,8 +131,9 @@ end;
 
 {$IFDEF CONSOLE}
 
-procedure OnExit;
+procedure KeepOpenExitProc;
 begin
+  ExitProcessProc := OldExitProc;
   while (GetAsyncKeyState(VK_ESCAPE) and (1 shl 15)) = 0 do
     Sleep(10);
 end;
@@ -145,7 +147,8 @@ initialization
 Lock := TCriticalSection.Create;
 
 {$IFDEF LEAVE_CONSOLE_OPEN}
-ExitProcessProc := OnExit;
+OldExitProc := ExitProcessProc;
+ExitProcessProc := KeepOpenExitProc;
 {$ENDIF}
 
 finalization

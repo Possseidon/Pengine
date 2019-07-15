@@ -13,6 +13,7 @@ type
 
   ECoroutine = class(Exception);
 
+  /// <summary>A stackful coroutine, that can pause execution and resume later, whenever it yields.</summary>
   ICoroutine = interface
     /// <summary>Wether the coroutine has been resumed at least once.</summary>
     function Started: Boolean;
@@ -30,12 +31,14 @@ type
 
   end;
 
+  /// <summary>An iterable generator, backed by a coroutine.</summary>
   IGenerator<T> = interface(IIterable<T>)
     /// <summary>Wether all values have been generated.</summary>
     function Depleted: Boolean;
 
   end;
 
+  /// <summary>A consumer processing values, backed by a coroutine.</summary>
   IConsumer<T> = interface
     /// <summary>Wether the consumer is still accepting another value.</summary>
     function Accepting: Boolean;
@@ -48,9 +51,10 @@ type
 
   end;
 
+  /// <summary>A consumer, that generates new values from the consumed values, backed by a coroutine.</summary>
   IConsumingGenerator<T, V> = interface
     /// <summary>Sends a single value to the coroutine and returns an iterable of generated values.</summary>
-    function Send(AValue: T): IIterable<V>; overload;
+    // function Send(AValue: T): IIterable<V>; overload;
     /// <summary>Sends as many values from the iterable to the coroutine as it accepts and returns an iterable of
     /// generated values.</summary>
     function Send(AIterable: IIterable<T>): IIterable<V>; overload;
@@ -76,11 +80,12 @@ type
 
     function Raised: Boolean;
 
-    class procedure Init(ACoroutine: TCoroutine); static;
-    class procedure FirstSwitch(ACoroutine: TCoroutine); static;
-    class procedure Switch(ACoroutine: TCoroutine); static;
-
-    // class function GetCurrent: TCoroutine; static;
+    /// <summary>This is called at the end of the first switch, runs the coroutine and handles exceptions.</summary>
+    procedure Init;
+    /// <summary>This gets the coroutine stack ready so that it starts running on its next switch.</summary>
+    procedure FirstSwitch;
+    /// <summary>This is a symmetric switch to or from the coroutine.</summary>
+    procedure Switch;
 
   protected
     procedure Execute; virtual; abstract;
@@ -186,9 +191,11 @@ type
 
   TConsumingGenerator<T, V> = class(TCoroutine, IConsumingGenerator<T, V>, IIterable<V>, IIterator<V>)
   private
-    FConsuming: Boolean;
-    FConsumed: T;
+    FConsumedIterator: IIterator<T>;
+    FValueReady: Boolean;
     FGenerated: V;
+
+    function AllConsumed: Boolean;
 
   protected
     /// <summary>Consumes a single value and returns false, if the consumer got terminated.</summary>
@@ -199,10 +206,7 @@ type
     function GetCurrent: V;
 
   public
-    procedure AfterConstruction; override;
-
-    function Send(AValue: T): IIterable<V>; overload;
-    function Send(AIterable: IIterable<T>): IIterable<V>; overload;
+    function Send(AIterable: IIterable<T>): IIterable<V>;
 
     function Iterate: IIterate<V>;
     function GetEnumerator: IIterator<V>;
@@ -227,30 +231,45 @@ implementation
 
 { TCoroutine }
 
-class procedure TCoroutine.Init(ACoroutine: TCoroutine);
+procedure TCoroutine.Init;
 begin
-  Switch(ACoroutine);
-  ACoroutine.FStarted := True;
+  Switch;
+  FStarted := True;
   try
-    ACoroutine.Execute;
+    Execute;
   except
-    ACoroutine.FException := AcquireExceptionObject;
+    FException := AcquireExceptionObject;
   end;
-  ACoroutine.FDead := True;
-  Switch(ACoroutine);
+  FDead := True;
+  Switch;
 end;
 
-class procedure TCoroutine.FirstSwitch(ACoroutine: TCoroutine);
+procedure TCoroutine.FirstSwitch;
 asm
+  // Push all general purpose registers
   PUSHAD
+  // Push XMM registers
+  SUB esp, 16 * 8
+  MOVDQU [esp + 16 * 0], xmm0
+  MOVDQU [esp + 16 * 1], xmm1
+  MOVDQU [esp + 16 * 2], xmm2
+  MOVDQU [esp + 16 * 3], xmm3
+  MOVDQU [esp + 16 * 4], xmm4
+  MOVDQU [esp + 16 * 5], xmm5
+  MOVDQU [esp + 16 * 6], xmm6
+  MOVDQU [esp + 16 * 7], xmm7
+  // Push Exception Handler, Stack Base Pointer and Stack Limit Pointer
   PUSH fs:[0]
   PUSH fs:[4]
   PUSH fs:[8]
+  // Swap current Stack Pointer and the coroutines Stack Pointer
   XCHG esp, eax.FAddress
+  // Setup Exception Handler, Stack Base Pointer and Stack Limit Pointer
   MOV fs:[0], 0         // Exception Handler
   MOV fs:[4], esp       // Stack Base Pointer
   MOV ecx, eax.FStack
   MOV fs:[8], ecx       // Stack Limit Pointer
+  // Call Init, which switches back immediately, priming the coroutine to run on its next switch
   CALL Init
 end;
 
@@ -270,16 +289,41 @@ begin
   Result := FStarted;
 end;
 
-class procedure TCoroutine.Switch(ACoroutine: TCoroutine);
+procedure TCoroutine.Switch;
 asm
+  // Push all general purpose registers
   PUSHAD
+  // Push XMM registers
+  SUB esp, 16 * 8
+  MOVDQU [esp + 16 * 0], xmm0
+  MOVDQU [esp + 16 * 1], xmm1
+  MOVDQU [esp + 16 * 2], xmm2
+  MOVDQU [esp + 16 * 3], xmm3
+  MOVDQU [esp + 16 * 4], xmm4
+  MOVDQU [esp + 16 * 5], xmm5
+  MOVDQU [esp + 16 * 6], xmm6
+  MOVDQU [esp + 16 * 7], xmm7
+  // Push Exception Handler, Stack Base Pointer and Stack Limit Pointer
   PUSH fs:[0]
   PUSH fs:[4]
   PUSH fs:[8]
+  // Swap current Stack Pointer and the coroutines Stack Pointer
   XCHG esp, eax.FAddress
+  // Pop Exception Handler, Stack Base Pointer and Stack Limit Pointer
   POP fs:[8]
   POP fs:[4]
   POP fs:[0]
+  // Pop XMM registers
+  MOVDQU xmm7, [esp + 16 * 7]
+  MOVDQU xmm6, [esp + 16 * 6]
+  MOVDQU xmm5, [esp + 16 * 5]
+  MOVDQU xmm4, [esp + 16 * 4]
+  MOVDQU xmm3, [esp + 16 * 3]
+  MOVDQU xmm2, [esp + 16 * 2]
+  MOVDQU xmm1, [esp + 16 * 1]
+  MOVDQU xmm0, [esp + 16 * 0]
+  ADD esp, 16 * 8
+  // Pop all general purpose registers
   POPAD
 end;
 
@@ -295,7 +339,7 @@ begin
 
   FAddress := FStack;
   Inc(FAddress, FPageSize + AStackSize);
-  FirstSwitch(Self);
+  FirstSwitch;
 end;
 
 function TCoroutine.Dead: Boolean;
@@ -319,7 +363,7 @@ end;
 
 function TCoroutine.Yield: Boolean;
 begin
-  Switch(Self);
+  Switch;
   Result := not FTerminated;
 end;
 
@@ -334,7 +378,7 @@ begin
     raise ECoroutine.Create('Cannot resume coroutine, that raised an exception.');
   if Dead then
     raise ECoroutine.Create('Cannot resume dead coroutine.');
-  Switch(Self);
+  Switch;
   Result := not Dead;
   if Raised then
     raise FException;
@@ -457,25 +501,28 @@ end;
 
 { TConsumingGenerator<T, V> }
 
-procedure TConsumingGenerator<T, V>.AfterConstruction;
+function TConsumingGenerator<T, V>.AllConsumed: Boolean;
 begin
-  inherited;
-  Resume;
-  Assert(FConsuming);
+  Result := FConsumedIterator = nil;
 end;
 
 function TConsumingGenerator<T, V>.Consume(out AValue: T): Boolean;
 begin
-  FConsuming := True;
   Result := Yield;
-  AValue := FConsumed;
+  if Result then
+  begin
+    AValue := FConsumedIterator.Current;
+    if not FConsumedIterator.MoveNext then
+      FConsumedIterator := nil;
+  end;
 end;
 
 function TConsumingGenerator<T, V>.Generate(AValue: V): Boolean;
 begin
-  FConsuming := False;
+  FValueReady := True;
   FGenerated := AValue;
   Result := Yield;
+  FValueReady := False;
 end;
 
 function TConsumingGenerator<T, V>.GetCurrent: V;
@@ -495,17 +542,23 @@ end;
 
 function TConsumingGenerator<T, V>.MoveNext: Boolean;
 begin
-  Result := Resume;
-end;
-
-function TConsumingGenerator<T, V>.Send(AValue: T): IIterable<V>;
-begin
-  // Does this work???
+  while True do
+  begin
+    if not Resume then
+      Exit(False);
+    if FValueReady then
+      Exit(True);
+    if AllConsumed then
+      Exit(False);
+  end;
 end;
 
 function TConsumingGenerator<T, V>.Send(AIterable: IIterable<T>): IIterable<V>;
 begin
-  // Does this work???
+  FConsumedIterator := AIterable.GetEnumerator;
+  if not FConsumedIterator.MoveNext then
+    FConsumedIterator := nil;
+  Result := Self;
 end;
 
 { TSimpleConsumingGenerator<T, V> }

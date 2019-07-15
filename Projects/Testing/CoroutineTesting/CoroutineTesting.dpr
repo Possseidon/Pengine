@@ -16,7 +16,7 @@ var
   Coroutine: ICoroutine;
   Generator: IGenerator<Integer>;
   Consumer: IConsumer<Integer>;
-  ConsumingGenerator: IConsumingGenerator<Integer, Integer>;
+  ConsumingGenerator: IConsumingGenerator<Integer, string>;
 
 begin
 
@@ -64,8 +64,8 @@ begin
       end
       );
 
-    ConsumingGenerator := TSimpleConsumingGenerator<Integer, Integer>.Create(
-      procedure(Consume: TConsume<Integer>; Generate: TGenerate<Integer>)
+    ConsumingGenerator := TSimpleConsumingGenerator<Integer, string>.Create(
+      procedure(Consume: TConsume<Integer>; Generate: TGenerate<string>)
       var
         First, Second: Integer;
       begin
@@ -73,19 +73,24 @@ begin
         begin
           if not Consume(First) then
             Break;
-          Writeln('Consumed first: ', First);
+          if not Generate(First.ToString) then
+            Break;
           if not Consume(Second) then
             Break;
-          Writeln('Consumed second: ', Second);
-          Writeln('Generating result...');
-          if not Generate(First + Second) then
+          if not Generate(' * ' + Second.ToString) then
+            Break;
+          if not Generate(' = ' + (First * Second).ToString + sLineBreak) then
             Break;
         end;
       end
       );
 
+    for var I in ConsumingGenerator.Send(IntRange(9)) do
+      Write(I);
+
     for var I in ConsumingGenerator.Send(IntRange(10)) do
-      Writeln('Generated: ', I);
+      Write(I);
+
     {
       if Consumer.Send(IntRange(5)) then
       Writeln('Consumed all')
