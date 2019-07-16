@@ -9,6 +9,32 @@ uses
 
   Pengine.ICollections;
 
+  (*
+{$IFDEF CPUX64}
+
+
+type
+
+  PRuntimeFunction = ^TRuntimeFunction;
+
+  TRuntimeFunction = record
+    BeginAddress: Cardinal;
+    EndAddress: Cardinal;
+    case Integer of
+      0:
+        (UnwindInfoAddress: Cardinal);
+      1:
+        (UnwindData: Cardinal);
+  end;
+
+function RtlAddFunctionTable(FunctionTable: PRuntimeFunction; EntryCount: Cardinal; BaseAddress: Pointer): ByteBool;
+  cdecl; external kernel32;
+
+function RtlDeleteFunctionTable(FunctionTable: PRuntimeFunction): ByteBool; cdecl; external kernel32;
+
+{$ENDIF}
+    *)
+
 type
 
   ECoroutine = class(Exception);
@@ -80,7 +106,11 @@ type
     FStarted: Boolean;
     FDead: Boolean;
     FTerminated: Boolean;
-
+    (*
+    {$IFDEF CPUX64}
+    FRuntimeFunction: TRuntimeFunction;
+    {$ENDIF}
+    *)
     function Raised: Boolean;
 
     /// <summary>This gets the coroutine stack ready so that it starts running on its next switch.</summary>
@@ -150,7 +180,8 @@ type
 
   end;
 
-  TGenerate<T> = reference to function(AValue: T): Boolean;
+  TGenerate<T> = reference to
+    function(AValue: T): Boolean;
 
   TSimpleGenerator<T> = class(TGenerator<T>)
   private
@@ -271,18 +302,18 @@ asm
   MOV fs:[8], edx       // Stack Limit Pointer
   {$ELSE}
   // Push all general purpose registers
-  PUSH RAX
-  PUSH RCX
-  PUSH RDX
+  // PUSH RAX
+  // PUSH RCX
+  // PUSH RDX
   PUSH RBX
-  PUSH RSP
+  // PUSH RSP
   PUSH RBP
   PUSH RSI
   PUSH RDI
-  PUSH R8
-  PUSH R9
-  PUSH R10
-  PUSH R11
+  // PUSH R8
+  // PUSH R9
+  // PUSH R10
+  // PUSH R11
   PUSH R12
   PUSH R13
   PUSH R14
@@ -306,16 +337,16 @@ asm
   MOVDQU [rsp + 16 * 14], xmm14
   MOVDQU [rsp + 16 * 15], xmm15
   // Push Exception Handler, Stack Base Pointer and Stack Limit Pointer
-  PUSH gs:[0]
-  PUSH gs:[8]
-  PUSH gs:[16]
+  // PUSH gs:[0]
+  // PUSH gs:[8]
+  // PUSH gs:[16]
   // Swap current Stack Pointer and the coroutines Stack Pointer
   XCHG rsp, rcx.FAddress
   // Setup Exception Handler, Stack Base Pointer and Stack Limit Pointer
-  MOV gs:[0], 0         // Exception Handler
-  MOV gs:[8], rsp       // Stack Base Pointer
-  MOV rdx, rcx.FStack
-  MOV gs:[16], rdx       // Stack Limit Pointer
+  // MOV gs:[0], 0         // Exception Handler
+  // MOV gs:[8], rsp       // Stack Base Pointer
+  // MOV rdx, rcx.FStack
+  // MOV gs:[16], rdx       // Stack Limit Pointer
   {$ENDIF}
   // Call Init, which switches back immediately, priming the coroutine to run on its next switch
   JMP Init
@@ -374,18 +405,18 @@ asm
   POPAD
   {$ELSE}
   // Push all general purpose registers
-  PUSH RAX
-  PUSH RCX
-  PUSH RDX
+  // PUSH RAX
+  // PUSH RCX
+  // PUSH RDX
   PUSH RBX
-  PUSH RSP
+  // PUSH RSP
   PUSH RBP
   PUSH RSI
   PUSH RDI
-  PUSH R8
-  PUSH R9
-  PUSH R10
-  PUSH R11
+  // PUSH R8
+  // PUSH R9
+  // PUSH R10
+  // PUSH R11
   PUSH R12
   PUSH R13
   PUSH R14
@@ -409,15 +440,15 @@ asm
   MOVDQU [rsp + 16 * 14], xmm14
   MOVDQU [rsp + 16 * 15], xmm15
   // Push Exception Handler, Stack Base Pointer and Stack Limit Pointer
-  PUSH gs:[0]
-  PUSH gs:[8]
-  PUSH gs:[16]
+  // PUSH gs:[0]
+  // PUSH gs:[8]
+  // PUSH gs:[16]
   // Swap current Stack Pointer and the coroutines Stack Pointer
   XCHG rsp, rcx.FAddress
   // Pop Exception Handler, Stack Base Pointer and Stack Limit Pointer
-  POP gs:[16]
-  POP gs:[8]
-  POP gs:[0]
+  // POP gs:[16]
+  // POP gs:[8]
+  // POP gs:[0]
   // Pop XMM registers
   MOVDQU xmm0, [rsp + 16 * 0]
   MOVDQU xmm1, [rsp + 16 * 1]
@@ -441,18 +472,18 @@ asm
   POP R14
   POP R13
   POP R12
-  POP R11
-  POP R10
-  POP R9
-  POP R8
+  // POP R11
+  // POP R10
+  // POP R9
+  // POP R8
   POP RDI
   POP RSI
   POP RBP
-  POP RSP
+  // POP RSP
   POP RBX
-  POP RDX
-  POP RCX
-  POP RAX
+  // POP RDX
+  // POP RCX
+  // POP RAX
   {$ENDIF}
 end;
 
@@ -489,9 +520,16 @@ begin
     raise ECoroutine.Create('Could not allocate stack memory for coroutine.');
   if not VirtualProtect(FStack, FPageSize, PAGE_NOACCESS, OldProtect) then
     raise ECoroutine.CreateFmt('Could not setup guard page for coroutine. Error: %d', [GetLastError]);
-
+  (*
+  {$IFDEF CPUX64}
+  FRuntimeFunction.BeginAddress := 0;
+  FRuntimeFunction.EndAddress := AStackSize + FPageSize;
+  FRuntimeFunction.UnwindInfoAddress := 0;
+  Assert(RtlAddFunctionTable(@FRuntimeFunction, 1, FStack));
+  {$ENDIF}
+  *)
   FAddress := FStack;
-  Inc(FAddress, FPageSize + AStackSize{$IFDEF CPUX64} - 16{$ENDIF});
+  Inc(FAddress, FPageSize + AStackSize);
   FirstSwitch;
 end;
 
@@ -501,7 +539,12 @@ begin
     if Started and not Dead and not Raised then
       Terminate;
   finally
-    VirtualFree(FStack, 0, MEM_RELEASE);
+    Assert(VirtualFree(FStack, 0, MEM_RELEASE));
+    (*
+    {$IFDEF CPUX64}
+    Assert(RtlDeleteFunctionTable(@FRuntimeFunction));
+    {$ENDIF}
+    *)
     inherited;
   end;
 end;

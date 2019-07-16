@@ -68,24 +68,14 @@ begin
 end;
 
 begin
-
   try
     ReportMemoryLeaksOnShutdown := True;
-
-    Coroutine1 := TMyCoroutine.Create($100000);
-    Coroutine2 := TMyCoroutine.Create($100000);
-    Coroutine1.FOther := Coroutine2;
-    Coroutine2.FOther := Coroutine1;
-    StartTimer;
-    Coroutine1.Resume;
-    StopTimerAndOutput;
-
-    Coroutine1.Free;
-    Coroutine2.Free;
 
     Generator := TSimpleGenerator<Integer>.Create(
       procedure(Generate: TGenerate<Integer>)
       begin
+        // raise Exception.Create('Fehlermeldung');
+        Writeln('this?');
         for var I in IntRange(10) do
         begin
           Writeln('Yielding ', I);
@@ -95,6 +85,9 @@ begin
         Writeln('Generator says Goodbye!');
       end
       );
+
+    for var S in Generator do
+      Writeln(S);
 
     Consumer := TSimpleConsumer<Integer>.Create(
       procedure(Consume: TConsume<Integer>)
