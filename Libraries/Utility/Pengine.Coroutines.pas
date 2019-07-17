@@ -278,7 +278,13 @@ procedure TCoroutine.FirstSwitch;
 asm
   {$IFDEF WIN32}
   // Push all general purpose registers
-  PUSHAD
+  PUSH eax
+  PUSH ecx
+  PUSH edx
+  PUSH ebx
+  PUSH ebp
+  PUSH esi
+  PUSH edi
   // Push XMM registers
   SUB esp, 16 * 8
   MOVDQU [esp + 16 * 0], xmm0
@@ -302,18 +308,17 @@ asm
   MOV fs:[8], edx       // Stack Limit Pointer
   {$ELSE}
   // Push all general purpose registers
-  // PUSH RAX
-  // PUSH RCX
-  // PUSH RDX
+  PUSH RAX
+  PUSH RCX
+  PUSH RDX
   PUSH RBX
-  // PUSH RSP
   PUSH RBP
   PUSH RSI
   PUSH RDI
-  // PUSH R8
-  // PUSH R9
-  // PUSH R10
-  // PUSH R11
+  PUSH R8
+  PUSH R9
+  PUSH R10
+  PUSH R11
   PUSH R12
   PUSH R13
   PUSH R14
@@ -342,6 +347,7 @@ asm
   // PUSH gs:[16]
   // Swap current Stack Pointer and the coroutines Stack Pointer
   XCHG rsp, rcx.FAddress
+  SUB rsp, 24
   // Setup Exception Handler, Stack Base Pointer and Stack Limit Pointer
   // MOV gs:[0], 0         // Exception Handler
   // MOV gs:[8], rsp       // Stack Base Pointer
@@ -358,6 +364,7 @@ begin
   FCurrent := Self;
   FStarted := True;
   try
+    raise Exception.Create('Fehlermeldung');
     Execute;
   except
     FException := AcquireExceptionObject;
@@ -370,7 +377,13 @@ procedure TCoroutine.Switch;
 asm
   {$IFDEF WIN32}
   // Push all general purpose registers
-  PUSHAD
+  PUSH eax
+  PUSH ecx
+  PUSH edx
+  PUSH ebx
+  PUSH ebp
+  PUSH esi
+  PUSH edi
   // Push XMM registers
   SUB esp, 16 * 8
   MOVDQU [esp + 16 * 0], xmm0
@@ -402,21 +415,26 @@ asm
   MOVDQU xmm7, [esp + 16 * 7]
   ADD esp, 16 * 8
   // Pop all general purpose registers
-  POPAD
+  POP edi
+  POP esi
+  POP ebp
+  POP ebx
+  POP edx
+  POP ecx
+  POP eax
   {$ELSE}
   // Push all general purpose registers
-  // PUSH RAX
-  // PUSH RCX
-  // PUSH RDX
+  PUSH RAX
+  PUSH RCX
+  PUSH RDX
   PUSH RBX
-  // PUSH RSP
   PUSH RBP
   PUSH RSI
   PUSH RDI
-  // PUSH R8
-  // PUSH R9
-  // PUSH R10
-  // PUSH R11
+  PUSH R8
+  PUSH R9
+  PUSH R10
+  PUSH R11
   PUSH R12
   PUSH R13
   PUSH R14
@@ -472,18 +490,17 @@ asm
   POP R14
   POP R13
   POP R12
-  // POP R11
-  // POP R10
-  // POP R9
-  // POP R8
+  POP R11
+  POP R10
+  POP R9
+  POP R8
   POP RDI
   POP RSI
   POP RBP
-  // POP RSP
   POP RBX
-  // POP RDX
-  // POP RCX
-  // POP RAX
+  POP RDX
+  POP RCX
+  POP RAX
   {$ENDIF}
 end;
 

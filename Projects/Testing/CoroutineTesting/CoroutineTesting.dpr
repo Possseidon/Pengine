@@ -14,7 +14,7 @@ uses
   Pengine.ICollections,
   Pengine.Coroutines,
   Pengine.DebugConsole;
-
+                       {
 type
 
   TMyCoroutine = class(TCoroutine)
@@ -48,15 +48,15 @@ end;
 
 const
   TestCount = 100000;
-
+                                                  }
 var
-  Coroutine1, Coroutine2: TMyCoroutine;
+  Coroutine: ICoroutine;{
   Generator: IGenerator<Integer>;
   Consumer: IConsumer<Integer>;
   ConsumingGenerator: IConsumingGenerator<Integer, string>;
-
+                }
 { TMyCoroutine }
-
+                 {
 procedure TMyCoroutine.Execute;
 begin
   // TODO: Think about this, does symmetric switching actually make sense? Should this raise exceptions?
@@ -66,11 +66,37 @@ begin
     Inc(FValue);
   end;
 end;
+           }
+procedure Test;
+begin
+  try
+    raise Exception.Create('Fehlermeldung');
+  finally
+    Writeln('iro iro');
+  end;
+end;
 
 begin
+
   try
     ReportMemoryLeaksOnShutdown := True;
 
+    // Test;
+    Writeln('abc');
+
+    Coroutine := TSimpleCoroutine.Create(
+      procedure(Yield: TYield)
+      begin
+        Writeln('hello');
+        Yield;
+        Writeln('world');
+      end
+    );
+
+    Coroutine.Resume;
+    Coroutine.Resume;
+
+    {
     Generator := TSimpleGenerator<Integer>.Create(
       procedure(Generate: TGenerate<Integer>)
       begin
@@ -112,7 +138,7 @@ begin
 
     for var I in ConsumingGenerator.Send(IntRange(10)) do
       Write(I);
-
+              }
   except
     on E: Exception do
       Writeln(E.ClassName, ': ', E.Message);
