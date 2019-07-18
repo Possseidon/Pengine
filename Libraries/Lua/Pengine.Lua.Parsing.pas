@@ -3,6 +3,8 @@ unit Pengine.Lua.Parsing;
 interface
 
 uses
+  System.SysUtils,
+
   Pengine.ICollections,
   Pengine.Parsing;
 
@@ -13,153 +15,170 @@ type
 
   (* --- The Complete Syntax of Lua ---
 
-    [X] TLuaChunk
+    --- Stage ---
+    [X] Implement Structure
+    [-] Parsers
+    [ ] Formatters
+    [ ] Documentation
+    [ ] Sorting and Cleanup
+
+    Progress: 2 / 63
+    /---------------------------------------------------------------\
+    [||                                                             ]
+    \---------------------------------------------------------------/
+
+    EBNF:
+
+    [X] TLuaName
+    Name ::= letters, digits, underscores, not started by digit
+
+    [ ] TLuaChunk
     chunk ::= block
 
-    [X] TLuaBlock
+    [ ] TLuaBlock
     block ::= {stat} [retstat]
 
-    [X] TLuaStatement
+    [ ] TLuaStatement
     stat ::=
-    [X] TLuaEmptyStatement
+    [ ] TLuaEmptyStatement
     >        ';' |
-    [X] TLuaAssignmentStatement
+    [ ] TLuaAssignmentStatement
     >        varlist '=' explist |
-    [X] TLuaCallStatement
+    [ ] TLuaCallStatement
     >        functioncall |
-    [X] TLuaLabelStatement
+    [ ] TLuaLabelStatement
     >        label |
-    [X] TLuaBreakStatement
+    [ ] TLuaBreakStatement
     >        break |
-    [X] TLuaGotoStatement
+    [ ] TLuaGotoStatement
     >        goto Name |
-    [X] TLuaDoStatement
+    [ ] TLuaDoStatement
     >        do block end |
-    [X] TLuaWhileStatement
+    [ ] TLuaWhileStatement
     >        while exp do block end |
-    [X] TLuaRepeatStatement
+    [ ] TLuaRepeatStatement
     >        repeat block until exp |
-    [X] TLuaIfStatement
+    [ ] TLuaIfStatement
     >        if exp then block {elseif exp then block} [else block] end |
-    [X] TLuaForStatement
-    [X] TLuaNumericForStatement
+    [ ] TLuaForStatement
+    [ ] TLuaNumericForStatement
     >        for Name '=' exp ',' exp [',' exp] do block end |
-    [X] TLuaGenericForStatement
+    [ ] TLuaGenericForStatement
     >        for namelist in explist do block end |
-    [X] TLuaFunctionStatement
+    [ ] TLuaFunctionStatement
     >        function funcname funcbody |
-    [X] TLuaLocalFunctionStatement
+    [ ] TLuaLocalFunctionStatement
     >        local function Name funcbody |
-    [X] TLuaLocalAssignmentStatement
+    [ ] TLuaLocalAssignmentStatement
     >        local namelist ['=' explist]
 
-    [X] TLuaReturnStatement
+    [ ] TLuaReturnStatement
     retstat ::= return [explist] [';']
 
-    [X] TLuaLabelStatement
+    [ ] TLuaLabelStatement
     label ::= '::' Name '::'
 
     [X] TLuaFunctionName
     funcname ::= Name {'.' Name} [':' Name]
 
-    [X] TLuaVariableList
+    [ ] TLuaVariableList
     varlist ::= var {',' var}
 
-    [X] TLuaVariableExpression
+    [ ] TLuaVariableExpression
     var ::=
-    [X] TLuaVariableNameExpression
+    [ ] TLuaVariableNameExpression
     >       Name |
-    [X] TLuaVariableIndexExpression
+    [ ] TLuaVariableIndexExpression
     >       prefixexp '[' exp ']' |
-    [X] TLuaVariableNameIndexExpression
+    [ ] TLuaVariableNameIndexExpression
     >       prefixexp '.' Name
 
-    [X] TLuaNameList
+    [ ] TLuaNameList
     namelist ::= Name {',' Name}
 
-    [X] TLuaExpressionList
+    [ ] TLuaExpressionList
     explist ::= exp {',' exp}
 
-    [X] TLuaExpression
+    [ ] TLuaExpression
     exp ::=
-    [X] TLuaNilExpression
+    [ ] TLuaNilExpression
     >       nil |
-    [X] TLuaBooleanExpression
+    [ ] TLuaBooleanExpression
     >       false | true |
-    [X] TLuaNumeralExpression
+    [ ] TLuaNumeralExpression
     >       Numeral |
-    [X] TLuaLiteralStringExpression
+    [ ] TLuaLiteralStringExpression
     >       LiteralString |
-    [X] TLuaEllipsisExpression
+    [ ] TLuaEllipsisExpression
     >       '...' |
-    [X] TLuaFunctionDefinitionExpression
+    [ ] TLuaFunctionDefinitionExpression
     >       functiondef |
-    [X] TLuaPrefixExpression
+    [ ] TLuaPrefixExpression
     >       prefixexp |
-    [X] TLuaTableConstructorExpression
+    [ ] TLuaTableConstructorExpression
     >       tableconstructor |
-    [X] TLuaBinaryOperationExpression
+    [ ] TLuaBinaryOperationExpression
     >       exp binop exp |
-    [X] TLuaUnaryOperationExpression
+    [ ] TLuaUnaryOperationExpression
     >       unop exp
 
-    [X] TLuaPrefixExpression
+    [ ] TLuaPrefixExpression
     prefixexp ::=
-    [X] TLuaVariableExpression
+    [ ] TLuaVariableExpression
     >             var |
-    [X] TLuaCallExpression
+    [ ] TLuaCallExpression
     >             functioncall |
-    [X] TLuaParanthesesExpression
+    [ ] TLuaParanthesesExpression
     >             '(' exp ')'
 
-    [X] TLuaCallExpression
+    [ ] TLuaCallExpression
     functioncall ::= prefixexp args |
-    [X] TLuaSelfCallExpression
+    [ ] TLuaSelfCallExpression
     >                prefixexp ':' Name args
 
-    [X] TLuaArguments
+    [ ] TLuaArguments
     args ::=
-    [X] TLuaParameterArguments
+    [ ] TLuaParameterArguments
     >        '(' [explist] ')' |
-    [X] TLuaTableArgument
+    [ ] TLuaTableArgument
     >        tableconstructor |
-    [X] TLuaStringArgument
+    [ ] TLuaStringArgument
     >        LiteralString
 
-    [X] TLuaFunctionDefinitionExpression
+    [ ] TLuaFunctionDefinitionExpression
     functiondef ::= function funcbody
 
-    [X] TLuaFunctionBody
+    [ ] TLuaFunctionBody
     funcbody ::= '(' [parlist] ')' block end
 
-    [X] TLuaParameterList
+    [ ] TLuaParameterList
     parlist ::= namelist [',' '...'] | '...'
 
-    [X] TLuaTableConstructorExpression
+    [ ] TLuaTableConstructorExpression
     tableconstructor ::= '{' [fieldlist] '}'
 
-    [X] TLuaFieldList
+    [ ] TLuaFieldList
     fieldlist ::= field {fieldsep field} [fieldsep]
 
-    [X] TLuaField
+    [ ] TLuaField
     field ::=
-    [X] TLuaKeyValueField
+    [ ] TLuaKeyValueField
     >         '[' exp ']' '=' exp |
-    [X] TLuaNamedField
+    [ ] TLuaNamedField
     >         Name '=' exp |
-    [X] (TLuaField)
+    [ ] (TLuaField)
     >         exp
 
-    [X] TLuaFieldSeparator -> enum
+    [ ] TLuaFieldSeparator -> enum
     fieldsep ::= ',' | ';'
 
-    [X] TLuaBinaryOp -> enum
+    [ ] TLuaBinaryOp -> enum
     binop ::= '+' | '-' | '*' | '/' | '//' | '^' | '%' |
     >         '&' | '~' | '|' | '>>' | '<<' | '..' |
     >         '<' | '<=' | '>' | '>=' | '==' | '~=' |
     >         and | or
 
-    [X] TLuaUnaryOp -> enum
+    [ ] TLuaUnaryOp -> enum
     unop ::= '-' | not | '#' | '~'
 
     --- The Complete Syntax of Lua --- *)
@@ -170,6 +189,7 @@ type
   TLuaExpression = class;
   TLuaTableConstructorExpression = class;
   TLuaLiteralStringExpression = class;
+  TLuaVariableExpression = class;
 
   // --- Helpers ---
 
@@ -218,14 +238,54 @@ type
   private
     FName: string;
 
-    // TODO: Implicit conversion to string
+  public
+    constructor Create(AName: string);
+
+    class function Parser: IParser<TLuaName>; static;
+
+    property Name: string read FName;
+
+    class operator Implicit(AName: string): TLuaName;
+    class operator Implicit(AName: TLuaName): string;
+
+  end;
+
+  ILuaNameParser = IParser<TLuaName>;
+
+  TLuaNameParser = class(TParser<TLuaName>, ILuaNameParser)
+  protected
+    function Parse: Boolean; override;
+
+  public
+    class function GetResultName: string; override;
 
   end;
 
   TLuaFunctionName = class
+  public type
+
+    IParser = IObjectParser<TLuaFunctionName>;
+
+    TParser = class(TObjectParser<TLuaFunctionName>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
-    FNames: IList<TLuaName>; // at least one name required
-    FSelfCall: Boolean; // only valid for at least two names
+    FNames: IList<TLuaName>;
+    FSelfCall: Boolean;
+
+  public
+    constructor Create;
+
+    class function Parser: IParser;
+
+    property Names: IList<TLuaName> read FNames;
+    property SelfCall: Boolean read FSelfCall write FSelfCall;
 
   end;
 
@@ -307,10 +367,73 @@ type
 
   end;
 
+  TLuaExpressionList = class
+  public type
+
+    IParser = IObjectParser<TLuaExpressionList>;
+
+    TParser = class(TObjectParser<TLuaExpressionList>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
+  private
+    FExpressions: IObjectList<TLuaExpression>;
+
+  public
+    constructor Create;
+
+    class function Parser: IParser;
+
+    property Expressions: IObjectList<TLuaExpression> read FExpressions;
+
+  end;
+
+  TLuaVariableList = class
+  public type
+
+    IParser = IObjectParser<TLuaVariableList>;
+
+    TParser = class(TObjectParser<TLuaVariableList>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
+  private
+    FVariables: IObjectList<TLuaVariableExpression>;
+
+  public
+    class function Parser: IParser;
+
+  end;
+
   // --- Expressions ---
 
   /// <summary>An expression, which evaluates to a value.</summary>
   TLuaExpression = class
+  public type
+
+    IParser = IObjectParser<TLuaExpression>;
+
+    TParser = class(TObjectParser<TLuaExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
+  public
+    class function Parser: IParser;
 
   end;
 
@@ -459,22 +582,28 @@ type
 
   end;
 
-  TLuaExpressionList = class
-  private
-    FExpressions: IObjectList<TLuaExpression>;
-
-  end;
-
-  TLuaVariableList = class
-  private
-    FVariables: IObjectList<TLuaVariableExpression>;
-
-  end;
-
   // --- Statements ---
+
+  TLuaStatementClass = class of TLuaStatement;
 
   /// <summary>A statement can be executed and discards results if any.</summary>
   TLuaStatement = class
+  public type
+
+    IParser = IObjectParser<TLuaStatement>;
+
+    TParser = class(TObjectParser<TLuaStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: IParser; virtual; abstract;
 
   end;
 
@@ -483,6 +612,22 @@ type
   /// <code> ;</code>
   /// </summary>
   TLuaEmptyStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaEmptyStatement>;
+
+    TParser = class(TObjectParser<TLuaEmptyStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -491,9 +636,35 @@ type
   /// <code> a, b, c = x, y, z</code>
   /// </summary>
   TLuaAssignmentStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaAssignmentStatement>;
+
+    TParser = class(TObjectParser<TLuaAssignmentStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
-    FExpressionList: TLuaExpressionList;
     FVariableList: TLuaVariableList;
+    FExpressionList: TLuaExpressionList;
+
+    procedure SetExpressionList(const Value: TLuaExpressionList);
+    procedure SetVariableList(const Value: TLuaVariableList);
+
+  public
+    constructor Create(AVariableList: TLuaVariableList; AExpressionList: TLuaExpressionList);
+    destructor Destroy; override;
+
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
+
+    property VariableList: TLuaVariableList read FVariableList write SetVariableList;
+    property ExpressionList: TLuaExpressionList read FExpressionList write SetExpressionList;
 
   end;
 
@@ -502,8 +673,25 @@ type
   /// <code> table.insert(list, 42)</code>
   /// </summary>
   TLuaCallStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaCallStatement>;
+
+    TParser = class(TObjectParser<TLuaCallStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FCall: TLuaCallExpression;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -512,8 +700,25 @@ type
   /// <code> ::mylabel::</code>
   /// </summary>
   TLuaLabelStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaLabelStatement>;
+
+    TParser = class(TObjectParser<TLuaLabelStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FName: TLuaName;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -522,6 +727,22 @@ type
   /// <code> break</code>
   /// </summary>
   TLuaBreakStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaBreakStatement>;
+
+    TParser = class(TObjectParser<TLuaBreakStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -530,8 +751,25 @@ type
   /// <code> goto mylabel</code>
   /// </summary>
   TLuaGotoStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaGotoStatement>;
+
+    TParser = class(TObjectParser<TLuaGotoStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FLabelName: TLuaName;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -540,8 +778,25 @@ type
   /// <code> do<p/>   ...<p/> end</code>
   /// </summary>
   TLuaDoStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaDoStatement>;
+
+    TParser = class(TObjectParser<TLuaDoStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FBlock: TLuaBlock;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -550,9 +805,26 @@ type
   /// <code> while &lt;condition&gt; do<p/>   ...<p/> end</code>
   /// </summary>
   TLuaWhileStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaWhileStatement>;
+
+    TParser = class(TObjectParser<TLuaWhileStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FCondition: TLuaExpression;
     FBlock: TLuaBlock;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -561,9 +833,26 @@ type
   /// <code> repeat<p/>   ...<p/> until &lt;condition&gt;</code>
   /// </summary>
   TLuaRepeatStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaRepeatStatement>;
+
+    TParser = class(TObjectParser<TLuaRepeatStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FBlock: TLuaBlock;
     FCondition: TLuaExpression;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -580,9 +869,26 @@ type
   /// </code>
   /// </summary>
   TLuaIfStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaIfStatement>;
+
+    TParser = class(TObjectParser<TLuaIfStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FBlocks: IObjectList<TLuaConditionalBlock>;
     FElseBlock: TLuaBlock;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -597,11 +903,28 @@ type
   /// <code> for i = start, stop[, step] do<p/>   ...<p/> end</code>
   /// </summary>
   TLuaNumericForStatement = class(TLuaForStatement)
+  public type
+
+    IParser = IObjectParser<TLuaNumericForStatement>;
+
+    TParser = class(TObjectParser<TLuaNumericForStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FVariableName: TLuaName;
     FStart: TLuaExpression;
     FEnd: TLuaExpression;
     FStep: TLuaExpression;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -610,9 +933,26 @@ type
   /// <code> for k, v in pairs(t) do<p/>   ...<p/> end</code>
   /// </summary>
   TLuaGenericForStatement = class(TLuaForStatement)
+  public type
+
+    IParser = IObjectParser<TLuaGenericForStatement>;
+
+    TParser = class(TObjectParser<TLuaGenericForStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FNameList: TLuaNameList;
     FExpressionList: TLuaExpressionList;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -621,9 +961,26 @@ type
   /// <code> function myfunction(a, b, c)<p/>   ...<p/> end</code>
   /// </summary>
   TLuaFunctionStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaFunctionStatement>;
+
+    TParser = class(TObjectParser<TLuaFunctionStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FName: TLuaFunctionName;
     FBody: TLuaFunctionBody;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -632,9 +989,26 @@ type
   /// <code> function myfunction(a, b, c)<p/>   ...<p/> end</code>
   /// </summary>
   TLuaLocalFunctionStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaLocalFunctionStatement>;
+
+    TParser = class(TObjectParser<TLuaLocalFunctionStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FName: TLuaName;
     FBody: TLuaFunctionBody;
+
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
 
   end;
 
@@ -643,16 +1017,57 @@ type
   /// <code> local a<p/> local x, y, z = 1, 2, 3</code>
   /// </summary>
   TLuaLocalAssignmentStatement = class(TLuaStatement)
+  public type
+
+    IParser = IObjectParser<TLuaLocalAssignmentStatement>;
+
+    TParser = class(TObjectParser<TLuaLocalAssignmentStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FNameList: TLuaNameList;
     FExpressionList: TLuaExpressionList;
 
+  public
+    class function Parser: IParser;
+    class function TypedParser: TLuaStatement.IParser; override;
+
   end;
 
   TLuaReturnStatement = class
+  public type
+
+    IParser = IObjectParser<TLuaReturnStatement>;
+
+    TParser = class(TObjectParser<TLuaReturnStatement>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FResults: TLuaExpressionList;
-    FTrailingSemicolon: Boolean; // TODO: Don't forget me! <3
+    FTrailingSemicolon: Boolean;
+
+    procedure SetResults(const Value: TLuaExpressionList);
+
+  public
+    destructor Destroy; override;
+
+    class function Parser: IParser;
+
+    property Results: TLuaExpressionList read FResults write SetResults;
+
+    property TrailingSemicolon: Boolean read FTrailingSemicolon write FTrailingSemicolon;
 
   end;
 
@@ -664,7 +1079,10 @@ type
 
     TParser = class(TObjectParser<TLuaBlock>, IParser)
     protected
-      // TODO: function Parse: Boolean; override;
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
 
     end;
 
@@ -672,19 +1090,42 @@ type
     FStatements: IObjectList<TLuaStatement>;
     FReturnStatement: TLuaReturnStatement;
 
-    function GetStatements: IReadonlyList<TLuaStatement>;
+    procedure SetReturnStatement(const Value: TLuaReturnStatement);
 
   public
     constructor Create;
+    destructor Destroy; override;
 
-    property Statements: IReadonlyList<TLuaStatement> read GetStatements;
+    class function Parser: IParser;
+
+    property Statements: IObjectList<TLuaStatement> read FStatements;
 
     function HasReturnStatement: Boolean;
-    property ReturnStatement: TLuaReturnStatement read FReturnStatement;
+    property ReturnStatement: TLuaReturnStatement read FReturnStatement write SetReturnStatement;
 
   end;
 
   TLuaChunk = TLuaBlock;
+
+const
+
+  LuaStatementClasses: array [0 .. 14] of TLuaStatementClass = (
+    TLuaEmptyStatement,
+    TLuaAssignmentStatement,
+    TLuaCallStatement,
+    TLuaLabelStatement,
+    TLuaBreakStatement,
+    TLuaGotoStatement,
+    TLuaDoStatement,
+    TLuaWhileStatement,
+    TLuaRepeatStatement,
+    TLuaIfStatement,
+    TLuaNumericForStatement,
+    TLuaGenericForStatement,
+    TLuaFunctionStatement,
+    TLuaLocalFunctionStatement,
+    TLuaLocalAssignmentStatement
+    );
 
 implementation
 
@@ -695,14 +1136,656 @@ begin
   FStatements := TObjectList<TLuaStatement>.Create;
 end;
 
-function TLuaBlock.GetStatements: IReadonlyList<TLuaStatement>;
+destructor TLuaBlock.Destroy;
 begin
-  Result := FStatements.ReadonlyList;
+  FReturnStatement.Free;
+  inherited;
 end;
 
 function TLuaBlock.HasReturnStatement: Boolean;
 begin
   Result := FReturnStatement <> nil;
+end;
+
+class function TLuaBlock.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+procedure TLuaBlock.SetReturnStatement(const Value: TLuaReturnStatement);
+begin
+  FReturnStatement.Free;
+  FReturnStatement := Value;
+end;
+
+{ TLuaBlock.TParser }
+
+class function TLuaBlock.TParser.GetResultName: string;
+begin
+  Result := 'code-block';
+end;
+
+function TLuaBlock.TParser.Parse: Boolean;
+begin
+  ParseResult := TLuaBlock.Create;
+  while not ReachedEnd and not StartsWith('end') do
+    ParseResult.Statements.Add(TLuaStatement.Parser.Require(Info));
+  ParseResult.ReturnStatement := TLuaReturnStatement.Parser.Optional(Info);
+  Result := True;
+end;
+
+{ TLuaStatement.TParser }
+
+class function TLuaStatement.TParser.GetResultName: string;
+begin
+  Result := 'statement';
+end;
+
+function TLuaStatement.TParser.Parse: Boolean;
+var
+  StatementClass: TLuaStatementClass;
+begin
+  for StatementClass in LuaStatementClasses do
+  begin
+    ParseResult := StatementClass.TypedParser.Optional(Info);
+    if ParseResult <> nil then
+      Exit(True);
+  end;
+  Result := False;
+end;
+
+{ TLuaStatement }
+
+class function TLuaStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaReturnStatement }
+
+destructor TLuaReturnStatement.Destroy;
+begin
+  FResults.Free;
+  inherited;
+end;
+
+class function TLuaReturnStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+procedure TLuaReturnStatement.SetResults(const Value: TLuaExpressionList);
+begin
+  FResults.Free;
+  FResults := Value;
+end;
+
+{ TLuaReturnStatement.TParser }
+
+class function TLuaReturnStatement.TParser.GetResultName: string;
+begin
+  Result := 'return-statement';
+end;
+
+function TLuaReturnStatement.TParser.Parse: Boolean;
+begin
+  if not StartsWith('return') then
+    Exit(False);
+  ParseResult := TLuaReturnStatement.Create;
+  ParseResult.FResults := TLuaExpressionList.Parser.Optional(Info);
+  ParseResult.FTrailingSemicolon := StartsWith(';');
+  Result := True;
+end;
+
+{ TLuaExpressionList }
+
+constructor TLuaExpressionList.Create;
+begin
+  FExpressions := TObjectList<TLuaExpression>.Create;
+end;
+
+class function TLuaExpressionList.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaExpressionList.TParser }
+
+class function TLuaExpressionList.TParser.GetResultName: string;
+begin
+  Result := 'expression-list';
+end;
+
+function TLuaExpressionList.TParser.Parse: Boolean;
+var
+  Expression: TLuaExpression;
+begin
+  ParseResult := TLuaExpressionList.Create;
+  ParseResult.Expressions.Add(TLuaExpression.Parser.Require(Info));
+  while not ReachedEnd and TLuaExpression.Parser.Optional(Info, Expression) do
+    ParseResult.Expressions.Add(Expression);
+
+  Result := False;
+end;
+
+{ TLuaExpression.TParser }
+
+class function TLuaExpression.TParser.GetResultName: string;
+begin
+  Result := 'expression';
+end;
+
+function TLuaExpression.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+  Result := True;
+end;
+
+{ TLuaExpression }
+
+class function TLuaExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaEmptyStatement.TParser }
+
+class function TLuaEmptyStatement.TParser.GetResultName: string;
+begin
+  Result := 'semicolon';
+end;
+
+function TLuaEmptyStatement.TParser.Parse: Boolean;
+begin
+  Result := StartsWith(';');
+  if Result then
+    ParseResult := TLuaEmptyStatement.Create;
+end;
+
+{ TLuaEmptyStatement }
+
+class function TLuaEmptyStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaEmptyStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaAssignmentStatement.TParser }
+
+class function TLuaAssignmentStatement.TParser.GetResultName: string;
+begin
+  Result := 'assignment';
+end;
+
+function TLuaAssignmentStatement.TParser.Parse: Boolean;
+var
+  VariableList: TLuaVariableList;
+  ExpressionList: TLuaExpressionList;
+begin
+  VariableList := TLuaVariableList.Parser.Require(Info);
+  SkipWhitespace;
+  if not StartsWith('=') then
+    Exit(False);
+  SkipWhitespace;
+  ExpressionList := TLuaExpressionList.Parser.Require(Info);
+  ParseResult := TLuaAssignmentStatement.Create(VariableList, ExpressionList);
+  Result := True;
+end;
+
+{ TLuaCallStatement.TParser }
+
+class function TLuaCallStatement.TParser.GetResultName: string;
+begin
+  Result := 'function-call';
+end;
+
+function TLuaCallStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaLabelStatement.TParser }
+
+class function TLuaLabelStatement.TParser.GetResultName: string;
+begin
+  Result := 'label';
+end;
+
+function TLuaLabelStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaBreakStatement.TParser }
+
+class function TLuaBreakStatement.TParser.GetResultName: string;
+begin
+  Result := 'break';
+end;
+
+function TLuaBreakStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaGotoStatement.TParser }
+
+class function TLuaGotoStatement.TParser.GetResultName: string;
+begin
+  Result := 'goto';
+end;
+
+function TLuaGotoStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaDoStatement.TParser }
+
+class function TLuaDoStatement.TParser.GetResultName: string;
+begin
+  Result := 'do-block';
+end;
+
+function TLuaDoStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaWhileStatement.TParser }
+
+class function TLuaWhileStatement.TParser.GetResultName: string;
+begin
+  Result := 'while-statement';
+end;
+
+function TLuaWhileStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaRepeatStatement.TParser }
+
+class function TLuaRepeatStatement.TParser.GetResultName: string;
+begin
+  Result := 'repeat-until';
+end;
+
+function TLuaRepeatStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaIfStatement.TParser }
+
+class function TLuaIfStatement.TParser.GetResultName: string;
+begin
+  Result := 'if-statement';
+end;
+
+function TLuaIfStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaNumericForStatement.TParser }
+
+class function TLuaNumericForStatement.TParser.GetResultName: string;
+begin
+  Result := 'numeric-for-statement';
+end;
+
+function TLuaNumericForStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaGenericForStatement.TParser }
+
+class function TLuaGenericForStatement.TParser.GetResultName: string;
+begin
+  Result := 'generic-for-statement';
+end;
+
+function TLuaGenericForStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaFunctionStatement.TParser }
+
+class function TLuaFunctionStatement.TParser.GetResultName: string;
+begin
+  Result := 'function-definition';
+end;
+
+function TLuaFunctionStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaLocalFunctionStatement.TParser }
+
+class function TLuaLocalFunctionStatement.TParser.GetResultName: string;
+begin
+  Result := 'local-function-definition';
+end;
+
+function TLuaLocalFunctionStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaLocalAssignmentStatement.TParser }
+
+class function TLuaLocalAssignmentStatement.TParser.GetResultName: string;
+begin
+  Result := 'local-variable-declaration';
+end;
+
+function TLuaLocalAssignmentStatement.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaAssignmentStatement }
+
+constructor TLuaAssignmentStatement.Create(AVariableList: TLuaVariableList; AExpressionList: TLuaExpressionList);
+begin
+  FVariableList := AVariableList;
+  FExpressionList := AExpressionList;
+end;
+
+destructor TLuaAssignmentStatement.Destroy;
+begin
+  FExpressionList.Free;
+  FVariableList.Free;
+  inherited;
+end;
+
+class function TLuaAssignmentStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+procedure TLuaAssignmentStatement.SetExpressionList(const Value: TLuaExpressionList);
+begin
+  FExpressionList.Free;
+  FExpressionList := Value;
+end;
+
+procedure TLuaAssignmentStatement.SetVariableList(const Value: TLuaVariableList);
+begin
+  FVariableList.Free;
+  FVariableList := Value;
+end;
+
+class function TLuaAssignmentStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaCallStatement }
+
+class function TLuaCallStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaCallStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaLabelStatement }
+
+class function TLuaLabelStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaLabelStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaBreakStatement }
+
+class function TLuaBreakStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaBreakStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaGotoStatement }
+
+class function TLuaGotoStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaGotoStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaDoStatement }
+
+class function TLuaDoStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaDoStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaWhileStatement }
+
+class function TLuaWhileStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaWhileStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaRepeatStatement }
+
+class function TLuaRepeatStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaRepeatStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaIfStatement }
+
+class function TLuaIfStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaIfStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaNumericForStatement }
+
+class function TLuaNumericForStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaNumericForStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaGenericForStatement }
+
+class function TLuaGenericForStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaGenericForStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaFunctionStatement }
+
+class function TLuaFunctionStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaFunctionStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaLocalFunctionStatement }
+
+class function TLuaLocalFunctionStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaLocalFunctionStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaLocalAssignmentStatement }
+
+class function TLuaLocalAssignmentStatement.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+class function TLuaLocalAssignmentStatement.TypedParser: TLuaStatement.IParser;
+begin
+  Result := TLuaStatement.IParser(Parser);
+end;
+
+{ TLuaVariableList.TParser }
+
+class function TLuaVariableList.TParser.GetResultName: string;
+begin
+  Result := 'variable-list';
+end;
+
+function TLuaVariableList.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaName }
+
+constructor TLuaName.Create(AName: string);
+begin
+  FName := AName;
+end;
+
+class operator TLuaName.Implicit(AName: string): TLuaName;
+begin
+  Result.Create(AName);
+end;
+
+class operator TLuaName.Implicit(AName: TLuaName): string;
+begin
+  Result := AName.FName;
+end;
+
+class function TLuaName.Parser: IParser<TLuaName>;
+begin
+  Result := TLuaNameParser.Create;
+end;
+
+{ TLuaNameParser }
+
+class function TLuaNameParser.GetResultName: string;
+begin
+  Result := 'name';
+end;
+
+function TLuaNameParser.Parse: Boolean;
+const
+  Alpha = ['a' .. 'z', 'A' .. 'Z', '_'];
+  Num = ['0' .. '9'];
+  AlphaNum = Alpha + Num;
+begin
+  if not CharInSet(First, Alpha) then
+    Exit(False);
+  ParseResult := ReadWhile(AlphaNum);
+  Result := True;
+end;
+
+{ TLuaFunctionName.TParser }
+
+class function TLuaFunctionName.TParser.GetResultName: string;
+begin
+  Result := 'function-name';
+end;
+
+function TLuaFunctionName.TParser.Parse: Boolean;
+var
+  Name: TLuaName;
+begin
+  Result := TLuaName.Parser.Optional(Info, Name);
+  if not Result then
+    Exit;
+  ParseResult := TLuaFunctionName.Create;
+  ParseResult.Names.Add(Name);
+  SkipWhitespace;
+  while StartsWith('.') do
+  begin
+    SkipWhitespace;
+    ParseResult.Names.Add(TLuaName.Parser.Require(Info));
+    SkipWhitespace;
+  end;
+  if StartsWith(':') then
+  begin
+    SkipWhitespace;
+    ParseResult.SelfCall := True;
+    ParseResult.Names.Add(TLuaName.Parser.Require(Info));
+  end;
+end;
+
+{ TLuaVariableList }
+
+class function TLuaVariableList.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaFunctionName }
+
+constructor TLuaFunctionName.Create;
+begin
+  FNames := TList<TLuaName>.Create;
+end;
+
+class function TLuaFunctionName.Parser: IParser;
+begin
+  Result := TParser.Create;
 end;
 
 end.

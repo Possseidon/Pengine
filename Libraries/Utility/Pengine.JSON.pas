@@ -2026,7 +2026,7 @@ end;
 
 class function TJObject.Parse(AText: string): TJObject;
 begin
-  Result := Parser.Require(AText);
+  Result := Parser.Optional(AText);
 end;
 
 class function TJObject.Parser: IParser;
@@ -2438,7 +2438,7 @@ end;
 
 class function TJArray.Parse(AText: string): TJArray;
 begin
-  Result := Parser.Require(AText);
+  Result := Parser.Optional(AText);
 end;
 
 class function TJArray.Parser: IParser;

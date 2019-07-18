@@ -428,8 +428,10 @@ type
   IParser<T> = interface(IParser)
     function GetParseResult: T;
 
-    function Require(AText: string): T; overload;
-    function Require(AInfo: TParseInfo): T; overload;
+    function Require(AInfo: TParseInfo): T;
+
+    function Optional(AText: string; out AResult: T): Boolean; overload;
+    function Optional(AInfo: TParseInfo; out AResult: T): Boolean; overload;
 
     property ParseResult: T read GetParseResult;
 
@@ -549,8 +551,10 @@ type
   public
     property ParseResult: T read GetParseResult write SetParseResult;
 
-    function Require(AText: string): T; overload;
-    function Require(AInfo: TParseInfo): T; overload;
+    function Require(AInfo: TParseInfo): T;
+
+    function Optional(AText: string; out AResult: T): Boolean; overload;
+    function Optional(AInfo: TParseInfo; out AResult: T): Boolean; overload;
 
   end;
 
@@ -568,11 +572,12 @@ type
     property ParseResult: T read GetParseResult write SetParseResult;
     function OwnParseResult: T;
 
-    function Require(AText: string): T; overload;
-    function Require(AInfo: TParseInfo): T; overload;
+    function Require(AInfo: TParseInfo): T;
 
     function Optional(AText: string): T; overload;
     function Optional(AInfo: TParseInfo): T; overload;
+    function Optional(AText: string; out AResult: T): Boolean; overload;
+    function Optional(AInfo: TParseInfo; out AResult: T): Boolean; overload;
 
   end;
 
@@ -1143,15 +1148,25 @@ begin
   Result := FParseResult;
 end;
 
+function TParser<T>.Optional(AInfo: TParseInfo; out AResult: T): Boolean;
+begin
+  Parse(AInfo, False);
+  Result := Success;
+  if Result then
+    AResult := ParseResult;
+end;
+
+function TParser<T>.Optional(AText: string; out AResult: T): Boolean;
+begin
+  Parse(AText, False);
+  Result := Success;
+  if Result then
+    AResult := ParseResult;
+end;
+
 function TParser<T>.Require(AInfo: TParseInfo): T;
 begin
   Parse(AInfo, True);
-  Result := ParseResult;
-end;
-
-function TParser<T>.Require(AText: string): T;
-begin
-  Parse(AText, False);
   Result := ParseResult;
 end;
 
@@ -1564,10 +1579,20 @@ begin
   FParseResult := Value;
 end;
 
-function TObjectParser<T>.Require(AText: string): T;
+function TObjectParser<T>.Optional(AInfo: TParseInfo; out AResult: T): Boolean;
+begin
+  Parse(AInfo, False);
+  Result := Success;
+  if Result then
+    AResult := OwnParseResult;
+end;
+
+function TObjectParser<T>.Optional(AText: string; out AResult: T): Boolean;
 begin
   Parse(AText, False);
-  Result := OwnParseResult;
+  Result := Success;
+  if Result then
+    AResult := OwnParseResult;
 end;
 
 { TDecorateParser<T> }

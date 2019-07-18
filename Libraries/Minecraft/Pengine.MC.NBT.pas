@@ -1154,7 +1154,7 @@ end;
 
 class function TNBTCompound.Parse(AText: string): TNBTCompound;
 begin
-  Result := Parser.Require(AText);
+  Result := Parser.Optional(AText);
 end;
 
 class function TNBTCompound.Parser: IParser;
