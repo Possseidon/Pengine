@@ -1,4 +1,4 @@
-unit Pengine.LuaHeader;
+unit Pengine.Lua.Header;
 
 interface
 
@@ -7,7 +7,7 @@ uses
   System.AnsiStrings,
 
   Pengine.Utility,
-  Pengine.LuaConf;
+  Pengine.Lua.Conf;
 
 const
 
@@ -130,10 +130,10 @@ const
 
 type
 
-  lua_Number = Pengine.LuaConf.lua_Number;
-  lua_Integer = Pengine.LuaConf.lua_Integer;
-  lua_Unsigned = Pengine.LuaConf.lua_Unsigned;
-  lua_KContext = Pengine.LuaConf.lua_KContext;
+  lua_Number = Pengine.Lua.Conf.lua_Number;
+  lua_Integer = Pengine.Lua.Conf.lua_Integer;
+  lua_Unsigned = Pengine.Lua.Conf.lua_Unsigned;
+  lua_KContext = Pengine.Lua.Conf.lua_KContext;
 
   TLuaState = ^TLuaStateRec;
 

@@ -7,8 +7,8 @@ uses
   System.Rtti,
   System.TypInfo,
 
-  Pengine.LuaConf,
-  Pengine.LuaHeader,
+  Pengine.Lua.Conf,
+  Pengine.Lua.Header,
   Pengine.Collections,
   Pengine.HashCollections,
   Pengine.TimeManager;

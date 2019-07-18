@@ -1,4 +1,4 @@
-unit Pengine.LuaConf;
+unit Pengine.Lua.Conf;
 
 interface
 

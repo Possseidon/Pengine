@@ -1,4 +1,4 @@
-unit Pengine.LuaWrapper;
+unit Pengine.Lua.Wrapper;
 
 interface
 
@@ -7,7 +7,7 @@ uses
   System.TypInfo,
   System.SysUtils,
 
-  Pengine.LuaHeader,
+  Pengine.Lua.Header,
   Pengine.Lua,
   Pengine.EventHandling;
 

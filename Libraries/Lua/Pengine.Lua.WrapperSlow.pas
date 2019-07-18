@@ -1,4 +1,4 @@
-unit Pengine.LuaWrapper;
+unit Pengine.Lua.WrapperSlow;
 
 {$POINTERMATH ON}
 
@@ -10,7 +10,7 @@ uses
   System.TypInfo,
   System.Math,
 
-  Pengine.LuaHeader,
+  Pengine.Lua.Header,
   Pengine.Lua;
 
 // TODO: More interlocking
