@@ -13,6 +13,7 @@ uses
   Pengine.Collections,
   Pengine.Settings,
   Pengine.JSON,
+  Pengine.JSON.Serialization,
 
   Pengine.MC.TextComponent,
   Pengine.MC.General,

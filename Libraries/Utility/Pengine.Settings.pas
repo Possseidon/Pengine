@@ -13,6 +13,7 @@ uses
   Pengine.Hasher,
   Pengine.EventHandling,
   Pengine.JSON,
+  Pengine.JSON.Serialization,
   Pengine.Interfaces;
 
 type

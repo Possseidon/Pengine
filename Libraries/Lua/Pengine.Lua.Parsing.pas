@@ -93,7 +93,7 @@ type
     [ ] TLuaVariableNameIndexExpression
     >       prefixexp '.' Name
 
-    [ ] TLuaNameList
+    [X] TLuaNameList
     namelist ::= Name {',' Name}
 
     [ ] TLuaExpressionList
@@ -148,10 +148,10 @@ type
     [ ] TLuaFunctionDefinitionExpression
     functiondef ::= function funcbody
 
-    [ ] TLuaFunctionBody
+    [X] TLuaFunctionBody
     funcbody ::= '(' [parlist] ')' block end
 
-    [ ] TLuaParameterList
+    [X] TLuaParameterList
     parlist ::= namelist [',' '...'] | '...'
 
     [ ] TLuaTableConstructorExpression
@@ -166,7 +166,7 @@ type
     >         '[' exp ']' '=' exp |
     [ ] TLuaNamedField
     >         Name '=' exp |
-    [ ] (TLuaField)
+    [ ] TLuaValueField
     >         exp
 
     [ ] TLuaFieldSeparator -> enum
@@ -190,6 +190,7 @@ type
   TLuaTableConstructorExpression = class;
   TLuaLiteralStringExpression = class;
   TLuaVariableExpression = class;
+  TLuaExpressionList = class;
 
   // --- Helpers ---
 
@@ -225,8 +226,33 @@ type
     );
 
   TLuaFieldSeparator = (
-    fsColon,
+    fsComma,
     fsSemicolon
+    );
+
+  TLuaKeyword = (
+    kwAnd,
+    kwBreak,
+    kwDo,
+    kwElse,
+    kwElseif,
+    kwEnd,
+    kwFalse,
+    kwFor,
+    kwFunction,
+    kwGoto,
+    kwIf,
+    kwIn,
+    kwLocal,
+    kwNil,
+    kwNot,
+    kwOr,
+    kwRepeat,
+    kwReturn,
+    kwThen,
+    kwTrue,
+    kwUntil,
+    kwWhile
     );
 
   /// <summary>A simple identifier, used mainly for variable names.</summary>
@@ -261,6 +287,7 @@ type
 
   end;
 
+  /// <summary>A series of names, separated by periods or a final colon, marking a self-call.</summary>
   TLuaFunctionName = class
   public type
 
@@ -289,81 +316,337 @@ type
 
   end;
 
-  /// <summary>A list of names.</summary>
+  /// <summary>A list of comma separated variable names.</summary>
   TLuaNameList = class
+  public type
+
+    IParser = interface(IObjectParser<TLuaNameList>)
+      function GetAllowEmpty: Boolean;
+      procedure SetAllowEmpty(const Value: Boolean);
+      function GetAllowTrailingComma: Boolean;
+      procedure SetAllowTrailingComma(const Value: Boolean);
+
+      property AllowEmpty: Boolean read GetAllowEmpty write SetAllowEmpty;
+      property AllowTrailingComma: Boolean read GetAllowTrailingComma write SetAllowTrailingComma;
+
+      function HasTrailingComma: Boolean;
+
+    end;
+
+    TParser = class(TObjectParser<TLuaNameList>, IParser)
+    private
+      FAllowEmpty: Boolean;
+      FAllowTrailingComma: Boolean;
+      FHasTrailingComma: Boolean;
+
+      function GetAllowEmpty: Boolean;
+      procedure SetAllowEmpty(const Value: Boolean);
+      function GetAllowTrailingComma: Boolean;
+      procedure SetAllowTrailingComma(const Value: Boolean);
+
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+      property AllowEmpty: Boolean read GetAllowEmpty write SetAllowEmpty;
+      property AllowTrailingComma: Boolean read GetAllowTrailingComma write SetAllowTrailingComma;
+
+      function HasTrailingComma: Boolean;
+
+    end;
+
   private
-    // TODO: For parsing, in some cases this cannot be an empty list
     FNames: IList<TLuaName>;
+
+  public
+    constructor Create;
+
+    class function Parser: IParser;
+
+    property Names: IList<TLuaName> read FNames;
 
   end;
 
   /// <summary>A list of named parameters and an optional ellipsis at the end.</summary>
   TLuaParameterList = class
+  public type
+
+    IParser = IObjectParser<TLuaParameterList>;
+
+    TParser = class(TObjectParser<TLuaParameterList>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
-    FNameList: TLuaNameList;
+    FParameters: TLuaNameList;
     FEllipsis: Boolean;
+
+    procedure SetParameters(const Value: TLuaNameList);
+
+  public
+    destructor Destroy; override;
+
+    class function Parser: IParser;
+
+    property Parameters: TLuaNameList read FParameters write SetParameters;
+    property Ellipsis: Boolean read FEllipsis write FEllipsis;
 
   end;
 
-  /// <summary>Consists of a parameterlist and the actual function body.</summary>
+  /// <summary>Consists of a parentheses surrounded parameterlist and the actual function body.</summary>
   TLuaFunctionBody = class
+  public type
+
+    IParser = IObjectParser<TLuaFunctionBody>;
+
+    TParser = class(TObjectParser<TLuaFunctionBody>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FParameters: TLuaParameterList;
     FBlock: TLuaBlock;
 
+    procedure SetBlock(const Value: TLuaBlock);
+    procedure SetParameters(const Value: TLuaParameterList);
+
+  public
+    destructor Destroy; override;
+
+    class function Parser: IParser;
+
+    property Parameters: TLuaParameterList read FParameters write SetParameters;
+    property Block: TLuaBlock read FBlock write SetBlock;
+
   end;
 
   TLuaField = class
+  public type
+
+    IParser = IObjectParser<TLuaField>;
+
+    TParser = class(TObjectParser<TLuaField>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FValue: TLuaExpression;
     FFieldSeparator: TLuaFieldSeparator;
+       
+  public
+    class function Parser: IParser;
+
+  end;
+           
+  TLuaValueField = class(TLuaField)
+  public type
+
+    IParser = IObjectParser<TLuaField>;
+
+    TParser = class(TObjectParser<TLuaField>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
+  public
+    class function Parser: IParser;
 
   end;
 
   TLuaKeyValueField = class(TLuaField)
+  public type
+
+    IParser = IObjectParser<TLuaKeyValueField>;
+
+    TParser = class(TObjectParser<TLuaKeyValueField>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FKey: TLuaExpression;
+      
+  public
+    class function Parser: IParser;
 
   end;
 
   TLuaNamedField = class(TLuaField)
+  public type
+
+    IParser = IObjectParser<TLuaNamedField>;
+
+    TParser = class(TObjectParser<TLuaNamedField>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FName: TLuaName;
+            
+  public
+    class function Parser: IParser;
 
   end;
 
   TLuaFieldList = class
+  public type
+
+    IParser = IObjectParser<TLuaFieldList>;
+
+    TParser = class(TObjectParser<TLuaFieldList>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FFields: IObjectList<TLuaField>;
     FTrailingFieldSeparator: Boolean;
+     
+  public
+    class function Parser: IParser;
 
   end;
 
   TLuaArguments = class abstract
+  public type
+
+    IParser = IObjectParser<TLuaArguments>;
+
+    TParser = class(TObjectParser<TLuaArguments>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+           
+  public
+    class function Parser: IParser;
+
   end;
 
+  /// <summary>An optional comma separated list of expressions, surrounded by parentheses.</summary>
   TLuaParameterArguments = class(TLuaArguments)
+  public type
+
+    IParser = IObjectParser<TLuaParameterArguments>;
+
+    TParser = class(TObjectParser<TLuaParameterArguments>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
-    FParameterList: TLuaParameterList;
+    FParameters: TLuaExpressionList;
+        
+  public
+    class function Parser: IParser;
 
   end;
 
   TLuaTableArgument = class(TLuaArguments)
+  public type
+
+    IParser = IObjectParser<TLuaTableArgument>;
+
+    TParser = class(TObjectParser<TLuaTableArgument>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FTable: TLuaTableConstructorExpression;
+            
+  public
+    class function Parser: IParser;
 
   end;
 
   TLuaStringArgument = class(TLuaArguments)
+  public type
+
+    IParser = IObjectParser<TLuaStringArgument>;
+
+    TParser = class(TObjectParser<TLuaStringArgument>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FArgument: TLuaLiteralStringExpression;
+            
+  public
+    class function Parser: IParser;
 
   end;
 
   TLuaConditionalBlock = class
+  public type
+
+    IParser = IObjectParser<TLuaConditionalBlock>;
+
+    TParser = class(TObjectParser<TLuaConditionalBlock>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FCondition: TLuaExpression;
     FBlock: TLuaBlock;
+              
+  public
+    class function Parser: IParser;
 
   end;
 
@@ -442,6 +725,21 @@ type
   /// <code> nil</code>
   /// </summary>
   TLuaNilExpression = class(TLuaExpression)
+  public type
+
+    IParser = IObjectParser<TLuaNilExpression>;
+
+    TParser = class(TObjectParser<TLuaNilExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
+  public
+    class function Parser: IParser;
 
   end;
 
@@ -450,8 +748,24 @@ type
   /// <code> true<p/> false</code>
   /// </summary>
   TLuaBooleanExpression = class(TLuaExpression)
+  public type
+
+    IParser = IObjectParser<TLuaBooleanExpression>;
+
+    TParser = class(TObjectParser<TLuaBooleanExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FValue: Boolean;
+
+  public
+    class function Parser: IParser;
 
   end;
 
@@ -460,8 +774,24 @@ type
   /// <code> 1, 1.0, 1.5e3, 0xFF, 0x2.8</code>
   /// </summary>
   TLuaNumeralExpression = class(TLuaExpression)
+  public type
+
+    IParser = IObjectParser<TLuaNumeralExpression>;
+
+    TParser = class(TObjectParser<TLuaNumeralExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FNumeral: string;
+              
+  public
+    class function Parser: IParser;
 
   end;
 
@@ -470,8 +800,24 @@ type
   /// <code> 'single quoted'<p/> "double quoted"<p/> [[ multiline string ]]</code>
   /// </summary>
   TLuaLiteralStringExpression = class(TLuaExpression)
+  public type
+
+    IParser = IObjectParser<TLuaLiteralStringExpression>;
+
+    TParser = class(TObjectParser<TLuaLiteralStringExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FLiteral: string;
+            
+  public
+    class function Parser: IParser;
 
   end;
 
@@ -480,6 +826,21 @@ type
   /// <code> TODO</code>
   /// </summary>
   TLuaEllipsisExpression = class(TLuaExpression)
+  public type
+
+    IParser = IObjectParser<TLuaEllipsisExpression>;
+
+    TParser = class(TObjectParser<TLuaEllipsisExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+         
+  public
+    class function Parser: IParser;
 
   end;
 
@@ -488,8 +849,24 @@ type
   /// <code> function(param) end</code>
   /// </summary>
   TLuaFunctionDefinitionExpression = class(TLuaExpression)
+  public type
+
+    IParser = IObjectParser<TLuaFunctionDefinitionExpression>;
+
+    TParser = class(TObjectParser<TLuaFunctionDefinitionExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FFunctionBody: TLuaFunctionBody;
+       
+  public
+    class function Parser: IParser;
 
   end;
 
@@ -502,50 +879,178 @@ type
   /// </code>
   /// </summary>
   TLuaPrefixExpression = class abstract(TLuaExpression)
+  public type
+
+    IParser = IObjectParser<TLuaPrefixExpression>;
+
+    TParser = class(TObjectParser<TLuaPrefixExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+       
+  public
+    class function Parser: IParser;
+
   end;
 
   /// <summary>
   /// A variable with possible table access using dot and bracket notation.
   /// </summary>
   TLuaVariableExpression = class abstract(TLuaPrefixExpression)
+  public type
+
+    IParser = IObjectParser<TLuaVariableExpression>;
+
+    TParser = class(TObjectParser<TLuaVariableExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+         
+  public
+    class function Parser: IParser;
+
   end;
 
   TLuaVariableNameExpression = class(TLuaVariableExpression)
+  public type
+
+    IParser = IObjectParser<TLuaVariableNameExpression>;
+
+    TParser = class(TObjectParser<TLuaVariableNameExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FName: TLuaName;
+        
+  public
+    class function Parser: IParser;
 
   end;
 
   TLuaVariableIndexExpression = class(TLuaVariableExpression)
+  public type
+
+    IParser = IObjectParser<TLuaVariableIndexExpression>;
+
+    TParser = class(TObjectParser<TLuaVariableIndexExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FExpression: TLuaPrefixExpression;
     FIndex: TLuaExpression;
+       
+  public
+    class function Parser: IParser;
 
   end;
 
   TLuaVariableNameIndexExpression = class(TLuaVariableExpression)
+  public type
+
+    IParser = IObjectParser<TLuaVariableNameIndexExpression>;
+
+    TParser = class(TObjectParser<TLuaVariableNameIndexExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FExpression: TLuaPrefixExpression;
     FName: TLuaName;
+       
+  public
+    class function Parser: IParser;
 
   end;
 
   TLuaCallExpression = class(TLuaPrefixExpression)
+  public type
+
+    IParser = IObjectParser<TLuaCallExpression>;
+
+    TParser = class(TObjectParser<TLuaCallExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FExpression: TLuaPrefixExpression;
     FArguments: TLuaArguments;
+          
+  public
+    class function Parser: IParser;
 
   end;
 
   TLuaSelfCallExpression = class(TLuaCallExpression)
+  public type
+
+    IParser = IObjectParser<TLuaSelfCallExpression>;
+
+    TParser = class(TObjectParser<TLuaSelfCallExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FName: TLuaName;
+         
+  public
+    class function Parser: IParser;
 
   end;
 
   TLuaParanthesesExpression = class(TLuaPrefixExpression)
+  public type
+
+    IParser = IObjectParser<TLuaParanthesesExpression>;
+
+    TParser = class(TObjectParser<TLuaParanthesesExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FExpression: TLuaExpression;
+       
+  public
+    class function Parser: IParser;
 
   end;
 
@@ -554,8 +1059,24 @@ type
   /// <code> { 1, 2, 3, a = 42, ["key"] = "value" }</code>
   /// </summary>
   TLuaTableConstructorExpression = class(TLuaExpression)
+  public type
+
+    IParser = IObjectParser<TLuaTableConstructorExpression>;
+
+    TParser = class(TObjectParser<TLuaTableConstructorExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FFieldList: TLuaFieldList;
+       
+  public
+    class function Parser: IParser;
 
   end;
 
@@ -564,10 +1085,26 @@ type
   /// <code> value + 42</code>
   /// </summary>
   TLuaBinaryOperationExpression = class(TLuaExpression)
+  public type
+
+    IParser = IObjectParser<TLuaBinaryOperationExpression>;
+
+    TParser = class(TObjectParser<TLuaBinaryOperationExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FOperator: TLuaBinaryOp;
     FLeft: TLuaExpression;
     FRight: TLuaExpression;
+        
+  public
+    class function Parser: IParser;
 
   end;
 
@@ -576,9 +1113,25 @@ type
   /// <code> #list</code>
   /// </summary>
   TLuaUnaryOperationExpression = class(TLuaExpression)
+  public type
+
+    IParser = IObjectParser<TLuaUnaryOperationExpression>;
+
+    TParser = class(TObjectParser<TLuaUnaryOperationExpression>, IParser)
+    protected
+      function Parse: Boolean; override;
+
+    public
+      class function GetResultName: string; override;
+
+    end;
+
   private
     FOperator: TLuaUnaryOp;
     FExpression: TLuaExpression;
+       
+  public
+    class function Parser: IParser;
 
   end;
 
@@ -1125,6 +1678,67 @@ const
     TLuaFunctionStatement,
     TLuaLocalFunctionStatement,
     TLuaLocalAssignmentStatement
+    );
+
+  LuaBinaryOpNames: array [TLuaBinaryOp] of string = (
+    '+',
+    '-',
+    '*',
+    '/',
+    '//',
+    '^',
+    '%',
+    '&',
+    '~',
+    '|',
+    '>>',
+    '<<',
+    '..',
+    '<',
+    '<=',
+    '>',
+    '>=',
+    '==',
+    '~=',
+    'and',
+    'or'
+    );
+
+  LuaUnaryOpNames: array [TLuaUnaryOp] of string = (
+    '-',
+    'not',
+    '#',
+    '~'
+    );
+
+  LuaFieldSeparatorNames: array [TLuaFieldSeparator] of string = (
+    ',',
+    ';'
+    );
+
+  LuaKeywordNames: array [TLuaKeyword] of string = (
+    'and',
+    'break',
+    'do',
+    'else',
+    'elseif',
+    'end',
+    'false',
+    'for',
+    'function',
+    'goto',
+    'if',
+    'in',
+    'local',
+    'nil',
+    'not',
+    'or',
+    'repeat',
+    'return',
+    'then',
+    'true',
+    'until',
+    'while'
     );
 
 implementation
@@ -1731,10 +2345,22 @@ const
   Alpha = ['a' .. 'z', 'A' .. 'Z', '_'];
   Num = ['0' .. '9'];
   AlphaNum = Alpha + Num;
+var
+  Keyword: TLuaKeyword;
+  Marker: TLogMarker;
 begin
+  Marker := GetMarker;
   if not CharInSet(First, Alpha) then
     Exit(False);
   ParseResult := ReadWhile(AlphaNum);
+  for Keyword := Low(TLuaKeyword) to High(TLuaKeyword) do
+  begin
+    if ParseResult.Name = LuaKeywordNames[Keyword] then
+    begin
+      Log(Marker, 'Keywords cannot be used as a name.');
+      Break;
+    end;
+  end;
   Result := True;
 end;
 
@@ -1784,6 +2410,695 @@ begin
 end;
 
 class function TLuaFunctionName.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaNameList.TParser }
+
+function TLuaNameList.TParser.GetAllowEmpty: Boolean;
+begin
+  Result := FAllowEmpty;
+end;
+
+function TLuaNameList.TParser.GetAllowTrailingComma: Boolean;
+begin
+  Result := FAllowTrailingComma;
+end;
+
+class function TLuaNameList.TParser.GetResultName: string;
+begin
+  Result := 'name-list';
+end;
+
+function TLuaNameList.TParser.HasTrailingComma: Boolean;
+begin
+  Result := FHasTrailingComma;
+end;
+
+function TLuaNameList.TParser.Parse: Boolean;
+var
+  Name: TLuaName;
+begin
+  ParseResult := TLuaNameList.Create;
+  if AllowEmpty then
+  begin
+    if not TLuaName.Parser.Optional(Info, Name) then
+      Exit(True);
+  end
+  else
+    Name := TLuaName.Parser.Require(Info);
+
+  while True do
+  begin
+    ParseResult.Names.Add(Name);
+    SkipWhitespace;
+    if not StartsWith(',') then
+      Exit(True);
+    SkipWhitespace;
+    if AllowTrailingComma then
+    begin
+      if not TLuaName.Parser.Optional(Info, Name) then
+      begin
+        FHasTrailingComma := True;
+        Break;
+      end;
+    end
+    else
+      Name := TLuaName.Parser.Require(Info);
+  end;
+
+  Result := True;
+end;
+
+procedure TLuaNameList.TParser.SetAllowEmpty(const Value: Boolean);
+begin
+  FAllowEmpty := Value;
+end;
+
+procedure TLuaNameList.TParser.SetAllowTrailingComma(const Value: Boolean);
+begin
+  FAllowTrailingComma := Value;
+end;
+
+{ TLuaNameList }
+
+constructor TLuaNameList.Create;
+begin
+  FNames := TList<TLuaName>.Create;
+end;
+
+class function TLuaNameList.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaParameterList.TParser }
+
+class function TLuaParameterList.TParser.GetResultName: string;
+begin
+  Result := 'parameter-list';
+end;
+
+function TLuaParameterList.TParser.Parse: Boolean;
+var
+  NameListParser: TLuaNameList.IParser;
+begin
+  ParseResult := TLuaParameterList.Create;
+  NameListParser := TLuaNameList.Parser;
+  NameListParser.AllowEmpty := True;
+  NameListParser.AllowTrailingComma := True;
+  ParseResult.Parameters := NameListParser.Require(Info);
+  SkipWhitespace;
+  if ParseResult.Parameters.Names.Empty or NameListParser.HasTrailingComma then
+  begin
+    if StartsWith('...') then
+      ParseResult.Ellipsis := True
+    else if NameListParser.HasTrailingComma then
+      Log(1, 'Parameter name or ellipsis expected.');
+  end;
+  Result := True;
+end;
+
+{ TLuaParameterList }
+
+destructor TLuaParameterList.Destroy;
+begin
+  FParameters.Free;
+  inherited;
+end;
+
+class function TLuaParameterList.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+procedure TLuaParameterList.SetParameters(const Value: TLuaNameList);
+begin
+  FParameters.Free;
+  FParameters := Value;
+end;
+
+{ TLuaFunctionBody }
+
+destructor TLuaFunctionBody.Destroy;
+begin
+  FParameters.Free;
+  FBlock.Free;
+  inherited;
+end;
+
+class function TLuaFunctionBody.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+procedure TLuaFunctionBody.SetBlock(const Value: TLuaBlock);
+begin
+  FBlock.Free;
+  FBlock := Value;
+end;
+
+procedure TLuaFunctionBody.SetParameters(const Value: TLuaParameterList);
+begin
+  FParameters.Free;
+  FParameters := Value;
+end;
+
+{ TLuaFunctionBody.TParser }
+
+class function TLuaFunctionBody.TParser.GetResultName: string;
+begin
+  Result := 'function-body';
+end;
+
+function TLuaFunctionBody.TParser.Parse: Boolean;
+begin
+  if not StartsWith('(') then
+    Exit(False);
+  SkipWhitespace;
+  ParseResult := TLuaFunctionBody.Create;
+  ParseResult.Parameters := TLuaParameterList.Parser.Require(Info);
+  SkipWhitespace;
+  if not StartsWith(')') then
+    Log(1, 'Closing parantheses for function definition expected.');
+  SkipWhitespace;
+  ParseResult.Block := TLuaBlock.Parser.Require(Info);
+  SkipWhitespace;
+  if not StartsWith('end') then
+    Log(1, 'Closing "end" for function definition expected.');
+  Result := True;
+end;
+
+{ TLuaField.TParser }
+
+class function TLuaField.TParser.GetResultName: string;
+begin
+  Result := 'field';
+end;
+
+function TLuaField.TParser.Parse: Boolean;
+begin                           
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaKeyValueField.TParser }
+
+class function TLuaKeyValueField.TParser.GetResultName: string;
+begin
+  Result := 'key-value-field';
+end;
+
+function TLuaKeyValueField.TParser.Parse: Boolean;
+begin                       
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaNamedField.TParser }
+
+class function TLuaNamedField.TParser.GetResultName: string;
+begin
+  Result := 'named-field';
+end;
+
+function TLuaNamedField.TParser.Parse: Boolean;
+begin                   
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaFieldList.TParser }
+
+class function TLuaFieldList.TParser.GetResultName: string;
+begin
+  Result := 'name-list';
+end;
+
+function TLuaFieldList.TParser.Parse: Boolean;
+begin                 
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaArguments.TParser }
+
+class function TLuaArguments.TParser.GetResultName: string;
+begin
+  Result := 'arguments';
+end;
+
+function TLuaArguments.TParser.Parse: Boolean;
+begin                                                  
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaParameterArguments.TParser }
+
+class function TLuaParameterArguments.TParser.GetResultName: string;
+begin
+  Result := 'parameter-arguments';
+end;
+
+function TLuaParameterArguments.TParser.Parse: Boolean;
+begin                           
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaTableArgument.TParser }
+
+class function TLuaTableArgument.TParser.GetResultName: string;
+begin
+  Result := 'table-argument';
+end;
+
+function TLuaTableArgument.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaStringArgument.TParser }
+
+class function TLuaStringArgument.TParser.GetResultName: string;
+begin
+  Result := 'string-argument';
+end;
+
+function TLuaStringArgument.TParser.Parse: Boolean;
+begin                       
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaConditionalBlock.TParser }
+
+class function TLuaConditionalBlock.TParser.GetResultName: string;
+begin
+  Result := 'conditional-block';
+end;
+
+function TLuaConditionalBlock.TParser.Parse: Boolean;
+begin                         
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaNilExpression.TParser }
+
+class function TLuaNilExpression.TParser.GetResultName: string;
+begin
+  Result := 'nil';
+end;
+
+function TLuaNilExpression.TParser.Parse: Boolean;
+begin           
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaBooleanExpression.TParser }
+
+class function TLuaBooleanExpression.TParser.GetResultName: string;
+begin
+  Result := 'boolean';
+end;
+
+function TLuaBooleanExpression.TParser.Parse: Boolean;
+begin               
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaNumeralExpression.TParser }
+
+class function TLuaNumeralExpression.TParser.GetResultName: string;
+begin
+  Result := 'numeral';
+end;
+
+function TLuaNumeralExpression.TParser.Parse: Boolean;
+begin               
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaLiteralStringExpression.TParser }
+
+class function TLuaLiteralStringExpression.TParser.GetResultName: string;
+begin
+  Result := 'literal-string';
+end;
+
+function TLuaLiteralStringExpression.TParser.Parse: Boolean;
+begin                      
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaEllipsisExpression.TParser }
+
+class function TLuaEllipsisExpression.TParser.GetResultName: string;
+begin
+  Result := 'ellipsis';
+end;
+
+function TLuaEllipsisExpression.TParser.Parse: Boolean;
+begin                                                                     
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaFunctionDefinitionExpression.TParser }
+
+class function TLuaFunctionDefinitionExpression.TParser.GetResultName: string;
+begin
+  Result := 'function-definition';
+end;
+
+function TLuaFunctionDefinitionExpression.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaPrefixExpression.TParser }
+
+class function TLuaPrefixExpression.TParser.GetResultName: string;
+begin
+  Result := 'prefix-expression';
+end;
+
+function TLuaPrefixExpression.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaVariableExpression.TParser }
+
+class function TLuaVariableExpression.TParser.GetResultName: string;
+begin
+  Result := 'variable';
+end;
+
+function TLuaVariableExpression.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaVariableNameExpression.TParser }
+
+class function TLuaVariableNameExpression.TParser.GetResultName: string;
+begin
+  Result := 'variable-name';
+end;
+
+function TLuaVariableNameExpression.TParser.Parse: Boolean;
+begin                     
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaVariableIndexExpression.TParser }
+
+class function TLuaVariableIndexExpression.TParser.GetResultName: string;
+begin
+  Result := 'variable-index'
+end;
+
+function TLuaVariableIndexExpression.TParser.Parse: Boolean;
+begin                      
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaVariableNameIndexExpression.TParser }
+
+class function TLuaVariableNameIndexExpression.TParser.GetResultName: string;
+begin
+  Result := 'variable-name-index';
+end;
+
+function TLuaVariableNameIndexExpression.TParser.Parse: Boolean;
+begin                           
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaCallExpression.TParser }
+
+class function TLuaCallExpression.TParser.GetResultName: string;
+begin
+  Result := 'call';  
+end;
+
+function TLuaCallExpression.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaSelfCallExpression.TParser }
+
+class function TLuaSelfCallExpression.TParser.GetResultName: string;
+begin
+  Result := 'self-call';
+end;
+
+function TLuaSelfCallExpression.TParser.Parse: Boolean;
+begin                 
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaParanthesesExpression.TParser }
+
+class function TLuaParanthesesExpression.TParser.GetResultName: string;
+begin
+  Result := 'parentheses-expression';
+end;
+
+function TLuaParanthesesExpression.TParser.Parse: Boolean;
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaTableConstructorExpression.TParser }
+
+class function TLuaTableConstructorExpression.TParser.GetResultName: string;
+begin
+  Result := 'table-constructor';
+end;
+
+function TLuaTableConstructorExpression.TParser.Parse: Boolean;
+begin                         
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaBinaryOperationExpression.TParser }
+
+class function TLuaBinaryOperationExpression.TParser.GetResultName: string;
+begin
+  Result := 'binary-operation';
+end;
+
+function TLuaBinaryOperationExpression.TParser.Parse: Boolean;
+begin                          
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaUnaryOperationExpression.TParser }
+
+class function TLuaUnaryOperationExpression.TParser.GetResultName: string;
+begin
+  Result := 'unary-operation';
+end;
+
+function TLuaUnaryOperationExpression.TParser.Parse: Boolean;
+begin                       
+  raise ENotImplemented.Create(ClassName + '.Parse');
+end;
+
+{ TLuaField }
+
+class function TLuaField.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaKeyValueField }
+
+class function TLuaKeyValueField.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaNamedField }
+
+class function TLuaNamedField.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaFieldList }
+
+class function TLuaFieldList.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaArguments }
+
+class function TLuaArguments.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaParameterArguments }
+
+class function TLuaParameterArguments.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaTableArgument }
+
+class function TLuaTableArgument.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaStringArgument }
+
+class function TLuaStringArgument.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaConditionalBlock }
+
+class function TLuaConditionalBlock.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaNilExpression }
+
+class function TLuaNilExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaBooleanExpression }
+
+class function TLuaBooleanExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaNumeralExpression }
+
+class function TLuaNumeralExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaLiteralStringExpression }
+
+class function TLuaLiteralStringExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaEllipsisExpression }
+
+class function TLuaEllipsisExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaFunctionDefinitionExpression }
+
+class function TLuaFunctionDefinitionExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaPrefixExpression }
+
+class function TLuaPrefixExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaVariableExpression }
+
+class function TLuaVariableExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaVariableNameExpression }
+
+class function TLuaVariableNameExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaVariableIndexExpression }
+
+class function TLuaVariableIndexExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaVariableNameIndexExpression }
+
+class function TLuaVariableNameIndexExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaCallExpression }
+
+class function TLuaCallExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaSelfCallExpression }
+
+class function TLuaSelfCallExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaParanthesesExpression }
+
+class function TLuaParanthesesExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaTableConstructorExpression }
+
+class function TLuaTableConstructorExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaBinaryOperationExpression }
+
+class function TLuaBinaryOperationExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaUnaryOperationExpression }
+
+class function TLuaUnaryOperationExpression.Parser: IParser;
+begin
+  Result := TParser.Create;
+end;
+
+{ TLuaValueField.TParser }
+
+class function TLuaValueField.TParser.GetResultName: string;
+begin
+  Result := 'value-field';
+end;
+
+function TLuaValueField.TParser.Parse: Boolean;
+begin                                  
+  raise ENotImplemented.Create(ClassName + '.Parse');  
+end;
+
+{ TLuaValueField }
+
+class function TLuaValueField.Parser: IParser;
 begin
   Result := TParser.Create;
 end;

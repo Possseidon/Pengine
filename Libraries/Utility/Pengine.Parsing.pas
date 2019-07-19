@@ -406,6 +406,7 @@ type
   end;
 
   IParserBase = interface
+  ['{5C538E2E-4555-40E3-9666-8CA0297150D1}']
     function GetSuccess: Boolean;
     function GetContext: TOwned<TParseInfo.TContext>;
     function GetTokenCount: Integer;
@@ -420,6 +421,7 @@ type
   end;
 
   IParser = interface(IParserBase)
+  ['{D3C30328-B20B-4C5C-A1A9-078D5C4245C9}']
     procedure Parse(AText: string; AGenerateInfo: Boolean); overload;
     procedure Parse(AInfo: TParseInfo; ARequired: Boolean); overload;
 
@@ -446,6 +448,7 @@ type
   end;
 
   IDecorateParser = interface(IParserBase)
+  ['{2D5548D5-25F0-4273-9E2B-9B5100C2E03B}']
   end;
 
   IDecorateParser<T: class> = interface(IDecorateParser)
@@ -541,7 +544,7 @@ type
   end;
 
   /// <summary>A parser for a specific type.</summary>
-  TParser<T> = class abstract(TParser, IParser<T>)
+  TParser<T> = class abstract(TParser, IParser<T>, IParser)
   private
     FParseResult: T;
 
@@ -559,7 +562,7 @@ type
   end;
 
   /// <summary>Creates a new object, that can be taken ownage of by using OwnParseResult.</summary>
-  TObjectParser<T: class> = class abstract(TParser, IObjectParser<T>)
+  TObjectParser<T: class> = class abstract(TParser, IObjectParser<T>, IParser)
   private
     FParseResult: T;
 

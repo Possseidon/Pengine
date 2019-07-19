@@ -14,6 +14,7 @@ uses
   Pengine.Parsing,
   Pengine.Utility,
   Pengine.JSON,
+  Pengine.JSON.Serialization,
   Pengine.IntMaths,
 
   Pengine.MC.Namespace,

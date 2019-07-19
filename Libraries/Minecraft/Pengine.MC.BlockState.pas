@@ -15,6 +15,7 @@ uses
   Pengine.Utility,
   Pengine.Settings,
   Pengine.JSON,
+  Pengine.JSON.Serialization,
 
   Pengine.MC.Namespace,
   Pengine.MC.NBT,
