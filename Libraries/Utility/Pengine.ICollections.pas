@@ -23,8 +23,9 @@ type
 
   private
     class function HashString(A: UnicodeString): Cardinal; overload; static; inline;
-    class function HashString(A: WideString): Cardinal; overload; static; inline;
+    {$IFDEF WINDOWS}
     class function HashString(A: AnsiString): Cardinal; overload; static; inline;
+    {$ENDIF}
 
   public
     class constructor Create;
@@ -1608,12 +1609,12 @@ begin
       else
         Result := CompareMem(@A, @B, SizeOf(T));
       end;
-    tkWString:
-      Result := PWideString(@A)^ = PWideString(@B)^;
     tkUString:
       Result := PUnicodeString(@A)^ = PUnicodeString(@B)^;
+    {$IFDEF WINDOWS}
     tkLString:
       Result := PAnsiString(@A)^ = PAnsiString(@B)^;
+    {$ENDIF}
   else
     raise EDefaultError.Create('Unsupported object equation.');
   end;
@@ -1660,12 +1661,12 @@ begin
 
       end;
     }
-    tkWString:
-      Result := HashString(PWideString(@A)^);
     tkUString:
       Result := HashString(PUnicodeString(@A)^);
+    {$IFDEF WINDOWS}
     tkLString:
       Result := HashString(PAnsiString(@A)^);
+    {$ENDIF}
   else
     raise EDefaultError.Create('Unsupported object hashing.');
   end;
@@ -1676,15 +1677,12 @@ begin
   Result := THashBobJenkins.GetHashValue(A[1], Length(A) * SizeOf(WideChar));
 end;
 
-class function TDefault<T>.HashString(A: WideString): Cardinal;
-begin
-  Result := THashBobJenkins.GetHashValue(A[1], Length(A) * SizeOf(WideChar));
-end;
-
+{$IFDEF WINDOWS}
 class function TDefault<T>.HashString(A: AnsiString): Cardinal;
 begin
   Result := THashBobJenkins.GetHashValue(A[1], Length(A) * SizeOf(AnsiChar));
 end;
+{$ENDIF}
 
 class function TDefault<T>.Compare(A, B: T): Boolean;
 type
@@ -1712,8 +1710,10 @@ begin
       Exit(PShortInt(@A)^ < PShortInt(@B)^);
     if TypeInfo(T) = TypeInfo(Byte) then
       Exit(PByte(@A)^ < PByte(@B)^);
+    {$IFDEF WINDOWS}
     if TypeInfo(T) = TypeInfo(AnsiChar) then
       Exit(PAnsiChar(@A)^ < PAnsiChar(@B)^);
+    {$ENDIF}
 
     // 2 Byte
     if TypeInfo(T) = TypeInfo(SmallInt) then
@@ -1746,10 +1746,10 @@ begin
       Exit(PExtended(@A)^ < PExtended(@B)^);
 
     // strings
+    {$IFDEF WINDOWS}
     if TypeInfo(T) = TypeInfo(AnsiString) then
       Exit(PAnsiString(@A)^ < PAnsiString(@B)^);
-    if TypeInfo(T) = TypeInfo(WideString) then
-      Exit(PWideString(@A)^ < PWideString(@B)^);
+    {$ENDIF}
     if TypeInfo(T) = TypeInfo(UnicodeString) then
       Exit(PUnicodeString(@A)^ < PUnicodeString(@B)^);
     if TypeInfo(T) = TypeInfo(RawByteString) then

@@ -3,8 +3,6 @@ unit Pengine.Utility;
 interface
 
 uses
-  Winapi.Windows,
-
   System.SysUtils,
 
   Pengine.Interfaces;
@@ -108,41 +106,62 @@ function PrettyFloat(AValue: Double): string; overload;
 
 function ContainsOnly(AText: string; ASet: TSysCharSet): Boolean;
 
-function ExpandEnvVars(AText: string): string;
-
 implementation
 
 function GetBitCount(ANum: NativeUInt): Integer;
+{$IF defined(CPUX64)}
 asm
-  {$IFDEF WIN64}
   POPCNT    rax, ANum
-  {$ELSE}
-  POPCNT    eax, ANum
-  {$ENDIF}
 end;
+{$ELSEIF defined(WIN32)}
+asm
+  POPCNT    eax, ANum
+end;
+{$ELSE}
+begin
+  raise ENotImplemented.Create('GetBitCount');
+end;
+{$ENDIF}
 
 {$IFOPT Q+}{$DEFINE OVERFLOWCHECKSON}{$ENDIF}
 {$Q-}
 
 function Rol(I: Cardinal; N: ShortInt): Cardinal;
+{$IF defined(CPUX64)}
 asm
-{$IFDEF WIN64}
   MOV eax, I
   MOV cl, N
   ROL eax, cl
-{$ELSE}
+end;
+{$ELSEIF defined(WIN32)}
+asm
   MOV cl, N
   ROL I, cl
-{$ENDIF}
 end;
+{$ELSE}
+begin
+  raise ENotImplemented.Create('Rol');
+end;
+{$ENDIF}
 
 {$IFDEF OVERFLOWCHECKSON}{$Q+}
 {$ENDIF}
 
 function ILog2(AValue: Cardinal): Integer;
+{$IF WINDOWS}
 asm
   BSR eax, AValue
 end;
+{$ELSE}
+begin
+  Result := -1;
+  while AValue <> 0 do
+  begin
+    AValue := AValue shr 1;
+    Inc(Result);
+  end;
+end;
+{$ENDIF}
 
 function PrettyFloat(AValue: Single): string;
 begin
@@ -162,18 +181,6 @@ begin
     if not CharInSet(C, ASet) then
       Exit(False);
   Result := True;
-end;
-
-function ExpandEnvVars(AText: string): string;
-var
-  Len: Cardinal;
-begin
-  if AText.IsEmpty then
-    Exit('');
-  Len := ExpandEnvironmentStrings(PChar(AText), nil, 0);
-  SetLength(Result, Len);
-  ExpandEnvironmentStrings(PChar(AText), PChar(Result), Len);
-  Result := TrimRight(Result);
 end;
 
 { EOptWrapperNoValue }
