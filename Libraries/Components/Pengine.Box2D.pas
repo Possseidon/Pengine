@@ -14,9 +14,11 @@ uses
   Box2D.Rope,
   Box2DTypes,
 
-  Pengine.Vector,
-  Pengine.CollectionInterfaces,
+  // TODO: Change to ICollections, make wrappers to classes
   Pengine.Collections,
+  Pengine.CollectionInterfaces,
+
+  Pengine.Vector,
   Pengine.EventHandling;
 
 type
@@ -483,7 +485,7 @@ type
 
     TLocations = TRefArray<TLocation2>;
 
-    TEventInfo = TSenderEventInfo<TBody>;
+    TEventInfo = TEventInfo<TBody>;
 
     TEvent = TEvent<TEventInfo>;
 
@@ -1485,7 +1487,7 @@ type
 
     end;
 
-    TEventInfo = TSenderEventInfo<TWorld>;
+    TEventInfo = TEventInfo<TWorld>;
 
     TEvent = TEvent<TEventInfo>;
 

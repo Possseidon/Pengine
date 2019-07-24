@@ -11,32 +11,40 @@ type
 
   EEventHandler = class(Exception);
 
+  IEventInfo = interface
+  end;
+
   /// <summary>An event with a generic sender.</summary>
-  ISenderEvent<T> = interface
-    ['{E8AB15DA-3FBC-4FC2-8B4B-A9011DFD6B6B}']
-    function Sender: T;
+  IEventInfo<T> = interface(IEventInfo)
+    function GetSender: T;
+
+    property Sender: T read GetSender;
+
   end;
 
-  /// <summary>An event, that can get canceled.</summary>
-  /// <remarks>Once canceled, it is not possible to revert that.<p/>
-  /// Do not test for canceled in an event handler.</remarks>
-  ICancelableEvent = interface
-    ['{1F5810A2-9EFC-4860-A9D7-26846ACCA4F8}']
-    function Canceled: Boolean;
-    procedure Cancel;
+  TEventInfo = class(TInterfacedObject, IEventInfo);
+
+  TEventInfo<T: class> = class(TEventInfo, IEventInfo<T>, IEventInfo)
+  private
+    FSender: T;
+    function GetSender: T;
+
+  public
+    constructor Create(ASender: T);
+
+    property Sender: T read GetSender;
+
   end;
 
-  TEventInfo = class(TInterfacedObject);
+  IEventSubscription = interface
+  end;
 
-  TEvent<T: TEventInfo> = record
+  TEvent<T: IEventInfo> = record
   public type
 
     THandler = reference to procedure(AInfo: T);
 
-    IEventContext = interface
-    end;
-
-    TEventContext = class(TInterfacedObject, IEventContext)
+    TSubscription = class(TInterfacedObject, IEventSubscription)
     private
       FHandlers: IList<THandler>;
       FHandler: THandler;
@@ -55,7 +63,7 @@ type
       constructor Create(AHandlers: IList<THandler>);
 
       /// <summary>Adds a new event-handler to the list.</summary>
-      function Add(AHandler: THandler): IEventContext; overload;
+      function Add(AHandler: THandler): IEventSubscription; overload;
 
     end;
 
@@ -95,44 +103,40 @@ type
 
   end;
 
-  TSenderEventInfo<T> = class(TEventInfo, IEventSender<T>)
-  private
-    FSender: T;
-
-  public
-    constructor Create(ASender: T);
-
-    function Sender: T;
-
-  end;
-
-  TCancelEventInfo<T> = class(TEventInfo, IEventCancelable)
-  private
-    FCanceled: Boolean;
-
-  public
-    function Canceled: Boolean;
-    procedure Cancel;
-
-  end;
-
-  TSenderCancelEventInfo<T> = class(TSenderEventInfo<T>, IEventCancelable)
-  private
-    FCanceled: Boolean;
-
-  public
-    function Canceled: Boolean;
-    procedure Cancel;
-
-  end;
-
 implementation
+
+{ TEventInfo<T> }
+
+constructor TEventInfo<T>.Create(ASender: T);
+begin
+  FSender := ASender;
+end;
+
+function TEventInfo<T>.GetSender: T;
+begin
+  Result := FSender;
+end;
+
+{ TEvent<T>.TSubscription }
+
+constructor TEvent<T>.TSubscription.Create(AHandlers: IList<THandler>; AHandler: THandler);
+begin
+  FHandlers := AHandlers;
+  FHandler := AHandler;
+  FHandlers.Add(FHandler);
+end;
+
+destructor TEvent<T>.TSubscription.Destroy;
+begin
+  Assert(FHandlers.Remove(FHandler), 'Event-Handler removed already');
+  inherited;
+end;
 
 { TEvent<T> }
 
 function TEvent<T>.Access: TAccess;
 begin
-  Result := TAccess(FHandlers);
+  Result.Create(Handlers);
 end;
 
 procedure TEvent<T>.Disable;
@@ -146,9 +150,12 @@ begin
 end;
 
 procedure TEvent<T>.Execute(AInfo: T);
+var
+  Handler: THandler;
 begin
   if HasHandler and Enabled then
-  
+    for Handler in FHandlers do
+      Handler(AInfo);
 end;
 
 function TEvent<T>.GetDisabled: Boolean;
@@ -163,26 +170,26 @@ end;
 
 function TEvent<T>.GetHandlers: IList<THandler>;
 begin
+  if FHandlers = nil then
+    FHandlers := TList<THandler>.Create;
   Result := FHandlers;
 end;
 
 function TEvent<T>.HasHandler: Boolean;
 begin
-  Result := (FHandlers = nil) or FHandlers.Empty;
+  Result := (FHandlers <> nil) and not FHandlers.Empty;
 end;
 
-{ TEvent<T>.TEventContext }
+{ TEvent<T>.TAccess }
 
-constructor TEvent<T>.TEventContext.Create(AHandlers: IList<THandler>; AHandler: THandler);
+function TEvent<T>.TAccess.Add(AHandler: THandler): IEventSubscription;
+begin
+  Result := TSubscription.Create(FHandlers, AHandler);
+end;
+
+constructor TEvent<T>.TAccess.Create(AHandlers: IList<THandler>);
 begin
   FHandlers := AHandlers;
-  FHandler := AHandler;
-end;
-
-destructor TEvent<T>.TEventContext.Destroy;
-begin
-  FHandlers.Remove(FHandler);
-  inherited;
 end;
 
 end.

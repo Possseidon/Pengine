@@ -1397,17 +1397,23 @@ type
 
     TChanges = set of TChange;
 
-    TChangeEventInfo = class(TEventInfo, IEventSender<TLocation2>)
+    IChangeEventInfo = interface(IEventInfo<TLocation2>)
+      function GetChanges: TChanges;
+
+      property Changes: TChanges read GetChanges;
+
+    end;
+
+    TChangeEventInfo = class(TEventInfo<TLocation2>, IChangeEventInfo)
     private
-      FSender: TLocation2;
       FChanges: TChanges;
+
+      function GetChanges: TChanges;
 
     public
       constructor Create(ASender: TLocation2; AChanges: TChanges);
 
-      function Sender: TLocation2;
-
-      property Changes: TChanges read FChanges;
+      property Changes: TChanges read GetChanges;
 
     end;
 
@@ -1415,6 +1421,7 @@ type
 
   private
     FParent: TLocation2;
+    FParentSubscription: IEventSubscription;
     FPos: TVector2;
     FOffset: TVector2;
     FScale: TVector2;
@@ -1452,7 +1459,6 @@ type
 
   public
     constructor Create;
-    destructor Destroy; override;
 
     procedure Assign(ALocation: TLocation2);
     function Copy: TLocation2;
@@ -1495,17 +1501,22 @@ type
 
     TChanges = set of TChange;
 
-    TChangeEventInfo = class(TEventInfo, IEventSender<TLocation3>)
+    IChangeEventInfo = interface(IEventInfo<TLocation3>)
+      function GetChanges: TChanges;
+
+      property Changes: TChanges read GetChanges;
+
+    end;
+
+    TChangeEventInfo = class(TEventInfo<TLocation3>, IChangeEventInfo)
     private
-      FSender: TLocation3;
       FChanges: TChanges;
+        function GetChanges: TChanges;
 
     public
       constructor Create(ASender: TLocation3; AChanges: TChanges);
 
-      function Sender: TLocation3;
-
-      property Changes: TChanges read FChanges;
+      property Changes: TChanges read GetChanges;
 
     end;
 
@@ -1538,6 +1549,7 @@ type
     FChanged: Boolean;
 
     FParent: TLocation3;
+    FParentSubscription: IEventSubscription;
 
     FOnChanged: TChangeEvent;
 
@@ -4476,13 +4488,13 @@ end;
 
 constructor TLocation3.TChangeEventInfo.Create(ASender: TLocation3; AChanges: TChanges);
 begin
-  FSender := ASender;
+  inherited Create(ASender);
   FChanges := AChanges;
 end;
 
-function TLocation3.TChangeEventInfo.Sender: TLocation3;
+function TLocation3.TChangeEventInfo.GetChanges: TChanges;
 begin
-  Result := FSender;
+  Result := FChanges;
 end;
 
 { TLocation3 }
@@ -4814,11 +4826,9 @@ procedure TLocation3.SetParent(const Value: TLocation3);
 begin
   if FParent = Value then
     Exit;
-  if FParent <> nil then
-    FParent.OnChanged.Remove(ParentChanged);
   FParent := Value;
   if FParent <> nil then
-    FParent.OnChanged.Add(ParentChanged);
+    FParentSubscription := FParent.OnChanged.Add(ParentChanged);
   Changed(lcParent);
 end;
 
@@ -4834,10 +4844,7 @@ constructor TLocation3.Create(AInverted: Boolean);
 begin
   FMatrixChanged := True;
   FInverted := AInverted;
-  FPos := 0;
-  FOffset := 0;
   FScale := 1;
-  FRotation := 0;
   FChanged := True;
 end;
 
@@ -5659,13 +5666,13 @@ end;
 
 constructor TLocation2.TChangeEventInfo.Create(ASender: TLocation2; AChanges: TChanges);
 begin
-  FSender := ASender;
+  inherited Create(ASender);
   FChanges := AChanges;
 end;
 
-function TLocation2.TChangeEventInfo.Sender: TLocation2;
+function TLocation2.TChangeEventInfo.GetChanges: TChanges;
 begin
-  Result := FSender;
+  Result := FChanges;
 end;
 
 { TLocation2 }
@@ -5674,11 +5681,9 @@ procedure TLocation2.SetParent(const Value: TLocation2);
 begin
   if Parent = Value then
     Exit;
-  if Parent <> nil then
-    Parent.OnChanged.Remove(ParentChanged);
   FParent := Value;
   if Parent <> nil then
-    Parent.OnChanged.Add(ParentChanged);
+    FParentSubscription := Parent.OnChanged.Add(ParentChanged);
   Changed(lcParent);
 end;
 
@@ -5853,13 +5858,6 @@ end;
 constructor TLocation2.Create;
 begin
   FScale := 1;
-end;
-
-destructor TLocation2.Destroy;
-begin
-  if Parent <> nil then
-    Parent.OnChanged.Remove(ParentChanged);
-  inherited;
 end;
 
 procedure TLocation2.EndUpdate;
