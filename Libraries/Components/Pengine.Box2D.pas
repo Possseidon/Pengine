@@ -14,7 +14,6 @@ uses
   Box2D.Rope,
   Box2DTypes,
 
-  Pengine.TimeManager,
   Pengine.Vector,
   Pengine.CollectionInterfaces,
   Pengine.Collections,
@@ -1544,8 +1543,8 @@ type
     property VelocityIterations: Integer read FVelocityIterations write FVelocityIterations;
     property PositionIterations: Integer read FPositionIterations write FPositionIterations;
 
-    procedure Step(ATimeStep: TSeconds);
-    procedure StepNoUpdate(ATimeStep: TSeconds);
+    procedure Step(ATimeStep: Single);
+    procedure StepNoUpdate(ATimeStep: Single);
 
     procedure UpdateLocations;
 
@@ -1677,13 +1676,13 @@ begin
   Wrapper.SetGravity(b2VecConv(Gravity));
 end;
 
-procedure TWorld.Step(ATimeStep: TSeconds);
+procedure TWorld.Step(ATimeStep: Single);
 begin
   Wrapper.Step(ATimeStep, VelocityIterations, PositionIterations);
   UpdateLocations;
 end;
 
-procedure TWorld.StepNoUpdate(ATimeStep: TSeconds);
+procedure TWorld.StepNoUpdate(ATimeStep: Single);
 begin
   Wrapper.Step(ATimeStep, VelocityIterations, PositionIterations);
 end;
