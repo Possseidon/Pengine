@@ -2599,7 +2599,8 @@ end;
 
 function TLuaField.TParser.Parse: Boolean;
 begin                           
-  raise ENotImplemented.Create(ClassName + '.Parse');
+  if First = '[' then
+    ParseResult := TLuaN;
 end;
 
 { TLuaKeyValueField.TParser }

@@ -293,6 +293,8 @@ type
 
     function Reverse: IIterate<T>;
 
+    function DataPointer: Pointer;
+
   end;
 
   /// <summary>An ordered collection of items.</summary>
@@ -575,6 +577,8 @@ type
     property Compare: TFunc<T, T, Boolean> read GetCompare write SetCompare;
 
     function Reverse: IIterate<T>;
+
+    function DataPointer: Pointer;
 
   end;
 
@@ -1876,6 +1880,11 @@ procedure TListBase<T>.RangeCheck(AIndex: Integer);
 begin
   if (AIndex < 0) or (AIndex >= Count) then
     raise EListError.Create('List index out of range.')at ReturnAddress;
+end;
+
+function TListBase<T>.DataPointer: Pointer;
+begin
+  Result := @FItems[0];
 end;
 
 procedure TListBase<T>.DoRemoveAt(AIndex: Integer);
