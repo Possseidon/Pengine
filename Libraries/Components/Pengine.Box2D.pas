@@ -341,6 +341,8 @@ type
 
     property Body: TBody read GetBody;
 
+    function GetNext: TFixture;
+
     /// <summary>The density in <c>kg*m^2</c></summary>
     property Density: Single read GetDenstity write SetDensity;
     /// <summary>The friction coefficient usually in range <c>[0, 1]</c>.</summary>
@@ -350,8 +352,6 @@ type
     property Restitution: Single read GetRestitution write SetRestitution;
     // TODO: IsSensor
     // TODO: property Filter;
-
-    function GetNext: TFixture;
 
   end;
 
@@ -530,9 +530,11 @@ type
 
     TLocations = IList<TLocation2>;
 
+    IEventInfo = IEventInfo<TBody>;
+
     TEventInfo = TEventInfo<TBody>;
 
-    TEvent = TEvent<TEventInfo>;
+    TEvent = TEvent<IEventInfo>;
 
   private
     FWrapper: b2BodyWrapper;
@@ -597,10 +599,11 @@ type
     constructor Create(AWorld: TWorld; ADef: TDef);
     destructor Destroy; override;
 
-    property Wrapper: b2BodyWrapper read FWrapper;
-    property World: TWorld read FWorld;
     property &Type: TType read GetType write SetType;
+    property Wrapper: b2BodyWrapper read FWrapper;
     property UserData: TObject read FUserData write FUserData;
+
+    property World: TWorld read FWorld;
 
     function GetNext: TBody;
 
@@ -789,6 +792,8 @@ type
 
     property World: TWorld read FWorld;
 
+    function GetNext: TJoint;
+
     property BodyA: TBody read GetBodyA;
     property BodyB: TBody read GetBodyB;
 
@@ -803,8 +808,6 @@ type
     property Active: Boolean read GetActive;
 
     procedure ShiftOrigin(ANewOrigin: TVector2);
-
-    function GetNext: TJoint;
 
   end;
 
@@ -1401,21 +1404,26 @@ type
 
     end;
 
-    TIterator = class(TInterfacedObject)
-    private
-      FWorld: TWorld;
-
-    public
-      constructor Create(AWorld: TWorld);
-
-    end;
-
-    TBodyIterator = class(TIterator, IIterator<TBody>)
+    TBodyIterator = class(TInterfacedObject, IIterator<TBody>)
     private
       FCurrent: TBody;
       FNext: TBody;
 
       function GetCurrent: TBody;
+
+    public
+      constructor Create(AWorld: TWorld);
+
+      function MoveNext: Boolean;
+
+    end;
+
+    TJointIterator = class(TInterfacedObject, IIterator<TJoint>)
+    private
+      FCurrent: TJoint;
+      FNext: TJoint;
+
+      function GetCurrent: TJoint;
 
     public
       constructor Create(AWorld: TWorld);
@@ -1513,11 +1521,11 @@ type
 
       property Wrapper: b2ContactWrapper read FWrapper;
 
+      function GetNext: TContact;
+
       property Touching: Boolean read GetTouching;
 
       property Enabled: Boolean read GetEnabled write SetEnabled;
-
-      function GetNext: TContact;
 
       property FixtureA: TFixture read GetFixtureA;
       property ChainIndexA: Integer read GetChainIndexA;
@@ -1543,7 +1551,7 @@ type
 
     end;
 
-    TContactIterator = class(TIterator, IIterator<TContact>)
+    TContactIterator = class(TInterfacedObject, IIterator<TContact>)
     private
       FCurrent: TContact;
       FNext: TContact;
@@ -1594,20 +1602,32 @@ type
 
     TEvent = TEvent<TEventInfo>;
 
-    TContactEventInfo = class(TEventInfo)
+    IContactEventInfo = interface(IEventInfo)
+      function GetEventType: TContactEventType;
+      function GetContact: TContact;
+
+      property EventType: TContactEventType read GetEventType;
+      property Contact: TContact read GetContact;
+
+    end;
+
+    TContactEventInfo = class(TEventInfo, IContactEventInfo)
     private
       FEventType: TContactEventType;
       FContact: TContact;
 
+      function GetContact: TContact;
+      function GetEventType: TContactEventType;
+
     public
       constructor Create(ASender: TWorld; AEventType: TContactEventType; AContact: TContact);
 
-      property EventType: TContactEventType read FEventType;
-      property Contact: TContact read FContact;
+      property EventType: TContactEventType read GetEventType;
+      property Contact: TContact read GetContact;
 
     end;
 
-    TContactEvent = TEvent<TContactEventInfo>;
+    TContactEvent = TEvent<IContactEventInfo>;
 
   public const
 
@@ -1896,7 +1916,7 @@ end;
 
 function TPolygon.ValidateConvexity: Boolean;
 begin
-   Result := Wrapper.Validate;
+  Result := Wrapper.Validate;
 end;
 
 { TEdge }
@@ -2197,6 +2217,16 @@ begin
   Wrapper.SetRestitution(Value);
 end;
 
+function TFixture.GetNext: TFixture;
+var
+  Next: Pb2Fixture;
+begin
+  Next := Wrapper.GetNext;
+  if Next = nil then
+    Exit(nil);
+  Result := TFixture(Next.GetUserData);
+end;
+
 constructor TFixture.Create(ABody: TBody; ADef: TFixture.TDef);
 begin
   ADef.FData.UserData := Self;
@@ -2208,16 +2238,6 @@ begin
   if Wrapper.GetUserData <> nil then
     Body.Wrapper.DestroyFixture(@Wrapper);
   inherited;
-end;
-
-function TFixture.GetNext: TFixture;
-var
-  Next: Pb2Fixture;
-begin
-  Next := Wrapper.GetNext;
-  if Next = nil then
-    Exit(nil);
-  Result := TFixture(Next.GetUserData);
 end;
 
 { TBody.TDef }
@@ -2320,6 +2340,9 @@ end;
 function TBody.TFixtures.Add(AFixtureDef: TFixture.TDef): TFixture;
 begin
   Result := TFixture.Create(FBody, AFixtureDef);
+  {$IFDEF NEXTGEN}
+  Result.__ObjAddRef;
+  {$ENDIF}
 end;
 
 function TBody.TFixtures.Add(AShape: TShape): TFixture;
@@ -2328,6 +2351,9 @@ var
 begin
   FixtureDef := TFixture.TDef.Create(AShape);
   Result := TFixture.Create(FBody, FixtureDef);
+  {$IFDEF NEXTGEN}
+  Result.__ObjAddRef;
+  {$ENDIF}
   FixtureDef.Free;
 end;
 
@@ -2383,9 +2409,9 @@ end;
 function TBody.TJointEdgeIterator.MoveNext: Boolean;
 begin
   FCurrent := FNext;
-  Result := FCurrent.HasNext;
+  Result := FNext.FData <> nil;
   if Result then
-    FNext := FCurrent.Next;
+    FNext := FNext.Next;
 end;
 
 { TBody.TJointEdges }
@@ -2628,12 +2654,20 @@ begin
   for JointEdge in JointEdges do
   begin
     JointEdge.Joint.Wrapper.SetUserData(nil);
+    {$IFDEF NEXTGEN}
+    JointEdge.Joint.__ObjRelease;
+    {$ELSE}
     JointEdge.Joint.Free;
+    {$ENDIF}
   end;
   for Fixture in Fixtures do
   begin
     Fixture.Wrapper.SetUserData(nil);
+    {$IFDEF NEXTGEN}
+    Fixture.__ObjRelease;
+    {$ELSE}
     Fixture.Free;
+    {$ENDIF}
   end;
   if World <> nil then
     World.Wrapper.DestroyBody(Wrapper);
@@ -2788,7 +2822,7 @@ end;
 function TJoint.TIterator.MoveNext: Boolean;
 begin
   FCurrent := FNext;
-  Result := FCurrent <> nil;
+  Result := FNext <> nil;
   if Result then
     FNext := FNext.GetNext;
 end;
@@ -2845,6 +2879,16 @@ begin
   Result := TType(Wrapper.GetType);
 end;
 
+function TJoint.GetNext: TJoint;
+var
+  Joint: b2JointWrapper;
+begin
+  Joint := Wrapper.GetNext;
+  if Joint.FHandle = 0 then
+    Exit(nil);
+  Result := TJoint(Joint.GetUserData);
+end;
+
 function TJoint.ReactionForce(AInvDeltaTime: Single): TVector2;
 begin
   Result := b2VecConv(Wrapper.GetReactionForce(AInvDeltaTime));
@@ -2858,16 +2902,6 @@ end;
 procedure TJoint.ShiftOrigin(ANewOrigin: TVector2);
 begin
   Wrapper.ShiftOrigin(b2VecConv(ANewOrigin));
-end;
-
-function TJoint.GetNext: TJoint;
-var
-  Joint: b2JointWrapper;
-begin
-  Joint := Wrapper.GetNext;
-  if Joint.FHandle = 0 then
-    Exit(nil);
-  Result := TJoint(Joint.GetUserData);
 end;
 
 { TJoint<T> }
@@ -3969,37 +4003,33 @@ end;
 
 procedure TWorld.TListener.BeginContact(AContact: b2ContactHandle);
 begin
-  World.FOnContact.Execute(TContactEventInfo.Create(World, ceBeginContact, TContact.Create(AContact)));
+  if World.FOnContact.HasHandler then
+    World.FOnContact.Execute(TContactEventInfo.Create(World, ceBeginContact, TContact.Create(AContact)));
 end;
 
 procedure TWorld.TListener.EndContact(AContact: b2ContactHandle);
 begin
-  World.FOnContact.Execute(TContactEventInfo.Create(World, ceEndContact, TContact.Create(AContact)));
+  if World.FOnContact.HasHandler then
+    World.FOnContact.Execute(TContactEventInfo.Create(World, ceEndContact, TContact.Create(AContact)));
 end;
 
 procedure TWorld.TListener.PreSolve(AContact: b2ContactHandle; AOldManifold: Pb2Manifold);
 begin
-  World.FOnContact.Execute(TContactEventInfo.Create(World, cePreSolve, TContact.Create(AContact)));
+  if World.FOnContact.HasHandler then
+    World.FOnContact.Execute(TContactEventInfo.Create(World, cePreSolve, TContact.Create(AContact)));
 end;
 
 procedure TWorld.TListener.PostSolve(AContact: b2ContactHandle; AImpulse: Pb2ContactImpulse);
 begin
-  World.FOnContact.Execute(TContactEventInfo.Create(World, cePostSolve, TContact.Create(AContact)));
-end;
-
-{ TWorld.TIterator }
-
-constructor TWorld.TIterator.Create(AWorld: TWorld);
-begin
-  FWorld := AWorld;
+  if World.FOnContact.HasHandler then
+    World.FOnContact.Execute(TContactEventInfo.Create(World, cePostSolve, TContact.Create(AContact)));
 end;
 
 { TWorld.TBodyIterator }
 
 constructor TWorld.TBodyIterator.Create(AWorld: TWorld);
 begin
-  inherited;
-  FNext := FWorld.Bodies.First;
+  FNext := AWorld.Bodies.First;
 end;
 
 function TWorld.TBodyIterator.GetCurrent: TBody;
@@ -4010,7 +4040,27 @@ end;
 function TWorld.TBodyIterator.MoveNext: Boolean;
 begin
   FCurrent := FNext;
-  Result := FCurrent <> nil;
+  Result := FNext <> nil;
+  if Result then
+    FNext := FNext.GetNext;
+end;
+
+{ TWorld.TJointIterator }
+
+function TWorld.TJointIterator.GetCurrent: TJoint;
+begin
+  Result := FCurrent;
+end;
+
+constructor TWorld.TJointIterator.Create(AWorld: TWorld);
+begin
+  FNext := AWorld.Joints.First;
+end;
+
+function TWorld.TJointIterator.MoveNext: Boolean;
+begin
+  FCurrent := FNext;
+  Result := FNext <> nil;
   if Result then
     FNext := FNext.GetNext;
 end;
@@ -4040,6 +4090,9 @@ end;
 function TWorld.TBodies.Add(ABodyDef: TBody.TDef): TBody;
 begin
   Result := TBody.Create(FWorld, ABodyDef);
+  {$IFDEF NEXTGEN}
+  Result.__ObjAddRef;
+  {$ENDIF}
 end;
 
 function TWorld.TBodies.Add(ABodyType: TBody.TType; APosition: TVector2): TBody;
@@ -4048,6 +4101,9 @@ var
 begin
   BodyDef := TBody.TDef.Create(ABodyType, APosition);
   Result := TBody.Create(FWorld, BodyDef);
+  {$IFDEF NEXTGEN}
+  Result.__ObjAddRef;
+  {$ENDIF}
   BodyDef.Free;
 end;
 
@@ -4065,8 +4121,7 @@ end;
 
 function TWorld.TJoints.GetEnumerator: IIterator<TJoint>;
 begin
-  raise ENotImplemented.Create('TWorld.TJoints.GetEnumerator');
-  // Result := TJointIterator.Create(FWorld);
+  Result := TJointIterator.Create(FWorld);
 end;
 
 function TWorld.TJoints.Iterate: IIterate<TJoint>;
@@ -4077,114 +4132,12 @@ end;
 function TWorld.TJoints.Add(ADef: TJoint.TDef): TJoint;
 begin
   Result := TJoint.Create(FWorld, ADef);
-end;
-
-// --- FORMATTED END ---
-
-{ TWorld }
-
-constructor TWorld.Create(AGravity: TVector2; AAllowSleeping: Boolean);
-begin
-  FWrapper := b2WorldWrapper.Create(b2VecConv(AGravity));
-  AllowSleeping := AAllowSleeping;
-  FVelocityIterations := DefaultVelocityIterations;
-  FPositionIterations := DefaultPositionIterations;
-  InitializeListeners;
-end;
-
-destructor TWorld.Destroy;
-var
-  Body: TBody;
-begin
-  for Body in Bodies do
-  begin
-    Body.FWorld := nil;
-    Body.Free;
-  end;
-  Wrapper.Destroy;
-  Destroy_b2ContactListener_delegate(FContactListener);
-  inherited;
-end;
-
-function TWorld.GetAllowSleeping: Boolean;
-begin
-  Result := Wrapper.GetAllowSleeping;
-end;
-
-function TWorld.GetBodies: IBodies;
-begin
-  Result := TBodies.Create(Self);
-end;
-
-function TWorld.GetContacts: IContacts;
-begin
-  Result := TContacts.Create(Self);
-end;
-
-function TWorld.GetGravity: TVector2;
-begin
-  Result := b2VecConv(Wrapper.GetGravity);
-end;
-
-function TWorld.GetJoints: IJoints;
-begin
-  Result := TJoints.Create(Self);
-end;
-
-procedure TWorld.InitializeListeners;
-var
-  Listener: TListener;
-begin
-  Listener := TListener.Create(Self);
-  FContactListener := Create_b2ContactListener_delegate(Listener);
-  Wrapper.SetContactListener(FContactListener);
-end;
-
-procedure TWorld.SetAllowSleeping(const Value: Boolean);
-begin
-  Wrapper.SetAllowSleeping(Value);
-end;
-
-procedure TWorld.SetGravity(const Value: TVector2);
-begin
-  Wrapper.SetGravity(b2VecConv(Gravity));
-end;
-
-procedure TWorld.Step(ATimeStep: Single);
-begin
-  Wrapper.Step(ATimeStep, VelocityIterations, PositionIterations);
-  UpdateLocations;
-end;
-
-procedure TWorld.StepNoUpdate(ATimeStep: Single);
-begin
-  Wrapper.Step(ATimeStep, VelocityIterations, PositionIterations);
-end;
-
-procedure TWorld.UpdateLocations;
-var
-  Body: TBody;
-begin
-  for Body in Bodies do
-    Body.UpdateLocations;
+  {$IFDEF NEXTGEN}
+  Result.__ObjAddRef;
+  {$ENDIF}
 end;
 
 { TWorld.TContact }
-
-constructor TWorld.TContact.Create(AWrapper: b2ContactWrapper);
-begin
-  FWrapper := AWrapper;
-end;
-
-function TWorld.TContact.GetBodyA: TBody;
-begin
-  Result := FixtureA.Body;
-end;
-
-function TWorld.TContact.GetBodyB: TBody;
-begin
-  Result := FixtureB.Body;
-end;
 
 function TWorld.TContact.GetChainIndexA: Integer;
 begin
@@ -4216,11 +4169,6 @@ begin
   Result := Wrapper.GetFriction;
 end;
 
-function TWorld.TContact.GetNext: TContact;
-begin
-  Result.Create(Wrapper.GetNext);
-end;
-
 function TWorld.TContact.GetRestitution: Single;
 begin
   Result := Wrapper.GetRestitution;
@@ -4234,26 +4182,6 @@ end;
 function TWorld.TContact.GetTouching: Boolean;
 begin
   Result := Wrapper.IsTouching;
-end;
-
-function TWorld.TContact.GetUserDataA: TObject;
-begin
-  Result := BodyA.UserData;
-end;
-
-function TWorld.TContact.GetUserDataB: TObject;
-begin
-  Result := BodyB.UserData;
-end;
-
-procedure TWorld.TContact.ResetFriction;
-begin
-  Wrapper.ResetFriction;
-end;
-
-procedure TWorld.TContact.ResetRestitution;
-begin
-  Wrapper.ResetRestitution;
 end;
 
 procedure TWorld.TContact.SetEnabled(const Value: Boolean);
@@ -4276,34 +4204,202 @@ begin
   Wrapper.SetTangentSpeed(Value);
 end;
 
-{ TWorld.TContactIterator }
-
-constructor TWorld.TContactIterator.Create(AWorld: TWorld);
+function TWorld.TContact.GetBodyA: TBody;
 begin
-  inherited;
-  FNext := AWorld.Contacts.First;
+  Result := FixtureA.Body;
 end;
+
+function TWorld.TContact.GetBodyB: TBody;
+begin
+  Result := FixtureB.Body;
+end;
+
+function TWorld.TContact.GetUserDataA: TObject;
+begin
+  Result := BodyA.UserData;
+end;
+
+function TWorld.TContact.GetUserDataB: TObject;
+begin
+  Result := BodyB.UserData;
+end;
+
+constructor TWorld.TContact.Create(AWrapper: b2ContactWrapper);
+begin
+  FWrapper := AWrapper;
+end;
+
+function TWorld.TContact.GetNext: TContact;
+begin
+  Result.Create(Wrapper.GetNext);
+end;
+
+procedure TWorld.TContact.ResetFriction;
+begin
+  Wrapper.ResetFriction;
+end;
+
+procedure TWorld.TContact.ResetRestitution;
+begin
+  Wrapper.ResetRestitution;
+end;
+
+{ TWorld.TContactIterator }
 
 function TWorld.TContactIterator.GetCurrent: TContact;
 begin
   Result := FCurrent;
 end;
 
+constructor TWorld.TContactIterator.Create(AWorld: TWorld);
+begin
+  FNext := AWorld.Contacts.First;
+end;
+
 function TWorld.TContactIterator.MoveNext: Boolean;
 begin
   FCurrent := FNext;
-  Result := FCurrent.Wrapper.FHandle <> 0;
+  Result := FNext.Wrapper.FHandle <> 0;
   if Result then
     FNext := FNext.GetNext;
 end;
 
+{ TWorld.TContacts }
+
+function TWorld.TContacts.GetFirst: TContact;
+begin
+  Result.Create(FWorld.Wrapper.GetContactList);
+end;
+
+constructor TWorld.TContacts.Create(AWorld: TWorld);
+begin
+  FWorld := AWorld;
+end;
+
+function TWorld.TContacts.GetEnumerator: IIterator<TContact>;
+begin
+  Result := TContactIterator.Create(FWorld);
+end;
+
+function TWorld.TContacts.Iterate: IIterate<TContact>;
+begin
+  Result := TIterableIterate<TContact>.Create(Self);
+end;
+
 { TWorld.TContactEventInfo }
+
+function TWorld.TContactEventInfo.GetContact: TContact;
+begin
+  Result := FContact;
+end;
+
+function TWorld.TContactEventInfo.GetEventType: TContactEventType;
+begin
+  Result := FEventType;
+end;
 
 constructor TWorld.TContactEventInfo.Create(ASender: TWorld; AEventType: TContactEventType; AContact: TContact);
 begin
   inherited Create(ASender);
   FEventType := AEventType;
   FContact := AContact;
+end;
+
+{ TWorld }
+
+function TWorld.GetAllowSleeping: Boolean;
+begin
+  Result := Wrapper.GetAllowSleeping;
+end;
+
+procedure TWorld.SetAllowSleeping(const Value: Boolean);
+begin
+  Wrapper.SetAllowSleeping(Value);
+end;
+
+function TWorld.GetGravity: TVector2;
+begin
+  Result := b2VecConv(Wrapper.GetGravity);
+end;
+
+procedure TWorld.SetGravity(const Value: TVector2);
+begin
+  Wrapper.SetGravity(b2VecConv(Gravity));
+end;
+
+function TWorld.GetBodies: IBodies;
+begin
+  Result := TBodies.Create(Self);
+end;
+
+function TWorld.GetJoints: IJoints;
+begin
+  Result := TJoints.Create(Self);
+end;
+
+function TWorld.GetContacts: IContacts;
+begin
+  Result := TContacts.Create(Self);
+end;
+
+procedure TWorld.InitializeListeners;
+var
+  Listener: TListener;
+begin
+  Listener := TListener.Create(Self);
+  FContactListener := Create_b2ContactListener_delegate(Listener);
+  Wrapper.SetContactListener(FContactListener);
+end;
+
+constructor TWorld.Create(AGravity: TVector2; AAllowSleeping: Boolean);
+begin
+  FWrapper := b2WorldWrapper.Create(b2VecConv(AGravity));
+  AllowSleeping := AAllowSleeping;
+  FVelocityIterations := DefaultVelocityIterations;
+  FPositionIterations := DefaultPositionIterations;
+  InitializeListeners;
+end;
+
+destructor TWorld.Destroy;
+var
+  Body: TBody;
+begin
+  for Body in Bodies do
+  begin
+    Body.FWorld := nil;
+    {$IFDEF NEXTGEN}
+    Body.__ObjRelease;
+    {$ELSE}
+    Body.Free;
+    {$ENDIF}
+  end;
+  Wrapper.Destroy;
+  Destroy_b2ContactListener_delegate(FContactListener);
+  inherited;
+end;
+
+procedure TWorld.Step(ATimeStep: Single);
+begin
+  Wrapper.Step(ATimeStep, VelocityIterations, PositionIterations);
+  UpdateLocations;
+end;
+
+procedure TWorld.StepNoUpdate(ATimeStep: Single);
+begin
+  Wrapper.Step(ATimeStep, VelocityIterations, PositionIterations);
+end;
+
+procedure TWorld.UpdateLocations;
+var
+  Body: TBody;
+begin
+  for Body in Bodies do
+    Body.UpdateLocations;
+end;
+
+function TWorld.OnContact: TContactEvent.TAccess;
+begin
+  Result := FOnContact.Access;
 end;
 
 end.
