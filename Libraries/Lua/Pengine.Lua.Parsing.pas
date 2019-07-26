@@ -449,12 +449,12 @@ type
   private
     FValue: TLuaExpression;
     FFieldSeparator: TLuaFieldSeparator;
-       
+
   public
     class function Parser: IParser;
 
   end;
-           
+
   TLuaValueField = class(TLuaField)
   public type
 
@@ -490,7 +490,7 @@ type
 
   private
     FKey: TLuaExpression;
-      
+
   public
     class function Parser: IParser;
 
@@ -512,7 +512,7 @@ type
 
   private
     FName: TLuaName;
-            
+
   public
     class function Parser: IParser;
 
@@ -535,7 +535,7 @@ type
   private
     FFields: IObjectList<TLuaField>;
     FTrailingFieldSeparator: Boolean;
-     
+
   public
     class function Parser: IParser;
 
@@ -554,7 +554,7 @@ type
       class function GetResultName: string; override;
 
     end;
-           
+
   public
     class function Parser: IParser;
 
@@ -577,7 +577,7 @@ type
 
   private
     FParameters: TLuaExpressionList;
-        
+
   public
     class function Parser: IParser;
 
@@ -599,7 +599,7 @@ type
 
   private
     FTable: TLuaTableConstructorExpression;
-            
+
   public
     class function Parser: IParser;
 
@@ -621,7 +621,7 @@ type
 
   private
     FArgument: TLuaLiteralStringExpression;
-            
+
   public
     class function Parser: IParser;
 
@@ -644,7 +644,7 @@ type
   private
     FCondition: TLuaExpression;
     FBlock: TLuaBlock;
-              
+
   public
     class function Parser: IParser;
 
@@ -700,6 +700,8 @@ type
 
   // --- Expressions ---
 
+  TLuaExpressionClass = class of TLuaExpression;
+
   /// <summary>An expression, which evaluates to a value.</summary>
   TLuaExpression = class
   public type
@@ -717,6 +719,7 @@ type
 
   public
     class function Parser: IParser;
+    class function TypedParser: IParser; virtual; abstract;
 
   end;
 
@@ -789,7 +792,7 @@ type
 
   private
     FNumeral: string;
-              
+
   public
     class function Parser: IParser;
 
@@ -815,7 +818,7 @@ type
 
   private
     FLiteral: string;
-            
+
   public
     class function Parser: IParser;
 
@@ -838,7 +841,7 @@ type
       class function GetResultName: string; override;
 
     end;
-         
+
   public
     class function Parser: IParser;
 
@@ -864,7 +867,7 @@ type
 
   private
     FFunctionBody: TLuaFunctionBody;
-       
+
   public
     class function Parser: IParser;
 
@@ -891,7 +894,7 @@ type
       class function GetResultName: string; override;
 
     end;
-       
+
   public
     class function Parser: IParser;
 
@@ -913,7 +916,7 @@ type
       class function GetResultName: string; override;
 
     end;
-         
+
   public
     class function Parser: IParser;
 
@@ -935,7 +938,7 @@ type
 
   private
     FName: TLuaName;
-        
+
   public
     class function Parser: IParser;
 
@@ -958,7 +961,7 @@ type
   private
     FExpression: TLuaPrefixExpression;
     FIndex: TLuaExpression;
-       
+
   public
     class function Parser: IParser;
 
@@ -981,7 +984,7 @@ type
   private
     FExpression: TLuaPrefixExpression;
     FName: TLuaName;
-       
+
   public
     class function Parser: IParser;
 
@@ -1004,7 +1007,7 @@ type
   private
     FExpression: TLuaPrefixExpression;
     FArguments: TLuaArguments;
-          
+
   public
     class function Parser: IParser;
 
@@ -1026,7 +1029,7 @@ type
 
   private
     FName: TLuaName;
-         
+
   public
     class function Parser: IParser;
 
@@ -1048,7 +1051,7 @@ type
 
   private
     FExpression: TLuaExpression;
-       
+
   public
     class function Parser: IParser;
 
@@ -1074,7 +1077,7 @@ type
 
   private
     FFieldList: TLuaFieldList;
-       
+
   public
     class function Parser: IParser;
 
@@ -1102,7 +1105,7 @@ type
     FOperator: TLuaBinaryOp;
     FLeft: TLuaExpression;
     FRight: TLuaExpression;
-        
+
   public
     class function Parser: IParser;
 
@@ -1129,7 +1132,7 @@ type
   private
     FOperator: TLuaUnaryOp;
     FExpression: TLuaExpression;
-       
+
   public
     class function Parser: IParser;
 
@@ -1680,6 +1683,19 @@ const
     TLuaLocalAssignmentStatement
     );
 
+  LuaExpressionClasses: array [0 .. 14] of TLuaExpressionClass = (
+    TLuaNilExpression,
+    TLuaBooleanExpression,
+    TLuaNumeralExpression,
+    TLuaLiteralStringExpression,
+    TLuaEllipsisExpression,
+    TLuaFunctionDefinitionExpression,
+    TLuaPrefixExpression,
+    TLuaTableConstructorExpression,
+    TLuaBinaryOperationExpression,
+    TLuaUnaryOperationExpression
+    );
+
   LuaBinaryOpNames: array [TLuaBinaryOp] of string = (
     '+',
     '-',
@@ -1800,11 +1816,8 @@ var
   StatementClass: TLuaStatementClass;
 begin
   for StatementClass in LuaStatementClasses do
-  begin
-    ParseResult := StatementClass.TypedParser.Optional(Info);
-    if ParseResult <> nil then
+    if StatementClass.TypedParser.Optional(Info, ParseResult) then
       Exit(True);
-  end;
   Result := False;
 end;
 
@@ -1891,7 +1904,10 @@ end;
 
 function TLuaExpression.TParser.Parse: Boolean;
 begin
-  raise ENotImplemented.Create(ClassName + '.Parse');
+  for ExpressionParser in LuaExpressionClasses do
+  begin
+
+  end;
   Result := True;
 end;
 
@@ -2598,9 +2614,26 @@ begin
 end;
 
 function TLuaField.TParser.Parse: Boolean;
-begin                           
-  if First = '[' then
-    ParseResult := TLuaN;
+var
+  NamedField: TLuaNamedField;
+begin
+  case First of
+    '[':
+      begin
+        ParseResult := TLuaKeyValueField.Parser.Require(Info);
+        Exit(True);
+      end;
+    'a' .. 'z', 'A' .. 'Z', '_':
+      begin
+        if TLuaNamedField.Parser.Optional(Info, NamedField) then
+        begin
+          ParseResult := NamedField;
+          Exit(True);
+        end;
+      end;
+  end;
+  ParseResult := TLuaValueField.Parser.Require(Info);
+  Result := True;
 end;
 
 { TLuaKeyValueField.TParser }
@@ -2611,7 +2644,7 @@ begin
 end;
 
 function TLuaKeyValueField.TParser.Parse: Boolean;
-begin                       
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2623,7 +2656,7 @@ begin
 end;
 
 function TLuaNamedField.TParser.Parse: Boolean;
-begin                   
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2635,7 +2668,7 @@ begin
 end;
 
 function TLuaFieldList.TParser.Parse: Boolean;
-begin                 
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2647,7 +2680,7 @@ begin
 end;
 
 function TLuaArguments.TParser.Parse: Boolean;
-begin                                                  
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2659,7 +2692,7 @@ begin
 end;
 
 function TLuaParameterArguments.TParser.Parse: Boolean;
-begin                           
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2683,7 +2716,7 @@ begin
 end;
 
 function TLuaStringArgument.TParser.Parse: Boolean;
-begin                       
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2695,7 +2728,7 @@ begin
 end;
 
 function TLuaConditionalBlock.TParser.Parse: Boolean;
-begin                         
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2707,7 +2740,7 @@ begin
 end;
 
 function TLuaNilExpression.TParser.Parse: Boolean;
-begin           
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2719,7 +2752,7 @@ begin
 end;
 
 function TLuaBooleanExpression.TParser.Parse: Boolean;
-begin               
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2731,7 +2764,7 @@ begin
 end;
 
 function TLuaNumeralExpression.TParser.Parse: Boolean;
-begin               
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2743,7 +2776,7 @@ begin
 end;
 
 function TLuaLiteralStringExpression.TParser.Parse: Boolean;
-begin                      
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2755,7 +2788,7 @@ begin
 end;
 
 function TLuaEllipsisExpression.TParser.Parse: Boolean;
-begin                                                                     
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2803,7 +2836,7 @@ begin
 end;
 
 function TLuaVariableNameExpression.TParser.Parse: Boolean;
-begin                     
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2815,7 +2848,7 @@ begin
 end;
 
 function TLuaVariableIndexExpression.TParser.Parse: Boolean;
-begin                      
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2827,7 +2860,7 @@ begin
 end;
 
 function TLuaVariableNameIndexExpression.TParser.Parse: Boolean;
-begin                           
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2835,7 +2868,7 @@ end;
 
 class function TLuaCallExpression.TParser.GetResultName: string;
 begin
-  Result := 'call';  
+  Result := 'call';
 end;
 
 function TLuaCallExpression.TParser.Parse: Boolean;
@@ -2851,7 +2884,7 @@ begin
 end;
 
 function TLuaSelfCallExpression.TParser.Parse: Boolean;
-begin                 
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2875,7 +2908,7 @@ begin
 end;
 
 function TLuaTableConstructorExpression.TParser.Parse: Boolean;
-begin                         
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2887,7 +2920,7 @@ begin
 end;
 
 function TLuaBinaryOperationExpression.TParser.Parse: Boolean;
-begin                          
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -2899,7 +2932,7 @@ begin
 end;
 
 function TLuaUnaryOperationExpression.TParser.Parse: Boolean;
-begin                       
+begin
   raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
@@ -3093,8 +3126,8 @@ begin
 end;
 
 function TLuaValueField.TParser.Parse: Boolean;
-begin                                  
-  raise ENotImplemented.Create(ClassName + '.Parse');  
+begin
+  raise ENotImplemented.Create(ClassName + '.Parse');
 end;
 
 { TLuaValueField }

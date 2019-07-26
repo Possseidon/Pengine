@@ -44,7 +44,6 @@ object frmMain: TfrmMain
     Gutter.Font.Style = []
     OnChange = synEditorChange
     FontSmoothing = fsmNone
-    ExplicitHeight = 350
   end
   object pnlSettings: TPanel
     AlignWithMargins = True

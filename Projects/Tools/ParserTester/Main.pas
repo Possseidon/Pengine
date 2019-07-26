@@ -22,6 +22,8 @@ uses
 
 type
 
+
+
   TSynHighlighter = class(TSynCustomHighlighter)
   private
     FDummyAttributes: TSynHighlighterAttributes;
