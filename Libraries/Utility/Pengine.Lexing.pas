@@ -4,10 +4,13 @@ interface
 
 uses
   System.SysUtils,
+  System.Character,
 
   Pengine.ICollections;
 
 type
+
+  ELexingRuleError = class(Exception);
 
   ISyntaxTree = interface;
 
@@ -49,6 +52,8 @@ type
 
     end;
 
+    TVariadicExpressionClass = class of TVariadicExpression;
+
     TVariadicExpression = class(TExpression)
     private
       FExpressions: IList<TExpression>;
@@ -56,8 +61,8 @@ type
       function GetExpressions: IReadonlyList<TExpression>;
 
     public
-      constructor Create(AExpressions: IIterable<TExpression>); overload;
-      constructor Create(AExpressions: TArray<TExpression>); overload;
+      constructor Create(AExpressions: IIterable<TExpression>); overload; virtual;
+      constructor Create(AExpressions: TArray<TExpression>); overload; virtual;
 
       property Expressions: IReadonlyList<TExpression> read GetExpressions;
 
@@ -99,16 +104,26 @@ type
 
     end;
 
-    TRule = class(TUnaryExpression)
+    TRule = class(TExpression)
     private
+      FEBNF: TEBNF;
       FName: string;
+      FExpressionString: string;
+      FExpression: TExpression;
+
+      function GetExpression: TExpression;
+      function GetExpressionString: string;
 
     protected
       function Analyze(ALexer: TLexer): Boolean; override;
 
     public
-      constructor Create(AName: string; AExpression: TExpression);
+      constructor Create(AEBNF: TEBNF; AName: string; AExpression: TExpression); overload;
+      constructor Create(AEBNF: TEBNF; AName, AExpressionString: string); overload;
 
+      property EBNF: TEBNF read FEBNF;
+      property Expression: TExpression read GetExpression;
+      property ExpressionString: string read GetExpressionString;
       property Name: string read FName;
 
       function ToString: string; override;
@@ -126,6 +141,7 @@ type
       FText: string;
       FPosition: Integer;
       FSavedPositions: IStack<Integer>;
+      FRulePositions: IList<Integer>; // used to detect recursion
 
     public
       constructor Create(ARule: TRule; AText: string); virtual;
@@ -134,8 +150,12 @@ type
 
       property Text: string read FText;
       property Position: Integer read FPosition;
+      function ReachedEnd: Boolean;
 
-      function Analyze(AExpression: TExpression): Boolean;
+      function LastRulePosition(ARule: TRule): Integer;
+      function AdvancedSinceRule(ARule: TRule): Boolean;
+      procedure BeginRule(ARule: TRule);
+      procedure EndRule(AKeep: Boolean);
 
       procedure Save;
       procedure DiscardSave;
@@ -143,31 +163,36 @@ type
 
       procedure Advance(AAmount: Integer);
       function StartsWith(AText: string; AAdvanceOnMatch: Boolean = True): Boolean;
-
-    end;
-
-    TBasicLexer = class(TLexer)
+      procedure SkipWhitespace;
 
     end;
 
   private
     FRules: IList<TRule>;
 
-    procedure SetRule(AName: string; const Value: string); overload;
+    function GetRuleString(AName: string): string;
+    procedure SetRuleString(AName: string; const Value: string);
+    function GetRules: IReadonlyList<TRule>;
 
   public
     constructor Create;
 
     function AddRule(AName: string; AExpression: TExpression): TRule;
+    property RuleStrings[AName: string]: string read GetRuleString write SetRuleString; default;
+    property Rules: IReadonlyList<TRule> read GetRules;
 
-    property Rules[AName: string]: string write SetRule; default;
+    function FindRule(AName: string): TRule;
+
+    function ParseExpression(AExpressionString: string): TExpression;
 
   end;
 
   ISyntaxTree = interface
+    function GetParent: ISyntaxTree;
     function GetRule: TEBNF.TRule;
     function GetNodes: IList<ISyntaxTree>;
 
+    property Parent: ISyntaxTree read GetParent;
     property Rule: TEBNF.TRule read GetRule;
     property Nodes: IList<ISyntaxTree> read GetNodes;
 
@@ -175,11 +200,13 @@ type
 
   TSyntaxTree = class(TInterfacedObject, ISyntaxTree)
   private
+    [Weak]
     FParent: ISyntaxTree;
     FRule: TEBNF.TRule;
     FNodes: IList<ISyntaxTree>;
 
     // ISyntaxTree
+    function GetParent: ISyntaxTree;
     function GetRule: TEBNF.TRule;
     function GetNodes: IList<ISyntaxTree>;
 
@@ -187,6 +214,7 @@ type
     constructor Create(ARule: TEBNF.TRule; AParent: ISyntaxTree = nil);
 
     // ISyntaxTree
+    property Parent: ISyntaxTree read GetParent;
     property Rule: TEBNF.TRule read GetRule;
     property Nodes: IList<ISyntaxTree> read GetNodes;
 
@@ -198,7 +226,7 @@ implementation
 
 function TEBNF.AddRule(AName: string; AExpression: TExpression): TRule;
 begin
-  Result := TRule.Create(AName, AExpression);
+  Result := TRule.Create(Self, AName, AExpression);
   FRules.Add(Result);
 end;
 
@@ -207,21 +235,179 @@ begin
   FRules := TObjectList<TRule>.Create;
 end;
 
-procedure TEBNF.SetRule(AName: string; const Value: string);
+function TEBNF.FindRule(AName: string): TRule;
 begin
-  raise ENotImplemented.Create('EBNF Assignment-Syntax');
-  // AddRule(AName, TExpression.Parse(Value));
+  for Result in FRules do
+    if Result.Name = AName then
+      Exit;
+  raise ELexingRuleError.CreateFmt('Unknown rule "%s".', [AName]);
+end;
+
+function TEBNF.GetRules: IReadonlyList<TRule>;
+begin
+  Result := FRules.ReadonlyList;
+end;
+
+function TEBNF.GetRuleString(AName: string): string;
+begin
+  Result := FindRule(AName).ExpressionString;
+end;
+
+function TEBNF.ParseExpression(AExpressionString: string): TExpression;
+var
+  I, TextStart: Integer;
+  Expressions: IStack<TExpression>;
+  ControlChars: IStack<Char>;
+  IsRule, NeedsConcatenation: Boolean;
+
+  function ReachedEnd: Boolean;
+  begin
+    Result := I = Length(AExpressionString) + 1;
+  end;
+
+  function First: Char;
+  begin
+    Result := AExpressionString[I];
+  end;
+
+  procedure SkipWhitespace;
+  begin
+    while not ReachedEnd and First.IsWhiteSpace do
+      Inc(I);
+  end;
+
+  procedure CombineExpressionsFor(AChar: Char; AClass: TVariadicExpressionClass);
+  var
+    Count: Integer;
+  begin
+    Count := 1;
+    while not ControlChars.Empty and (ControlChars.Top = AChar) do
+    begin
+      ControlChars.Pop;
+      Inc(Count);
+    end;
+    if Count > Expressions.Count then
+      raise ELexingRuleError.Create('Expected expression after alternation or concatenation.');
+    Expressions.Push(AClass.Create(Expressions.PopMany.Iterate.Take(Count).ToList.Reverse));
+  end;
+
+  procedure CombineExpressions;
+  begin
+    if ControlChars.Top = '|' then
+      CombineExpressionsFor('|', TAlternation)
+    else if ControlChars.Top = ',' then
+      CombineExpressionsFor(',', TConcatenation);
+  end;
+
+begin
+  I := 1;
+  Expressions := TStack<TExpression>.Create;
+  ControlChars := TStack<Char>.Create;
+  NeedsConcatenation := False;
+  while not ReachedEnd do
+  begin
+    SkipWhitespace;
+    if ReachedEnd then
+      Break;
+    IsRule := False;
+    case First of
+      '{', '[', '(':
+        begin
+          if NeedsConcatenation then
+            ControlChars.Push(',');
+          ControlChars.Push(First);
+          NeedsConcatenation := False;
+        end;
+      '|', ',':
+        begin
+          ControlChars.Push(First);
+          NeedsConcatenation := False;
+        end;
+      '}':
+        begin
+          CombineExpressions;
+          if ControlChars.Top <> '{' then
+            raise ELexingRuleError.CreateFmt('Attempt to close "%s" with "}".', [ControlChars.Top]);
+          ControlChars.Pop;
+          Expressions.Push(TRepetition.Create(Expressions.Pop));
+          NeedsConcatenation := True;
+        end;
+      ']':
+        begin
+          CombineExpressions;
+          if ControlChars.Top <> '[' then
+            raise ELexingRuleError.CreateFmt('Attempt to close "%s" with "]".', [ControlChars.Top]);
+          ControlChars.Pop;
+          Expressions.Push(TOptional.Create(Expressions.Pop));
+          NeedsConcatenation := True;
+        end;
+      ')':
+        begin
+          CombineExpressions;
+          if ControlChars.Top <> '(' then
+            raise ELexingRuleError.CreateFmt('Attempt to close "%s" with ")".', [ControlChars.Top]);
+          ControlChars.Pop;
+          NeedsConcatenation := True;
+        end;
+      '"':
+        begin
+          if NeedsConcatenation then
+            ControlChars.Push(',');
+          TextStart := I;
+          repeat
+            Inc(I);
+            if ReachedEnd then
+              raise ELexingRuleError.Create('Found unterminated terminal.');
+          until First = '"';
+          Expressions.Push(TTerminal.Create(AExpressionString.Substring(TextStart, I - TextStart - 1)));
+          NeedsConcatenation := True;
+        end;
+    else
+      if NeedsConcatenation then
+        ControlChars.Push(',');
+      IsRule := True;
+      TextStart := I - 1;
+      while True do
+      begin
+        Inc(I);
+        if ReachedEnd or First.IsWhiteSpace or CharInSet(First, ['{', '}', '[', ']', '(', ')', '"', '|', ',']) then
+          Break;
+      end;
+      Expressions.Push(FindRule(AExpressionString.Substring(TextStart, I - TextStart - 1)));
+      NeedsConcatenation := True;
+    end;
+    if not IsRule then
+      Inc(I);
+  end;
+  while not ControlChars.Empty do
+    CombineExpressions;
+  //if not ControlChars.Empty then
+  //  raise ELexingRuleError.CreateFmt('Unclosed bracket "%s".', [ControlChars.Top]);
+  if not Expressions.Count = 1 then
+    raise ELexingRuleError.Create('Is this even reachable? If yes, investiage.');
+  Result := Expressions.Top;
+end;
+
+procedure TEBNF.SetRuleString(AName: string; const Value: string);
+begin
+  FRules.Add(TRule.Create(Self, AName, Value));
 end;
 
 { TEBNF.TRule }
 
 function TEBNF.TRule.Analyze(ALexer: TLexer): Boolean;
 begin
-  Result := ALexer.Analyze(Expression);
+  if not ALexer.AdvancedSinceRule(Self) then
+    Exit(False);
+  Writeln(Name);
+  ALexer.BeginRule(Self);
+  Result := Expression.Analyze(ALexer);
+  ALexer.EndRule(Result);
 end;
 
-constructor TEBNF.TRule.Create(AName: string; AExpression: TExpression);
+constructor TEBNF.TRule.Create(AEBNF: TEBNF; AName: string; AExpression: TExpression);
 begin
+  FEBNF := AEBNF;
   FName := AName;
   FExpression := AExpression;
 end;
@@ -233,9 +419,16 @@ end;
 
 { TEBNF.TRule }
 
+constructor TEBNF.TRule.Create(AEBNF: TEBNF; AName, AExpressionString: string);
+begin
+  FEBNF := AEBNF;
+  FName := AName;
+  FExpressionString := AExpressionString;
+end;
+
 function TEBNF.TRule.Lex(AText: string): ISyntaxTree;
 begin
-  Result := Lex<TBasicLexer>(AText);
+  Result := Lex<TLexer>(AText);
 end;
 
 function TEBNF.TRule.Lex<T>(AText: string): ISyntaxTree;
@@ -243,32 +436,19 @@ begin
   Result := T.Create(Self, AText).SyntaxTree;
 end;
 
+function TEBNF.TRule.GetExpression: TExpression;
+begin
+  if FExpression = nil then
+    FExpression := EBNF.ParseExpression(FExpressionString);
+  Result := FExpression;
+end;
+
+function TEBNF.TRule.GetExpressionString: string;
+begin
+  Result := Expression.ToString;
+end;
+
 { TEBNF.TLexer }
-
-procedure TEBNF.TLexer.Advance(AAmount: Integer);
-begin
-  Inc(FPosition, AAmount);
-end;
-
-function TEBNF.TLexer.Analyze(AExpression: TExpression): Boolean;
-var
-  OldSyntaxTree: ISyntaxTree;
-  IsRule: Boolean;
-begin
-  IsRule := AExpression is TRule;
-  if IsRule then
-  begin
-    OldSyntaxTree := FCurrentSyntaxTree;
-    FCurrentSyntaxTree := TSyntaxTree.Create(TRule(AExpression), OldSyntaxTree);
-  end;
-  Result := AExpression.Analyze(Self);
-  if IsRule then
-  begin
-    if Result then
-      OldSyntaxTree.Nodes.Add(FCurrentSyntaxTree);
-    FCurrentSyntaxTree := OldSyntaxTree;
-  end;
-end;
 
 constructor TEBNF.TLexer.Create(ARule: TRule; AText: string);
 begin
@@ -277,10 +457,52 @@ begin
   FText := AText;
   FPosition := 1;
   FSavedPositions := TStack<Integer>.Create;
-  if not ARule.Analyze(Self) then
+  FRulePositions := TList<Integer>.Create;
+  if not ARule.Expression.Analyze(Self) then
     raise ENotImplemented.Create('No match!');
-  if Position <> Length(Text) then
-    raise ENotImplemented.Create('Trailing data!');
+  if Position <> Length(Text) + 1 then
+    raise ENotImplemented.Create('Trailing data! ' + Text.Substring(Position - 1));
+end;
+
+function TEBNF.TLexer.AdvancedSinceRule(ARule: TRule): Boolean;
+begin
+  Result := Position > LastRulePosition(ARule);
+end;
+
+procedure TEBNF.TLexer.BeginRule(ARule: TRule);
+var
+  OldSyntaxTree: ISyntaxTree;
+begin
+  OldSyntaxTree := FCurrentSyntaxTree;
+  FCurrentSyntaxTree := TSyntaxTree.Create(ARule, FCurrentSyntaxTree);
+  OldSyntaxTree.Nodes.Add(FCurrentSyntaxTree);
+  FRulePositions.Add(Position);
+end;
+
+procedure TEBNF.TLexer.EndRule(AKeep: Boolean);
+var
+  NewSyntaxTree: ISyntaxTree;
+begin
+  FRulePositions.RemoveAt(FRulePositions.MaxIndex);
+  NewSyntaxTree := FCurrentSyntaxTree;
+  FCurrentSyntaxTree := FCurrentSyntaxTree.Parent;
+  if not AKeep then
+    FCurrentSyntaxTree.Nodes.Remove(NewSyntaxTree);
+end;
+
+function TEBNF.TLexer.LastRulePosition(ARule: TRule): Integer;
+var
+  I: Integer;
+  CheckedSyntaxTree: ISyntaxTree;
+begin
+  CheckedSyntaxTree := FCurrentSyntaxTree;
+  for I := FRulePositions.MaxIndex downto 0 do
+  begin
+    if CheckedSyntaxTree.Rule = ARule then
+      Exit(FRulePositions[I]);
+    CheckedSyntaxTree := CheckedSyntaxTree.Parent;
+  end;
+  Exit(0);
 end;
 
 procedure TEBNF.TLexer.Save;
@@ -288,14 +510,30 @@ begin
   FSavedPositions.Push(FPosition);
 end;
 
+procedure TEBNF.TLexer.SkipWhitespace;
+begin
+  while not ReachedEnd and Text[Position].IsWhiteSpace do
+    Inc(FPosition);
+end;
+
 procedure TEBNF.TLexer.DiscardSave;
 begin
   FSavedPositions.Pop;
 end;
 
+function TEBNF.TLexer.ReachedEnd: Boolean;
+begin
+  Result := Position = Length(Text) + 1;
+end;
+
 procedure TEBNF.TLexer.Revert;
 begin
   FPosition := FSavedPositions.Pop;
+end;
+
+procedure TEBNF.TLexer.Advance(AAmount: Integer);
+begin
+  Inc(FPosition, AAmount);
 end;
 
 function TEBNF.TLexer.StartsWith(AText: string; AAdvanceOnMatch: Boolean): Boolean;
@@ -341,6 +579,9 @@ end;
 
 function TEBNF.TTerminal.Analyze(ALexer: TLexer): Boolean;
 begin
+  ALexer.SkipWhitespace;
+  if ALexer.ReachedEnd then
+    Exit(False);
   Result := ALexer.StartsWith(Terminal);
 end;
 
@@ -361,7 +602,7 @@ var
   Expression: TExpression;
 begin
   for Expression in Expressions do
-    if not ALexer.Analyze(Expression) then
+    if not Expression.Analyze(ALexer) then
       Exit(False);
   Result := True;
 end;
@@ -390,7 +631,7 @@ begin
   for Expression in Expressions do
   begin
     ALexer.Save;
-    if ALexer.Analyze(Expression) then
+    if Expression.Analyze(ALexer) then
     begin
       ALexer.DiscardSave;
       Exit(True);
@@ -419,8 +660,10 @@ end;
 
 function TEBNF.TOptional.Analyze(ALexer: TLexer): Boolean;
 begin
+  if ALexer.ReachedEnd then
+    Exit(True);
   ALexer.Save;
-  Result := ALexer.Analyze(Expression);
+  Result := Expression.Analyze(ALexer);
   if Result then
     ALexer.DiscardSave
   else
@@ -436,8 +679,16 @@ end;
 
 function TEBNF.TRepetition.Analyze(ALexer: TLexer): Boolean;
 begin
-  while ALexer.Analyze(Expression) do
-      ; // nothing
+  if ALexer.ReachedEnd then
+    Exit(True);
+  repeat
+    ALexer.Save;
+    Result := Expression.Analyze(ALexer);
+    if Result then
+      ALexer.DiscardSave
+    else
+      ALexer.Revert;
+  until not Result;
   Result := True;
 end;
 
@@ -456,6 +707,11 @@ end;
 function TSyntaxTree.GetNodes: IList<ISyntaxTree>;
 begin
   Result := FNodes;
+end;
+
+function TSyntaxTree.GetParent: ISyntaxTree;
+begin
+  Result := FParent;
 end;
 
 constructor TSyntaxTree.Create(ARule: TEBNF.TRule; AParent: ISyntaxTree);

@@ -66,9 +66,9 @@ var
   I: Integer;
 begin
   FPerlinNoises := TList<TPerlinNoise>.Create;
-  FFactor := 10000;
-  for I := 1 to 20 do
-    FPerlinNoises.Add(TPerlinNoise.Create(IVec2(Random(42) + 2)));
+  FFactor := 5;
+  for I := 1 to 10 do
+    FPerlinNoises.Add(TPerlinNoise.Create(IVec2(I * 2)));
 end;
 
 procedure TForm10.FormKeyDown(Sender: TObject; var Key: Word; Shift:
@@ -88,16 +88,17 @@ var
   P: TIntVector2;
   Size: TIntVector2;
   PerlinNoise: TPerlinNoise;
-  V: TVector3;
+  V: TColorRGB;
 begin
   Size := IVec2(ClientWidth, ClientHeight);
   for P in Size do
   begin
-    V := 1;
+    V := 0;
     for PerlinNoise in FPerlinNoises do
-        V := V * PerlinNoise[TVector2(P) / Size];
-    V := V * FPerlinNoises.Count * FFactor;
-    Canvas.Pixels[P.X, P.Y] := TColorRGB(V).ToWinColor;  
+      if PerlinNoise[TVector2(P) / Size * 5].SqrDot in Bounds1(0.4, 0.5) then
+        V := V + 1;
+    V := V * (FFactor / FPerlinNoises.Count);
+    Canvas.Pixels[P.X, P.Y] := V.ToWinColor;
   end;
 end;
 
@@ -109,15 +110,15 @@ var
   P: TIntVector2;
 begin
   FSize := ASize;
-  SetLength(FGradient, Size.X, Size.Y);
-  Rand := TRandom.FromSeed(42);
+  SetLength(FGradient, Size.X + 1, Size.Y + 1);
+  // Rand := TRandom.FromSeed(42);
   for P in Size do
-    FGradient[P.X, P.Y] := Vec3(Rand.NextSingle, Rand.NextSingle, Rand.NextSingle);
+    FGradient[P.X, P.Y] := TVector3.Random;
 end;
 
 function TPerlinNoise.GetGradient(APos: TIntVector2): TVector3;
 begin
-  APos := IBounds2(Size).Clamp(APos);
+  APos := IBounds2(Size).RangedMod(APos);
   Result := FGradient[APos.X, APos.Y];
 end;
 
@@ -126,7 +127,7 @@ var
   GridPos: TIntVector2;
   Delta: TVector2;
 begin
-  APos := APos * (Size - 1);
+  APos := APos * Size;
   GridPos := APos.Floor;
   Delta := APos - GridPos;
   Result := Lerp(Gradient[GridPos], Gradient[GridPos + IVec2(1, 0)],

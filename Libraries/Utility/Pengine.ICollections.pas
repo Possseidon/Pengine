@@ -1145,6 +1145,7 @@ type
     property Top: T read GetTop;
 
     function GetEnumerator: IIterator<T>;
+    function Iterate: IIterate<T>;
 
     function PopMany: IIterable<T>;
 
@@ -1177,6 +1178,7 @@ type
     property Next: T read GetNext;
 
     function GetEnumerator: IIterator<T>;
+    function Iterate: IIterate<T>;
 
     function DequeueMany: IIterable<T>;
 
@@ -4346,6 +4348,11 @@ begin
   Result := Last;
 end;
 
+function TStack<T>.Iterate: IIterate<T>;
+begin
+  Result := TIterableIterate<T>.Create(Self);
+end;
+
 function TStack<T>.Pop: T;
 begin
   Result := Last;
@@ -4388,6 +4395,11 @@ end;
 function TQueue<T>.GetNext: T;
 begin
   Result := First;
+end;
+
+function TQueue<T>.Iterate: IIterate<T>;
+begin
+  Result := TIterableIterate<T>.Create(Self);
 end;
 
 { TStack<T>.TPopper }

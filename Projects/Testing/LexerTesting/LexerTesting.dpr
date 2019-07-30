@@ -4,6 +4,7 @@ program LexerTesting;
 
 {$R *.res}
 
+
 uses
   System.SysUtils,
   Pengine.Lexing;
@@ -13,7 +14,8 @@ var
   Node: ISyntaxTree;
 begin
   Write(StringOfChar(' ', 2 * AIndent));
-  Writeln(ASyntaxTree.Rule.Name + ' ::= ' + ASyntaxTree.Rule.Expression.ToString);
+  // Writeln(ASyntaxTree.Rule.Name + ' ::= ' + ASyntaxTree.Rule.Expression.ToString);
+  Writeln(ASyntaxTree.Rule.Name);
   for Node in ASyntaxTree.Nodes do
     DrawSyntaxTree(Node, AIndent + 1);
 end;
@@ -32,31 +34,58 @@ end;
 
 var
   EBNF: TEBNF;
+
 begin
   try
 
     EBNF := TEBNF.Create;
 
-    var A := EBNF.AddRule('a', TEBNF.TTerminal.Create('hello'));
-    var B := EBNF.AddRule('b', TEBNF.TTerminal.Create('world'));
-    var C := EBNF.AddRule('c', TEBNF.TTerminal.Create('awesome'));
+    EBNF['Name'] := '"abc"';
+    EBNF['Numeral'] := '"123"';
+    EBNF['LiteralString'] := '"''abc''"';
 
-    var Concatenation := EBNF.AddRule('concatenation', TEBNF.TConcatenation.Create([A, B, C]));
-    var Alternation := EBNF.AddRule('alternation', TEBNF.TAlternation.Create([A, B, C]));
-    var Optional := EBNF.AddRule('optional', TEBNF.TOptional.Create(Concatenation));
-    var Repetition := EBNF.AddRule('repetition', TEBNF.TRepetition.Create(Concatenation));
+    EBNF['chunk'] := 'block';
+    EBNF['block'] := '{stat} [retstat]';
+    EBNF['stat'] :=
+      '";" | varlist "=" explist | functioncall | label | "break" | "goto" Name | "do" block "end" |' +
+      '"while" exp "do" block "end" | "repeat" block "until" exp |' +
+      '"if" exp "then" block {"elseif" exp "then" block} ["else" block] "end" |' +
+      '"for" Name "=" exp "," exp ["," exp] "do" block "end" | "for" namelist "in" explist "do" block "end" |' +
+      '"function" funcname funcbody | "local" "function" Name funcbody | "local" namelist ["=" explist]';
+    EBNF['retstat'] := '"return" [explist] [";"]';
+    EBNF['label'] := '"::" Name "::"';
+    EBNF['funcname'] := 'Name {"." Name} [":" Name]';
+    EBNF['varlist'] := 'var {"," var}';
+    EBNF['var'] :=  'Name | prefixexp "[" exp "]" | prefixexp "." Name';
+    EBNF['namelist'] := 'Name {"," Name}';
+    EBNF['explist'] := 'exp {"," exp}';
+    EBNF['exp'] :=
+      '"nil" | "false" | "true" | Numeral | LiteralString | "..." | functiondef | prefixexp | tableconstructor |' +
+      'exp binop exp | unop exp';
+    EBNF['prefixexp'] := 'var | functioncall | "(" exp ")"';
+    EBNF['functioncall'] := 'prefixexp args | prefixexp ":" Name args';
+    EBNF['args'] :=  '"(" [explist] ")" | tableconstructor | LiteralString';
+    EBNF['functiondef'] := '"function" funcbody';
+    EBNF['funcbody'] := '"(" [parlist] ")" block "end"';
+    EBNF['parlist'] := 'namelist ["," "..."] | "..."';
+    EBNF['tableconstructor'] := '"{" [fieldlist] "}"';
+    EBNF['fieldlist'] := 'field {fieldsep field} [fieldsep]';
+    EBNF['field'] := '"[" exp "]" "=" exp | Name "=" exp | exp';
+    EBNF['fieldsep'] := '"," | ";"';
+    EBNF['binop'] :=
+      '"+" | "-" | "*" | "/" | "//" | "^" | "%" | "&" | "~" | "|" | ">>" | "<<" | ".." | "<" | "<=" | ">" | ">=" |' +
+      '"==" | "~=" | "and" | "or"';
+    EBNF['unop'] := '"-" | "not" | "#" | "~"';
 
-    Test(A, 'hello');
-    Test(Concatenation, 'helloworldawesomeh');
-    Test(Alternation, 'world');
-    Test(Optional, 'helloworldawesome');
-    Test(Repetition, 'helloworldawesomehelloworldawesome');
+    // for var Rule in EBNF.Rules do
+      // Writeln(Rule.Name, ' ::= ', Rule.ExpressionString);
 
-    Readln;
+    Test(EBNF.FindRule('chunk'), 'abc = abc.abc');
 
   except
     on E: Exception do
       Writeln(E.ClassName, ': ', E.Message);
   end;
-end.
+  Readln;
 
+end.
