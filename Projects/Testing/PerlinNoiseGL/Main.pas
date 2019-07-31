@@ -30,8 +30,8 @@ uses
 
 const
 
-  GradientSizeX = 20;
-  GradientSizeY = 20;
+  GradientSizeX = 50;
+  GradientSizeY = 50;
   GradientSize: TIntVector2 = (X: GradientSizeX; Y: GradientSizeY);
 
 type
@@ -165,14 +165,15 @@ var
   P: TIntVector2;
   GradientData: TGradientData;
 begin
-  Context.VSync := False;
+  Context.VSync := True;
+  Fullscreen := True;
 
   FGLProgram := TPerlinNoiseGLProgram.Make(GLState.ResParam);
 
   FCanvas := TGLCanvas.Create(FGLProgram, rmTriangles);
   FCanvas.VBO.Generate(6, buStaticDraw, @QuadMiddleCoords[0]);
 
-  Scale := 0.75;
+  Scale := 4;
   Offset := Vec2(0, 0);
 
   FUpdateSubscription := Game.OnUpdate.Add(DoUpdate);
