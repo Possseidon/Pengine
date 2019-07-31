@@ -24,11 +24,6 @@ type
     );
 
   TDeltaTimer = class
-  public type
-
-    TEventInfo = TSenderEventInfo<TDeltaTimer>;
-    TEvent = TEvent<TEventInfo>;
-
   private
     FLastTime: Int64;
 
@@ -39,11 +34,11 @@ type
     FUpdateSpeed: Single;
     FUpdateInterval: TSeconds;
 
-    FOnFPSUpdate: TEvent;
+    FOnFPSUpdate: TEvent<TDeltaTimer>;
 
     procedure SetUpdateSpeed(const Value: Single);
     procedure SetUpdateInterval(const Value: TSeconds);
-    function GetOnFPSUpdate: TEvent.TAccess;
+    function GetOnFPSUpdate: TEvent<TDeltaTimer>.TAccess;
 
   public
     constructor Create(AUpdateSpeed: Single = 4; AUpdateInterval: TSeconds = 0.5);
@@ -57,7 +52,7 @@ type
     property FPS: Single read FFPS;
     property Time: TSeconds read FSeconds;
 
-    property OnFPSUpdate: TEvent.TAccess read GetOnFPSUpdate;
+    property OnFPSUpdate: TEvent<TDeltaTimer>.TAccess read GetOnFPSUpdate;
 
     procedure ForceFPSUpdate;
 
@@ -249,7 +244,7 @@ begin
   if FUpdateTime >= UpdateInterval then
   begin
     FUpdateTime := 0;
-    FOnFPSUpdate.Execute(TEventInfo.Create(Self));
+    FOnFPSUpdate.Execute(Self);
   end;
 end;
 
@@ -258,7 +253,7 @@ begin
   FUpdateTime := FUpdateInterval;
 end;
 
-function TDeltaTimer.GetOnFPSUpdate: TEvent.TAccess;
+function TDeltaTimer.GetOnFPSUpdate: TEvent<TDeltaTimer>.TAccess;
 begin
   Result := FOnFPSUpdate.Access;
 end;

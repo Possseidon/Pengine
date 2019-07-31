@@ -1397,23 +1397,16 @@ type
 
     TChanges = set of TChange;
 
-    IChangeEventInfo = interface(IEventInfo<TLocation2>)
-      function GetChanges: TChanges;
-
-      property Changes: TChanges read GetChanges;
-
-    end;
-
-    TChangeEventInfo = class(TEventInfo<TLocation2>, IChangeEventInfo)
+    TChangeEventInfo = record
     private
+      FLocation: TLocation2;
       FChanges: TChanges;
 
-      function GetChanges: TChanges;
-
     public
-      constructor Create(ASender: TLocation2; AChanges: TChanges);
+      constructor Create(ALocation: TLocation2; AChanges: TChanges);
 
-      property Changes: TChanges read GetChanges;
+      property Location: TLocation2 read FLocation;
+      property Changes: TChanges read FChanges;
 
     end;
 
@@ -1455,7 +1448,7 @@ type
 
     procedure Changed(AChange: TChange);
 
-    procedure ParentChanged(AInfo: TChangeEventInfo);
+    procedure ParentChanged(const AInfo: TChangeEventInfo);
 
   public
     constructor Create;
@@ -1501,22 +1494,16 @@ type
 
     TChanges = set of TChange;
 
-    IChangeEventInfo = interface(IEventInfo<TLocation3>)
-      function GetChanges: TChanges;
-
-      property Changes: TChanges read GetChanges;
-
-    end;
-
-    TChangeEventInfo = class(TEventInfo<TLocation3>, IChangeEventInfo)
+    TChangeEventInfo = record
     private
+      FLocation: TLocation3;
       FChanges: TChanges;
-        function GetChanges: TChanges;
 
     public
-      constructor Create(ASender: TLocation3; AChanges: TChanges);
+      constructor Create(ALocation: TLocation3; AChanges: TChanges);
 
-      property Changes: TChanges read GetChanges;
+      property Location: TLocation3 read FLocation;
+      property Changes: TChanges read FChanges;
 
     end;
 
@@ -1589,7 +1576,7 @@ type
     procedure SetRoll(AValue: Single);
     procedure SetTurn(AValue: Single);
 
-    procedure ParentChanged(AInfo: TChangeEventInfo);
+    procedure ParentChanged(const AInfo: TChangeEventInfo);
     procedure SetParent(const Value: TLocation3);
 
     procedure Changed(AChange: TChange); overload;
@@ -4486,15 +4473,10 @@ end;
 
 { TLocation3.TChangeEventInfo }
 
-constructor TLocation3.TChangeEventInfo.Create(ASender: TLocation3; AChanges: TChanges);
+constructor TLocation3.TChangeEventInfo.Create(ALocation: TLocation3; AChanges: TChanges);
 begin
-  inherited Create(ASender);
+  FLocation := ALocation;
   FChanges := AChanges;
-end;
-
-function TLocation3.TChangeEventInfo.GetChanges: TChanges;
-begin
-  Result := FChanges;
 end;
 
 { TLocation3 }
@@ -4817,7 +4799,7 @@ begin
   Changed(lcTurn);
 end;
 
-procedure TLocation3.ParentChanged(AInfo: TChangeEventInfo);
+procedure TLocation3.ParentChanged(const AInfo: TChangeEventInfo);
 begin
   Changed(lcParent);
 end;
@@ -5664,15 +5646,10 @@ end;
 
 { TLocation2.TChangeEventInfo }
 
-constructor TLocation2.TChangeEventInfo.Create(ASender: TLocation2; AChanges: TChanges);
+constructor TLocation2.TChangeEventInfo.Create(ALocation: TLocation2; AChanges: TChanges);
 begin
-  inherited Create(ASender);
+  FLocation := ALocation;
   FChanges := AChanges;
-end;
-
-function TLocation2.TChangeEventInfo.GetChanges: TChanges;
-begin
-  Result := FChanges;
 end;
 
 { TLocation2 }
@@ -5805,7 +5782,7 @@ begin
   Result := AxisSystem[APoint];
 end;
 
-procedure TLocation2.ParentChanged(AInfo: TChangeEventInfo);
+procedure TLocation2.ParentChanged(const AInfo: TChangeEventInfo);
 begin
   Changed(lcParent);
 end;

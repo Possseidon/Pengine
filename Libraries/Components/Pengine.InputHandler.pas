@@ -21,31 +21,9 @@ type
 
   TKey = type Byte;
 
-  TKeyEventInfo = class(TEventInfo)
-  private
-    FKey: TKey;
+  TKeyEvent = TEvent<TKey>;
 
-  public
-    constructor Create(AKey: TKey);
-
-    property Key: TKey read FKey;
-
-  end;
-
-  TKeyEvent = TEvent<TKeyEventInfo>;
-
-  TTypeEventInfo = class(TEventInfo)
-  private
-    FText: string;
-
-  public
-    constructor Create(AText: string);
-
-    property Text: string read FText;
-
-  end;
-
-  TTypeEvent = TEvent<TTypeEventInfo>;
+  TTypeEvent = TEvent<string>;
 
   TKeyboardInput = class
   private
@@ -103,31 +81,11 @@ type
 
   end;
 
-  TButtonEventInfo = class(TEventInfo)
-  private
-    FButton: TMouseButton;
+  TButtonEvent = TEvent<TMouseButton>;
 
-  public
-    constructor Create(AButton: TMouseButton);
+  TScrollDirection = (sdUp, sdDown);
 
-    property Button: TMouseButton read FButton;
-
-  end;
-
-  TButtonEvent = TEvent<TButtonEventInfo>;
-
-  TScrollEventInfo = class(TEventInfo)
-  private
-    FScrolledUp: Boolean;
-
-  public
-    constructor Create(AScrolledUp: Boolean);
-
-    property ScrolledUp: Boolean read FScrolledUp;
-
-  end;
-
-  TScrollEvent = TEvent<TScrollEventInfo>;
+  TScrollEvent = TEvent<TScrollDirection>;
 
   TMouseInput = class
   private
@@ -750,14 +708,14 @@ procedure TMouseInput.PressButton(AButton: TMouseButton);
 begin
   FButtons[Ord(AButton)] := True;
   FNotifyDown[Ord(AButton)] := True;
-  FOnButtonDown.Execute(TButtonEventInfo.Create(AButton));
+  FOnButtonDown.Execute(AButton);
 end;
 
 procedure TMouseInput.ReleaseButton(AButton: TMouseButton);
 begin
   FButtons[Ord(AButton)] := False;
   FNotifyUp[Ord(AButton)] := True;
-  FOnButtonUp.Execute(TButtonEventInfo.Create(AButton));
+  FOnButtonUp.Execute(AButton);
 end;
 
 procedure TMouseInput.ReleaseAllButtons;
@@ -765,7 +723,7 @@ var
   Button: Integer;
 begin
   for Button in FButtons do
-    FOnButtonUp.Execute(TButtonEventInfo.Create(TMouseButton(Button)));
+    FOnButtonUp.Execute(TMouseButton(Button));
   FButtons.Clear;
   FNotifyUp.Fill;
 end;
@@ -780,13 +738,13 @@ end;
 procedure TMouseInput.ScrollUp;
 begin
   FScrolledUp := True;
-  FOnScroll.Execute(TScrollEventInfo.Create(True));
+  FOnScroll.Execute(sdUp);
 end;
 
 procedure TMouseInput.ScrollDown;
 begin
   FScrolledDown := True;                           
-  FOnScroll.Execute(TScrollEventInfo.Create(False));
+  FOnScroll.Execute(sdDown);
 end;
 
 procedure TMouseInput.Leave;
@@ -991,7 +949,7 @@ var
   Key: TKey;
 begin
   for Key in FKeys do                                         
-    FOnKeyUp.Execute(TKeyEventInfo.Create(Key));
+    FOnKeyUp.Execute(Key);
   FKeys.Clear;
   FNotifyUp.Fill;
 end;
@@ -999,7 +957,7 @@ end;
 procedure TKeyboardInput.PressKey(AKey: TKey);
 begin
   if not FKeys[AKey] then
-    FOnKeyDown.Execute(TKeyEventInfo.Create(AKey));
+    FOnKeyDown.Execute(AKey);
 
   FNotifyDown[AKey] := not FKeys[AKey];
   FKeys[AKey] := True;
@@ -1008,16 +966,16 @@ begin
   if (AKey = Ord('V')) and (AsyncKeyDown(VK_CONTROL)) and (Clipboard.AsText <> '') then
   begin
     FTextBuffer := FTextBuffer + Clipboard.AsText;
-    FOnType.Execute(TTypeEventInfo.Create(Clipboard.AsText));
+    FOnType.Execute(Clipboard.AsText);
   end;
 
-  FOnKeyTyped.Execute(TKeyEventInfo.Create(AKey));
+  FOnKeyTyped.Execute(AKey);
 end;
 
 procedure TKeyboardInput.ReleaseKey(AKey: TKey);
 begin
   if FKeys[AKey] then
-    FOnKeyUp.Execute(TKeyEventInfo.Create(AKey));
+    FOnKeyUp.Execute(AKey);
   FNotifyUp[AKey] := FKeys[AKey];
   FKeys[AKey] := False;
 end;
@@ -1025,7 +983,7 @@ end;
 procedure TKeyboardInput.PressChar(AChar: Char);
 begin
   FTextBuffer := FTextBuffer + AChar;
-  FOnType.Execute(TTypeEventInfo.Create(AChar));
+  FOnType.Execute(AChar);
 end;
 
 function TKeyboardInput.KeyDown(AKey: TKey): Boolean;
@@ -1066,34 +1024,6 @@ end;
 function TKeyboardInput.AnyKeyDown: Boolean;
 begin
   Result := FKeys.Ones > 0;
-end;
-
-{ TKeyEventInfo }
-
-constructor TKeyEventInfo.Create(AKey: TKey);
-begin
-  FKey := AKey;
-end;
-
-{ TTypeEventInfo }
-
-constructor TTypeEventInfo.Create(AText: string);
-begin
-  FText := AText;
-end;
-
-{ TButtonEventInfo }
-
-constructor TButtonEventInfo.Create(AButton: TMouseButton);
-begin
-  FButton := AButton;
-end;
-
-{ TScrollEventInfo }
-
-constructor TScrollEventInfo.Create(AScrolledUp: Boolean);
-begin
-  FScrolledUp := AScrolledUp;
 end;
 
 end.

@@ -8,6 +8,7 @@ uses
   System.SysUtils,
   System.Math,
 
+  Pengine.EventHandling,
   Pengine.GLEnums,
   Pengine.Matrix,
   Pengine.GLProgram,
@@ -186,6 +187,7 @@ type
     FRenderObjects: TInterfaceArray<IRenderable>;
 
     FLocation: TLocation3;
+    FLocationChangedSubscription: IEventSubscription;
 
     FFOV: Single;
     FAspect: Single;
@@ -216,7 +218,7 @@ type
     function GetMatrix(AMatrixType: TMatrixType): TMatrix4;
     function GetRotMatrix(AMatrixType: TMatrixType): TMatrix3;
 
-    procedure LocationChanged(AInfo: TLocation3.TChangeEventInfo);
+    procedure LocationChanged(const AInfo: TLocation3.TChangeEventInfo);
 
     function OcclusionRadiusVisible(const AFrustum: THexahedron; ARenderable: IRenderable): Boolean;
     function OcclusionPointsVisible(const AFrustum: THexahedron; ARenderable: IRenderable): Boolean;
@@ -339,7 +341,7 @@ begin
   FFarClip := AFarClip;
 
   FLocation := TLocation3.Create(True);
-  FLocation.OnChanged.Add(LocationChanged);
+  FLocationChangedSubscription := FLocation.OnChanged.Add(LocationChanged);
 
   FMat[mtModel] := TUniformBasic.Create(GetModelMatrix);
   FMat[mtView] := TUniformBasic.Create(GetViewMatrix);
@@ -675,7 +677,7 @@ begin
   Result := FMat[AMatrixType].Data.Minor[3];
 end;
 
-procedure TCamera.LocationChanged(AInfo: TLocation3.TChangeEventInfo);
+procedure TCamera.LocationChanged(const AInfo: TLocation3.TChangeEventInfo);
 begin
   FMat[mtView].Invalidate;
 end;
