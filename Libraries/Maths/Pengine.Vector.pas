@@ -4810,7 +4810,7 @@ begin
     Exit;
   FParent := Value;
   if FParent <> nil then
-    FParentSubscription := FParent.OnChanged.Add(ParentChanged);
+    FParentSubscription := FParent.OnChanged.Subscribe(ParentChanged);
   Changed(lcParent);
 end;
 
@@ -5660,7 +5660,7 @@ begin
     Exit;
   FParent := Value;
   if Parent <> nil then
-    FParentSubscription := Parent.OnChanged.Add(ParentChanged);
+    FParentSubscription := Parent.OnChanged.Subscribe(ParentChanged);
   Changed(lcParent);
 end;
 

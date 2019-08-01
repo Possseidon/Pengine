@@ -37,8 +37,10 @@ type
     public
       constructor Create(AHandlers: IList<THandler>);
 
-      /// <summary>Adds a new event-handler to the list.</summary>
-      function Add(AHandler: THandler): IEventSubscription; overload;
+      /// <summary>Adds a new event-handler to the list, which cannot be removed.</summary>
+      procedure Add(AHandler: THandler);
+      /// <summary>Subscribes to the event and automatically unsubscribes, when the subscription is freed.</summary>
+      function Subscribe(AHandler: THandler): IEventSubscription;
 
     end;
 
@@ -98,11 +100,19 @@ type
     private
       FHandlers: IList<THandler>;
 
+      class function Wrap(AHandler: TEvent.THandler): THandler; static;
+
     public
       constructor Create(AHandlers: IList<THandler>);
 
-      /// <summary>Adds a new event-handler to the list.</summary>
-      function Add(AHandler: THandler): IEventSubscription; overload;
+      /// <summary>Adds a new event-handler to the list, which cannot be removed.</summary>
+      procedure Add(AHandler: THandler); overload;
+      /// <summary>Adds a new event-handler to the list, which cannot be removed.</summary>
+      procedure Add(AHandler: TEvent.THandler); overload;
+      /// <summary>Subscribes to the event and automatically unsubscribes, when the subscription is freed.</summary>
+      function Subscribe(AHandler: THandler): IEventSubscription; overload;
+      /// <summary>Subscribes to the event and automatically unsubscribes, when the subscription is freed.</summary>
+      function Subscribe(AHandler: TEvent.THandler): IEventSubscription; overload;
 
     end;
 
@@ -209,14 +219,37 @@ end;
 
 { TEvent<T>.TAccess }
 
-function TEvent<T>.TAccess.Add(AHandler: THandler): IEventSubscription;
+procedure TEvent<T>.TAccess.Add(AHandler: THandler);
 begin
-  Result := TSubscription.Create(FHandlers, AHandler);
+  FHandlers.Add(AHandler);
+end;
+
+procedure TEvent<T>.TAccess.Add(AHandler: TEvent.THandler);
+begin
+  FHandlers.Add(Wrap(AHandler));
 end;
 
 constructor TEvent<T>.TAccess.Create(AHandlers: IList<THandler>);
 begin
   FHandlers := AHandlers;
+end;
+
+function TEvent<T>.TAccess.Subscribe(AHandler: TEvent.THandler): IEventSubscription;
+begin
+  Result := TSubscription.Create(FHandlers, Wrap(AHandler));
+end;
+
+function TEvent<T>.TAccess.Subscribe(AHandler: THandler): IEventSubscription;
+begin
+  Result := TSubscription.Create(FHandlers, AHandler);
+end;
+
+class function TEvent<T>.TAccess.Wrap(AHandler: TEvent.THandler): THandler;
+begin
+  Result := procedure(const AInfo: T)
+    begin
+      AHandler;
+    end;
 end;
 
 { TEvent.TSubscription }
@@ -236,14 +269,19 @@ end;
 
 { TEvent.TAccess }
 
-function TEvent.TAccess.Add(AHandler: THandler): IEventSubscription;
+procedure TEvent.TAccess.Add(AHandler: THandler);
 begin
-  Result := TSubscription.Create(FHandlers, AHandler);
+  FHandlers.Add(AHandler);
 end;
 
 constructor TEvent.TAccess.Create(AHandlers: IList<THandler>);
 begin
   FHandlers := AHandlers;
+end;
+
+function TEvent.TAccess.Subscribe(AHandler: THandler): IEventSubscription;
+begin
+  Result := TSubscription.Create(FHandlers, AHandler);
 end;
 
 { TEvent }

@@ -166,7 +166,7 @@ var
   GradientData: TGradientData;
 begin
   Context.VSync := True;
-  Fullscreen := True;
+  Fullscreen := False;
 
   FGLProgram := TPerlinNoiseGLProgram.Make(GLState.ResParam);
 
