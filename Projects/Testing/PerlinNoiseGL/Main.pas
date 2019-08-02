@@ -62,9 +62,6 @@ type
     FTimeUniform: TGLProgram.TUniform<Single>;
     FFPSUpdateSubscription: IEventSubscription;
     FGradientUBO: TUBO<TGradientData>;
-    FUpdateSubscription: IEventSubscription;
-    FResizeSubscription: IEventSubscription;
-    FRenderSubscription: IEventSubscription;
 
     procedure DoRender;
     procedure DoUpdate;
@@ -176,9 +173,9 @@ begin
   Scale := 4;
   Offset := Vec2(0, 0);
 
-  FUpdateSubscription := Game.OnUpdate.Add(DoUpdate);
-  FResizeSubscription := Game.OnResize.Add(DoResize);
-  FRenderSubscription := Game.OnRender.Add(DoRender);
+  Game.OnUpdate.Add(DoUpdate);
+  Game.OnResize.Add(DoResize);
+  Game.OnRender.Add(DoRender);
 
   for P in GradientSize do
     GradientData.Data[P.X, P.Y].Vec := TVector2.RandomNormal;
@@ -187,7 +184,7 @@ begin
   FGradientUBO.BindToGLProgram(FGLProgram, 'gradients');
   FGradientUBO.SubData(0, SizeOf(TGradientData), GradientData);
 
-  FFPSUpdateSubscription := Game.Timer.OnFPSUpdate.Add(UpdateFPS);
+  Game.Timer.OnFPSUpdate.Add(UpdateFPS);
 
   FTimeUniform := FGLProgram.Uniform<Single>('time');
 end;

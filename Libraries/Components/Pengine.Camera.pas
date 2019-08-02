@@ -341,7 +341,7 @@ begin
   FFarClip := AFarClip;
 
   FLocation := TLocation3.Create(True);
-  FLocationChangedSubscription := FLocation.OnChanged.Add(LocationChanged);
+  FLocationChangedSubscription := FLocation.OnChanged.Subscribe(LocationChanged);
 
   FMat[mtModel] := TUniformBasic.Create(GetModelMatrix);
   FMat[mtView] := TUniformBasic.Create(GetViewMatrix);
