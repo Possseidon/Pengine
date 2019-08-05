@@ -4,7 +4,7 @@ object Form10: TForm10
   Caption = 'Form10'
   ClientHeight = 400
   ClientWidth = 400
-  Color = clBtnFace
+  Color = clBlack
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
@@ -12,8 +12,11 @@ object Form10: TForm10
   Font.Style = []
   OldCreateOrder = False
   OnCreate = FormCreate
-  OnKeyDown = FormKeyDown
-  OnPaint = FormPaint
   PixelsPerInch = 96
   TextHeight = 13
+  object ApplicationEvents1: TApplicationEvents
+    OnIdle = ApplicationEvents1Idle
+    Left = 24
+    Top = 16
+  end
 end

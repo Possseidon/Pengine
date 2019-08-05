@@ -20,42 +20,45 @@ uses
   Pengine.IntMaths,
   Pengine.Vector,
   Pengine.Color,
-  Pengine.ICollections;
+  Pengine.ICollections,
+  Pengine.Noise, Vcl.ExtCtrls, Vcl.AppEvnts;
 
 type
 
-  TInterpolate = reference to function(A, B, W: Single): Single;
-
-  TPerlinNoise = class
+  TGradient2 = class(TInterfacedObject, IGradientSource2)
   private
-    FGradient: array of array of TVector2;
-    FSize: TIntVector2;
-    FInterpolate: TInterpolate;
+    FData: array of array of TVector2;
 
-    function GetNoise(APos: TVector2): Single;
     function GetGradient(APos: TIntVector2): TVector2;
-
-    function DotGridGradient(AGridPos: TIntVector2; APos: TVector2): Single;
+    function GetBounds: TIntBounds2;
 
   public
-    constructor Create(ASize: TIntVector2);
+    property Gradients[APos: TIntVector2]: TVector2 read GetGradient; default;
+    property Bounds: TIntBounds2 read GetBounds;
+    function HasBounds: Boolean;
 
-    property Size: TIntVector2 read FSize;
-    property Interpolate: TInterpolate read FInterpolate write FInterpolate;
-    property Gradient[APos: TIntVector2]: TVector2 read GetGradient;
-    property Noise[APos: TVector2]: Single read GetNoise; default;
+  end;
+
+  TGradient3 = class(TInterfacedObject, IGradientSource3)
+  private
+    FData: array of array of TVector3;
+
+    function GetGradient(APos: TIntVector3): TVector3;
+    function GetBounds: TIntBounds3;
+
+  public
+    property Gradients[APos: TIntVector3]: TVector3 read GetGradient; default;
+    property Bounds: TIntBounds3 read GetBounds;
+    function HasBounds: Boolean;
 
   end;
 
   TForm10 = class(TForm)
+    ApplicationEvents1: TApplicationEvents;
+    procedure ApplicationEvents1Idle(Sender: TObject; var Done: Boolean);
     procedure FormCreate(Sender: TObject);
-    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-    procedure FormPaint(Sender: TObject);
   private
-    FPerlinNoises: IList<TPerlinNoise>;
-    FFactor: Single;
-
-    procedure SetInterpolationFunction(AFunc: TInterpolate);
+    FPerlinNoise: TPerlinNoise3;
 
     class function LinearInterpolation(A, B, W: Single): Single; static;
     class function QuadraticInterpolation(A, B, W: Single): Single; static;
@@ -71,74 +74,37 @@ implementation
 
 {$R *.dfm}
 
-procedure TForm10.FormCreate(Sender: TObject);
-const
-  Noises: array [0 .. 9] of Integer = (3, 10, 18, 29, 58, 79, 80, 278, 392, 478);
+procedure TForm10.ApplicationEvents1Idle(Sender: TObject; var Done: Boolean);
 var
+  Size, Pos: TIntVector2;
+  PosF: TVector2;
   I: Integer;
+  N: Single;
+  C: TColorRGB;
+  Factor: Single;
+begin
+  Factor := GetTickCount / 20000;
+  Size := IVec2(ClientWidth, ClientHeight);
+  for I := 0 to Size.Area div 1 do
+  begin
+    Pos := TIntVector2.Random(Size);
+    PosF := TVector2(Pos) / 20;
+    N := FPerlinNoise[Vec3(PosF.X, PosF.Y, Factor)];
+    //if Abs(N) < 0.1 then
+    //  C := TColorRGB.Gray(1 - Abs(N) / 0.1)
+    //else
+    //  C := 0;
+    C := TColorRGB.Gray(Abs(N));
+    Canvas.Pixels[Pos.X, Pos.Y] := C.ToWinColor;
+  end;
+  Done := False;
+end;
+
+procedure TForm10.FormCreate(Sender: TObject);
 begin
   Randomize;
-  FPerlinNoises := TList<TPerlinNoise>.Create;
-  FFactor := 0.5;
-  for I := 1 to 12 do
-    FPerlinNoises.Add(TPerlinNoise.Create(IVec2(5)));
-  SetInterpolationFunction(CubicInterpolation);
-end;
-
-procedure TForm10.FormKeyDown(Sender: TObject; var Key: Word; Shift:
-  TShiftState);
-begin
-  case Key of
-    VK_UP:
-      FFactor := FFactor + 0.1;
-    VK_DOWN:
-      FFactor := FFactor - 0.1;
-    Ord('A'):
-      SetInterpolationFunction(LinearInterpolation);
-    Ord('S'):
-      SetInterpolationFunction(QuadraticInterpolation);
-    Ord('D'):
-      SetInterpolationFunction(CubicInterpolation);
-    Ord('F'):
-      SetInterpolationFunction(SineInterpolation);
-    VK_SPACE:
-      Invalidate;
-  end;
-end;
-
-procedure TForm10.FormPaint(Sender: TObject);
-var
-  P: TIntVector2;
-  Size: TIntVector2;
-  PerlinNoise: TPerlinNoise;
-  V, H: Single;
-  Color: TColorRGB;
-begin
-  Size := IVec2(ClientWidth, ClientHeight);
-  for P in Size do
-  begin
-    Color := 1;
-    H := 0;
-    for PerlinNoise in FPerlinNoises do
-    begin
-      if Abs(PerlinNoise[TVector2(P) / Size]) < 0.05 then
-      begin
-        V := 1 - Abs(PerlinNoise[TVector2(P) / Size]) * 10;
-        Color := Color + TColorRGB.HSV(H, 0.8, V);
-      end;
-      H := H + 0.5;
-    end;
-    Canvas.Pixels[P.X, P.Y] := Color.EnsureColor.ToWinColor;
-
-  end;
-end;
-
-procedure TForm10.SetInterpolationFunction(AFunc: TInterpolate);
-var
-  PerlinNoise: TPerlinNoise;
-begin
-  for PerlinNoise in FPerlinNoises do
-    PerlinNoise.Interpolate := AFunc;
+  FPerlinNoise := TPerlinNoise3.Create;
+  FPerlinNoise.GradientSource := TGradient3.Create;
 end;
 
 class function TForm10.LinearInterpolation(A, B, W: Single): Single;
@@ -165,48 +131,51 @@ begin
   Result := A + (Sin((W - 0.5) * Pi) + 1) * 0.5 * (B - A);
 end;
 
-{ TPerlin }
+{ TGradient }
 
-constructor TPerlinNoise.Create(ASize: TIntVector2);
+function TGradient2.GetBounds: TIntBounds2;
+begin
+  Result := IBounds2(0);
+end;
+
+function TGradient2.GetGradient(APos: TIntVector2): TVector2;
 var
   Rand: TRandom;
-  P: TIntVector2;
 begin
-  FSize := ASize;
-  SetLength(FGradient, Size.X + 1, Size.Y + 1);
-  // Rand := TRandom.FromSeed(42);
-  for P in Size do
-    FGradient[P.X, P.Y] := TVector2.RandomNormal;
+  Rand := TRandom.FromSeed(TDefault<TIntVector2>.Hash(APos));
+  Result := TVector2.FromAngleRad(Rand.NextSingle * 2 * Pi);
+  // Result := Vec2(0, 1).Rotate((Sin(APos.X) + Cos(APos.Y)) * 30);
 end;
 
-function TPerlinNoise.DotGridGradient(AGridPos: TIntVector2; APos: TVector2): Single;
+function TGradient2.HasBounds: Boolean;
+begin
+  Result := False;
+end;
+
+{ TGradient3 }
+
+function TGradient3.GetBounds: TIntBounds3;
+begin
+  Result := IBounds3(0);
+end;
+
+function TGradient3.GetGradient(APos: TIntVector3): TVector3;
 var
-  Delta: TVector2;
+  Rand: TRandom;
+  O: Single;
+  U: Single;
 begin
-  Delta := AGridPos - APos;
-  Result := Gradient[AGridPos].Dot(Delta);
+  Rand := TRandom.FromSeed(TDefault<TIntVector3>.Hash(APos));
+  O := Rand.NextSingle * 2 * Pi;
+  U := Rand.NextSingle * 2 - 1;
+  Result.X := Sqrt(1 - Sqr(U)) * Sin(O);
+  Result.Y := Sqrt(1 - Sqr(U)) * Cos(O);
+  Result.Z := U;
 end;
 
-function TPerlinNoise.GetGradient(APos: TIntVector2): TVector2;
+function TGradient3.HasBounds: Boolean;
 begin
-  APos := IBounds2(Size).RangedMod(APos);
-  Result := FGradient[APos.X, APos.Y];
-end;
-
-function TPerlinNoise.GetNoise(APos: TVector2): Single;
-var
-  GridPos: TIntVector2;
-  Delta: TVector2;
-  Top, Bottom: Single;
-begin
-  APos := APos * Size;
-  GridPos := APos.Floor;
-  Delta := APos - GridPos;
-
-  Top := Interpolate(DotGridGradient(GridPos, APos), DotGridGradient(GridPos + IVec2(1, 0), APos), Delta.X);
-  Bottom := Interpolate(DotGridGradient(GridPos + IVec2(0, 1), APos), DotGridGradient(GridPos + 1, APos), Delta.X);
-  Result := Interpolate(Top, Bottom, Delta.Y);
-  Result := Result / Sqrt(0.5);
+  Result := False;
 end;
 
 end.

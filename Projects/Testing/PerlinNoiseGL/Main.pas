@@ -30,9 +30,10 @@ uses
 
 const
 
-  GradientSizeX = 50;
-  GradientSizeY = 50;
-  GradientSize: TIntVector2 = (X: GradientSizeX; Y: GradientSizeY);
+  GradientSizeX = 20;
+  GradientSizeY = 20;
+  GradientSizeZ = 20;
+  GradientSize: TIntVector3 = (X: GradientSizeX; Y: GradientSizeY; Z: GradientSizeZ);
 
 type
 
@@ -46,9 +47,9 @@ type
   TGLCanvas = TVAOMutable<TVector2>;
 
   TGradientData = record
-    Data: array [0 .. GradientSizeX - 1, 0 .. GradientSizeY - 1] of record
-      Vec: TVector2;
-      Filler: TVector2;
+    Data: array [0 .. GradientSizeX - 1, 0 .. GradientSizeY - 1, 0 .. GradientSizeZ - 1] of record
+      Vec: TVector3;
+      Filler: Single;
     end;
   end;
 
@@ -60,7 +61,6 @@ type
     FOffset: TVector2;
     FDrag: TOpt<TVector2>;
     FTimeUniform: TGLProgram.TUniform<Single>;
-    FFPSUpdateSubscription: IEventSubscription;
     FGradientUBO: TUBO<TGradientData>;
 
     procedure DoRender;
@@ -159,7 +159,7 @@ end;
 
 procedure TfrmMain.Init;
 var
-  P: TIntVector2;
+  P: TIntVector3;
   GradientData: TGradientData;
 begin
   Context.VSync := True;
@@ -178,7 +178,7 @@ begin
   Game.OnRender.Add(DoRender);
 
   for P in GradientSize do
-    GradientData.Data[P.X, P.Y].Vec := TVector2.RandomNormal;
+    GradientData.Data[P.X, P.Y, P.Z].Vec := TVector3.RandomNormal;
 
   FGradientUBO := TUBO<TGradientData>.Create(GLState, buStreamDraw);
   FGradientUBO.BindToGLProgram(FGLProgram, 'gradients');
