@@ -152,30 +152,4 @@ begin
   Result := False;
 end;
 
-{ TGradient3 }
-
-function TGradient3.GetBounds: TIntBounds3;
-begin
-  Result := IBounds3(0);
-end;
-
-function TGradient3.GetGradient(APos: TIntVector3): TVector3;
-var
-  Rand: TRandom;
-  O: Single;
-  U: Single;
-begin
-  Rand := TRandom.FromSeed(TDefault<TIntVector3>.Hash(APos));
-  O := Rand.NextSingle * 2 * Pi;
-  U := Rand.NextSingle * 2 - 1;
-  Result.X := Sqrt(1 - Sqr(U)) * Sin(O);
-  Result.Y := Sqrt(1 - Sqr(U)) * Cos(O);
-  Result.Z := U;
-end;
-
-function TGradient3.HasBounds: Boolean;
-begin
-  Result := False;
-end;
-
 end.

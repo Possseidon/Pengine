@@ -49,24 +49,6 @@ type
 
   TGLState = class;
 
-  TGLObjectParam = class(TResourceParameter)
-  private
-    FGLState: TGLState;
-
-  protected
-    constructor Create; overload; override;
-    constructor Create(AGLState: TGLState); reintroduce; overload;
-
-    function GetHash: Cardinal; override;
-    function Equals(AOther: TResourceParameter): Boolean; override;
-
-  public
-    procedure Assign(AResourceParameter: TResourceParameter); override;
-
-    property GLState: TGLState read FGLState;
-
-  end;
-
   TGLObjectBaseClass = class of TGLObjectBase;
 
   TGLObjectBinding = class;
@@ -352,8 +334,6 @@ type
     function GetState(AState: TGLSingleState.TBlendFuncType): TGLBlendFunc; overload;
     procedure SetState(AState: TGLSingleState.TBlendFuncType; const Value: TGLBlendFunc); overload;
 
-    function GetResourceParam: TGLObjectParam;
-    
   public
     constructor Create;
     destructor Destroy; override;
@@ -370,8 +350,6 @@ type
     property State[AState: TGLSingleState.TBlendFuncType]: TGLBlendFunc read GetState write SetState; default;
 
     property GLObjectBindings: TGLObjectBindings read FGLObjectBindings;
-
-    property ResParam: TGLObjectParam read GetResourceParam;
 
     property ScreenSize: TIntVector2 read FScreenSize;
 
@@ -454,11 +432,6 @@ end;
 function TGLState.GetState(AState: TGLSingleState.TCullFaceType): TGLCullFace;
 begin
   Result := GetState<TGLCullFace>(AState);
-end;
-
-function TGLState.GetResourceParam: TGLObjectParam;
-begin
-  Result := TGLObjectParam.Create(Self);
 end;
 
 function TGLState.GetState(AState: TGLSingleState.TBlendFuncType): TGLBlendFunc;
@@ -708,34 +681,6 @@ function TGLSingleState.Copy: TGLSingleState;
 begin
   Result := TGLSingleStateClass(ClassType).Create;
   Result.Assign(Self);
-end;
-
-{ TGLObjectParam }
-
-procedure TGLObjectParam.Assign(AResourceParameter: TResourceParameter);
-begin
-  inherited;
-  FGLState := TGLObjectParam(AResourceParameter).FGLState;
-end;
-
-constructor TGLObjectParam.Create(AGLState: TGLState);
-begin
-  FGLState := AGLState;
-end;
-
-constructor TGLObjectParam.Create;
-begin
-
-end;
-
-function TGLObjectParam.Equals(AOther: TResourceParameter): Boolean;
-begin
-  Result := inherited and (FGLState = TGLObjectParam(AOther).FGLState);
-end;
-
-function TGLObjectParam.GetHash: Cardinal;
-begin
-  Result := inherited xor TRefHasher<TGLState>.GetHash(FGLState);
 end;
 
 { TGLUIntObject }

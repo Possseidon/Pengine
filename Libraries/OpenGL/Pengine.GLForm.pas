@@ -242,7 +242,6 @@ begin
 
     Application.OnException := ApplicationException;
 
-    TResourceManager.Init;
     Init;
     Start;
 
@@ -270,7 +269,6 @@ begin
 
   try
     Finalize;
-    TResourceManager.Finalize;
   except
     on E: Exception do
       TGLContext.ErrorBox('Finalization Error!', E.Message, [mbOK], mbOK);

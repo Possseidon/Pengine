@@ -6,7 +6,7 @@ struct stripe
   float pitch;    
 };
 
-layout (std140) uniform stripedata
+layout (std140) uniform stripedata 
 {
   stripe stripes[16];
   int stripeCount;

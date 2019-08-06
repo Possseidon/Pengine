@@ -8,7 +8,6 @@ uses
   System.RegularExpressions,
   System.IOUtils,
   System.JSON, // TODO: Replace with Pengine.JSON
-  System.Generics.Collections,
   System.Classes,
 
   Winapi.Windows,

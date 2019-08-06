@@ -259,12 +259,13 @@ type
 
   end;
 
-  TGLProgramResource = class(TParamResource<TGLProgram, TGLObjectParam>)
+  TGLProgramResource = class(TParamResource<TGLProgram, TGLState>)
   protected
-    class function CreateData(AParam: TGLObjectParam): TGLProgram; override;
+    function CreateData(AGLState: TGLState): TGLProgram; override;
 
     class procedure GetData(out AName: string; out AResource: Boolean); virtual; abstract;
     class function GetAttributeOrder: TGLProgram.TAttributeOrder; virtual; abstract;
+
   end;
 
   TGLProgramResourceClass = class of TGLProgramResource;
@@ -878,12 +879,12 @@ end;
 
 { TGLProgramResource }
 
-class function TGLProgramResource.CreateData(AParam: TGLObjectParam): TGLProgram;
+function TGLProgramResource.CreateData(AGLState: TGLState): TGLProgram;
 var
   Name: string;
   Resource: Boolean;
 begin
-  Result := TGLProgram.Create(AParam.GLState);
+  Result := TGLProgram.Create(AGLState);
   try
     GetData(Name, Resource);
     if Resource then

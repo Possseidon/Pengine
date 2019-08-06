@@ -5,10 +5,10 @@ interface
 uses
   Winapi.Windows,
 
-  System.UITypes,
   System.Classes,
   System.SysUtils,
   System.Math,
+  System.UITypes,
 
   Vcl.Controls,
 

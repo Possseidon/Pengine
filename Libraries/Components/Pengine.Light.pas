@@ -20,7 +20,8 @@ uses
   Pengine.VAO,
   Pengine.GLState,
   Pengine.GLGame,
-  Pengine.GLContext, Pengine.IntMaths;
+  Pengine.GLContext,
+  Pengine.IntMaths;
 
 type
 

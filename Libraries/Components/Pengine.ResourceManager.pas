@@ -3,460 +3,244 @@ unit Pengine.ResourceManager;
 interface
 
 uses
-
-  {$IFNDEF DebugConsole}
-
-  Vcl.Dialogs,
-  System.UITypes,
-
-  {$ENDIF}
-
   System.SysUtils,
 
-  Pengine.Collections,
-  Pengine.HashCollections,
-  Pengine.Hasher,
-  Pengine.Equaller,
-  Pengine.DebugConsole;
+  Pengine.ICollections;
 
 type
 
-  { TResourceBase }
+  TResourceManager = class;
 
-  TResourceBase = class abstract
-  public type
-    TDataMap = TToRefMap<TClass, TObject, TClassHasher>;
+  IResource = interface
+  end;
 
-  private
-    class var
-      FData: TDataMap;
+  IResource<T> = interface(IResource)
+    function GetData: T;
 
-    class procedure Load; virtual; abstract;
-    class procedure Unload; virtual; abstract;
-
-  public
-    class constructor Create;
-    class destructor Destroy;
+    property Data: T read GetData;
 
   end;
 
-  TResourceClass = class of TResourceBase;
+  TResourceClass = class of TResource;
 
-  { TResource }
-
-  TResource<T: class> = class abstract(TResourceBase)
+  TResource = class(TInterfacedObject)
   private
-    class procedure Load; override;
-    class procedure Unload; override;
+    FResourceManager: TResourceManager;
+
+  public
+    constructor Create(AResourceManager: TResourceManager);
+
+  end;
+
+  TResource<T: class> = class(TResource, IResource<T>)
+  private
+    FData: T;
+
+    // IResource<T>
+    function GetData: T;
 
   protected
-    class function CreateData: T; virtual; abstract;
-
-    /// <summary>Call this in the class constructor of each non-abstract sub-class.</summary>
-    class procedure AddToResourceManager;
+    function CreateData: T; virtual; abstract;
 
   public
-    /// <summary>Query the Data behind the Resource</summary>
-    class function Data: T;
+    constructor Create(AResourceManager: TResourceManager);
+    destructor Destroy; override;
+
+    class function Get: IResource<T>; overload;
+    class function Get(AResourceManager: TResourceManager): IResource<T>; overload;
+
+    // IResource<T>
+    property Data: T read GetData;
 
   end;
 
-  TParamResource = class(TObject);
-
-  TParamResourceClass = class of TParamResource;
-  
-  TResourceParameter = class abstract
+  TParamResource<T: class; P> = class(TResource, IResource<T>)
   private
-    FResourceClass: TParamResourceClass;
+    FData: T;
+    FParam: P;
+
+    // IResource<T>
+    function GetData: T;
 
   protected
-    constructor Create; virtual;
-
-    function CreateCopy: TResourceParameter;
-
-    function Equals(AOther: TResourceParameter): Boolean; reintroduce; virtual;
-    function GetHash: Cardinal; virtual;
+    function CreateData(AParam: P): T; virtual; abstract;
 
   public
-    procedure Assign(AResourceParameter: TResourceParameter); virtual;
-    function Copy: TResourceParameter;
+    constructor Create(AParam: P; AResourceManager: TResourceManager);
+    destructor Destroy; override;
+
+    class function Get(AParam: P): IResource<T>; overload;
+    class function Get(AParam: P; AResourceManager: TResourceManager): IResource<T>; overload;
+
+    // IResource<T>
+    property Data: T read GetData;
 
   end;
 
-  TResourceParameterClass = class of TResourceParameter;
+  IParamResourceKey = interface
+    function Equals(AOther: IParamResourceKey): Boolean;
+    function Hash: Cardinal;
 
-  TResourceParameterEntry = class
+  end;
+
+  TParamResourceKey = class(TInterfacedObject);
+
+  TParamResourceKey<P> = class(TParamResourceKey, IParamResourceKey)
   private
-    FRefCount: Integer;
+    FResourceClass: TResourceClass;
+    FParam: P;
+
+  public
+    constructor Create(AResourceClass: TResourceClass; AParam: P);
+
+    function Equals(AOther: IParamResourceKey): Boolean; reintroduce;
+    function Hash: Cardinal;
+
+  end;
+
+  TResourceManager = class
+  private
+    // Uses Pointer instead of IResource to avoid reference counting
+    // Requires cast to real class type anyway
+    FResources: IMap<TResourceClass, Pointer>;
+    FParamResources: IMap<IParamResourceKey, Pointer>;
 
   public
     constructor Create;
 
-    class function GetTypeString: string; virtual; abstract;
-
-    procedure AddRef;
-    procedure RemoveRef;
-
-    property RefCount: Integer read FRefCount;
-
   end;
 
-  TResourceParameterEntry<T: class> = class(TResourceParameterEntry)
-  private
-    FData: T;
-
-  public
-    constructor Create(AData: T);
-    destructor Destroy; override;
-
-    class function GetTypeString: string; override;
-
-    property Data: T read FData;
-
-  end;
-
-  TResourceParameterEqualler = class(TEqualler<TResourceParameter>)
-    class function Equal(const AValue1, AValue2: TResourceParameter): Boolean; override;
-  end;
-
-  TResourceParameterHasher = class(THasher<TResourceParameter, TResourceParameterEqualler>)
-  public
-    class function GetHash(const AValue: TResourceParameter): Cardinal; override;
-    class function CanIndex(const AValue: TResourceParameter): Boolean; override;
-  end;
-
-  TResourceParameterMap<T: class> = class(TObjectObjectMap<TResourceParameter, TResourceParameterEntry<T>, TResourceParameterHasher>);
-
-  /// <summary>
-  /// An alternative to TResource<T>, which can contain Parameters.
-  /// Create a new Resource of this type using Make and Release it after use.
-  /// </summary>
-  TParamResource<T: class; P: TResourceParameter> = class abstract(TParamResource)
-  private
-    class var
-      FData: TResourceParameterMap<T>;
-
-  protected
-    class function CreateData(AParam: P): T; virtual; abstract;
-    class procedure ReleaseReferences(AParam: P); virtual;
-
-  public
-    class constructor Create;
-    class destructor Destroy;
-
-    /// <summary>Get a reference to a parametrized resource</summary>
-    class function Make(AParams: P; AFreeParam: Boolean = True): T; overload;
-
-    /// <summary>Release the with make obtained reference to a resource</summary>
-    class procedure Release(AParams: P; AFreeParam: Boolean = True); overload;
-  end;
-
-  { TResourceManager }
-
-  TResourceManager = class
-  public type
-
-    TResourceClasses = TArray<TResourceClass>;
-    TResourceParameterEntrySet = TRefSet<TResourceParameterEntry>;
-
-  private
-    class procedure Add(AResourceClass: TResourceClass);
-    {$IFDEF DEBUG}
-    class procedure ShowUnfreedParamResources;
-    {$ENDIF}
-  private
-    class var
-      FResourceClasses: TResourceClasses;
-      FUnloadResourceClasses: TResourceClasses;
-      FUnfreedParamResources: TResourceParameterEntrySet;
-
-  public
-    class constructor Create;
-    class destructor Destroy;
-
-    class procedure Init;
-    class procedure Finalize;
-
-  end;
+var
+  ResourceManager: TResourceManager;
 
 implementation
 
-{ TResourceBase }
-
-class constructor TResourceBase.Create;
-begin
-  FData := TDataMap.Create;
-end;
-
-class destructor TResourceBase.Destroy;
-begin
-  FData.Free;
-end;
-
 { TResource<T> }
 
-class procedure TResource<T>.Load;
+function TResource<T>.GetData: T;
 begin
-  Data;
+  Result := FData;
 end;
 
-class procedure TResource<T>.Unload;
+constructor TResource<T>.Create;
 begin
-  Data.Free;
+  inherited;
+  FData := CreateData;
 end;
 
-class procedure TResource<T>.AddToResourceManager;
+destructor TResource<T>.Destroy;
 begin
-  TResourceManager.Add(Self);
+  FData.Free;
+  FResourceManager.FResources.Remove(TResourceClass(ClassType));
+  inherited;
 end;
 
-class function TResource<T>.Data: T;
+class function TResource<T>.Get: IResource<T>;
 begin
-  if not FData.Get(Self, TObject(Result)) then   
-  begin
-    Result := CreateData;
-    FData[Self] := Result;
-    TResourceManager.FUnloadResourceClasses.Add(Self);
-  end;
+  Result := Get(ResourceManager);
+end;
+
+class function TResource<T>.Get(AResourceManager: TResourceManager): IResource<T>;
+var
+  ResPointer: Pointer;
+begin
+  if AResourceManager.FResources.Get(Self, ResPointer) then
+    Exit(IResource<T>(ResPointer));
+  Result := Self.Create(AResourceManager);
+  AResourceManager.FResources[Self] := Result;
 end;
 
 { TParamResource<T, P> }
 
-class constructor TParamResource<T, P>.Create;
+function TParamResource<T, P>.GetData: T;
 begin
-  FData := TResourceParameterMap<T>.Create;
+  Result := FData;
 end;
 
-class destructor TParamResource<T, P>.Destroy;
-var
-  Data: TPair<TResourceParameter, TResourceParameterEntry<T>>;
+constructor TParamResource<T, P>.Create(AParam: P; AResourceManager: TResourceManager);
 begin
-  for Data in FData do
-    TResourceManager.FUnfreedParamResources.Add(Data.Value);
+  inherited Create(AResourceManager);
+  FData := CreateData(AParam);
+  FParam := AParam;
+end;
+
+destructor TParamResource<T, P>.Destroy;
+begin
   FData.Free;
+  FResourceManager.FParamResources.Remove(TParamResourceKey<P>.Create(TResourceClass(ClassType), FParam));
+  inherited;
 end;
 
-class function TParamResource<T, P>.Make(AParams: P; AFreeParam: Boolean = True): T;
+class function TParamResource<T, P>.Get(AParam: P): IResource<T>;
+begin
+  Result := Get(AParam, ResourceManager);
+end;
+
+class function TParamResource<T, P>.Get(AParam: P; AResourceManager: TResourceManager): IResource<T>;
 var
-  ActualKey: TResourceParameter;
-  ResourceEntry: TResourceParameterEntry<T>;
+  ResPointer: Pointer;
+  ParamResourceKey: IParamResourceKey;
 begin
-  try
-    AParams.FResourceClass := Self;
-    if FData.Get(AParams, ResourceEntry) then
-    begin
-      ResourceEntry.AddRef;
-      Result := ResourceEntry.Data;
-    end
-    else
-    begin
-      Result := CreateData(AParams);
-      FData[AParams.Copy] := TResourceParameterEntry<T>.Create(Result);
-    end;
-  finally
-    if AFreeParam then
-      AParams.Free;
-  end;
-end;
-
-class procedure TParamResource<T, P>.Release(AParams: P; AFreeParam: Boolean = True);
-var
-  Data: TResourceParameterEntry<T>;
-begin
-  try
-    AParams.FResourceClass := Self;
-    Data := FData[AParams];
-    Data.RemoveRef;
-    if Data.RefCount = 0 then
-    begin
-      ReleaseReferences(AParams);
-      FData.Remove(AParams);
-    end;
-  finally
-    if AFreeParam then
-      AParams.Free;
-  end;
-end;
-
-class procedure TParamResource<T, P>.ReleaseReferences(AParam: P);
-begin
-  // nothing
+  ParamResourceKey := TParamResourceKey<P>.Create(Self, AParam);
+  if AResourceManager.FParamResources.Get(ParamResourceKey, ResPointer) then
+    Exit(IResource<T>(ResPointer));
+  Result := Self.Create(AParam, AResourceManager);
+  AResourceManager.FParamResources[ParamResourceKey] := Result;
 end;
 
 { TResourceManager }
 
-class constructor TResourceManager.Create;
+constructor TResourceManager.Create;
 begin
-  FResourceClasses := TResourceClasses.Create;
+  FResources := TMap<TResourceClass, Pointer>.Create;
+  FParamResources := TMap<IParamResourceKey, Pointer>.Create;
+  FParamResources.EquateKey := function(A, B: IParamResourceKey): Boolean
+    begin
+      Result := A.Equals(B);
+    end;
+  FParamResources.HashKey := function(AParamResourceKey: IParamResourceKey): Cardinal
+    begin
+      Result := AParamResourceKey.Hash;
+    end;
 end;
 
-class destructor TResourceManager.Destroy;
+{ TResource }
+
+constructor TResource.Create(AResourceManager: TResourceManager);
 begin
-  FResourceClasses.Free;
-  FUnloadResourceClasses.Free;
-  {$IFDEF DEBUG}
-  ShowUnfreedParamResources;
-  {$ENDIF}
-  FUnfreedParamResources.Free;
+  FResourceManager := AResourceManager;
 end;
 
-class procedure TResourceManager.Init;
+{ TParamResourceKey<P> }
+
+constructor TParamResourceKey<P>.Create(AResourceClass: TResourceClass; AParam: P);
+begin
+  FResourceClass := AResourceClass;
+  FParam := AParam;
+end;
+
+function TParamResourceKey<P>.Equals(AOther: IParamResourceKey): Boolean;
 var
-  ResourceClass: TResourceClass;
+  OtherTyped: TParamResourceKey<P>;
 begin
-  FUnloadResourceClasses := TResourceClasses.Create;
-  for ResourceClass in FResourceClasses do
-    ResourceClass.Load;
-  FreeAndNil(FResourceClasses);
+  if TObject(AOther).ClassType <> TParamResourceKey<P> then
+    Exit(False);
+  OtherTyped := TParamResourceKey<P>(AOther);
+  // TODO: Add a way to use a custom parameter equate function
+  Result := (OtherTyped.FResourceClass = FResourceClass) and TDefault<P>.Equate(OtherTyped.FParam, FParam);
 end;
 
-class procedure TResourceManager.Finalize;
-var
-  ResourceClass: TResourceClass;
+function TParamResourceKey<P>.Hash: Cardinal;
 begin
-  if FUnloadResourceClasses = nil then
-    Exit;
-
-  for ResourceClass in FUnloadResourceClasses do
-    ResourceClass.Unload;
-  FUnfreedParamResources := TResourceParameterEntrySet.Create;
+  Result := TDefault<TResourceClass>.Hash(FResourceClass) xor TDefault<P>.Hash(FParam);
 end;
 
-{$IFDEF DEBUG}
+initialization
 
-class procedure TResourceManager.ShowUnfreedParamResources;
-var
-  ResourceEntry: TResourceParameterEntry;
-  ErrorString: string;
-begin
-  // Did the program crash, before Init got called?
-  if FUnfreedParamResources = nil then
-    Exit;
+ResourceManager := TResourceManager.Create;
 
-  // Is there anything not freed?
-  if FUnfreedParamResources.Count = 0 then
-    Exit;
+finalization
 
-  ErrorString := 'Following Resource';
-  if FUnfreedParamResources.Count > 1 then
-    ErrorString := ErrorString + 's';
-  ErrorString := ErrorString + ' did not get released:' + sLineBreak;
-
-  for ResourceEntry in FUnfreedParamResources do
-  begin
-    ErrorString := ErrorString + Format(
-      '- %s: %d reference',
-      [ResourceEntry.GetTypeString, ResourceEntry.FRefCount]);
-    if ResourceEntry.FRefCount > 1 then
-      ErrorString := ErrorString + 's';
-    ErrorString := ErrorString + sLineBreak;
-  end;
-
-  {$IFDEF CONSOLE}
-
-  DebugWriteLine(sLineBreak + ErrorString);
-
-  {$ELSE}
-
-  MessageDlg(ErrorString, mtError, [mbOk], 0);
-
-  {$ENDIF}
-
-end;
-
-{$ENDIF}
-
-class procedure TResourceManager.Add(AResourceClass: TResourceClass);
-begin
-  FResourceClasses.Add(AResourceClass);
-end;
-
-{ TResourceParameterHasher }
-
-class function TResourceParameterHasher.CanIndex(const AValue: TResourceParameter): Boolean;
-begin
-  Result := AValue <> nil;
-end;
-
-class function TResourceParameterHasher.GetHash(const AValue: TResourceParameter): Cardinal;
-begin
-  Result := AValue.GetHash;
-end;
-
-{ TResourceParameterEqualler }
-
-class function TResourceParameterEqualler.Equal(const AValue1, AValue2: TResourceParameter): Boolean;
-begin
-  Result := AValue1.Equals(AValue2);
-end;
-
-{ TResourceParameter }
-
-procedure TResourceParameter.Assign(AResourceParameter: TResourceParameter);
-begin
-  FResourceClass := AResourceParameter.FResourceClass;
-end;
-
-function TResourceParameter.Copy: TResourceParameter;
-begin
-  Result := CreateCopy;
-end;
-
-constructor TResourceParameter.Create;
-begin
-  // nothing
-end;
-
-function TResourceParameter.CreateCopy: TResourceParameter;
-begin
-  Result := TResourceParameterClass(ClassType).Create;
-  Result.Assign(Self);
-end;
-
-function TResourceParameter.Equals(AOther: TResourceParameter): Boolean;
-begin
-  Result := FResourceClass = AOther.FResourceClass;
-end;
-
-function TResourceParameter.GetHash: Cardinal;
-begin
-  Result := HashOf(FResourceClass);
-end;
-
-{ TResourceParameterEntry }
-
-constructor TResourceParameterEntry.Create;
-begin
-  FRefCount := 1;
-end;
-
-procedure TResourceParameterEntry.AddRef;
-begin
-  Inc(FRefCount);
-end;
-
-procedure TResourceParameterEntry.RemoveRef;
-begin
-  Dec(FRefCount);
-end;
-
-{ TResourceParameterEntry<T> }
-
-constructor TResourceParameterEntry<T>.Create(AData: T);
-begin
-  inherited Create;
-  FData := AData;
-end;
-
-destructor TResourceParameterEntry<T>.Destroy;
-begin
-  FData.Free;
-  inherited;
-end;
-
-class function TResourceParameterEntry<T>.GetTypeString: string;
-begin
-  Result := T.ClassName;
-end;
+ResourceManager.Free;
 
 end.
