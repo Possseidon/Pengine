@@ -72,6 +72,9 @@ type
     class function Get(AParam: P): IResource<T>; overload;
     class function Get(AParam: P; AResourceManager: TResourceManager): IResource<T>; overload;
 
+    class function EquateParam(A, B: P): Boolean; virtual;
+    class function HashParam(AParam: P): Cardinal; virtual;
+
     // IResource<T>
     property Data: T read GetData;
 
@@ -85,7 +88,13 @@ type
 
   TParamResourceKey = class(TInterfacedObject);
 
-  TParamResourceKey<P> = class(TParamResourceKey, IParamResourceKey)
+  TParamResourceKey<T: class; P> = class(TParamResourceKey, IParamResourceKey)
+  public type
+
+    TDummyParamResource = class(TParamResource<T, P>);
+
+    TDummyResourceClass = class of TDummyParamResource;
+
   private
     FResourceClass: TResourceClass;
     FParam: P;
@@ -167,7 +176,7 @@ end;
 destructor TParamResource<T, P>.Destroy;
 begin
   FData.Free;
-  FResourceManager.FParamResources.Remove(TParamResourceKey<P>.Create(TResourceClass(ClassType), FParam));
+  FResourceManager.FParamResources.Remove(TParamResourceKey<T, P>.Create(TResourceClass(ClassType), FParam));
   inherited;
 end;
 
@@ -181,11 +190,21 @@ var
   ResPointer: Pointer;
   ParamResourceKey: IParamResourceKey;
 begin
-  ParamResourceKey := TParamResourceKey<P>.Create(Self, AParam);
+  ParamResourceKey := TParamResourceKey<T, P>.Create(Self, AParam);
   if AResourceManager.FParamResources.Get(ParamResourceKey, ResPointer) then
     Exit(IResource<T>(ResPointer));
   Result := Self.Create(AParam, AResourceManager);
   AResourceManager.FParamResources[ParamResourceKey] := Result;
+end;
+
+class function TParamResource<T, P>.EquateParam(A, B: P): Boolean;
+begin
+  Result := TDefault.Equate<P>(A, B);
+end;
+
+class function TParamResource<T, P>.HashParam(AParam: P): Cardinal;
+begin
+  Result := TDefault.Hash<P>(AParam);
 end;
 
 { TResourceManager }
@@ -211,28 +230,28 @@ begin
   FResourceManager := AResourceManager;
 end;
 
-{ TParamResourceKey<P> }
+{ TParamResourceKey<T, P> }
 
-constructor TParamResourceKey<P>.Create(AResourceClass: TResourceClass; AParam: P);
+constructor TParamResourceKey<T, P>.Create(AResourceClass: TResourceClass; AParam: P);
 begin
   FResourceClass := AResourceClass;
   FParam := AParam;
 end;
 
-function TParamResourceKey<P>.Equals(AOther: IParamResourceKey): Boolean;
+function TParamResourceKey<T, P>.Equals(AOther: IParamResourceKey): Boolean;
 var
-  OtherTyped: TParamResourceKey<P>;
+  OtherTyped: TParamResourceKey<T, P>;
 begin
-  if TObject(AOther).ClassType <> TParamResourceKey<P> then
+  if TObject(AOther).ClassType <> TParamResourceKey<T, P> then
     Exit(False);
-  OtherTyped := TParamResourceKey<P>(AOther);
-  // TODO: Add a way to use a custom parameter equate function
-  Result := (OtherTyped.FResourceClass = FResourceClass) and TDefault<P>.Equate(OtherTyped.FParam, FParam);
+  OtherTyped := TParamResourceKey<T, P>(AOther);
+  Result := (OtherTyped.FResourceClass = FResourceClass);
+  Result := Result and TDummyResourceClass(FResourceClass).EquateParam(OtherTyped.FParam, FParam);
 end;
 
-function TParamResourceKey<P>.Hash: Cardinal;
+function TParamResourceKey<T, P>.Hash: Cardinal;
 begin
-  Result := TDefault<TResourceClass>.Hash(FResourceClass) xor TDefault<P>.Hash(FParam);
+  Result := TDefault.Hash(FResourceClass) xor TDummyResourceClass(FResourceClass).HashParam(FParam);
 end;
 
 initialization

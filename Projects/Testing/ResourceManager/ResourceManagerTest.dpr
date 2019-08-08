@@ -4,9 +4,11 @@ program ResourceManagerTest;
 
 {$R *.res}
 
-
 uses
+  Winapi.Windows,
+
   System.SysUtils,
+  System.StrUtils,
 
   Pengine.DebugConsole,
   Pengine.ResourceManager;
@@ -25,13 +27,13 @@ type
 
   TMyResource = class(TParamResource<TMyObject, string>)
   protected
-    class function CreateData(AParam: string): TMyObject; override;
+    function CreateData(AParam: string): TMyObject; override;
 
   end;
 
 { TMyResource }
 
-class function TMyResource.CreateData(AParam: string): TMyObject;
+function TMyResource.CreateData(AParam: string): TMyObject;
 begin
   Result := TMyObject.Create(AParam);
 end;
@@ -54,29 +56,15 @@ procedure Test;
 var
   A, B, C, D, E, F, G, H, I, J: IResource<TMyObject>;
 begin
-  A := TMyResource.Get('abc');
-  B := TMyResource.Get('abc');
-  C := TMyResource.Get('is');
-
-  ResourceManager.Test;
-
-  D := TMyResource.Get('this');
-  E := TMyResource.Get('world');
-  F := TMyResource.Get('abc');
-  G := TMyResource.Get('abc');
-  H := TMyResource.Get('world');
-  I := TMyResource.Get('abc');
-  J := TMyResource.Get('this');
-
-  ResourceManager.Test;
-
+  A := TMyResource.Get('hello');
+  B := TMyResource.Get('world');
 end;
 
 begin
+
   try
     ReportMemoryLeaksOnShutdown := True;
     Test;
-    ResourceManager.Test;
 
   except
     on E: Exception do

@@ -79,6 +79,12 @@ end;
 begin
 
   try
+    raise Exception.Create('Test!');
+  except
+    Writeln('How did we get here?');
+  end;
+
+  try
     ReportMemoryLeaksOnShutdown := True;
 
     // Test;

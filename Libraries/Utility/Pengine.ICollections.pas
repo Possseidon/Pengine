@@ -14,6 +14,19 @@ type
 
   EDefaultError = class(Exception);
 
+  TDefault = class
+  private
+    class function HashString(A: UnicodeString): Cardinal; overload; static; inline;
+    {$IFDEF WINDOWS}
+    class function HashString(A: AnsiString): Cardinal; overload; static; inline;
+    {$ENDIF}
+  public
+    class function Equate<T>(A, B: T): Boolean; static; inline;
+    class function Compare<T>(A, B: T): Boolean; static; inline;
+    class function Hash<T>(A: T): Cardinal; static; inline;
+
+  end;
+
   TDefault<T> = class
   private
   class var
@@ -21,18 +34,8 @@ type
     FCompareFunc: TFunc<T, T, Boolean>;
     FHashFunc: TFunc<T, Cardinal>;
 
-  private
-    class function HashString(A: UnicodeString): Cardinal; overload; static; inline;
-    {$IFDEF WINDOWS}
-    class function HashString(A: AnsiString): Cardinal; overload; static; inline;
-    {$ENDIF}
-
   public
     class constructor Create;
-
-    class function Equate(A, B: T): Boolean; static;
-    class function Compare(A, B: T): Boolean; static;
-    class function Hash(A: T): Cardinal; static;
 
     class property EquateFunc: TFunc<T, T, Boolean> read FEquateFunc;
     class property CompareFunc: TFunc<T, T, Boolean> read FCompareFunc;
@@ -1587,16 +1590,9 @@ begin
   Result := TIntRangeIterate.Create(AStart, AStop, AStep);
 end;
 
-{ TDefault<T> }
+{ TDefault }
 
-class constructor TDefault<T>.Create;
-begin
-  FEquateFunc := Equate;
-  FCompareFunc := Compare;
-  FHashFunc := Hash;
-end;
-
-class function TDefault<T>.Equate(A, B: T): Boolean;
+class function TDefault.Equate<T>(A, B: T): Boolean;
 begin
   if (GetTypeKind(T) = tkRecord) and IsManagedType(T) then
     raise EDefaultError.Create('Comparing managed records is not supported.');
@@ -1626,7 +1622,7 @@ begin
   end;
 end;
 
-class function TDefault<T>.Hash(A: T): Cardinal;
+class function TDefault.Hash<T>(A: T): Cardinal;
 var
   I: PByte;
 begin
@@ -1678,19 +1674,21 @@ begin
   end;
 end;
 
-class function TDefault<T>.HashString(A: UnicodeString): Cardinal;
+class function TDefault.HashString(A: UnicodeString): Cardinal;
 begin
   Result := THashBobJenkins.GetHashValue(A[1], Length(A) * SizeOf(WideChar));
 end;
 
 {$IFDEF WINDOWS}
-class function TDefault<T>.HashString(A: AnsiString): Cardinal;
+
+class function TDefault.HashString(A: AnsiString): Cardinal;
 begin
   Result := THashBobJenkins.GetHashValue(A[1], Length(A) * SizeOf(AnsiChar));
 end;
 {$ENDIF}
 
-class function TDefault<T>.Compare(A, B: T): Boolean;
+
+class function TDefault.Compare<T>(A, B: T): Boolean;
 type
   PReal = ^Real;
 begin
@@ -1720,7 +1718,6 @@ begin
     if TypeInfo(T) = TypeInfo(AnsiChar) then
       Exit(PAnsiChar(@A)^ < PAnsiChar(@B)^);
     {$ENDIF}
-
     // 2 Byte
     if TypeInfo(T) = TypeInfo(SmallInt) then
       Exit(PSmallInt(@A)^ < PSmallInt(@B)^);
@@ -1763,6 +1760,15 @@ begin
   end;
 
   raise EDefaultError.Create('Unsupported object comparision.');
+end;
+
+{ TDefault<T> }
+
+class constructor TDefault<T>.Create;
+begin
+  FEquateFunc := TDefault.Equate<T>;
+  FCompareFunc := TDefault.Compare<T>;
+  FHashFunc := TDefault.Hash<T>;
 end;
 
 { TPair<K, V> }

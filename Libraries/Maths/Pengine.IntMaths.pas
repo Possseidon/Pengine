@@ -980,6 +980,62 @@ const
     'z'
     );
 
+  CubeEdgeDirections: array [TCoordAxis3, TIntBounds2.TCornerIndex] of TBasicDirs3 = ((
+    [bdDown, bdBack],
+    [bdUp, bdBack],
+    [bdDown, bdFront],
+    [bdUp, bdFront]
+    ), (
+    [bdLeft, bdBack],
+    [bdLeft, bdFront],
+    [bdRight, bdBack],
+    [bdRight, bdFront]
+    ), (
+    [bdLeft, bdDown],
+    [bdRight, bdDown],
+    [bdLeft, bdUp],
+    [bdRight, bdUp]
+  ));
+
+  CubeEdgeDirectionArrays: array [TCoordAxis3, TIntBounds2.TCornerIndex, 0 .. 1] of TBasicDir3 = ((
+    (bdDown, bdBack),
+    (bdBack, bdUp),
+    (bdFront, bdDown),
+    (bdUp, bdFront)
+    ), (
+    (bdBack, bdLeft),
+    (bdLeft, bdFront),
+    (bdRight, bdBack),
+    (bdFront, bdRight)
+    ), (
+    (bdLeft, bdDown),
+    (bdDown, bdRight),
+    (bdUp, bdLeft),
+    (bdRight, bdUp)
+  ));
+
+  CubeVertexDirections: array [TIntBounds3.TCornerIndex] of TBasicDirs3 = (
+    [bdLeft, bdDown, bdBack],
+    [bdRight, bdDown, bdBack],
+    [bdLeft, bdUp, bdBack],
+    [bdRight, bdUp, bdBack],
+    [bdLeft, bdDown, bdFront],
+    [bdRight, bdDown, bdFront],
+    [bdLeft, bdUp, bdFront],
+    [bdRight, bdUp, bdFront]
+  );
+
+  CubeVertexDirectionArrays: array [TIntBounds3.TCornerIndex, 0 .. 2] of TBasicDir3 = (
+    (bdLeft, bdBack, bdDown),
+    (bdRight, bdDown, bdBack),
+    (bdLeft, bdUp, bdBack),
+    (bdRight, bdBack, bdUp),
+    (bdLeft, bdDown, bdFront),
+    (bdRight, bdFront, bdDown),
+    (bdLeft, bdFront, bdUp),
+    (bdRight, bdUp, bdFront)
+  );
+
   { Shorthand Constructors }
 
 /// <returns>A <see cref="Pengine.IntMaths|TIntVector2"/> with the given values for X and Y.</returns>

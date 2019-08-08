@@ -3,9 +3,14 @@ unit Main;
 interface
 
 uses
+  Winapi.Windows,
+
   System.SysUtils,
   System.Classes,
+  System.Diagnostics,
+  System.Threading,
 
+  Pengine.DebugConsole,
   Pengine.ResourceManager,
   Pengine.GLForm,
   Pengine.ControlledCamera,
@@ -138,6 +143,19 @@ end;
 
 procedure TfrmMain.GameUpdate;
 begin
+  if Input.KeyDown('W') then
+    FCamera.Location.Move(DeltaTime);
+  if Input.KeyDown('S') then
+    FCamera.Location.Move(-DeltaTime);
+  if Input.KeyDown('D') then
+    FCamera.Location.Slide(DeltaTime);
+  if Input.KeyDown('A') then
+    FCamera.Location.Slide(-DeltaTime);
+  if Input.KeyDown(VK_SPACE) then
+    FCamera.Location.Lift(DeltaTime);
+  if Input.KeyDown(VK_SHIFT) then
+    FCamera.Location.Lift(-DeltaTime);
+
   FCameraLight.Position := FCamera.Location.RealPosition;
 end;
 
@@ -146,52 +164,157 @@ var
   Map: array of array of array of Byte;
   VBOData: IList<TModelGLProgram.TData>;
   Plane: TPlane3;
-  TexCoord: TTexCoord2;
   I: Integer;
   P: TIntVector3;
   Size: TIntVector3;
   Dir: TBasicDir3;
+  Dirs: TBasicDirs3;
+  DirArray: array [0 .. 1] of TBasicDir3;
+  Axis: TCoordAxis3;
+  CornerIndex2: TBounds2.TCornerIndex;
+  CornerIndex3: TBounds3.TCornerIndex;
   CheckPos: TIntVector3;
   Data: TModelGLProgram.TData;
-begin
-  Size := 128;
+  Edge: TLine3;
+label
+  NextBlock;
 
-  SetLength(Map, Size.X, Size.Y, Size.Z);
-
-  for P in Size do
-    if FNoise[TVector3(P) / Size * 4] < 0.3 then
-      Map[P.X, P.Y, P.Z] := 1;
-
-  VBOData := TList<TModelGLProgram.TData>.Create;
-
-  for P in Size do
+  function MapAt(APos: TIntVector3): Byte;
   begin
-    for Dir := Low(TBasicDir3) to High(TBasicDir3) do
+    if APos in Size then
+      Exit(Map[APos.X, APos.Y, APos.Z]);
+    Result := 0;
+  end;
+
+  procedure AddQuad(APlane: TPlane3);
+  var
+    TexCoord: TTexCoord2;
+  begin
+    for TexCoord in QuadTexCoords do
     begin
-      CheckPos := P + Vec3Dir[Dir];
-      if Map[P.X, P.Y, P.Z] = 0 then
-        Continue;
-      if (CheckPos in Size) and (Map[CheckPos.X, CheckPos.Y, CheckPos.Z] <> 0) then
-        Continue;
-      Plane := CubePlanes[Dir];
-      for TexCoord in QuadTexCoords do
-      begin
-        Data.Pos := (Plane[TexCoord] + P - TVector3(Size) / 2) * 0.1;
-        Data.TexCoord := FStoneTexture.Bounds[TexCoord];
-        Data.Border := FStoneTexture.BoundsHalfPixelInset;
-        Data.Normal := Plane.Normal;
-        Data.Tangent := Plane.DX;
-        Data.Bitangent := Plane.DY;
-        VBOData.Add(Data);
-      end;
+      Data.Pos := (APlane[TexCoord] + P - TVector3(Size) / 2) * 0.1;
+      Data.TexCoord := FStoneTexture.Bounds[TexCoord];
+      Data.Border := FStoneTexture.BoundsHalfPixelInset;
+      Data.Normal := APlane.Normal;
+      Data.Tangent := APlane.DX;
+      Data.Bitangent := APlane.DY;
+      VBOData.Add(Data);
+    end;
+  end;    
+  
+  procedure AddTriangle(APlane: TPlane3);
+  var
+    TexCoord: TTexCoord2;
+  begin
+    for TexCoord in TriangleTexCoords do
+    begin
+      Data.Pos := (APlane[TexCoord] + P - TVector3(Size) / 2) * 0.1;
+      Data.TexCoord := FStoneTexture.Bounds[TexCoord];
+      Data.Border := FStoneTexture.BoundsHalfPixelInset;
+      Data.Normal := APlane.Normal;
+      Data.Tangent := APlane.DX;
+      Data.Bitangent := APlane.DY;
+      VBOData.Add(Data);
     end;
   end;
 
+begin
+  Size := 16;
+
+  var Stopwatch := TStopwatch.StartNew;
+  SetLength(Map, Size.X, Size.Y, Size.Z);
+  Writeln('Creating Map storage: ', Stopwatch.Elapsed.ToString);
+
+  Stopwatch := TStopwatch.StartNew;
+  {
+    for I := 0 to Size.Volume - 1 do
+    begin
+    P := IVec3(I mod Size.X, I div Size.X mod Size.Y, I div Size.X div Size.Y);
+    if Abs(FNoise[TVector3(P + 51) / Size * 7] + 0.2 * Abs(FNoise[TVector3(P) / Size * 9])) < 0.2 then
+    Map[P.Z, P.Y, P.X] := 1;
+    end;
+  }
+  TParallel.&For(0, Size.Volume - 1,
+    procedure(I: Integer)
+    begin
+      var P := IVec3(I mod Size.X, I div Size.X mod Size.Y, I div Size.X div Size.Y);
+      // if Abs(FNoise[TVector3(P + 51) / Size * 2] + 0.2 * Abs(FNoise[TVector3(P) / Size * 5])) < 0.2 then
+      if TVector3(P).DistanceTo(8) < 8 then
+        Map[P.X, P.Y, P.Z] := 1;
+    end);
+
+  {
+    for P in Size do
+    if Abs(FNoise[TVector3(P + 51) / Size * 7] + 0.2 * Abs(FNoise[TVector3(P) / Size * 9])) < 0.2 then
+    Map[P.X, P.Y, P.Z] := 1;
+  }
+  Writeln('Generating Map: ', Stopwatch.Elapsed.ToString);
+  Stopwatch := TStopwatch.StartNew;
+  VBOData := TList<TModelGLProgram.TData>.Create;
+  I := 0;
+  for P in Size do
+  begin
+    if MapAt(P) = 0 then
+      Continue;
+  
+    // build set of all adjacent block directions
+    Dirs := [];
+    for Dir := Low(TBasicDir3) to High(TBasicDir3) do
+      if MapAt(P + Vec3Dir[Dir]) = 0 then
+        Include(Dirs, Dir);
+
+    // slopes
+    // 12 different, along each edge
+    for Axis := Low(TCoordAxis3) to High(TCoordAxis3) do
+    begin
+      for CornerIndex2 := Low(TBounds2.TCornerIndex) to High(TBounds2.TCornerIndex) do
+      begin
+        if Dirs <> CubeEdgeDirections[Axis, CornerIndex2] then
+          Continue;
+        Edge := CubeEdges[Axis, CornerIndex2];
+        AddQuad(Plane3(
+          Edge.S - Vec3Dir[CubeEdgeDirectionArrays[Axis, CornerIndex2, 0]], 
+          Edge.D, 
+          Vec3Dir[CubeEdgeDirectionArrays[Axis, CornerIndex2, 0]] - 
+          Vec3Dir[CubeEdgeDirectionArrays[Axis, CornerIndex2, 1]]));
+        goto NextBlock;
+      end;
+    end;
+    
+    // triangles
+    // 8 different, on each vertex
+    for CornerIndex3 := Low(TIntBounds3.TCornerIndex) to High(TIntBounds3.TCornerIndex) do
+    begin
+      if Dirs <> CubeVertexDirections[CornerIndex3] then
+        Continue;
+      AddTriangle(Plane3(
+        CubeVerticies[CornerIndex3] - Vec3Dir[CubeVertexDirectionArrays[CornerIndex3, 0]],
+        Vec3Dir[CubeVertexDirectionArrays[CornerIndex3, 0]] - Vec3Dir[CubeVertexDirectionArrays[CornerIndex3, 1]],
+        Vec3Dir[CubeVertexDirectionArrays[CornerIndex3, 0]] - Vec3Dir[CubeVertexDirectionArrays[CornerIndex3, 2]]
+      ));
+      goto NextBlock;
+    end;
+
+    // faces
+    // 6 along each face
+    for Dir in Dirs do
+      AddQuad(CubePlanes[Dir]);
+
+  NextBlock:
+  end;
+  Writeln('Filling VBO: ', Stopwatch.Elapsed.ToString);
+
+  Stopwatch := TStopwatch.StartNew;
   FVAO.VBO.Generate(VBOData.Count, buStaticDraw, VBOData.DataPointer);
+  Writeln('Sending VBO to GPU: ', Stopwatch.Elapsed.ToString);
+
+  // Writeln('Double-Triangle Quad Count: ', I);
 end;
 
 procedure TfrmMain.Init;
 begin
+  // Context.Samples := Context.MaxSamples;
+
   FModelGLProgram := TModelGLProgram.Get(GLState);
   FSkyboxGLProgram := TSkyboxGLProgram.Get(GLState);
 
@@ -213,35 +336,38 @@ begin
   FCamera.AddRenderable(FSkybox);
   FCamera.AddRenderable(FVAO);
 
-  FCamera.Location.Offset := Vec3(0, 0, 2);
-  FCamera.Location.TurnAngle := 30;
+  FCamera.Location.Offset := Vec3(0, 0, 3);
+  FCamera.Location.TurnAngle := -30;
   FCamera.Location.PitchAngle := -20;
 
   FTextureAtlas.Uniform(FModelGLProgram.Data.UniformSampler('diffusemap'));
   FTextureAtlas.AddSubType('smap', FModelGLProgram.Data.UniformSampler('specularmap'), 0);
   FTextureAtlas.AddSubType('nmap', FModelGLProgram.Data.UniformSampler('normalmap'), ColorRGB(0.5, 0.5, 1.0));
-  FTextureAtlas.Texture.MagFilter := magLinear;
-  FTextureAtlas.SubTypes[0].Texture.MagFilter := magLinear;
-  FTextureAtlas.SubTypes[1].Texture.MagFilter := magLinear;
+  FTextureAtlas.Texture.MagFilter := magNearest;
+  FTextureAtlas.SubTypes[0].Texture.MagFilter := magNearest;
+  FTextureAtlas.SubTypes[1].Texture.MagFilter := magNearest;
 
   FStoneTexture := FTextureAtlas.AddFromFile('stone', 'Data/stone.png');
 
   FTextureAtlas.Generate;
 
   FLightSystem.BindToGLProgram(FModelGLProgram.Data);
-
+  
   FSun := TDirectionalLightShaded.Create(FLightSystem);
   FSun.Direction := Vec3(-0.2, -1, -0.3);
   FSun.AddOccluder(FVAO);
-  FSun.Size := 50;
+  FSun.Size := 24;
 
   FCameraLight := TPointLight.Create(FLightSystem);
-  
+  FCameraLight.Attenuation := 1;
+  FCameraLight.Color := ColorRGB(1.0, 0.7, 0.5);
+
   Game.OnUpdate.Add(GameUpdate);
-  Game.OnRender.Add(FLightSystem.RenderShadows);
   Game.Timer.OnFPSUpdate.Add(UpdateFPS);
 
   BuildVAO;
+
+  FLightSystem.RenderShadows;
 end;
 
 procedure TfrmMain.Finalize;
@@ -269,7 +395,7 @@ var
   O: Single;
   U: Single;
 begin
-  Rand := TRandom.FromSeed(TDefault<TIntVector3>.Hash(APos));
+  Rand := TRandom.FromSeed(TDefault.Hash(APos));
   O := Rand.NextSingle * 2 * Pi;
   U := Rand.NextSingle * 2 - 1;
   Result.X := Sqrt(1 - Sqr(U)) * Sin(O);

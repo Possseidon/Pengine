@@ -1834,6 +1834,34 @@ const
     (X: 0; Y: 1)
     );
 
+  CubeVerticies: array [TBounds3.TCornerIndex] of TVector3 = (
+    (X: 0; Y: 0; Z: 0),
+    (X: 1; Y: 0; Z: 0),
+    (X: 0; Y: 1; Z: 0),
+    (X: 1; Y: 1; Z: 0),
+    (X: 0; Y: 0; Z: 1),
+    (X: 1; Y: 0; Z: 1),
+    (X: 0; Y: 1; Z: 1),
+    (X: 1; Y: 1; Z: 1)
+  );
+
+  CubeEdges: array [TCoordAxis3, TBounds2.TCornerIndex] of TLine3 = ((
+    (S: (X: 0; Y: 0; Z: 0); D: (X: 1; Y: 0; Z: 0)),
+    (S: (X: 0; Y: 1; Z: 0); D: (X: 1; Y: 0; Z: 0)),
+    (S: (X: 0; Y: 0; Z: 1); D: (X: 1; Y: 0; Z: 0)),
+    (S: (X: 0; Y: 1; Z: 1); D: (X: 1; Y: 0; Z: 0))
+    ), (
+    (S: (X: 0; Y: 0; Z: 0); D: (X: 0; Y: 1; Z: 0)),
+    (S: (X: 0; Y: 0; Z: 1); D: (X: 0; Y: 1; Z: 0)),
+    (S: (X: 1; Y: 0; Z: 0); D: (X: 0; Y: 1; Z: 0)),
+    (S: (X: 1; Y: 0; Z: 1); D: (X: 0; Y: 1; Z: 0))
+    ), (
+    (S: (X: 0; Y: 0; Z: 0); D: (X: 0; Y: 0; Z: 1)),
+    (S: (X: 1; Y: 0; Z: 0); D: (X: 0; Y: 0; Z: 1)),
+    (S: (X: 0; Y: 1; Z: 0); D: (X: 0; Y: 0; Z: 1)),
+    (S: (X: 1; Y: 1; Z: 0); D: (X: 0; Y: 0; Z: 1))
+  ));
+
   CubePlanes: array [TBasicDir3] of TPlane3 = (
     (S: (X: 0; Y: 0; Z: 0); DX: (X: 0; Y: 0; Z: 1); DY: (X: 0; Y: 1; Z: 0)),
     (S: (X: 1; Y: 0; Z: 1); DX: (X: 0; Y: 0; Z: - 1); DY: (X: 0; Y: 1; Z: 0)),
