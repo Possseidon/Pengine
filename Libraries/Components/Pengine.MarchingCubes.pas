@@ -124,45 +124,34 @@ var
 
   procedure Case3(A, B, C: TCorner3);
   var
-    PosA, PosB, PosMid, Normal, DirA, DirB: TIntVector3;
-  Flip: Boolean;
+    PosA, PosB, PosMid, Normal, DirA, DirB, Tmp: TIntVector3;
   begin
     // make sure, that PosMid is in the middle between the two other
     // find, where distance is greater (unequal) than 1
     // note: C cannot be mid, because of the iteration order
-    // flip doesnt help, REMOVE
-    Flip := (PosA = 0) or (PosB = 1);
     if (Corner3Pos[A] - Corner3Pos[C]).SqrDot <> 1 then
     begin
-      if Flip then
-      begin
-        PosB := Corner3Pos[A];
-        PosA := Corner3Pos[C];
-      end
-      else
-      begin
-        PosA := Corner3Pos[A];
-        PosB := Corner3Pos[C];
-      end;
+      PosA := Corner3Pos[C];
+      PosB := Corner3Pos[A];
       PosMid := Corner3Pos[B];
     end
     else
     begin
-      if Flip then
-      begin
-        PosB := Corner3Pos[B];
-        PosA := Corner3Pos[C];
-      end
-      else
-      begin
-        PosA := Corner3Pos[B];
-        PosB := Corner3Pos[C];
-      end;
+      PosA := Corner3Pos[C];
+      PosB := Corner3Pos[B];
       PosMid := Corner3Pos[A];
     end;
+    if ((PosMid - PosA).Cross(PosMid - PosB) <= 0) = (PosA.Dot(PosB) <= 0) then
+    begin
+      Tmp := PosA;
+      PosA := PosB;
+      PosB := Tmp;
+    end;
+
     DirA := (PosB - PosMid);
     DirB := (PosA - PosMid);
     Normal := DirB.Cross(DirA);
+
     FLookup[I] := [
       PlaneInfo(Inverted,
       PlanePoint(PosA, Normal),
@@ -180,9 +169,63 @@ var
   end;
 
   procedure Case4(A, B, C, D: TCorner3);
+  var
+    Pos: array [0 .. 3] of TIntVector3;
+    Axis: TCoordAxis3;
+    Slab: Boolean;
+    Normal, Tmp: TIntVector3;
+    J: Integer;
   begin
+    Pos[0] := Corner3Pos[A];
+    Pos[1] := Corner3Pos[B];
+    Pos[2] := Corner3Pos[C];
+    Pos[3] := Corner3Pos[D];
+
+    for Axis := Low(TCoordAxis3) to High(TCoordAxis3) do
+    begin
+      Slab := True;
+      for J := 1 to 3 do
+      begin
+        if Pos[0][Axis] <> Pos[J][Axis] then
+        begin
+          Slab := False;
+          Break;
+        end;
+      end;
+      if Slab then
+        Break;
+    end;
+
+    if Slab then
+    begin
+      Normal := Vec3Axis[Axis] * (1 - Pos[0][Axis] * 2);
+      if (Normal.X < 0) or (Normal.Z < 0) or (Normal.Y > 0) then
+      begin
+        Tmp := Pos[3];
+        Pos[3] := Pos[0];
+        Pos[0] := Tmp;
+      end;
+      FLookup[I] := [
+        PlaneInfo(Inverted,
+        PlanePoint(Pos[0], Normal),
+        PlanePoint(Pos[1], Normal),
+        PlanePoint(Pos[2], Normal)),
+        PlaneInfo(Inverted,
+        PlanePoint(Pos[1], Normal),
+        PlanePoint(Pos[3], Normal),
+        PlanePoint(Pos[2], Normal))
+        ];
+      Exit;
+    end;
+
     // distinguish slab, all-axes and Z-shape
-    // TODO
+
+    // 1) is there any axis same on each -> slab
+
+    // 2) is there one for which each point is adjacent -> all axes from that point
+
+    // 3) else, Z-shape
+
     FLookup[I] := [];
   end;
 

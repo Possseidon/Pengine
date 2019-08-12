@@ -30,9 +30,9 @@ uses
 
 const
 
-  GradientSizeX = 20;
-  GradientSizeY = 20;
-  GradientSizeZ = 20;
+  GradientSizeX = 16;
+  GradientSizeY = 16;
+  GradientSizeZ = 16;
   GradientSize: TIntVector3 = (X: GradientSizeX; Y: GradientSizeY; Z: GradientSizeZ);
 
 type
@@ -163,6 +163,7 @@ var
   GradientData: TGradientData;
 begin
   Context.VSync := True;
+  Context.MultiSampled := False;
   Fullscreen := False;
 
   FGLProgram := TPerlinNoiseGLProgram.Make(GLState.ResParam);

@@ -227,7 +227,7 @@ var
   end;
 
 begin
-  Size := 16;
+  Size := 128;
 
   var Stopwatch := TStopwatch.StartNew;
   SetLength(Map, Size.X, Size.Y, Size.Z);
@@ -246,8 +246,8 @@ begin
     procedure(I: Integer)
     begin
       var P := IVec3(I mod Size.X, I div Size.X mod Size.Y, I div Size.X div Size.Y);
-      // if Abs(FNoise[TVector3(P + 51) / Size * 2] + 0.2 * Abs(FNoise[TVector3(P) / Size * 5])) < 0.2 then
-      if TVector3(P).DistanceTo(8) < 2.2 then
+      if Abs(FNoise[TVector3(P * 3 + 51) / Size * 2] + 0.2 * Abs(FNoise[TVector3(P) / Size * 7])) < 0.2 then
+      //if TVector3(P).DistanceTo(8) < 8 then
         Map[P.X, P.Y, P.Z] := 1;
     end);
 
@@ -261,7 +261,7 @@ begin
   Writeln('Generating Map: ', Stopwatch.Elapsed.ToString);
   Stopwatch := TStopwatch.StartNew;
   VBOData := TList<TModelGLProgram.TData>.Create;
-  for P in Size do
+  for P in IBounds3(-1, Size) do
   begin
     // build set of all adjacent block directions
     Corners := [];

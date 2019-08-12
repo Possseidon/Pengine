@@ -1,8 +1,8 @@
 #version 420
 
-const int size_x = 20;
-const int size_y = 20;
-const int size_z = 20;
+const int size_x = 16;
+const int size_y = 16;
+const int size_z = 16;
 
 uniform float time;
 layout (std140) uniform gradients
