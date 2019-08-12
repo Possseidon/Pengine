@@ -16,6 +16,58 @@ type
   /// <summary>A vertex-index for a render-quad in range: <c>[0, 5]</c></summary>
   TQuadIndex = 0 .. 5;
 
+  TCorner1 = (
+    coLeft,
+    coRight
+    );
+
+  TCorner2 = (
+    coLeftBottom,
+    coRightBottom,
+    coLeftTop,
+    coRightTop
+    );
+
+  TCorner3 = (
+    coLeftBottomBack,
+    coRightBottomBack,
+    coLeftTopBack,
+    coRightTopBack,
+    coLeftBottomFront,
+    coRightBottomFront,
+    coLeftTopFront,
+    coRightTopFront
+    );
+
+  TCorners1 = set of TCorner1;
+  TCorners2 = set of TCorner2;
+  TCorners3 = set of TCorner3;
+
+  TEdge2 = (
+    edLeft,
+    edRight,
+    edBottom,
+    edTop
+  );
+
+  TEdge3 = (
+    edLeftBottom,
+    edRightBottom,
+    edLeftTop,
+    edRightTop,
+    edBottomBack,
+    edTopBack,
+    edBottomFront,
+    edTopFront,
+    edLeftFront,
+    edRightFront,
+    edLeftBack,
+    edRightBack
+  );
+
+  TEdges2 = set of TEdge2;
+  TEdges3 = set of TEdge3;
+
   /// <summary>Describes one of the three axes: <c>caX, caY, caZ</c> and also contains <c>caNone</c> to specify no axis.</summary>
   TCoordAxis = (
     caNone,
@@ -183,7 +235,7 @@ type
     /// <returns>A vector, that is offset by the specified amount.</returns>
     function Offset(const A: TIntVector2): TIntVector2; inline;
 
-    /// <returns>A vector, which is Rotate by 90° counter-clockwise.</returns>
+    /// <returns>A vector, which is rotated by 90° counter-clockwise.</returns>
     function Cross: TIntVector2;
 
   end;
@@ -347,6 +399,16 @@ type
     /// <returns>A vector, that is offset by the specified amount.</returns>
     function Offset(const A: TIntVector3): TIntVector3; inline;
 
+    /// <returns>A vector, which is axis rotated counter-clockwise around (1, 1, 1).</returns>
+    function Cross(AClockwise: Boolean = False): TIntVector3; overload; inline;
+    /// <returns>The cross-product with another vector.</returns>
+    /// <remarks>Left-Hand-Rule: <c>middle x pointing = thumb</c></remarks>
+    function Cross(const A: TIntVector3): TIntVector3; overload; inline;
+    /// <returns>The dot-product with another vector.</returns>
+    function Dot(const A: TIntVector3): Integer;
+    /// <returns>The dot-product with the vector itself.</returns>
+    function SqrDot: Integer;
+
   end;
 
   /// <summary>
@@ -360,15 +422,13 @@ type
   TIntBounds1 = record
   public type
 
-    TCornerIndex = 0 .. 1;
-
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
     /// Index  X<p/>
     /// [0]  (0)<p/>
     /// [1]  (1)<p/>
     /// </code></summary>
-    TCorners = array [TCornerIndex] of Integer;
+    TCorners = array [TCorner1] of Integer;
 
     PReverseWrapper = ^TReverseWrapper;
 
@@ -455,8 +515,6 @@ type
   TIntBounds2 = record
   public type
 
-    TCornerIndex = 0 .. 3;
-
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
     /// Index  X, Y<p/>
@@ -465,7 +523,7 @@ type
     /// [2]   (0, 1)<p/>
     /// [3]   (1, 1)<p/>
     /// </code></summary>
-    TCorners = array [TCornerIndex] of TIntVector2;
+    TCorners = array [TCorner2] of TIntVector2;
 
     PReverseWrapper = ^TReverseWrapper;
 
@@ -576,8 +634,6 @@ type
   TIntBounds3 = record
   public type
 
-    TCornerIndex = 0 .. 7;
-
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
     /// Index  X, Y, Z<p/>
@@ -590,7 +646,7 @@ type
     /// [6]  (0, 1, 1)<p/>
     /// [7]  (1, 1, 1)<p/>
     /// </code></summary>
-    TCorners = array [TCornerIndex] of TIntVector2;
+    TCorners = array [TCorner3] of TIntVector2;
 
   private
     function GetLineX: TIntBounds1; inline;
@@ -846,19 +902,42 @@ const
   Vec1Axis: array [TCoordAxis1Nonable] of Single = (
     0,
     1
-  );
+    );
 
   Vec2Axis: array [TCoordAxis2Nonable] of TIntVector2 = (
     (X: 0; Y: 0),
     (X: 1; Y: 0),
     (X: 0; Y: 1)
-  );
+    );
 
   Vec3Axis: array [TCoordAxis3Nonable] of TIntVector3 = (
     (X: 0; Y: 0; Z: 0),
     (X: 1; Y: 0; Z: 0),
     (X: 0; Y: 1; Z: 0),
     (X: 0; Y: 0; Z: 1)
+    );
+
+  Corner1Pos: array [TCorner1] of Integer = (
+    0,
+    1
+    );
+
+  Corner2Pos: array [TCorner2] of TIntVector2 = (
+    (X: 0; Y: 0),
+    (X: 1; Y: 0),
+    (X: 0; Y: 1),
+    (X: 1; Y: 1)
+  );
+
+  Corner3Pos: array [TCorner3] of TIntVector3 = (
+    (X: 0; Y: 0; Z: 0),
+    (X: 1; Y: 0; Z: 0),
+    (X: 0; Y: 1; Z: 0),
+    (X: 1; Y: 1; Z: 0),
+    (X: 0; Y: 0; Z: 1),
+    (X: 1; Y: 0; Z: 1),
+    (X: 0; Y: 1; Z: 1),
+    (X: 1; Y: 1; Z: 1)
   );
 
   FlippedBasicDirs: array [TBasicDir] of TBasicDir = (
@@ -980,7 +1059,7 @@ const
     'z'
     );
 
-  CubeEdgeDirections: array [TCoordAxis3, TIntBounds2.TCornerIndex] of TBasicDirs3 = ((
+  CubeEdgeDirections: array [TCoordAxis3, TCorner2] of TBasicDirs3 = ((
     [bdDown, bdBack],
     [bdUp, bdBack],
     [bdDown, bdFront],
@@ -995,9 +1074,9 @@ const
     [bdRight, bdDown],
     [bdLeft, bdUp],
     [bdRight, bdUp]
-  ));
+    ));
 
-  CubeEdgeDirectionArrays: array [TCoordAxis3, TIntBounds2.TCornerIndex, 0 .. 1] of TBasicDir3 = ((
+  CubeEdgeDirectionArrays: array [TCoordAxis3, TCorner2, 0 .. 1] of TBasicDir3 = ((
     (bdDown, bdBack),
     (bdBack, bdUp),
     (bdFront, bdDown),
@@ -1012,9 +1091,9 @@ const
     (bdDown, bdRight),
     (bdUp, bdLeft),
     (bdRight, bdUp)
-  ));
+    ));
 
-  CubeVertexDirections: array [TIntBounds3.TCornerIndex] of TBasicDirs3 = (
+  CornerDirections: array [TCorner3] of TBasicDirs3 = (
     [bdLeft, bdDown, bdBack],
     [bdRight, bdDown, bdBack],
     [bdLeft, bdUp, bdBack],
@@ -1023,18 +1102,20 @@ const
     [bdRight, bdDown, bdFront],
     [bdLeft, bdUp, bdFront],
     [bdRight, bdUp, bdFront]
-  );
+    );
 
-  CubeVertexDirectionArrays: array [TIntBounds3.TCornerIndex, 0 .. 2] of TBasicDir3 = (
-    (bdLeft, bdBack, bdDown),
-    (bdRight, bdDown, bdBack),
-    (bdLeft, bdUp, bdBack),
-    (bdRight, bdBack, bdUp),
-    (bdLeft, bdDown, bdFront),
-    (bdRight, bdFront, bdDown),
-    (bdLeft, bdFront, bdUp),
-    (bdRight, bdUp, bdFront)
-  );
+  CornerDirectionArrays: array [TCorner3] of array [0 .. 2] of TBasicDir3 = (
+    (bdLeft, bdDown, bdBack),
+    (bdRight, bdBack, bdDown),
+    (bdLeft, bdBack, bdUp),
+    (bdRight, bdUp, bdBack),
+    (bdLeft, bdFront, bdDown),
+    (bdRight, bdDown, bdFront),
+    (bdLeft, bdUp, bdFront),
+    (bdRight, bdFront, bdUp)
+    );
+
+  ConnectedCornerData: array [TCorner3] of Byte = ($17, $2B, $4D, $8E, $71, $B2, $D4, $E8);
 
   { Shorthand Constructors }
 
@@ -1074,6 +1155,8 @@ function IsPosDir(ADir: TBasicDir): Boolean; inline;
 function RotateDir(ADir: TBasicDir; AAxis: TBasicDir3; ASteps: Integer = 1): TBasicDir; overload;
 function RotateDir(ADir: TBasicDir2; ASteps: Integer): TBasicDir2; overload;
 
+function CornersConnected(A, B: TCorner3): Boolean; inline;
+
 implementation
 
 { TBasicDir helper functions }
@@ -1107,6 +1190,11 @@ begin
   if ASteps = 0 then
     Exit(ADir);
   Result := TBasicDir2(BasicDirRotations[ADir, bdFront, ASteps]);
+end;
+
+function CornersConnected(A, B: TCorner3): Boolean; inline;
+begin
+  Result := ((ConnectedCornerData[A] shr Ord(B)) and 1) = 1;
 end;
 
 { TIntVector2 }
@@ -1335,13 +1423,196 @@ begin
   (PInteger(@Self) + Ord(AAxis) - Ord(caX))^ := Value;
 end;
 
+constructor TIntVector3.Create(X, Y, Z: Integer);
+begin
+  Self.X := X;
+  Self.Y := Y;
+  Self.Z := Z;
+end;
+
+constructor TIntVector3.Create(V: Integer);
+begin
+  X := V;
+  Y := V;
+  Z := V;
+end;
+
+class function TIntVector3.Random(ARange: TIntVector3): TIntVector3;
+begin
+  Result.X := System.Random(ARange.X);
+  Result.Y := System.Random(ARange.Y);
+  Result.Z := System.Random(ARange.Z);
+end;
+
+function TIntVector3.Volume: Integer;
+begin
+  Result := X * Y * Z;
+end;
+
+class operator TIntVector3.Implicit(V: Integer): TIntVector3;
+begin
+  Result.X := V;
+  Result.Y := V;
+  Result.Z := V;
+end;
+
+class operator TIntVector3.Add(const A, B: TIntVector3): TIntVector3;
+begin
+  Result.X := A.X + B.X;
+  Result.Y := A.Y + B.Y;
+  Result.Z := A.Z + B.Z;
+end;
+
+class operator TIntVector3.Subtract(const A, B: TIntVector3): TIntVector3;
+begin
+  Result.X := A.X - B.X;
+  Result.Y := A.Y - B.Y;
+  Result.Z := A.Z - B.Z;
+end;
+
+class operator TIntVector3.Multiply(const A, B: TIntVector3): TIntVector3;
+begin
+  Result.X := A.X * B.X;
+  Result.Y := A.Y * B.Y;
+  Result.Z := A.Z * B.Z;
+end;
+
+class operator TIntVector3.IntDivide(const A, B: TIntVector3): TIntVector3;
+begin
+  Result.X := A.X div B.X;
+  Result.Y := A.Y div B.Y;
+  Result.Z := A.Z div B.Z;
+end;
+
+class operator TIntVector3.Modulus(const A, B: TIntVector3): TIntVector3;
+begin
+  Result.X := A.X mod B.X;
+  Result.Y := A.Y mod B.Y;
+  Result.Z := A.Z mod B.Z;
+end;
+
+class operator TIntVector3.Positive(const A: TIntVector3): TIntVector3;
+begin
+  Result := A;
+end;
+
+class operator TIntVector3.Negative(const A: TIntVector3): TIntVector3;
+begin
+  Result.X := -A.X;
+  Result.Y := -A.Y;
+  Result.Z := -A.Z;
+end;
+
+class operator TIntVector3.Equal(const A, B: TIntVector3): Boolean;
+begin
+  Result := (A.X = B.X) and (A.Y = B.Y) and (A.Z = B.Z);
+end;
+
+class operator TIntVector3.NotEqual(const A, B: TIntVector3): Boolean;
+begin
+  Result := (A.X <> B.X) or (A.Y <> B.Y) or (A.Z <> B.Z);
+end;
+
+class operator TIntVector3.LessThan(const A, B: TIntVector3): Boolean;
+begin
+  Result := (A.X < B.X) and (A.Y < B.Y) and (A.Z < B.Z);
+end;
+
+class operator TIntVector3.LessThanOrEqual(const A, B: TIntVector3): Boolean;
+begin
+  Result := (A.X <= B.X) and (A.Y <= B.Y) and (A.Z <= B.Z);
+end;
+
+class operator TIntVector3.GreaterThan(const A, B: TIntVector3): Boolean;
+begin
+  Result := (A.X > B.X) and (A.Y > B.Y) and (A.Z > B.Z);
+end;
+
+class operator TIntVector3.GreaterThanOrEqual(const A, B: TIntVector3): Boolean;
+begin
+  Result := (A.X >= B.X) and (A.Y >= B.Y) and (A.Z >= B.Z);
+end;
+
+class operator TIntVector3.In(const A, B: TIntVector3): Boolean;
+begin
+  Result := A in IBounds3(B);
+end;
+
+function TIntVector3.ToString: string;
+begin
+  Result := Format('[%d|%d|%d]', [X, Y, Z]);
+end;
+
+class operator TIntVector3.Implicit(const A: TIntVector3): string;
+begin
+  Result := A.ToString;
+end;
+
 function TIntVector3.GetEnumerator: TIntBounds3Iterator;
 begin
   Result := TIntBounds3Iterator.Create(IBounds3(Self));
 end;
 
-{$REGION 'All version of rearrangement TIntVector2'}
+function TIntVector3.Abs: TIntVector3;
+begin
+  Result.X := System.Abs(X);
+  Result.Y := System.Abs(Y);
+  Result.Z := System.Abs(Z);
+end;
 
+function TIntVector3.Min(const A: TIntVector3): TIntVector3;
+begin
+  Result.X := System.Math.Min(X, A.X);
+  Result.Y := System.Math.Min(Y, A.Y);
+  Result.Z := System.Math.Min(Z, A.Z);
+end;
+
+function TIntVector3.Max(const A: TIntVector3): TIntVector3;
+begin
+  Result.X := System.Math.Max(X, A.X);
+  Result.Y := System.Math.Max(Y, A.Y);
+  Result.Z := System.Math.Max(Z, A.Z);
+end;
+
+function TIntVector3.Offset(const A: TIntVector3): TIntVector3;
+begin
+  Result := Self + A;
+end;
+
+function TIntVector3.Cross(AClockwise: Boolean): TIntVector3;
+begin
+  if AClockwise then
+  begin
+    Result.X := Y;
+    Result.Y := Z;
+    Result.Z := X;
+  end
+  else
+  begin
+    Result.X := Z;
+    Result.Y := X;
+    Result.Z := Y;
+  end;
+end;
+
+function TIntVector3.Cross(const A: TIntVector3): TIntVector3;
+begin
+  Result.X := Y * A.Z - Z * A.Y;
+  Result.Y := Z * A.X - X * A.Z;
+  Result.Z := X * A.Y - Y * A.X;
+end;
+
+function TIntVector3.Dot(const A: TIntVector3): Integer;
+begin
+  Result := X * A.X + Y * A.Y + Z * A.Z;
+end;
+
+function TIntVector3.SqrDot: Integer;
+begin
+  Result := Sqr(X) + Sqr(Y) + Sqr(Z);
+end;
+
+{$REGION 'All version of rearrangement TIntVector2'}
 
 function TIntVector3.GetXX: TIntVector2;
 begin
@@ -1669,158 +1940,6 @@ begin
 end;
 
 {$ENDREGION}
-
-
-constructor TIntVector3.Create(X, Y, Z: Integer);
-begin
-  Self.X := X;
-  Self.Y := Y;
-  Self.Z := Z;
-end;
-
-constructor TIntVector3.Create(V: Integer);
-begin
-  X := V;
-  Y := V;
-  Z := V;
-end;
-
-class operator TIntVector3.Implicit(V: Integer): TIntVector3;
-begin
-  Result.X := V;
-  Result.Y := V;
-  Result.Z := V;
-end;
-
-class operator TIntVector3.Add(const A, B: TIntVector3): TIntVector3;
-begin
-  Result.X := A.X + B.X;
-  Result.Y := A.Y + B.Y;
-  Result.Z := A.Z + B.Z;
-end;
-
-class operator TIntVector3.Subtract(const A, B: TIntVector3): TIntVector3;
-begin
-  Result.X := A.X - B.X;
-  Result.Y := A.Y - B.Y;
-  Result.Z := A.Z - B.Z;
-end;
-
-class operator TIntVector3.Multiply(const A, B: TIntVector3): TIntVector3;
-begin
-  Result.X := A.X * B.X;
-  Result.Y := A.Y * B.Y;
-  Result.Z := A.Z * B.Z;
-end;
-
-class operator TIntVector3.IntDivide(const A, B: TIntVector3): TIntVector3;
-begin
-  Result.X := A.X div B.X;
-  Result.Y := A.Y div B.Y;
-  Result.Z := A.Z div B.Z;
-end;
-
-class operator TIntVector3.Positive(const A: TIntVector3): TIntVector3;
-begin
-  Result := A;
-end;
-
-class function TIntVector3.Random(ARange: TIntVector3): TIntVector3;
-begin
-  Result.X := System.Random(ARange.X);
-  Result.Y := System.Random(ARange.Y);
-  Result.Z := System.Random(ARange.Z);
-end;
-
-class operator TIntVector3.Negative(const A: TIntVector3): TIntVector3;
-begin
-  Result.X := -A.X;
-  Result.Y := -A.Y;
-  Result.Z := -A.Z;
-end;
-
-class operator TIntVector3.Equal(const A, B: TIntVector3): Boolean;
-begin
-  Result := (A.X = B.X) and (A.Y = B.Y) and (A.Z = B.Z);
-end;
-
-class operator TIntVector3.NotEqual(const A, B: TIntVector3): Boolean;
-begin
-  Result := (A.X <> B.X) or (A.Y <> B.Y) or (A.Z <> B.Z);
-end;
-
-function TIntVector3.Offset(const A: TIntVector3): TIntVector3;
-begin
-  Result := Self + A;
-end;
-
-class operator TIntVector3.LessThan(const A, B: TIntVector3): Boolean;
-begin
-  Result := (A.X < B.X) and (A.Y < B.Y) and (A.Z < B.Z);
-end;
-
-class operator TIntVector3.LessThanOrEqual(const A, B: TIntVector3): Boolean;
-begin
-  Result := (A.X <= B.X) and (A.Y <= B.Y) and (A.Z <= B.Z);
-end;
-
-class operator TIntVector3.GreaterThan(const A, B: TIntVector3): Boolean;
-begin
-  Result := (A.X > B.X) and (A.Y > B.Y) and (A.Z > B.Z);
-end;
-
-class operator TIntVector3.GreaterThanOrEqual(const A, B: TIntVector3): Boolean;
-begin
-  Result := (A.X >= B.X) and (A.Y >= B.Y) and (A.Z >= B.Z);
-end;
-
-class operator TIntVector3.In(const A, B: TIntVector3): Boolean;
-begin
-  Result := A in IBounds3(B);
-end;
-
-function TIntVector3.ToString: string;
-begin
-  Result := Format('[%d|%d|%d]', [X, Y, Z]);
-end;
-
-function TIntVector3.Volume: Integer;
-begin
-  Result := X * Y * Z;
-end;
-
-class operator TIntVector3.Implicit(const A: TIntVector3): string;
-begin
-  Result := A.ToString;
-end;
-
-function TIntVector3.Abs: TIntVector3;
-begin
-  Result.X := System.Abs(X);
-  Result.Y := System.Abs(Y);
-  Result.Z := System.Abs(Z);
-end;
-
-function TIntVector3.Min(const A: TIntVector3): TIntVector3;
-begin
-  Result.X := System.Math.Min(X, A.X);
-  Result.Y := System.Math.Min(Y, A.Y);
-  Result.Z := System.Math.Min(Z, A.Z);
-end;
-
-class operator TIntVector3.Modulus(const A, B: TIntVector3): TIntVector3;
-begin
-  Result.X := A.X mod B.X;
-  Result.Y := A.Y mod B.Y;
-  Result.Z := A.Z mod B.Z;
-end;
-
-function TIntVector3.Max(const A: TIntVector3): TIntVector3;
-begin
-  Result.X := System.Math.Max(X, A.X);
-  Result.Y := System.Math.Max(Y, A.Y);
-  Result.Z := System.Math.Max(Z, A.Z);
-end;
 
 { TIntBounds1 }
 

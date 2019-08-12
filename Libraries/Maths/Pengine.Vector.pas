@@ -482,13 +482,7 @@ type
   /// The <c>in</c>-operator is inclusive: <c>C1 &lt;= A &lt;= C2</c>
   /// </remarks>
   TBounds1 = record
-  public const
-
-    CornerCount = 2;
-
   public type
-
-    TCornerIndex = 0 .. CornerCount - 1;
 
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
@@ -496,7 +490,7 @@ type
     /// [0]   (0)<p/>
     /// [1]   (1)<p/>
     /// </code></summary>
-    TCorners = array [TCornerIndex] of Single;
+    TCorners = array [TCorner1] of Single;
 
   private
     function GetPoint(APos: Single): Single;
@@ -507,8 +501,8 @@ type
     function GetInvPointSym(APos: Single): Single;
     function GetInvPointLeft(APos: Single): Single;
 
-    function GetCorner(AIndex: TCornerIndex): Single;
-    procedure SetCorner(AIndex: TCornerIndex; const Value: Single);
+    function GetCorner(AIndex: TCorner1): Single;
+    procedure SetCorner(AIndex: TCorner1; const Value: Single);
 
   public
     /// <summary>The (usually) lower value of the bounds.</summary>
@@ -525,7 +519,7 @@ type
     function GetCorners: TCorners;
     /// <summary>Gives direct access to each corner.<p>See <see cref="Pengine.Vector|TBounds1.TCorners"/>.</p></summary>
     // LOL! corner index 0/1 and point 0.0/1.0 is the same!
-    property Point[AIndex: TCornerIndex]: Single read GetCorner write SetCorner; default;
+    property Point[AIndex: TCorner1]: Single read GetCorner write SetCorner; default;
 
     /// <summary>Creates a <see cref="Pengine.Vector|TBounds1"/> with the specified range.</summary>
     constructor Create(AC1, AC2: Single); overload;
@@ -627,13 +621,7 @@ type
   /// The <c>in</c>-operator is inclusive: <c>C1 &lt;= A &lt;= C2</c>
   /// </remarks>
   TBounds2 = record
-  public const
-
-    CornerCount = 4;
-
   public type
-
-    TCornerIndex = 0 .. CornerCount - 1;
 
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
@@ -643,7 +631,7 @@ type
     /// [2]   (0, 1)<p/>
     /// [3]   (1, 1)<p/>
     /// </code></summary>
-    TCorners = array [TCornerIndex] of TVector2;
+    TCorners = array [TCorner2] of TVector2;
 
   private
     function GetPoint(Value: TVector2): TVector2;
@@ -660,8 +648,8 @@ type
     procedure SetLineX(const Value: TBounds1); inline;
     procedure SetLineY(const Value: TBounds1); inline;
 
-    function GetCorner(AIndex: TCornerIndex): TVector2;
-    procedure SetCorner(AIndex: TCornerIndex; const Value: TVector2);
+    function GetCorner(AIndex: TCorner2): TVector2;
+    procedure SetCorner(AIndex: TCorner2; const Value: TVector2);
 
   public
     /// <summary>The (usually) lower values of the bounds.</summary>
@@ -677,7 +665,7 @@ type
     /// <returns>An array of all corners using <see cref="Pengine.Vector|TBounds2.TCorners"/>.</returns>
     function GetCorners: TCorners;
     /// <summary>Gives direct access to each corner.<p>See <see cref="Pengine.Vector|TBounds2.TCorners"/>.</p></summary>
-    property Point[AIndex: TCornerIndex]: TVector2 read GetCorner write SetCorner; default;
+    property Point[AIndex: TCorner2]: TVector2 read GetCorner write SetCorner; default;
 
     /// <summary>Creates a <see cref="Pengine.Vector|TBounds2"/> with the specified range.</summary>
     constructor Create(AC1, AC2: TVector2); overload;
@@ -798,13 +786,7 @@ type
   /// The <c>in</c>-operator is inclusive: <c>C1 &lt;= A &lt;= C2</c>
   /// </remarks>
   TBounds3 = record
-  public const
-
-    CornerCount = 8;
-
   public type
-
-    TCornerIndex = 0 .. CornerCount - 1;
 
     /// <summary>A simple array-type, that can represent the four corners of the bounds.
     /// <p>They are in the following order:</p><code>
@@ -818,7 +800,7 @@ type
     /// [6]   (0, 1, 1)<p/>
     /// [7]   (1, 1, 1)
     /// </code></summary>
-    TCorners = array [TCornerIndex] of TVector3;
+    TCorners = array [TCorner3] of TVector3;
 
   private
     function GetPoint(Value: TVector3): TVector3;
@@ -851,8 +833,8 @@ type
     procedure SetPlaneZY(const Value: TBounds2); inline;
     procedure SetPlaneXZ(const Value: TBounds2); inline;
 
-    function GetCorner(AIndex: TCornerIndex): TVector3;
-    procedure SetCorner(AIndex: TCornerIndex; const Value: TVector3);
+    function GetCorner(AIndex: TCorner3): TVector3;
+    procedure SetCorner(AIndex: TCorner3; const Value: TVector3);
     function GetPlane(ADir: TBasicDir3): TBounds2;
     procedure SetPlane(ADir: TBasicDir3; const Value: TBounds2);
 
@@ -870,7 +852,7 @@ type
     /// <returns>An array of all corners using <see cref="Pengine.Vector|TBounds3.TCorners"/>.</returns>
     function GetCorners: TCorners;
     /// <summary>Gives direct access to each corner.<p>See <see cref="Pengine.Vector|TBounds3.TCorners"/>.</p></summary>
-    property Point[AIndex: TCornerIndex]: TVector3 read GetCorner write SetCorner; default;
+    property Point[AIndex: TCorner3]: TVector3 read GetCorner write SetCorner; default;
 
     /// <summary>Creates a <see cref="Pengine.Vector|TBounds3"/> with the specified range.</summary>
     constructor Create(AC1, AC2: TVector3); overload;
@@ -1834,7 +1816,7 @@ const
     (X: 0; Y: 1)
     );
 
-  CubeVerticies: array [TBounds3.TCornerIndex] of TVector3 = (
+  CubeVerticies: array [TCorner3] of TVector3 = (
     (X: 0; Y: 0; Z: 0),
     (X: 1; Y: 0; Z: 0),
     (X: 0; Y: 1; Z: 0),
@@ -1845,7 +1827,7 @@ const
     (X: 1; Y: 1; Z: 1)
   );
 
-  CubeEdges: array [TCoordAxis3, TBounds2.TCornerIndex] of TLine3 = ((
+  CubeEdges: array [TCoordAxis3, TCorner2] of TLine3 = ((
     (S: (X: 0; Y: 0; Z: 0); D: (X: 1; Y: 0; Z: 0)),
     (S: (X: 0; Y: 1; Z: 0); D: (X: 1; Y: 0; Z: 0)),
     (S: (X: 0; Y: 0; Z: 1); D: (X: 1; Y: 0; Z: 0)),
@@ -3022,17 +3004,17 @@ begin
   Result := (APos - C1) / Length - 1;
 end;
 
-function TBounds1.GetCorner(AIndex: TCornerIndex): Single;
+function TBounds1.GetCorner(AIndex: TCorner1): Single;
 begin
-  if AIndex = 0 then
+  if AIndex = coLeft then
     Result := C1
   else
     Result := C2;
 end;
 
-procedure TBounds1.SetCorner(AIndex: TCornerIndex; const Value: Single);
+procedure TBounds1.SetCorner(AIndex: TCorner1; const Value: Single);
 begin
-  if AIndex = 0 then
+  if AIndex = coLeft then
     C1 := Value
   else
     C2 := Value;
@@ -3040,8 +3022,8 @@ end;
 
 function TBounds1.GetCorners: TCorners;
 begin
-  Result[0] := C1;
-  Result[0] := C2;
+  Result[coLeft] := C1;
+  Result[coRight] := C2;
 end;
 
 constructor TBounds1.Create(AC1, AC2: Single);
@@ -3293,19 +3275,19 @@ begin
   C2.Y := Value.C2;
 end;
 
-function TBounds2.GetCorner(AIndex: TCornerIndex): TVector2;
+function TBounds2.GetCorner(AIndex: TCorner2): TVector2;
 begin
-  Result.X := IfThen(AIndex mod 2 = 0, C1.X, C2.X);
-  Result.Y := IfThen(AIndex div 2 mod 2 = 0, C1.Y, C2.Y);
+  Result.X := IfThen(Ord(AIndex) mod 2 = 0, C1.X, C2.X);
+  Result.Y := IfThen(Ord(AIndex) div 2 mod 2 = 0, C1.Y, C2.Y);
 end;
 
-procedure TBounds2.SetCorner(AIndex: TCornerIndex; const Value: TVector2);
+procedure TBounds2.SetCorner(AIndex: TCorner2; const Value: TVector2);
 begin
-  if AIndex mod 2 = 0 then
+  if Ord(AIndex) mod 2 = 0 then
     C1.X := Value.X
   else
     C2.X := Value.X;
-  if AIndex div 2 mod 2 = 0 then
+  if Ord(AIndex) div 2 mod 2 = 0 then
     C1.Y := Value.Y
   else
     C2.Y := Value.Y;
@@ -3313,10 +3295,10 @@ end;
 
 function TBounds2.GetCorners: TCorners;
 begin
-  Result[0].Create(C1.X, C1.Y);
-  Result[1].Create(C2.X, C1.Y);
-  Result[2].Create(C1.X, C2.Y);
-  Result[3].Create(C2.X, C2.Y);
+  Result[coLeftBottom].Create(C1.X, C1.Y);
+  Result[coRightBottom].Create(C2.X, C1.Y);
+  Result[coLeftTop].Create(C1.X, C2.Y);
+  Result[coRightTop].Create(C2.X, C2.Y);
 end;
 
 constructor TBounds2.Create(AC1, AC2: TVector2);
@@ -3682,24 +3664,24 @@ begin
   LineZ := Value.LineY;
 end;
 
-function TBounds3.GetCorner(AIndex: TCornerIndex): TVector3;
+function TBounds3.GetCorner(AIndex: TCorner3): TVector3;
 begin
-  Result.X := IfThen(AIndex mod 2 = 0, C1.X, C2.X);
-  Result.Y := IfThen(AIndex div 2 mod 2 = 0, C1.Y, C2.Y);
-  Result.Z := IfThen(AIndex div 4 mod 2 = 0, C1.Z, C2.Z);
+  Result.X := IfThen(Ord(AIndex) mod 2 = 0, C1.X, C2.X);
+  Result.Y := IfThen(Ord(AIndex) div 2 mod 2 = 0, C1.Y, C2.Y);
+  Result.Z := IfThen(Ord(AIndex) div 4 mod 2 = 0, C1.Z, C2.Z);
 end;
 
-procedure TBounds3.SetCorner(AIndex: TCornerIndex; const Value: TVector3);
+procedure TBounds3.SetCorner(AIndex: TCorner3; const Value: TVector3);
 begin
-  if AIndex mod 2 = 0 then
+  if Ord(AIndex) mod 2 = 0 then
     C1.X := Value.X
   else
     C2.X := Value.X;
-  if AIndex div 2 mod 2 = 0 then
+  if Ord(AIndex) div 2 mod 2 = 0 then
     C1.Y := Value.Y
   else
     C2.Y := Value.Y;
-  if AIndex div 4 mod 2 = 0 then
+  if Ord(AIndex) div 4 mod 2 = 0 then
     C1.Z := Value.Z
   else
     C2.Z := Value.Z;
@@ -3707,14 +3689,14 @@ end;
 
 function TBounds3.GetCorners: TCorners;
 begin
-  Result[0].Create(C1.X, C1.Y, C1.Z);
-  Result[1].Create(C2.X, C1.Y, C1.Z);
-  Result[2].Create(C1.X, C2.Y, C1.Z);
-  Result[3].Create(C2.X, C2.Y, C1.Z);
-  Result[4].Create(C1.X, C1.Y, C2.Z);
-  Result[5].Create(C2.X, C1.Y, C2.Z);
-  Result[6].Create(C1.X, C2.Y, C2.Z);
-  Result[7].Create(C2.X, C2.Y, C2.Z);
+  Result[coLeftBottomBack].Create(C1.X, C1.Y, C1.Z);
+  Result[coRightBottomBack].Create(C2.X, C1.Y, C1.Z);
+  Result[coLeftTopBack].Create(C1.X, C2.Y, C1.Z);
+  Result[coRightTopBack].Create(C2.X, C2.Y, C1.Z);
+  Result[coLeftBottomFront].Create(C1.X, C1.Y, C2.Z);
+  Result[coRightBottomFront].Create(C2.X, C1.Y, C2.Z);
+  Result[coLeftTopFront].Create(C1.X, C2.Y, C2.Z);
+  Result[coRightTopFront].Create(C2.X, C2.Y, C2.Z);
 end;
 
 constructor TBounds3.Create(AC1, AC2: TVector3);
