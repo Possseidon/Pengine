@@ -169,7 +169,6 @@ begin
     FOffset := FOffset + 0.1;
     BuildVAO;
   end;
-  
 
   FCameraLight.Position := FCamera.Location.RealPosition;
 end;
@@ -184,7 +183,7 @@ var
   Corners: TCorners3;
   Corner: TCorner3;
   Plane: TPlane3;
-  I: Integer;
+  I, J: Integer;
 
   function MapAt(APos: TIntVector3): Byte;
   begin
@@ -196,7 +195,7 @@ var
   procedure AddQuad(APlane: TPlane3);
   var
     TexCoord: TTexCoord2;
-  begin  
+  begin
     for TexCoord in QuadTexCoords do
     begin
       Data.Pos := (APlane[TexCoord] + P - TVector3(Size) / 2) * 0.1;
@@ -207,8 +206,8 @@ var
       Data.Bitangent := APlane.DY;
       VBOData.Add(Data);
     end;
-  end;    
-  
+  end;
+
   procedure AddTriangle(APlane: TPlane3);
   var
     TexCoord: TTexCoord2;
@@ -227,12 +226,64 @@ var
   end;
 
 begin
-  Size := 128;
+  Size := 4; // IVec3(3 * 256, 2, 2);
 
-  var Stopwatch := TStopwatch.StartNew;
+  var
+  Stopwatch := TStopwatch.StartNew;
   SetLength(Map, Size.X, Size.Y, Size.Z);
   Writeln('Creating Map storage: ', Stopwatch.Elapsed.ToString);
 
+  {
+    for P in Size do
+    Map[P.X, P.Y, P.Z] := Integer((P.X and 1 = 0) xor (P.Y and 1 = 0) xor (P.Z and 1 = 0));
+  }
+  { 
+    for I := 0 to 255 do
+    for J := 0 to 7 do
+    Map[I * 3 + J and 1, J shr 1 and 1, J shr 2 and 1] := I shr J and 1;
+  }
+
+  for P in Size do
+    Map[P.X, P.Y, P.Z] := 1;
+
+  Map[0, 1, 2] := 0;
+  Map[0, 2, 1] := 0;
+
+  Map[3, 1, 2] := 0;
+  Map[3, 2, 1] := 0;
+
+  Map[1, 0, 2] := 0;
+  Map[2, 0, 1] := 0;
+
+  Map[1, 3, 2] := 0;
+  Map[2, 3, 1] := 0;
+
+  Map[1, 2, 0] := 0;
+  Map[2, 1, 0] := 0;
+
+  Map[1, 2, 3] := 0;
+  Map[2, 1, 3] := 0;
+
+  {
+    Map[0, 1, 1] := 0;
+    Map[0, 2, 2] := 0;
+
+    Map[1, 0, 1] := 0;
+    Map[2, 0, 2] := 0;
+
+    Map[1, 1, 0] := 0;
+    Map[2, 2, 0] := 0;
+  }
+  // Map[1, 1, 0] := 0;
+
+  {
+    Map[0, 3, 3] := 0;
+    Map[1, 3, 2] := 0;
+    Map[2, 3, 1] := 0;
+    Map[3, 3, 0] := 0;
+    // Map[1, 3, 2] := 0;
+    // Map[2, 3, 1] := 0;
+  }
   Stopwatch := TStopwatch.StartNew;
   {
     for I := 0 to Size.Volume - 1 do
@@ -242,13 +293,22 @@ begin
     Map[P.Z, P.Y, P.X] := 1;
     end;
   }
+
   TParallel.&For(0, Size.Volume - 1,
     procedure(I: Integer)
     begin
       var P := IVec3(I mod Size.X, I div Size.X mod Size.Y, I div Size.X div Size.Y);
-      if Abs(FNoise[TVector3(P * 3 + 51) / Size * 2] + 0.2 * Abs(FNoise[TVector3(P) / Size * 7])) < 0.2 then
-      //if TVector3(P).DistanceTo(8) < 8 then
-        Map[P.X, P.Y, P.Z] := 1;
+
+      //if FNoise[Vec3(P.X * 5 / Size.X, 0, P.Z * 7 / Size.Z)] > (P.Y / Size.Y * 4 - 3.5) then
+      //  Map[P.X, P.Y, P.Z] := 1;
+
+      //if (FNoise[TVector3(P * 3 + 51) / Size * 2] + 0.2 * FNoise[TVector3(P) / Size * 7]) > 0.2 then
+      //  Map[P.X, P.Y, P.Z] := 0;
+
+      // if TVector3(P).DistanceTo(8) > 9 then
+      // Map[P.X, P.Y, P.Z] := 1;
+      // if Abs(4 - P.X - P.Z) + 2 > P.Y then
+      // Map[P.X, P.Y, P.Z] := 1;
     end);
 
   {
@@ -257,7 +317,7 @@ begin
     Map[P.X, P.Y, P.Z] := 1;
   }
   I := 0;
-  
+
   Writeln('Generating Map: ', Stopwatch.Elapsed.ToString);
   Stopwatch := TStopwatch.StartNew;
   VBOData := TList<TModelGLProgram.TData>.Create;
@@ -272,11 +332,11 @@ begin
     for Plane in TMarchingCubes.GetTriangles(Corners, FOffset) do
       AddTriangle(Plane);
 
-      {
-    if MapAt(P) <> 0 then
+    {
+      if MapAt(P) <> 0 then
       for Plane in CubePlanes do
-        AddQuad(Plane);
-      }
+      AddQuad(Plane);
+    }
   end;
   Writeln('Filling VBO: ', Stopwatch.Elapsed.ToString);
 
@@ -285,7 +345,7 @@ begin
   Writeln('Sending VBO to GPU: ', Stopwatch.Elapsed.ToString);
 
   Writeln('Double-Triangle Quad Count: ', I);
-  
+
   FLightSystem.RenderShadows;
 end;
 
@@ -330,7 +390,7 @@ begin
   FTextureAtlas.Generate;
 
   FLightSystem.BindToGLProgram(FModelGLProgram.Data);
-  
+
   FSun := TDirectionalLightShaded.Create(FLightSystem);
   FSun.Direction := Vec3(-0.2, -1, -0.3);
   FSun.AddOccluder(FVAO);
@@ -339,12 +399,12 @@ begin
   FCameraLight := TPointLight.Create(FLightSystem);
   FCameraLight.Attenuation := 1;
   FCameraLight.Color := ColorRGB(1.0, 0.7, 0.5);
-  
+
   Game.OnUpdate.Add(GameUpdate);
   Game.Timer.OnFPSUpdate.Add(UpdateFPS);
-                                                
+
   FOffset := 0.5;
-  
+
   BuildVAO;
 
 end;
