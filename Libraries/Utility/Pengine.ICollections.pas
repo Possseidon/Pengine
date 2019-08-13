@@ -27,6 +27,7 @@ type
 
   end;
 
+  {
   TDefault<T> = class
   private
   class var
@@ -42,6 +43,7 @@ type
     class property HashFunc: TFunc<T, Cardinal> read FHashFunc;
 
   end;
+  }
 
   TPair<K, V> = record
   private
@@ -1763,14 +1765,14 @@ begin
 end;
 
 { TDefault<T> }
-
+{
 class constructor TDefault<T>.Create;
 begin
   FEquateFunc := TDefault.Equate<T>;
   FCompareFunc := TDefault.Compare<T>;
   FHashFunc := TDefault.Hash<T>;
 end;
-
+}
 { TPair<K, V> }
 
 constructor TPair<K, V>.Create(AKey: K; AValue: V);
@@ -1858,8 +1860,8 @@ end;
 
 constructor TListBase<T>.Create;
 begin
-  FEquate := TDefault<T>.EquateFunc;
-  FCompare := TDefault<T>.CompareFunc;
+  FEquate := TDefault.Equate<T>;
+  FCompare := TDefault.Compare<T>;
 end;
 
 procedure TListBase<T>.EnsureCapacity(ACount: Integer);
@@ -2062,7 +2064,7 @@ begin
   if Assigned(Value) then
     FCompare := Value
   else
-    FCompare := TDefault<T>.CompareFunc;
+    FCompare := TDefault.Compare<T>;
 end;
 
 procedure TListBase<T>.SetEquate(const Value: TFunc<T, T, Boolean>);
@@ -2070,7 +2072,7 @@ begin
   if Assigned(Value) then
     FEquate := Value
   else
-    FEquate := TDefault<T>.EquateFunc;
+    FEquate := TDefault.Equate<T>;
 end;
 
 function TListBase<T>.Empty: Boolean;
@@ -2609,8 +2611,8 @@ end;
 constructor THashBase<T, K>.Create;
 begin
   FAutoRehash := True;
-  FHash := TDefault<K>.HashFunc;
-  FEquate := TDefault<K>.EquateFunc;
+  FHash := TDefault.Hash<K>;
+  FEquate := TDefault.Equate<K>;
 end;
 
 function THashBase<T, K>.Empty: Boolean;
@@ -2663,7 +2665,7 @@ begin
   if Assigned(Value) then
     FEquate := Value
   else
-    FEquate := TDefault<K>.EquateFunc;
+    FEquate := TDefault.Equate<K>;
 end;
 
 procedure THashBase<T, K>.SetHash(const Value: TFunc<K, Cardinal>);
@@ -2671,7 +2673,7 @@ begin
   if Assigned(Value) then
     FHash := Value
   else
-    FHash := TDefault<K>.HashFunc;
+    FHash := TDefault.Hash<K>;
 end;
 
 procedure THashBase<T, K>.AddHashValue(AValue: THashValue<T>);
@@ -3111,7 +3113,7 @@ begin
   if Assigned(Value) then
     FEquateValue := Value
   else
-    FEquateValue := TDefault<V>.EquateFunc;
+    FEquateValue := TDefault.Equate<V>;
 end;
 
 procedure TMap<K, V>.SetHashKey(const Value: TFunc<K, Cardinal>);
@@ -3122,7 +3124,7 @@ end;
 constructor TMap<K, V>.Create;
 begin
   inherited;
-  FEquateValue := TDefault<V>.EquateFunc;
+  FEquateValue := TDefault.Equate<V>;
 end;
 
 constructor TMap<K, V>.Create(APairs: array of TPair<K, V>);

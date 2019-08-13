@@ -1115,6 +1115,15 @@ const
     (bdRight, bdFront, bdUp)
     );
 
+  CubeSideCornerMask: array [TBasicDir3] of TCorners3 = (
+    [coLeftBottomBack, coLeftTopBack, coLeftBottomFront, coLeftTopFront], // left
+    [coRightBottomBack, coRightTopBack, coRightBottomFront, coRightTopFront], // right
+    [coLeftBottomBack, coRightBottomBack, coLeftBottomFront, coRightBottomFront], // down
+    [coLeftTopBack, coRightTopBack, coLeftTopFront, coRightTopFront], // up
+    [coLeftBottomBack, coRightBottomBack, coLeftTopBack, coRightTopBack], // back
+    [coLeftBottomFront, coRightBottomFront, coLeftTopFront, coRightTopFront] // front
+  );
+
   ConnectedCornerData: array [TCorner3] of Byte = ($17, $2B, $4D, $8E, $71, $B2, $D4, $E8);
 
   { Shorthand Constructors }
