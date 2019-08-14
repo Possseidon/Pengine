@@ -6,6 +6,8 @@
 #define MAXLIGHTS_POINT 16
 #define MAXLIGHTS_SPOT 16
 
+uniform float linethickness = 1.0;
+
 uniform sampler2D diffusemap;
 uniform sampler2D specularmap;
 uniform sampler2D normalmap;
@@ -126,15 +128,14 @@ float getDepthValue(float n, float f, vec3 d)
 
 void main()
 {
+  if (ftexcoord.x > linethickness / 2 && ftexcoord.y > linethickness / 2 && ftexcoord.x + ftexcoord.y < 1.0 - linethickness / 2)
+    discard;
+
   ctexcoord = clamp(ftexcoord, fborderlow, fborderhigh);
  
   outcolor = vec4(ambient * texture(diffusemap, ctexcoord).rgb, texture(diffusemap, ctexcoord).a);
   if (outcolor.a == 0)
-  {
-    gl_FragDepth = 1;
-    return;
-  }  
-  gl_FragDepth = gl_FragCoord.z;
+    discard;
   
   if (depthonly)
     return;

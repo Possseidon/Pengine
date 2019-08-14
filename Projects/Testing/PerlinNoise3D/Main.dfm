@@ -2,8 +2,8 @@ object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'Perlin Noise 3D'
-  ClientHeight = 290
-  ClientWidth = 554
+  ClientHeight = 577
+  ClientWidth = 1009
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

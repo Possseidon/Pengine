@@ -83,11 +83,17 @@ type
     FCameraLight: TPointLight;
     FNoise: TPerlinNoise3;
     FOffset: Single;
+    FLineThicknessUniform: TGLProgram.TUniform<Single>;
 
     procedure UpdateFPS;
     procedure GameUpdate;
 
     procedure BuildVAO;
+
+    procedure SetLineThickness(const Value: Single);
+    function GetLineThickness: Single;
+
+    property LineThickness: Single read GetLineThickness write SetLineThickness;
 
   public
     procedure Init; override;
@@ -106,7 +112,7 @@ implementation
 
 class procedure TSkyboxGLProgram.GetData(out AName: string; out AResource: Boolean);
 begin
-  AResource := False;
+  AResource := True;
   if AResource then
     AName := 'SKYBOX'
   else
@@ -130,7 +136,7 @@ end;
 
 class procedure TModelGLProgram.GetData(out AName: string; out AResource: Boolean);
 begin
-  AResource := False;
+  AResource := True;
   if AResource then
     AName := 'MODEL'
   else
@@ -154,10 +160,11 @@ begin
     FCamera.Location.Slide(DeltaTime);
   if Input.KeyDown('A') then
     FCamera.Location.Slide(-DeltaTime);
-  if Input.KeyDown(VK_SPACE) then
-    FCamera.Location.Lift(DeltaTime);
-  if Input.KeyDown(VK_SHIFT) then
-    FCamera.Location.Lift(-DeltaTime);
+
+  if Input.KeyTyped('Q') then
+    LineThickness := LineThickness / 2;
+  if Input.KeyTyped('E') then
+    LineThickness := LineThickness * 2;
 
   if Input.KeyTyped(VK_DOWN) then
   begin
@@ -173,6 +180,11 @@ begin
   FCameraLight.Position := FCamera.Location.RealPosition;
 end;
 
+function TfrmMain.GetLineThickness: Single;
+begin
+  Result := FLineThicknessUniform.Value;
+end;
+
 procedure TfrmMain.BuildVAO;
 var
   Map: array of array of array of Byte;
@@ -185,6 +197,10 @@ var
   Corner: TCorner3;
   Plane: TPlane3;
   I, J: Integer;
+  Stopwatch: TStopwatch;
+  NormalList: IList<TVector3>;
+  Combined: TVector3;
+  Normal: TVector3;
 
   function MapAt(APos: TIntVector3): Byte;
   begin
@@ -202,7 +218,7 @@ var
       Data.Pos := (APlane[TexCoord] + P - TVector3(Size) / 2) * 0.1;
       Data.TexCoord := FStoneTexture.Bounds[TexCoord];
       Data.Border := FStoneTexture.BoundsHalfPixelInset;
-      // Data.Normal := APlane.Normal;
+      Data.Normal := APlane.Normal;
       Data.Tangent := APlane.DX;
       Data.Bitangent := APlane.DY;
       VBOData.Add(Data);
@@ -219,63 +235,10 @@ begin
 
   Normals := TMap<TVector3, IList<TVector3>>.Create;
 
-  var
   Stopwatch := TStopwatch.StartNew;
   SetLength(Map, Size.X, Size.Y, Size.Z);
   Writeln('Creating Map storage: ', Stopwatch.Elapsed.ToString);
 
-  {
-    for P in Size do
-    Map[P.X, P.Y, P.Z] := Integer((P.X and 1 = 0) xor (P.Y and 1 = 0) xor (P.Z and 1 = 0));
-  }
-  {
-    for I := 0 to 255 do
-    for J := 0 to 7 do
-    Map[I * 3 + J and 1, J shr 1 and 1, J shr 2 and 1] := I shr J and 1;
-  }
-
-  {
-    for P in Size do
-    Map[P.X, P.Y, P.Z] := 1;
-
-    Map[0, 1, 2] := 0;
-    Map[0, 2, 1] := 0;
-
-    Map[3, 1, 2] := 0;
-    Map[3, 2, 1] := 0;
-
-    Map[1, 0, 2] := 0;
-    Map[2, 0, 1] := 0;
-
-    Map[1, 3, 2] := 0;
-    Map[2, 3, 1] := 0;
-
-    Map[1, 2, 0] := 0;
-    Map[2, 1, 0] := 0;
-
-    Map[1, 2, 3] := 0;
-    Map[2, 1, 3] := 0;
-  }
-  {
-    Map[0, 1, 1] := 0;
-    Map[0, 2, 2] := 0;
-
-    Map[1, 0, 1] := 0;
-    Map[2, 0, 2] := 0;
-
-    Map[1, 1, 0] := 0;
-    Map[2, 2, 0] := 0;
-  }
-  // Map[1, 1, 0] := 0;
-
-  {
-    Map[0, 3, 3] := 0;
-    Map[1, 3, 2] := 0;
-    Map[2, 3, 1] := 0;
-    Map[3, 3, 0] := 0;
-    // Map[1, 3, 2] := 0;
-    // Map[2, 3, 1] := 0;
-  }
   Stopwatch := TStopwatch.StartNew;
   {
     for I := 0 to Size.Volume - 1 do
@@ -288,27 +251,24 @@ begin
 
   TParallel.&For(0, Size.Volume - 1,
     procedure(I: Integer)
+    var
+      P: TIntVector3;
+      D: TVector3;
     begin
-      var
       P := IVec3(I mod Size.X, I div Size.X mod Size.Y, I div Size.X div Size.Y);
-
-      if FNoise[Vec3(P.X * 5 / Size.X, 0, P.Z * 7 / Size.Z)] > (P.Y / Size.Y * 4 - 3.5) then
+      D := TVector3(P).VectorTo(64).Normalize;
+      
+      //if FNoise[Vec3(P.X * 5 / Size.X, 0, P.Z * 7 / Size.Z)] > (P.Y / Size.Y * 4 - 3.5) then
+      //  Map[P.X, P.Y, P.Z] := 1;
+      
+      if TVector3(P).DistanceTo(64) / 64 < FNoise[D * 3] * 0.25 + 0.75 then
         Map[P.X, P.Y, P.Z] := 1;
 
       if (FNoise[TVector3(P * 3 + 51) / Size * 2] + 0.2 * FNoise[TVector3(P) / Size * 7]) > 0.2 then
         Map[P.X, P.Y, P.Z] := 0;
 
-      // if TVector3(P).DistanceTo(8) > 9 then
-      // Map[P.X, P.Y, P.Z] := 1;
-      // if Abs(4 - P.X - P.Z) + 2 > P.Y then
-      // Map[P.X, P.Y, P.Z] := 1;
     end);
 
-  {
-    for P in Size do
-    if Abs(FNoise[TVector3(P + 51) / Size * 7] + 0.2 * Abs(FNoise[TVector3(P) / Size * 9])) < 0.2 then
-    Map[P.X, P.Y, P.Z] := 1;
-  }
   I := 0;
 
   Writeln('Generating Map: ', Stopwatch.Elapsed.ToString);
@@ -325,35 +285,31 @@ begin
     for Plane in TMarchingCubes.GetTriangles(Corners, FOffset) do
       AddTriangle(Plane);
 
-    {
-      if MapAt(P) <> 0 then
-      for Plane in CubePlanes do
-      AddQuad(Plane);
-    }
   end;
 
   Writeln('Filling VBO: ', Stopwatch.Elapsed.ToString);
 
-  for var NormalList in Normals.Values do
+  for NormalList in Normals.Values do
   begin
-    var Combined: TVector3 := 0;
-    for var Normal in NormalList do
+    Combined := 0;
+    for Normal in NormalList do
       Combined := Combined + Normal;
-    Combined := Combined.Normalize;
     NormalList.Clear;
-    NormalList.Add(Combined);
+    NormalList.Add(Combined.Normalize);
   end;
-
+  {
   Stopwatch := TStopwatch.StartNew;
-  for I := 0 to VBOData.MaxIndex do
-  begin
-    Data := VBOData[I];
-    Data.Normal := Normals[Data.Pos][0];
-    VBOData[I] := Data;
-  end;
+  TParallel.&For(0, VBOData.MaxIndex,
+    procedure(I: Integer)
+    var
+      Data: TModelGLProgram.TData;
+    begin
+      Data := VBOData[I];
+      Data.Normal := Normals[Data.Pos][0];
+      VBOData[I] := Data;
+    end);
   Writeln('Generating normals: ', Stopwatch.Elapsed.ToString);
-
-
+   }
   Stopwatch := TStopwatch.StartNew;
   FVAO.VBO.Generate(VBOData.Count, buStaticDraw, VBOData.DataPointer);
   Writeln('Sending VBO to GPU: ', Stopwatch.Elapsed.ToString);
@@ -365,7 +321,8 @@ end;
 
 procedure TfrmMain.Init;
 begin
-  // Context.Samples := Context.MaxSamples;
+  Context.VSync := False;
+  Context.Samples := Context.MaxSamples;
 
   FModelGLProgram := TModelGLProgram.Get(GLState);
   FSkyboxGLProgram := TSkyboxGLProgram.Get(GLState);
@@ -378,6 +335,8 @@ begin
   FNoise := TPerlinNoise3.Create;
   FNoise.GradientSource := TGradient3.Create;
 
+  FLineThicknessUniform := FModelGLProgram.Data.Uniform<Single>('linethickness');
+
   FSkybox.AddStripe(ColorRGB(0.4, 0.6, 0.8), -90);
   FSkybox.AddStripe(ColorRGB(0.5, 0.7, 0.9), 0);
   FSkybox.AddStripe(ColorRGB(0.5, 0.8, 0.9), 90);
@@ -388,7 +347,7 @@ begin
   FCamera.AddRenderable(FSkybox);
   FCamera.AddRenderable(FVAO);
 
-  FCamera.Location.Offset := Vec3(0, 0, 1);
+  FCamera.Location.Offset := Vec3(0, 0, 20);
   FCamera.Location.TurnAngle := -30;
   FCamera.Location.PitchAngle := -20;
 
@@ -400,7 +359,8 @@ begin
   FTextureAtlas.SubTypes[0].Texture.MagFilter := magNearest;
   FTextureAtlas.SubTypes[1].Texture.MagFilter := magNearest;
 
-  FStoneTexture := FTextureAtlas.AddFromFile('stone', 'Data/solid.png');
+  // FStoneTexture := FTextureAtlas.AddFromFile('stone', 'Data/stone.png');
+  FStoneTexture := FTextureAtlas.AddFromResource('stone', 'STONE');
 
   FTextureAtlas.Generate;
 
@@ -421,7 +381,11 @@ begin
   FOffset := 0.5;
 
   BuildVAO;
+end;
 
+procedure TfrmMain.SetLineThickness(const Value: Single);
+begin
+  FLineThicknessUniform.Value := Value;
 end;
 
 procedure TfrmMain.Finalize;
