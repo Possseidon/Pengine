@@ -177,6 +177,7 @@ procedure TfrmMain.BuildVAO;
 var
   Map: array of array of array of Byte;
   VBOData: IList<TModelGLProgram.TData>;
+  Normals: IMap<TVector3, IList<TVector3>>;
   Size: TIntVector3;
   Data: TModelGLProgram.TData;
   P: TIntVector3;
@@ -192,22 +193,6 @@ var
     Result := 0;
   end;
 
-  procedure AddQuad(APlane: TPlane3);
-  var
-    TexCoord: TTexCoord2;
-  begin
-    for TexCoord in QuadTexCoords do
-    begin
-      Data.Pos := (APlane[TexCoord] + P - TVector3(Size) / 2) * 0.1;
-      Data.TexCoord := FStoneTexture.Bounds[TexCoord];
-      Data.Border := FStoneTexture.BoundsHalfPixelInset;
-      Data.Normal := APlane.Normal;
-      Data.Tangent := APlane.DX;
-      Data.Bitangent := APlane.DY;
-      VBOData.Add(Data);
-    end;
-  end;
-
   procedure AddTriangle(APlane: TPlane3);
   var
     TexCoord: TTexCoord2;
@@ -217,16 +202,22 @@ var
       Data.Pos := (APlane[TexCoord] + P - TVector3(Size) / 2) * 0.1;
       Data.TexCoord := FStoneTexture.Bounds[TexCoord];
       Data.Border := FStoneTexture.BoundsHalfPixelInset;
-      Data.Normal := APlane.Normal;
+      // Data.Normal := APlane.Normal;
       Data.Tangent := APlane.DX;
       Data.Bitangent := APlane.DY;
       VBOData.Add(Data);
+
+      if not Normals.ContainsKey(Data.Pos) then
+        Normals[Data.Pos] := TList<TVector3>.Create;
+      Normals[Data.Pos].Add(APlane.Normal);
     end;
     Inc(I);
   end;
 
 begin
-  Size := 4; // IVec3(3 * 256, 2, 2);
+  Size := 128; // IVec3(3 * 256, 2, 2);
+
+  Normals := TMap<TVector3, IList<TVector3>>.Create;
 
   var
   Stopwatch := TStopwatch.StartNew;
@@ -237,33 +228,34 @@ begin
     for P in Size do
     Map[P.X, P.Y, P.Z] := Integer((P.X and 1 = 0) xor (P.Y and 1 = 0) xor (P.Z and 1 = 0));
   }
-  { 
+  {
     for I := 0 to 255 do
     for J := 0 to 7 do
     Map[I * 3 + J and 1, J shr 1 and 1, J shr 2 and 1] := I shr J and 1;
   }
 
-  for P in Size do
+  {
+    for P in Size do
     Map[P.X, P.Y, P.Z] := 1;
 
-  Map[0, 1, 2] := 0;
-  Map[0, 2, 1] := 0;
+    Map[0, 1, 2] := 0;
+    Map[0, 2, 1] := 0;
 
-  Map[3, 1, 2] := 0;
-  Map[3, 2, 1] := 0;
+    Map[3, 1, 2] := 0;
+    Map[3, 2, 1] := 0;
 
-  Map[1, 0, 2] := 0;
-  Map[2, 0, 1] := 0;
+    Map[1, 0, 2] := 0;
+    Map[2, 0, 1] := 0;
 
-  Map[1, 3, 2] := 0;
-  Map[2, 3, 1] := 0;
+    Map[1, 3, 2] := 0;
+    Map[2, 3, 1] := 0;
 
-  Map[1, 2, 0] := 0;
-  Map[2, 1, 0] := 0;
+    Map[1, 2, 0] := 0;
+    Map[2, 1, 0] := 0;
 
-  Map[1, 2, 3] := 0;
-  Map[2, 1, 3] := 0;
-
+    Map[1, 2, 3] := 0;
+    Map[2, 1, 3] := 0;
+  }
   {
     Map[0, 1, 1] := 0;
     Map[0, 2, 2] := 0;
@@ -297,13 +289,14 @@ begin
   TParallel.&For(0, Size.Volume - 1,
     procedure(I: Integer)
     begin
-      var P := IVec3(I mod Size.X, I div Size.X mod Size.Y, I div Size.X div Size.Y);
+      var
+      P := IVec3(I mod Size.X, I div Size.X mod Size.Y, I div Size.X div Size.Y);
 
-      //if FNoise[Vec3(P.X * 5 / Size.X, 0, P.Z * 7 / Size.Z)] > (P.Y / Size.Y * 4 - 3.5) then
-      //  Map[P.X, P.Y, P.Z] := 1;
+      if FNoise[Vec3(P.X * 5 / Size.X, 0, P.Z * 7 / Size.Z)] > (P.Y / Size.Y * 4 - 3.5) then
+        Map[P.X, P.Y, P.Z] := 1;
 
-      //if (FNoise[TVector3(P * 3 + 51) / Size * 2] + 0.2 * FNoise[TVector3(P) / Size * 7]) > 0.2 then
-      //  Map[P.X, P.Y, P.Z] := 0;
+      if (FNoise[TVector3(P * 3 + 51) / Size * 2] + 0.2 * FNoise[TVector3(P) / Size * 7]) > 0.2 then
+        Map[P.X, P.Y, P.Z] := 0;
 
       // if TVector3(P).DistanceTo(8) > 9 then
       // Map[P.X, P.Y, P.Z] := 1;
@@ -338,7 +331,28 @@ begin
       AddQuad(Plane);
     }
   end;
+
   Writeln('Filling VBO: ', Stopwatch.Elapsed.ToString);
+
+  for var NormalList in Normals.Values do
+  begin
+    var Combined: TVector3 := 0;
+    for var Normal in NormalList do
+      Combined := Combined + Normal;
+    Combined := Combined.Normalize;
+    NormalList.Clear;
+    NormalList.Add(Combined);
+  end;
+
+  Stopwatch := TStopwatch.StartNew;
+  for I := 0 to VBOData.MaxIndex do
+  begin
+    Data := VBOData[I];
+    Data.Normal := Normals[Data.Pos][0];
+    VBOData[I] := Data;
+  end;
+  Writeln('Generating normals: ', Stopwatch.Elapsed.ToString);
+
 
   Stopwatch := TStopwatch.StartNew;
   FVAO.VBO.Generate(VBOData.Count, buStaticDraw, VBOData.DataPointer);
@@ -380,12 +394,13 @@ begin
 
   FTextureAtlas.Uniform(FModelGLProgram.Data.UniformSampler('diffusemap'));
   FTextureAtlas.AddSubType('smap', FModelGLProgram.Data.UniformSampler('specularmap'), 0);
-  FTextureAtlas.AddSubType('nmap', FModelGLProgram.Data.UniformSampler('normalmap'), ColorRGB(0.5, 0.5, 1.0));
+  // Default color should be different! Something fishy!
+  FTextureAtlas.AddSubType('nmap', FModelGLProgram.Data.UniformSampler('normalmap'), ColorRGB(1.0, 0.5, 0.5));
   FTextureAtlas.Texture.MagFilter := magNearest;
   FTextureAtlas.SubTypes[0].Texture.MagFilter := magNearest;
   FTextureAtlas.SubTypes[1].Texture.MagFilter := magNearest;
 
-  FStoneTexture := FTextureAtlas.AddFromFile('stone', 'Data/stone.png');
+  FStoneTexture := FTextureAtlas.AddFromFile('stone', 'Data/solid.png');
 
   FTextureAtlas.Generate;
 
