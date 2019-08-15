@@ -82,6 +82,82 @@ vec2 ctexcoord;
 
 out vec4 outcolor;
 
+// PerlinNoise Begin
+
+vec2 randomVec(ivec3 pos, unsigned int seed)
+{
+	seed ^= unsigned int(pos.x * 42793528u + pos.y * 935635u + pos.z * 756273u);
+	vec2 result;
+	seed = (seed * 1103515245u + 12345u);
+  result.x = float(seed);
+	seed = (seed * 1103515245u + 12345u);
+  result.y = float(seed);
+	return (result / 4294967296.0);
+}
+
+vec3 getGradient(ivec3 pos, unsigned int seed)
+{
+  vec2 v = randomVec(pos, seed);
+  float o = v.x * 2 * PI;
+  float u = v.y * 2 - 1;
+  return vec3(sqrt(1 - u * u) * sin(o), sqrt(1 - u * u) * cos(o), u);
+}
+
+float cubic(float a, float b, float w)
+{
+  return a + w * w * (3 - 2 * w) * (b - a);
+}
+
+float dotgradient(ivec3 grid, vec3 pos, unsigned int seed)
+{
+  return dot(getGradient(grid, seed), pos - grid);
+}
+
+float noise(vec3 pos, unsigned int seed)
+{
+  ivec3 ga = ivec3(floor(pos));
+  ivec3 gh = ga + ivec3(1);
+
+  ivec3 gb = ivec3(gh.x, ga.yz);
+  ivec3 gc = ivec3(ga.x, gh.y, ga.z);
+  ivec3 gd = ivec3(gh.xy, ga.z);
+
+  ivec3 ge = ivec3(ga.xy, gh.z);
+  ivec3 gf = ivec3(gh.x, ga.y, gh.z);
+  ivec3 gg = ivec3(ga.x, gh.yz);
+
+  float a = dotgradient(ga, pos, seed);
+  float b = dotgradient(gb, pos, seed);
+  float c = dotgradient(gc, pos, seed);
+  float d = dotgradient(gd, pos, seed);
+  float e = dotgradient(ge, pos, seed);
+  float f = dotgradient(gf, pos, seed);
+  float g = dotgradient(gg, pos, seed);
+  float h = dotgradient(gh, pos, seed);
+
+  vec3 delta = pos - ga;
+  float i = cubic(a, b, delta.x);
+  float j = cubic(c, d, delta.x);
+  float k = cubic(e, f, delta.x);
+  float l = cubic(g, h, delta.x);
+
+  float m = cubic(i, j, delta.y);
+  float n = cubic(k, l, delta.y);
+
+  return cubic(m, n, delta.z) / sqrt(3.0 / 4.0);
+}
+
+vec3 getTexture()
+{
+  // return abs(getGradient(ivec3(fpos * 10), 5743895u));
+  return vec3(
+    (noise(fpos * 45, 57) * 0.1 + 0.4) * vec3(0.7, 0.6, 0.5) +
+    (noise(fpos * 58, 93) * 0.1 + 0.2) * vec3(0.6, 0.5, 0.4) +
+    (noise(fpos * 87, 38) * 0.1 + 0.1) * vec3(0.5, 0.4, 0.3));
+}
+
+// PerlinNoise End
+
 const int sampleCount = 8;
 const float sampleSpread = 1e-3;
 
@@ -111,13 +187,15 @@ float getAngle(vec3 a, vec3 b)
 }
 
 vec3 calcDiffuse(vec3 color, vec3 lightvec, vec3 normal)
-{  
-  return color * texture(diffusemap, ctexcoord).rgb * calcDiffuseFactor(-lightvec, normal); 
+{
+  return color * getTexture() * calcDiffuseFactor(-lightvec, normal);
+  //return color * texture(diffusemap, ctexcoord).rgb * calcDiffuseFactor(-lightvec, normal);
 }
 
 vec3 calcSpecular(vec3 color, vec3 reflected)
 {
-  return color * texture(specularmap, ctexcoord).rgb * pow(calcDiffuseFactor(reflected, normalize(fcam - fpos)), 10);
+  return color * 0.0 * pow(calcDiffuseFactor(reflected, normalize(fcam - fpos)), 10);
+  //return color * texture(specularmap, ctexcoord).rgb * pow(calcDiffuseFactor(reflected, normalize(fcam - fpos)), 10);
 }
 
 float getDepthValue(float n, float f, vec3 d)
@@ -133,15 +211,18 @@ void main()
 
   ctexcoord = clamp(ftexcoord, fborderlow, fborderhigh);
  
-  outcolor = vec4(ambient * texture(diffusemap, ctexcoord).rgb, texture(diffusemap, ctexcoord).a);
+  // outcolor = vec4(ambient * texture(diffusemap, ctexcoord).rgb, texture(diffusemap, ctexcoord).a);
+  outcolor = vec4(vec3(ambient), 1);
   if (outcolor.a == 0)
     discard;
   
   if (depthonly)
     return;
   
-  vec3 texnormal = texture(normalmap, ctexcoord).xyz * 2 - 1;  
-  vec3 normal = normalize(ftangent * texnormal.x + fbitangent * texnormal.y + fnormal * texnormal.z);
+  // vec3 texnormal = texture(normalmap, ctexcoord).xyz * 2 - 1;
+  // vec3 texnormal = normalize(getTexture() * 2 - 1);
+  // vec3 normal = normalize(ftangent * texnormal.x + fbitangent * texnormal.y + fnormal * texnormal.z);
+  vec3 normal = normalize(fnormal);
   vec3 offsetpos = fpos + fnormal * 0.1;
   
   // directional lights

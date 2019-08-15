@@ -260,7 +260,7 @@ begin
       
       //if FNoise[Vec3(P.X * 5 / Size.X, 0, P.Z * 7 / Size.Z)] > (P.Y / Size.Y * 4 - 3.5) then
       //  Map[P.X, P.Y, P.Z] := 1;
-      
+
       if TVector3(P).DistanceTo(64) / 64 < FNoise[D * 3] * 0.25 + 0.75 then
         Map[P.X, P.Y, P.Z] := 1;
 
@@ -297,7 +297,7 @@ begin
     NormalList.Clear;
     NormalList.Add(Combined.Normalize);
   end;
-  {
+
   Stopwatch := TStopwatch.StartNew;
   TParallel.&For(0, VBOData.MaxIndex,
     procedure(I: Integer)
@@ -309,7 +309,7 @@ begin
       VBOData[I] := Data;
     end);
   Writeln('Generating normals: ', Stopwatch.Elapsed.ToString);
-   }
+
   Stopwatch := TStopwatch.StartNew;
   FVAO.VBO.Generate(VBOData.Count, buStaticDraw, VBOData.DataPointer);
   Writeln('Sending VBO to GPU: ', Stopwatch.Elapsed.ToString);
