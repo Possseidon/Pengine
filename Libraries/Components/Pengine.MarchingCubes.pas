@@ -133,7 +133,7 @@ var
   Corner: TCorner3;
   Offset, J, K: Integer;
   PlanePoint: TPlanePoint;
-  Center: TPlanePoint;
+  Center, CenterLow, CenterHigh: TPlanePoint;
 begin
   Writeln('Pre-Generating Marching Cubes:');
   StartTimer;
@@ -228,6 +228,7 @@ begin
         3:
           FLookup[I][Offset] := NewPlaneInfo(Loop.Points[0], Loop.Points[1], Loop.Points[2]);
       else
+
         Center := NewPlanePoint(0, 0);
         for K := 0 to Loop.Count - 1 do
         begin
@@ -236,7 +237,19 @@ begin
         end;
         Center.Position := Center.Position / Loop.Count;
         Center.Direction := Center.Direction / Loop.Count;
-
+         {
+        CenterLow := Loop.Points[0];
+        CenterHigh := Loop.Points[0];
+        for K := 1 to Loop.Count - 1 do
+        begin
+          CenterLow.Position := CenterLow.Position.Min(Loop.Points[K].Position);
+          CenterLow.Direction := CenterLow.Direction.Min(Loop.Points[K].Direction);
+          CenterHigh.Position := CenterHigh.Position.Max(Loop.Points[K].Position);
+          CenterHigh.Direction := CenterHigh.Direction.Max(Loop.Points[K].Direction);
+        end;
+        Center.Position := (CenterLow.Position + CenterHigh.Position) / 2;
+        // Center.Direction := (CenterLow.Direction + CenterHigh.Direction) / 2;
+         }
         for K := 0 to Loop.Count - 1 do
           FLookup[I][Offset + K] := NewPlaneInfo(Loop.Points[K], Loop.Points[K + 1], Center);
         FLookup[I][Offset + Loop.Count - 1] := NewPlaneInfo(Loop.Points[Loop.Count - 1], Loop.Points[0], Center);

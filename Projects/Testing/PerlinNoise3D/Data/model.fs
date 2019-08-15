@@ -108,6 +108,11 @@ float cubic(float a, float b, float w)
   return a + w * w * (3 - 2 * w) * (b - a);
 }
 
+vec3 cubic3(vec3 a, vec3 b, float w)
+{
+  return a + w * w * (3 - 2 * w) * (b - a);
+}
+
 float dotgradient(ivec3 grid, vec3 pos, unsigned int seed)
 {
   return dot(getGradient(grid, seed), pos - grid);
@@ -150,10 +155,14 @@ float noise(vec3 pos, unsigned int seed)
 vec3 getTexture()
 {
   // return abs(getGradient(ivec3(fpos * 10), 5743895u));
-  return vec3(
-    (noise(fpos * 45, 57) * 0.1 + 0.4) * vec3(0.7, 0.6, 0.5) +
-    (noise(fpos * 58, 93) * 0.1 + 0.2) * vec3(0.6, 0.5, 0.4) +
-    (noise(fpos * 87, 38) * 0.1 + 0.1) * vec3(0.5, 0.4, 0.3));
+  vec3 pos = floor(fpos * 10) / 10;
+  vec3 stone = (noise(pos, 128) * 0.4 + 0.6) * vec3(
+    (noise(pos * 70, 381) * 0.1 + 0.2) * vec3(1) +
+    (noise(pos * 27, 481) * 0.1 + 0.4) * vec3(0.7, 0.6, 0.5) +
+    (noise(pos * 16, 548) * 0.1 + 0.2) * vec3(0.6, 0.5, 0.4) +
+    (noise(pos * 6, 593) * 0.1 + 0.1) * vec3(0.5, 0.4, 0.3));
+  vec3 dirt = (noise(pos * 35, 249) * 0.2 + 0.8) * vec3(0.2, 0.6, 0.3);
+  return mix(stone, dirt, clamp(noise(pos * 0.7, 482) * 16, -1, 1) * 0.5 + 0.5);
 }
 
 // PerlinNoise End
@@ -210,12 +219,16 @@ void main()
     discard;
 
   ctexcoord = clamp(ftexcoord, fborderlow, fborderhigh);
- 
+
   // outcolor = vec4(ambient * texture(diffusemap, ctexcoord).rgb, texture(diffusemap, ctexcoord).a);
   outcolor = vec4(vec3(ambient), 1);
   if (outcolor.a == 0)
     discard;
-  
+
+  outcolor.r += max(0, ctexcoord.x - 1);
+  outcolor.r += max(0, ftangent.x - 1);
+  outcolor.r += max(0, fbitangent.x - 1);
+
   if (depthonly)
     return;
   

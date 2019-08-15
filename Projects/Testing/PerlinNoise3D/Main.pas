@@ -178,6 +178,7 @@ begin
   end;
 
   FCameraLight.Position := FCamera.Location.RealPosition;
+  FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0), DeltaTime * 10);
 end;
 
 function TfrmMain.GetLineThickness: Single;
@@ -189,7 +190,7 @@ procedure TfrmMain.BuildVAO;
 var
   Map: array of array of array of Byte;
   VBOData: IList<TModelGLProgram.TData>;
-  Normals: IMap<TVector3, IList<TVector3>>;
+  Normals: IMap<TVector3, TVector3>;
   Size: TIntVector3;
   Data: TModelGLProgram.TData;
   P: TIntVector3;
@@ -224,8 +225,9 @@ var
       VBOData.Add(Data);
 
       if not Normals.ContainsKey(Data.Pos) then
-        Normals[Data.Pos] := TList<TVector3>.Create;
-      Normals[Data.Pos].Add(APlane.Normal);
+        Normals[Data.Pos] := APlane.Normal
+      else
+        Normals[Data.Pos] := Normals[Data.Pos] + APlane.Normal;
     end;
     Inc(I);
   end;
@@ -233,7 +235,7 @@ var
 begin
   Size := 128; // IVec3(3 * 256, 2, 2);
 
-  Normals := TMap<TVector3, IList<TVector3>>.Create;
+  Normals := TMap<TVector3, TVector3>.Create;
 
   Stopwatch := TStopwatch.StartNew;
   SetLength(Map, Size.X, Size.Y, Size.Z);
@@ -258,8 +260,8 @@ begin
       P := IVec3(I mod Size.X, I div Size.X mod Size.Y, I div Size.X div Size.Y);
       D := TVector3(P).VectorTo(64).Normalize;
       
-      //if FNoise[Vec3(P.X * 5 / Size.X, 0, P.Z * 7 / Size.Z)] > (P.Y / Size.Y * 4 - 3.5) then
-      //  Map[P.X, P.Y, P.Z] := 1;
+      if FNoise[Vec3(P.X * 5 / Size.X, 0, P.Z * 7 / Size.Z)] > (P.Y / Size.Y * 4 - 3.5) then
+        Map[P.X, P.Y, P.Z] := 1;
 
       if TVector3(P).DistanceTo(64) / 64 < FNoise[D * 3] * 0.25 + 0.75 then
         Map[P.X, P.Y, P.Z] := 1;
@@ -289,40 +291,32 @@ begin
 
   Writeln('Filling VBO: ', Stopwatch.Elapsed.ToString);
 
-  for NormalList in Normals.Values do
-  begin
-    Combined := 0;
-    for Normal in NormalList do
-      Combined := Combined + Normal;
-    NormalList.Clear;
-    NormalList.Add(Combined.Normalize);
-  end;
-
   Stopwatch := TStopwatch.StartNew;
+  {
   TParallel.&For(0, VBOData.MaxIndex,
     procedure(I: Integer)
     var
       Data: TModelGLProgram.TData;
     begin
       Data := VBOData[I];
-      Data.Normal := Normals[Data.Pos][0];
+      Data.Normal := Normals[Data.Pos].Normalize;
       VBOData[I] := Data;
     end);
   Writeln('Generating normals: ', Stopwatch.Elapsed.ToString);
-
+  }
   Stopwatch := TStopwatch.StartNew;
   FVAO.VBO.Generate(VBOData.Count, buStaticDraw, VBOData.DataPointer);
   Writeln('Sending VBO to GPU: ', Stopwatch.Elapsed.ToString);
 
   Writeln('Double-Triangle Quad Count: ', I);
 
-  FLightSystem.RenderShadows;
+  // FLightSystem.RenderShadows;
 end;
 
 procedure TfrmMain.Init;
 begin
   Context.VSync := False;
-  Context.Samples := Context.MaxSamples;
+  // Context.Samples := Context.MaxSamples;
 
   FModelGLProgram := TModelGLProgram.Get(GLState);
   FSkyboxGLProgram := TSkyboxGLProgram.Get(GLState);
@@ -379,6 +373,8 @@ begin
   Game.Timer.OnFPSUpdate.Add(UpdateFPS);
 
   FOffset := 0.5;
+
+  Game.OnRender.Add(FLightSystem.RenderShadows);
 
   BuildVAO;
 end;
