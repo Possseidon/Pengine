@@ -421,7 +421,7 @@ begin
   end
   else
   begin
-    F := cot(FOV / 360 * Pi);
+    F := Cot(FOV / 360 * Pi);
     Result[bdRight] := Line3(P, R * F / Aspect - L);
     Result[bdLeft] := Line3(P, -R * F / Aspect - L);
     Result[bdUp] := Line3(P, U * F - L);

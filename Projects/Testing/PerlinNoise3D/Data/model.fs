@@ -75,8 +75,7 @@ in vec3 fpos;
 in vec3 fcam;
 flat in vec2 fborderlow;
 flat in vec2 fborderhigh;
-
-in vec3 frawpos;
+// in vec3 frawpos;
 
 vec2 ctexcoord;
 
@@ -154,15 +153,18 @@ float noise(vec3 pos, unsigned int seed)
 
 vec3 getTexture()
 {
+  /*
   // return abs(getGradient(ivec3(fpos * 10), 5743895u));
-  vec3 pos = floor(fpos * 10) / 10;
+  vec3 pos = fpos; //floor(fpos * 10) / 10;
   vec3 stone = (noise(pos, 128) * 0.4 + 0.6) * vec3(
-    (noise(pos * 70, 381) * 0.1 + 0.2) * vec3(1) +
+    //(noise(pos * 70, 381) * 0.1 + 0.2) * vec3(1) +
     (noise(pos * 27, 481) * 0.1 + 0.4) * vec3(0.7, 0.6, 0.5) +
     (noise(pos * 16, 548) * 0.1 + 0.2) * vec3(0.6, 0.5, 0.4) +
     (noise(pos * 6, 593) * 0.1 + 0.1) * vec3(0.5, 0.4, 0.3));
   vec3 dirt = (noise(pos * 35, 249) * 0.2 + 0.8) * vec3(0.2, 0.6, 0.3);
   return mix(stone, dirt, clamp(noise(pos * 0.7, 482) * 16, -1, 1) * 0.5 + 0.5);
+  */
+  return texture(diffusemap, ctexcoord).rgb;
 }
 
 // PerlinNoise End

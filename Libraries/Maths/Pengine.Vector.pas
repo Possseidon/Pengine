@@ -1723,7 +1723,7 @@ type
     FPosition: TVector3;
 
   public
-    constructor Create(ALocation: TLocation3; ASize: TIntVector3);
+    constructor Create(ASize: TIntVector3);
 
     procedure AddMin(AMin: Single);
     procedure AddMax(AMax: Single);
@@ -5326,9 +5326,8 @@ end;
 
 { TBlockRaycaster3 }
 
-constructor TBlock3Raycaster.Create(ALocation: TLocation3; ASize: TIntVector3);
+constructor TBlock3Raycaster.Create(ASize: TIntVector3);
 begin
-  FLocation := ALocation;
   FSize := ASize;
   FMin := -Infinity;
   FMax := +Infinity;
@@ -5352,9 +5351,6 @@ var
   Data: TPlane3.TLineIntsecFactors;
   FoundEnd: Boolean;
 begin
-  FLine.S := FLocation.InvMatrix * ALine.S;
-  FLine.D := FLocation.InvRotMatrix * ALine.D;
-
   FDirections := FLine.D.Dirs;
   InvDirections := (-FLine.D).Dirs;
 

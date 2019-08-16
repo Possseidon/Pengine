@@ -16,19 +16,7 @@ type
   /// <summary>A vertex-index for a render-quad in range: <c>[0, 5]</c></summary>
   TQuadIndex = 0 .. 5;
 
-  TCorner1 = (
-    coLeft,
-    coRight
-    );
-
-  TCorner2 = (
-    coLeftBottom,
-    coRightBottom,
-    coLeftTop,
-    coRightTop
-    );
-
-  TCorner3 = (
+  TCorner = (
     coLeftBottomBack,
     coRightBottomBack,
     coLeftTopBack,
@@ -38,6 +26,10 @@ type
     coLeftTopFront,
     coRightTopFront
     );
+
+  TCorner1 = coLeftBottomBack .. coRightBottomBack;
+  TCorner2 = coLeftBottomBack .. coRightTopBack;
+  TCorner3 = coLeftBottomBack .. coRightTopFront;
 
   TCorners1 = set of TCorner1;
   TCorners2 = set of TCorner2;
@@ -874,6 +866,14 @@ type
   end;
 
 const
+
+  coLeft = coLeftBottomBack;
+  coRight = coRightBottomBack;
+
+  coLeftBottom = coLeftBottomBack;
+  coRightBottom = coRightBottomBack;
+  coLeftTop = coLeftTopBack;
+  coRightTop = coRightTopBack;
 
   Vec1Dir: array [TBasicDir1Nonable] of Integer = (
     0,

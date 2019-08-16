@@ -5,10 +5,7 @@ interface
 uses
   Pengine.IntMaths,
   Pengine.Vector,
-  Pengine.Utility,
-
-  // REMOVE:
-  Pengine.TimeManager;
+  Pengine.Utility;
 
 type
 
@@ -41,7 +38,8 @@ type
   public
     class constructor Create;
 
-    class function GetTriangles(ACorners: TCorners3; AOffset: Single = 0.5): TArray<TPlane3>;
+    class function GetTriangles(ACorners: TCorners3; AOffset: Single = 0.5): TArray<TPlane3>; overload;
+    // class function GetVoxelTriangles(ACorners: TCorners3): TArray<TPlane3>;
 
   end;
 
@@ -55,12 +53,12 @@ type
     Start: TPlanePoint;
     Stop: TPlanePoint;
   end;
-            
+
   TLoop = record
     Points: array [0 .. 6] of TPlanePoint;
     Count: Integer;
   end;
-  
+
   function NewLine(AFlip, AInvert: Boolean; AStart, AStop: TPlanePoint): TLine;
   begin
     if AFlip then
@@ -135,9 +133,6 @@ var
   PlanePoint: TPlanePoint;
   Center, CenterLow, CenterHigh: TPlanePoint;
 begin
-  Writeln('Pre-Generating Marching Cubes:');
-  StartTimer;
-
   for I := 0 to 255 do
   begin
     Corners := TCorners3(I);
@@ -216,9 +211,9 @@ begin
         end;
       until Done;
       Loops[LoopCount] := Loop;
-      Inc(LoopCount);      
+      Inc(LoopCount);
     end;
-    
+
     Offset := 0;
     for J := 0 to LoopCount - 1 do
     begin
@@ -228,7 +223,6 @@ begin
         3:
           FLookup[I][Offset] := NewPlaneInfo(Loop.Points[0], Loop.Points[1], Loop.Points[2]);
       else
-
         Center := NewPlanePoint(0, 0);
         for K := 0 to Loop.Count - 1 do
         begin
@@ -237,19 +231,7 @@ begin
         end;
         Center.Position := Center.Position / Loop.Count;
         Center.Direction := Center.Direction / Loop.Count;
-         {
-        CenterLow := Loop.Points[0];
-        CenterHigh := Loop.Points[0];
-        for K := 1 to Loop.Count - 1 do
-        begin
-          CenterLow.Position := CenterLow.Position.Min(Loop.Points[K].Position);
-          CenterLow.Direction := CenterLow.Direction.Min(Loop.Points[K].Direction);
-          CenterHigh.Position := CenterHigh.Position.Max(Loop.Points[K].Position);
-          CenterHigh.Direction := CenterHigh.Direction.Max(Loop.Points[K].Direction);
-        end;
-        Center.Position := (CenterLow.Position + CenterHigh.Position) / 2;
-        // Center.Direction := (CenterLow.Direction + CenterHigh.Direction) / 2;
-         }
+
         for K := 0 to Loop.Count - 1 do
           FLookup[I][Offset + K] := NewPlaneInfo(Loop.Points[K], Loop.Points[K + 1], Center);
         FLookup[I][Offset + Loop.Count - 1] := NewPlaneInfo(Loop.Points[Loop.Count - 1], Loop.Points[0], Center);
@@ -257,7 +239,6 @@ begin
       Inc(Offset, Loop.Count);
     end;
   end;
-  StopTimerAndOutput;
 end;
 
 class function TMarchingCubes.GetTriangles(ACorners: TCorners3; AOffset: Single): TArray<TPlane3>;
@@ -265,19 +246,17 @@ var
   Info: TArray<TPlaneInfo>;
   I: Integer;
   Pos: TVector3;
-  Offset: Single;
 begin
   Info := FLookup[Byte(ACorners)];
   SetLength(Result, Length(Info));
   for I := 0 to Length(Info) - 1 do
   begin
-    Offset := AOffset;
     Pos := Info[I].Points[0].Position;
     Result[I].Create(
-      Pos + Offset * TVector3(Info[I].Points[0].Direction),
-      Pos.VectorTo(Info[I].Points[1].Position) + Offset * (Info[I].Points[1].Direction -
+      Pos + AOffset * TVector3(Info[I].Points[0].Direction),
+      Pos.VectorTo(Info[I].Points[1].Position) + AOffset * (Info[I].Points[1].Direction -
       TVector3(Info[I].Points[0].Direction)),
-      Pos.VectorTo(Info[I].Points[2].Position) + Offset * (Info[I].Points[2].Direction -
+      Pos.VectorTo(Info[I].Points[2].Position) + AOffset * (Info[I].Points[2].Direction -
       TVector3(Info[I].Points[0].Direction)));
   end;
 end;

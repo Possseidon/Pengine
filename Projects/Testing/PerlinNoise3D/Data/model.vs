@@ -19,7 +19,7 @@ out vec3 ftangent;
 out vec3 fbitangent;
 out vec3 fcam;
 out vec3 fpos;
-out vec3 frawpos;
+// out vec3 frawpos;
 flat out vec2 fborderlow;
 flat out vec2 fborderhigh;
 
@@ -32,7 +32,7 @@ void main()
 {
   vec4 p = model_matrix * vec4(vpos, 1);
   fpos = p.xyz / p.w;
-  frawpos = vpos;
+  // frawpos = vpos;
   fcam = cam();
   
   ftexcoord = vtexcoord;
