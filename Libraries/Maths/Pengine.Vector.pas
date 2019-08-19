@@ -302,6 +302,8 @@ type
     /// <summary>Creates a <see cref="Pengine.Vector|TVector3"/> with all components being the same, given value.</summary>
     constructor Create(V: Single); overload;
 
+    class function NormalFrom2D(A: TVector2): TVector3; static;
+
     /// <returns>A <see cref="Pengine.Vector|TVector3"/>, with each component being a random value in the interval: <c>[0, 1)</c></returns>
     class function Random: TVector3; static;
     /// <returns>A <see cref="Pengine.Vector|TVector3"/>, with each component being a random value in the interval: <c>[-1, 1)</c></returns>
@@ -1711,7 +1713,6 @@ type
   // TODO: XmlDoc
   TBlock3Raycaster = class
   private
-    FLocation: TLocation3;
     FSize: TIntVector3;
 
     FLine: TLine3;
@@ -2311,6 +2312,338 @@ begin
   (PSingle(@Self) + Ord(AAxis) - Ord(caX))^ := Value;
 end;
 
+constructor TVector3.Create(X, Y, Z: Single);
+begin
+  Self.X := X;
+  Self.Y := Y;
+  Self.Z := Z;
+end;
+
+constructor TVector3.Create(V: Single);
+begin
+  X := V;
+  Y := V;
+  Z := V;
+end;
+
+class function TVector3.NormalFrom2D(A: TVector2): TVector3;
+begin
+  A.X := ArcCos(2 * A.X - 1);
+  A.Y := 2 * Pi * A.Y;
+  Result.X := Sin(A.X) * Cos(A.Y);
+  Result.Y := Sin(A.X) * Sin(A.Y);
+  Result.Z := Cos(A.X);
+  {
+  A.X := A.X * 2 * Pi;
+  A.Y := A.Y * 2 - 1;
+  Result.X := Sqrt(1 - Sqr(A.Y)) * Sin(A.X);
+  Result.Y := Sqrt(1 - Sqr(A.Y)) * Cos(A.X);
+  Result.Z := A.Y;
+  }
+end;
+
+class function TVector3.Random: TVector3;
+begin
+  Result.X := System.Random;
+  Result.Y := System.Random;
+  Result.Z := System.Random;
+end;
+
+class function TVector3.RandomBox: TVector3;
+begin
+  Result := Random * 2 - 1;
+end;
+
+class function TVector3.RandomNormal: TVector3;
+begin
+  Result := NormalFrom2D(TVector2.Random);
+end;
+
+class operator TVector3.Implicit(V: Single): TVector3;
+begin
+  Result.X := V;
+  Result.Y := V;
+  Result.Z := V;
+end;
+
+class operator TVector3.Implicit(const A: TIntVector3): TVector3;
+begin
+  Result.X := A.X;
+  Result.Y := A.Y;
+  Result.Z := A.Z;
+end;
+
+class operator TVector3.Add(const A, B: TVector3): TVector3;
+begin
+  Result.X := A.X + B.X;
+  Result.Y := A.Y + B.Y;
+  Result.Z := A.Z + B.Z;
+end;
+
+class operator TVector3.Subtract(const A, B: TVector3): TVector3;
+begin
+  Result.X := A.X - B.X;
+  Result.Y := A.Y - B.Y;
+  Result.Z := A.Z - B.Z;
+end;
+
+class operator TVector3.Multiply(const A, B: TVector3): TVector3;
+begin
+  Result.X := A.X * B.X;
+  Result.Y := A.Y * B.Y;
+  Result.Z := A.Z * B.Z;
+end;
+
+class operator TVector3.Divide(const A, B: TVector3): TVector3;
+begin
+  Result.X := A.X / B.X;
+  Result.Y := A.Y / B.Y;
+  Result.Z := A.Z / B.Z;
+end;
+
+class operator TVector3.Multiply(const A: TMatrix3; const B: TVector3): TVector3;
+begin
+  Result.X := A[0, 0] * B.X + A[1, 0] * B.Y + A[2, 0] * B.Z;
+  Result.Y := A[0, 1] * B.X + A[1, 1] * B.Y + A[2, 1] * B.Z;
+  Result.Z := A[0, 2] * B.X + A[1, 2] * B.Y + A[2, 2] * B.Z;
+end;
+
+class operator TVector3.Multiply(const A: TVector3; const B: TMatrix3): TVector3;
+begin
+  Result.X := A.X * B[0, 0] + A.Y * B[0, 1] + A.Z * B[0, 2];
+  Result.Y := A.X * B[1, 0] + A.Y * B[1, 1] + A.Z * B[1, 2];
+  Result.Z := A.X * B[2, 0] + A.Y * B[2, 1] + A.Z * B[2, 2];
+end;
+
+class operator TVector3.Multiply(const A: TMatrix4; const B: TVector3): TVector3;
+begin
+  Result.X := A[0, 0] * B.X + A[1, 0] * B.Y + A[2, 0] * B.Z + A[3, 0];
+  Result.Y := A[0, 1] * B.X + A[1, 1] * B.Y + A[2, 1] * B.Z + A[3, 1];
+  Result.Z := A[0, 2] * B.X + A[1, 2] * B.Y + A[2, 2] * B.Z + A[3, 2];
+  Result := Result / (A[0, 3] * B.X + A[1, 3] * B.Y + A[2, 3] * B.Z + A[3, 3]);
+end;
+
+class operator TVector3.Multiply(const A: TVector3; const B: TMatrix4): TVector3;
+begin
+  Result.X := A.X * B[0, 0] + A.Y * B[0, 1] + A.Z * B[0, 2] + B[0, 3];
+  Result.Y := A.X * B[1, 0] + A.Y * B[1, 1] + A.Z * B[1, 2] + B[1, 3];
+  Result.Y := A.X * B[2, 0] + A.Y * B[2, 1] + A.Z * B[2, 2] + B[2, 3];
+  Result := Result / (A.X * B[3, 0] + A.Y * B[3, 1] + A.Z * B[3, 2] + B[3, 3]);
+end;
+
+class operator TVector3.Positive(const A: TVector3): TVector3;
+begin
+  Result := A;
+end;
+
+class operator TVector3.Negative(const A: TVector3): TVector3;
+begin
+  Result.X := -A.X;
+  Result.Y := -A.Y;
+  Result.Z := -A.Z;
+end;
+
+class operator TVector3.Equal(const A, B: TVector3): Boolean;
+begin
+  Result := (A.X = B.X) and (A.Y = B.Y) and (A.Z = B.Z);
+end;
+
+class operator TVector3.NotEqual(const A, B: TVector3): Boolean;
+begin
+  Result := (A.X <> B.X) or (A.Y <> B.Y) or (A.Z <> B.Z);
+end;
+
+class operator TVector3.LessThan(const A, B: TVector3): Boolean;
+begin
+  Result := (A.X < B.X) and (A.Y < B.Y) and (A.Z < B.Z);
+end;
+
+class operator TVector3.LessThanOrEqual(const A, B: TVector3): Boolean;
+begin
+  Result := (A.X <= B.X) and (A.Y <= B.Y) and (A.Z <= B.Z);
+end;
+
+class operator TVector3.GreaterThan(const A, B: TVector3): Boolean;
+begin
+  Result := (A.X > B.X) and (A.Y > B.Y) and (A.Z > B.Z);
+end;
+
+class operator TVector3.GreaterThanOrEqual(const A, B: TVector3): Boolean;
+begin
+  Result := (A.X >= B.X) and (A.Y >= B.Y) and (A.Z >= B.Z);
+end;
+
+function TVector3.ToString: string;
+begin
+  Result := Format('[%f|%f|%f]', [X, Y, Z]);
+end;
+
+class operator TVector3.Implicit(const A: TVector3): string;
+begin
+  Result := A.ToString;
+end;
+
+function TVector3.Length: Single;
+begin
+  Result := Sqrt(SqrDot);
+end;
+
+function TVector3.Normalize: TVector3;
+begin
+  Result := Self / Length;
+end;
+
+function TVector3.Volume: Single;
+begin
+  Result := X * Y * Z;
+end;
+
+function TVector3.DistanceTo(const A: TVector3): Single;
+begin
+  Result := VectorTo(A).Length;
+end;
+
+function TVector3.VectorTo(const A: TVector3): TVector3;
+begin
+  Result := A - Self;
+end;
+
+function TVector3.Cross(const A: TVector3): TVector3;
+begin
+  Result.X := Y * A.Z - Z * A.Y;
+  Result.Y := Z * A.X - X * A.Z;
+  Result.Z := X * A.Y - Y * A.X;
+end;
+
+function TVector3.Dot(const A: TVector3): Single;
+begin
+  Result := X * A.X + Y * A.Y + Z * A.Z;
+end;
+
+function TVector3.SqrDot: Single;
+begin
+  Result := Sqr(X) + Sqr(Y) + Sqr(Z);
+end;
+
+function TVector3.CosAngleTo(const A: TVector3): Single;
+begin
+  Result := EnsureRange(Dot(A) / (Length * A.Length), -1, 1);
+end;
+
+function TVector3.AngleRadTo(const A: TVector3): Single;
+begin
+  Result := ArcCos(CosAngleTo(A));
+end;
+
+function TVector3.AngleTo(const A: TVector3): Single;
+begin
+  Result := RadToDeg(AngleRadTo(A));
+end;
+
+function TVector3.RotateRad(const AAxis: TVector3; AAngle: Single): TVector3;
+var
+  UX, UZ: TVector3;
+  VX, VY, UXSqr, ASqr: Single;
+begin
+  UZ := Self.Cross(AAxis);
+  UX := UZ.Cross(AAxis);
+
+  UXSqr := UX.SqrDot;
+  ASqr := AAxis.SqrDot;
+
+  if (UXSqr = 0) or (ASqr = 0) then
+    Exit(Self);
+
+  VX := UX.Dot(Self) / UXSqr;
+  VY := AAxis.Dot(Self) / ASqr;
+
+  Result := Cos(AAngle) * VX * UX + VY * AAxis + Sin(AAngle) * VX * UZ;
+end;
+
+function TVector3.Rotate(const AAxis: TVector3; AAngle: Single): TVector3;
+begin
+  Result := RotateRad(AAxis, DegToRad(AAngle));
+end;
+
+function TVector3.Reflect(const A: TVector3): TVector3;
+begin
+  Result := Self - 2 * Dot(A) * A;
+end;
+
+function TVector3.Abs: TVector3;
+begin
+  Result.X := System.Abs(X);
+  Result.Y := System.Abs(Y);
+  Result.Z := System.Abs(Z);
+end;
+
+function TVector3.Floor: TIntVector3;
+begin
+  Result.X := System.Math.Floor(X);
+  Result.Y := System.Math.Floor(Y);
+  Result.Z := System.Math.Floor(Z);
+end;
+
+function TVector3.Ceil: TIntVector3;
+begin
+  Result.X := System.Math.Ceil(X);
+  Result.Y := System.Math.Ceil(Y);
+  Result.Z := System.Math.Ceil(Z);
+end;
+
+function TVector3.Min(const A: TVector3): TVector3;
+begin
+  Result.X := System.Math.Min(X, A.X);
+  Result.Y := System.Math.Min(X, A.Y);
+  Result.Z := System.Math.Min(X, A.Z);
+end;
+
+function TVector3.Max(const A: TVector3): TVector3;
+begin
+  Result.X := System.Math.Max(X, A.X);
+  Result.Y := System.Math.Max(X, A.Y);
+  Result.Z := System.Math.Max(X, A.Z);
+end;
+
+function TVector3.Offset(const A: TVector3): TVector3;
+begin
+  Result := Self + A;
+end;
+
+function TVector3.Offset(X, Y, Z: Single): TVector3;
+begin
+  Result := Offset(Vec3(X, Y, Z));
+end;
+
+function TVector3.Dirs: TBasicDirs3;
+begin
+  Result := [];
+  if X < 0 then
+    Include(Result, bdLeft);
+  if X > 0 then
+    Include(Result, bdRight);
+  if Y < 0 then
+    Include(Result, bdDown);
+  if Y > 0 then
+    Include(Result, bdUp);
+  if Z < 0 then
+    Include(Result, bdBack);
+  if Z > 0 then
+    Include(Result, bdFront);
+end;
+
+function TVector3.LongestAxis: TCoordAxis3;
+begin
+  if System.Abs(X) >= System.Abs(Y) then
+  begin
+    if System.Abs(X) >= System.Abs(Z) then
+      Exit(caX);
+  end
+  else if System.Abs(Y) >= System.Abs(Z) then
+    Exit(caY);
+  Result := caZ;
+end;
+
 {$REGION 'All versions of rearrangement TIntVector2'}
 
 
@@ -2641,328 +2974,6 @@ end;
 
 {$ENDREGION}
 
-
-constructor TVector3.Create(X, Y, Z: Single);
-begin
-  Self.X := X;
-  Self.Y := Y;
-  Self.Z := Z;
-end;
-
-constructor TVector3.Create(V: Single);
-begin
-  X := V;
-  Y := V;
-  Z := V;
-end;
-
-class function TVector3.Random: TVector3;
-begin
-  Result.X := System.Random;
-  Result.Y := System.Random;
-  Result.Z := System.Random;
-end;
-
-class function TVector3.RandomBox: TVector3;
-begin
-  Result := Random * 2 - 1;
-end;
-
-class function TVector3.RandomNormal: TVector3;
-var
-  O, U: Single;
-begin
-  O := System.Random * 2 * Pi;
-  U := System.Random * 2 - 1;
-  Result.X := Sqrt(1 - Sqr(U)) * Sin(O);
-  Result.Y := Sqrt(1 - Sqr(U)) * Cos(O);
-  Result.Z := U;
-end;
-
-class operator TVector3.Implicit(V: Single): TVector3;
-begin
-  Result.X := V;
-  Result.Y := V;
-  Result.Z := V;
-end;
-
-class operator TVector3.Implicit(const A: TIntVector3): TVector3;
-begin
-  Result.X := A.X;
-  Result.Y := A.Y;
-  Result.Z := A.Z;
-end;
-
-class operator TVector3.Add(const A, B: TVector3): TVector3;
-begin
-  Result.X := A.X + B.X;
-  Result.Y := A.Y + B.Y;
-  Result.Z := A.Z + B.Z;
-end;
-
-class operator TVector3.Subtract(const A, B: TVector3): TVector3;
-begin
-  Result.X := A.X - B.X;
-  Result.Y := A.Y - B.Y;
-  Result.Z := A.Z - B.Z;
-end;
-
-class operator TVector3.Multiply(const A, B: TVector3): TVector3;
-begin
-  Result.X := A.X * B.X;
-  Result.Y := A.Y * B.Y;
-  Result.Z := A.Z * B.Z;
-end;
-
-class operator TVector3.Divide(const A, B: TVector3): TVector3;
-begin
-  Result.X := A.X / B.X;
-  Result.Y := A.Y / B.Y;
-  Result.Z := A.Z / B.Z;
-end;
-
-class operator TVector3.Multiply(const A: TMatrix3; const B: TVector3): TVector3;
-begin
-  Result.X := A[0, 0] * B.X + A[1, 0] * B.Y + A[2, 0] * B.Z;
-  Result.Y := A[0, 1] * B.X + A[1, 1] * B.Y + A[2, 1] * B.Z;
-  Result.Z := A[0, 2] * B.X + A[1, 2] * B.Y + A[2, 2] * B.Z;
-end;
-
-class operator TVector3.Multiply(const A: TVector3; const B: TMatrix3): TVector3;
-begin
-  Result.X := A.X * B[0, 0] + A.Y * B[0, 1] + A.Z * B[0, 2];
-  Result.Y := A.X * B[1, 0] + A.Y * B[1, 1] + A.Z * B[1, 2];
-  Result.Z := A.X * B[2, 0] + A.Y * B[2, 1] + A.Z * B[2, 2];
-end;
-
-class operator TVector3.Multiply(const A: TMatrix4; const B: TVector3): TVector3;
-begin
-  Result.X := A[0, 0] * B.X + A[1, 0] * B.Y + A[2, 0] * B.Z + A[3, 0];
-  Result.Y := A[0, 1] * B.X + A[1, 1] * B.Y + A[2, 1] * B.Z + A[3, 1];
-  Result.Z := A[0, 2] * B.X + A[1, 2] * B.Y + A[2, 2] * B.Z + A[3, 2];
-  Result := Result / (A[0, 3] * B.X + A[1, 3] * B.Y + A[2, 3] * B.Z + A[3, 3]);
-end;
-
-class operator TVector3.Multiply(const A: TVector3; const B: TMatrix4): TVector3;
-begin
-  Result.X := A.X * B[0, 0] + A.Y * B[0, 1] + A.Z * B[0, 2] + B[0, 3];
-  Result.Y := A.X * B[1, 0] + A.Y * B[1, 1] + A.Z * B[1, 2] + B[1, 3];
-  Result.Y := A.X * B[2, 0] + A.Y * B[2, 1] + A.Z * B[2, 2] + B[2, 3];
-  Result := Result / (A.X * B[3, 0] + A.Y * B[3, 1] + A.Z * B[3, 2] + B[3, 3]);
-end;
-
-class operator TVector3.Positive(const A: TVector3): TVector3;
-begin
-  Result := A;
-end;
-
-class operator TVector3.Negative(const A: TVector3): TVector3;
-begin
-  Result.X := -A.X;
-  Result.Y := -A.Y;
-  Result.Z := -A.Z;
-end;
-
-class operator TVector3.Equal(const A, B: TVector3): Boolean;
-begin
-  Result := (A.X = B.X) and (A.Y = B.Y) and (A.Z = B.Z);
-end;
-
-class operator TVector3.NotEqual(const A, B: TVector3): Boolean;
-begin
-  Result := (A.X <> B.X) or (A.Y <> B.Y) or (A.Z <> B.Z);
-end;
-
-function TVector3.Offset(X, Y, Z: Single): TVector3;
-begin
-  Result := Offset(Vec3(X, Y, Z));
-end;
-
-function TVector3.Offset(const A: TVector3): TVector3;
-begin
-  Result := Self + A;
-end;
-
-class operator TVector3.LessThan(const A, B: TVector3): Boolean;
-begin
-  Result := (A.X < B.X) and (A.Y < B.Y) and (A.Z < B.Z);
-end;
-
-class operator TVector3.LessThanOrEqual(const A, B: TVector3): Boolean;
-begin
-  Result := (A.X <= B.X) and (A.Y <= B.Y) and (A.Z <= B.Z);
-end;
-
-function TVector3.LongestAxis: TCoordAxis3;
-begin
-  if System.Abs(X) >= System.Abs(Y) then
-  begin
-    if System.Abs(X) >= System.Abs(Z) then
-      Exit(caX);
-  end
-  else if System.Abs(Y) >= System.Abs(Z) then
-    Exit(caY);
-  Result := caZ;
-end;
-
-class operator TVector3.GreaterThan(const A, B: TVector3): Boolean;
-begin
-  Result := (A.X > B.X) and (A.Y > B.Y) and (A.Z > B.Z);
-end;
-
-class operator TVector3.GreaterThanOrEqual(const A, B: TVector3): Boolean;
-begin
-  Result := (A.X >= B.X) and (A.Y >= B.Y) and (A.Z >= B.Z);
-end;
-
-function TVector3.ToString: string;
-begin
-  Result := Format('[%f|%f|%f]', [X, Y, Z]);
-end;
-
-class operator TVector3.Implicit(const A: TVector3): string;
-begin
-  Result := A.ToString;
-end;
-
-function TVector3.Length: Single;
-begin
-  Result := Sqrt(SqrDot);
-end;
-
-function TVector3.Normalize: TVector3;
-begin
-  Result := Self / Length;
-end;
-
-function TVector3.DistanceTo(const A: TVector3): Single;
-begin
-  Result := VectorTo(A).Length;
-end;
-
-function TVector3.VectorTo(const A: TVector3): TVector3;
-begin
-  Result := A - Self;
-end;
-
-function TVector3.Volume: Single;
-begin
-  Result := X * Y * Z;
-end;
-
-function TVector3.Cross(const A: TVector3): TVector3;
-begin
-  Result.X := Y * A.Z - Z * A.Y;
-  Result.Y := Z * A.X - X * A.Z;
-  Result.Z := X * A.Y - Y * A.X;
-end;
-
-function TVector3.Dot(const A: TVector3): Single;
-begin
-  Result := X * A.X + Y * A.Y + Z * A.Z;
-end;
-
-function TVector3.SqrDot: Single;
-begin
-  Result := Sqr(X) + Sqr(Y) + Sqr(Z);
-end;
-
-function TVector3.CosAngleTo(const A: TVector3): Single;
-begin
-  Result := EnsureRange(Dot(A) / (Length * A.Length), -1, 1);
-end;
-
-function TVector3.AngleRadTo(const A: TVector3): Single;
-begin
-  Result := ArcCos(CosAngleTo(A));
-end;
-
-function TVector3.AngleTo(const A: TVector3): Single;
-begin
-  Result := RadToDeg(AngleRadTo(A));
-end;
-
-function TVector3.RotateRad(const AAxis: TVector3; AAngle: Single): TVector3;
-var
-  UX, UZ: TVector3;
-  VX, VY, UXSqr, ASqr: Single;
-begin
-  UZ := Self.Cross(AAxis);
-  UX := UZ.Cross(AAxis);
-
-  UXSqr := UX.SqrDot;
-  ASqr := AAxis.SqrDot;
-
-  if (UXSqr = 0) or (ASqr = 0) then
-    Exit(Self);
-
-  VX := UX.Dot(Self) / UXSqr;
-  VY := AAxis.Dot(Self) / ASqr;
-
-  Result := Cos(AAngle) * VX * UX + VY * AAxis + Sin(AAngle) * VX * UZ;
-end;
-
-function TVector3.Rotate(const AAxis: TVector3; AAngle: Single): TVector3;
-begin
-  Result := RotateRad(AAxis, DegToRad(AAngle));
-end;
-
-function TVector3.Reflect(const A: TVector3): TVector3;
-begin
-  Result := Self - 2 * Dot(A) * A;
-end;
-
-function TVector3.Abs: TVector3;
-begin
-  Result.X := System.Abs(X);
-  Result.Y := System.Abs(Y);
-  Result.Z := System.Abs(Z);
-end;
-
-function TVector3.Floor: TIntVector3;
-begin
-  Result.X := System.Math.Floor(X);
-  Result.Y := System.Math.Floor(Y);
-  Result.Z := System.Math.Floor(Z);
-end;
-
-function TVector3.Ceil: TIntVector3;
-begin
-  Result.X := System.Math.Ceil(X);
-  Result.Y := System.Math.Ceil(Y);
-  Result.Z := System.Math.Ceil(Z);
-end;
-
-function TVector3.Min(const A: TVector3): TVector3;
-begin
-  Result.X := System.Math.Min(X, A.X);
-  Result.Y := System.Math.Min(X, A.Y);
-  Result.Z := System.Math.Min(X, A.Z);
-end;
-
-function TVector3.Max(const A: TVector3): TVector3;
-begin
-  Result.X := System.Math.Max(X, A.X);
-  Result.Y := System.Math.Max(X, A.Y);
-  Result.Z := System.Math.Max(X, A.Z);
-end;
-
-function TVector3.Dirs: TBasicDirs3;
-begin
-  Result := [];
-  if X < 0 then
-    Include(Result, bdLeft);
-  if X > 0 then
-    Include(Result, bdRight);
-  if Y < 0 then
-    Include(Result, bdDown);
-  if Y > 0 then
-    Include(Result, bdUp);
-  if Z < 0 then
-    Include(Result, bdBack);
-  if Z > 0 then
-    Include(Result, bdFront);
-end;
 
 { TVector4 }
 

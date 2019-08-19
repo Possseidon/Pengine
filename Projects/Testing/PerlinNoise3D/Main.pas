@@ -35,8 +35,6 @@ type
 
   TGradient3 = class(TInterfacedObject, IGradientSource3)
   private
-    FData: array of array of TVector3;
-
     function GetGradient(APos: TIntVector3): TVector3;
     function GetBounds: TIntBounds3;
 
@@ -79,7 +77,6 @@ type
     FSkybox: TSkybox;
     FVAO: TVAOMutable<TModelGLProgram.TData>;
     FTextureAtlas: TTextureAtlas;
-    FStoneTexture: TTexTile;
     FLightSystem: TLightSystem;
     FSun: TDirectionalLightShaded;
     FCameraLight: TPointLight;
@@ -162,8 +159,6 @@ begin
 end;
 
 procedure TfrmMain.GameUpdate;
-var
-  I: Integer;
 begin
   if Input.KeyDown('W') then
     FCamera.Location.Move(DeltaTime);
@@ -225,17 +220,25 @@ end;
 procedure TfrmMain.Generate;
 var
   Stopwatch: TStopwatch;
+  Rays: IList<TVector3>;
+  P2: TIntVector2;
 begin
   Stopwatch := TStopwatch.StartNew;
 
-  FSize := 16;
+  FSize := 128;
   SetLength(FMap, FSize.X, FSize.Y, FSize.Z);
 
-  TParallel.For(0, FSize.Volume - 1,
+  Rays := TList<TVector3>.Create;
+
+  for P2 in IVec2(10, 10) do
+    Rays.Add(TVector3.NormalFrom2D(TVector2(P2) / 10));
+
+  TParallel.&For(0, FSize.Volume - 1,
     procedure(I: Integer)
     var
       P: TIntVector3;
       D: TVector3;
+      Ray: TVector3;
     begin
       P := IVec3(I mod FSize.X, I div FSize.X mod FSize.Y, I div FSize.X div FSize.Y);
       D := TVector3(P).VectorTo(4).Normalize;
@@ -243,17 +246,20 @@ begin
       // if FNoise[Vec3(P.X * 5 / FSize.X, 0, P.Z * 7 / FSize.Z)] > (P.Y / FSize.Y * 4 - 3.5) then
       // Map[P] := 1;
 
-      if TVector3(P).DistanceTo(4) / 4 < FNoise[D * 3] * 0.25 + 0.75 then
-        Map[P] := 1;
+      // if TVector3(P).DistanceTo(4) / 4 < FNoise[D * 3] * 0.25 + 0.75 then
+      // Map[P] := 1;
 
-      if (FNoise[TVector3(P * 3 + 51) / FSize * 2] + 0.2 * FNoise[TVector3(P) / FSize * 7]) > 0.2 then
-        Map[P] := 0;
+      // if (FNoise[TVector3(P * 3 + 51) / FSize * 2] + 0.2 * FNoise[TVector3(P) / FSize * 7]) > 0.2 then
+      // Map[P] := 0;
 
-      Map[P] := Random(2);
-
+      for Ray in Rays do
+        if ((TVector3(P) / TVector3(FSize)).DistanceTo(0.5) < 0.5) and
+          (Line3(TVector3(FSize) / 2, Ray).Height(P) < 3) and
+          (Line3(TVector3(FSize) / 2, Ray).OrthoProj(P) >= 0) then
+          Map[P] := 1;
     end);
   Writeln('Generating Map: ', Stopwatch.Elapsed.ToString);
-  
+
   BuildVAO;
 end;
 
@@ -279,7 +285,7 @@ var
     Data.Bitangent := APlane.DY;
     for TexCoord in TriangleTexCoords do
     begin
-      Data.Pos := (APlane[TexCoord] + APos - TVector3(ASize) / 2);
+      Data.Pos := (APlane[TexCoord] + APos - TVector3(ASize) / 2) * 0.1;
       Data.TexCoord := ATexTile.Bounds[TexCoord];
       AVBOData.Add(Data);
     end;
@@ -303,12 +309,12 @@ begin
     end;
   end;
 
-  //Writeln('Filling VBO: ', Stopwatch.Elapsed.ToString);
-  //Writeln('Triangles: ', VBOData.Count);
+  Writeln('Filling VBO: ', Stopwatch.Elapsed.ToString);
+  Writeln('Triangles: ', VBOData.Count);
 
   Stopwatch := TStopwatch.StartNew;
-  FVAO.VBO.Generate(VBOData.Count, buStaticDraw, VBOData.DataPointer);
-  //Writeln('Sending VBO to GPU: ', Stopwatch.Elapsed.ToString);
+  FVAO.VBO.Generate(VBOData.Count, buDynamicDraw, VBOData.DataPointer);
+  Writeln('Sending VBO to GPU: ', Stopwatch.Elapsed.ToString);
 
   FLightSystem.RenderShadows;
 end;
@@ -322,7 +328,7 @@ begin
   for B := 0 to 255 do
     M := Max(M, Length(TMarchingCubes.GetTriangles(TCorners3(B))));
   Writeln('Max triangles: ', M);
-    
+
   Context.VSync := False;
   // Context.Samples := Context.MaxSamples;
 

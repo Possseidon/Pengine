@@ -379,7 +379,7 @@ type
     /// <returns>A formatter interface with settings.</returns>
     function Formatter: IFormatter;
     /// <summary>Formats into a parseable string with default formatting.</summary>
-    function Format(AMode: TJFormatMode = jfPretty): string;
+    function Format(AMode: TJFormatMode = TFormatter.DefaultMode): string;
     /// <summary>Formats into a parseable string without linebreaks.</summary>
     function ToString: string; override;
 
@@ -1742,10 +1742,8 @@ begin
   try
     Value.FormatInternal(Self);
     Result := FBuilder.ToString;
-
   finally
     Builder.Free;
-
   end;
 end;
 
