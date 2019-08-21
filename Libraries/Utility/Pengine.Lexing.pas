@@ -388,9 +388,13 @@ function TEBNF.TRule.Analyze(ALexer: TLexer): Boolean;
 begin
   if not ALexer.AdvancedSinceRule(Self) then
     Exit(False);
-  // Writeln(Name);
   ALexer.BeginRule(Self);
+  Writeln('Rule ', Name, '...');
   Result := Expression.Analyze(ALexer);
+  if Result then
+    Writeln('Rule ', Name, ' yes')
+  else
+    Writeln('Rule ', Name, ' no');
   ALexer.EndRule(Result);
 end;
 
@@ -585,6 +589,7 @@ end;
 
 function TEBNF.TTerminal.Analyze(ALexer: TLexer): Boolean;
 begin
+  Writeln('Testing ', ToString, '...');
   ALexer.SkipWhitespace;
   if ALexer.ReachedEnd then
     Exit(False);
@@ -612,6 +617,7 @@ function TEBNF.TConcatenation.Analyze(ALexer: TLexer): Boolean;
 var
   Expression: TExpression;
 begin
+  Writeln('Testing ', ToString, '...');
   for Expression in Expressions do
     if not Expression.Analyze(ALexer) then
       Exit(False);
@@ -640,19 +646,28 @@ end;
 
 function TEBNF.TAlternation.Analyze(ALexer: TLexer): Boolean;
 var
-  Expression: TExpression;
+  Expression, LongestExpression: TExpression;
+  LongestPosition: Integer;
 begin
+  Writeln('Testing ', ToString, '...');
+  LongestPosition := 0;
+  LongestExpression := nil;
   for Expression in Expressions do
   begin
     ALexer.Save;
     if Expression.Analyze(ALexer) then
     begin
-      ALexer.DiscardSave;
-      Exit(True);
+      if ALexer.Position > LongestPosition then
+      begin
+        LongestExpression := Expression;
+        LongestPosition := ALexer.Position;
+      end;
     end;
     ALexer.Revert;
   end;
-  Result := False;
+  Result := LongestExpression <> nil;
+  if Result then
+    LongestExpression.Analyze(ALexer);
 end;
 
 function TEBNF.TAlternation.ToString: string;
@@ -674,6 +689,7 @@ end;
 
 function TEBNF.TOptional.Analyze(ALexer: TLexer): Boolean;
 begin
+  Writeln('Testing ', ToString, '...');
   if ALexer.ReachedEnd then
     Exit(True);
   ALexer.Save;
@@ -698,8 +714,10 @@ end;
 
 function TEBNF.TRepetition.Analyze(ALexer: TLexer): Boolean;
 begin
+  Writeln('Testing ', ToString, '...');
+  Result := True;
   if ALexer.ReachedEnd then
-    Exit(True);
+    Exit;
   repeat
     ALexer.Save;
     Result := Expression.Analyze(ALexer);
@@ -708,7 +726,6 @@ begin
     else
       ALexer.Revert;
   until not Result;
-  Result := True;
 end;
 
 class function TEBNF.TRepetition.Parser(AEBNF: TEBNF): TRepetition.IParser;
@@ -788,7 +805,7 @@ function TEBNF.TExpression.TParser.Parse: Boolean;
   begin
     Result := ParseExpression(AExpression);
     if not Result then
-      Exit;             
+      Exit;
     Expressions := TList<TExpression>.Create;
     repeat
       Expressions.Add(AExpression);

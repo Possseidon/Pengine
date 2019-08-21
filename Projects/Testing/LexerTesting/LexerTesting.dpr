@@ -41,8 +41,6 @@ begin
 
     EBNF := TEBNF.Create;
 
-    EBNF['test'] := '"a" | test test';
-
     EBNF['Name'] := '"abc"';
     EBNF['Numeral'] := '"123"';
     EBNF['LiteralString'] := '"''abc''"';
@@ -83,7 +81,7 @@ begin
     //for var Rule in EBNF.Rules do
     //  Writeln(Rule.Name, ' ::= ', Rule.ExpressionString);
 
-    Test(EBNF.FindRule('test'), 'aaaa');
+    Test(EBNF.FindRule('chunk'), 'abc = abc.abc');
 
   except
     on E: Exception do
