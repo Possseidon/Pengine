@@ -6,6 +6,7 @@ uses
   System.SysUtils,
   System.Character,
 
+  Pengine.Parsing,
   Pengine.ICollections;
 
 type
@@ -17,15 +18,76 @@ type
   TEBNF = class
   public type
 
+    TExpression = class;
+
+    IEBNFParser<T: TExpression> = interface(IObjectParser<T>)
+      function GetEBNF: TEBNF;
+
+      property EBNF: TEBNF read GetEBNF;
+
+    end;
+
+    TEBNFParser<T: TExpression> = class(TObjectParser<T>, IEBNFParser<T>)
+    private
+      FEBNF: TEBNF;
+
+      function GetEBNF: TEBNF;
+
+    public
+      constructor Create(AEBNF: TEBNF);
+
+      property EBNF: TEBNF read GetEBNF;
+
+    end;
+
     TLexer = class;
 
     TExpression = class
+    public type
+
+      IParser = IEBNFParser<TExpression>;
+
+      TParser = class(TEBNFParser<TExpression>, IParser)
+      protected
+        function Parse: Boolean; override;
+
+      public
+        class function GetResultName: string; override;
+
+      end;
+
+      TGroupParser = class(TEBNFParser<TExpression>, IParser)
+      protected
+        function Parse: Boolean; override;
+
+      public
+        class function GetResultName: string; override;
+
+      end;
+
     protected
       function Analyze(ALexer: TLexer): Boolean; virtual; abstract;
+
+    public
+      class function Parser(AEBNF: TEBNF): TExpression.IParser; static;
+      class function GroupParser(AEBNF: TEBNF): TExpression.IParser; static;
 
     end;
 
     TTerminal = class(TExpression)
+    public type
+
+      IParser = IEBNFParser<TTerminal>;
+
+      TParser = class(TEBNFParser<TTerminal>, IParser)
+      protected
+        function Parse: Boolean; override;
+
+      public
+        class function GetResultName: string; override;
+
+      end;
+
     private
       FTerminal: string;
 
@@ -34,6 +96,8 @@ type
 
     public
       constructor Create(ATerminal: string);
+
+      class function Parser(AEBNF: TEBNF): TTerminal.IParser; static;
 
       property Terminal: string read FTerminal;
 
@@ -47,6 +111,8 @@ type
 
     public
       constructor Create(AExpression: TExpression);
+
+      class function Parser(AEBNF: TEBNF): IParser; static;
 
       property Expression: TExpression read FExpression;
 
@@ -87,24 +153,67 @@ type
     end;
 
     TOptional = class(TUnaryExpression)
+    public type
+
+      IParser = IEBNFParser<TOptional>;
+
+      TParser = class(TEBNFParser<TOptional>, IParser)
+      protected
+        function Parse: Boolean; override;
+
+      public
+        class function GetResultName: string; override;
+
+      end;
+
     protected
       function Analyze(ALexer: TLexer): Boolean; override;
 
     public
+      class function Parser(AEBNF: TEBNF): TOptional.IParser; static;
+
       function ToString: string; override;
 
     end;
 
     TRepetition = class(TUnaryExpression)
+    public type
+
+      IParser = IEBNFParser<TRepetition>;
+
+      TParser = class(TEBNFParser<TRepetition>, IParser)
+      protected
+        function Parse: Boolean; override;
+
+      public
+        class function GetResultName: string; override;
+
+      end;
+
     protected
       function Analyze(ALexer: TLexer): Boolean; override;
 
     public
+      class function Parser(AEBNF: TEBNF): TRepetition.IParser; static;
+
       function ToString: string; override;
 
     end;
 
     TRule = class(TExpression)
+    public type
+
+      IParser = IEBNFParser<TRule>;
+
+      TParser = class(TEBNFParser<TRule>, IParser)
+      protected
+        function Parse: Boolean; override;
+
+      public
+        class function GetResultName: string; override;
+
+      end;
+
     private
       FEBNF: TEBNF;
       FName: string;
@@ -121,6 +230,8 @@ type
       constructor Create(AEBNF: TEBNF; AName: string; AExpression: TExpression); overload;
       constructor Create(AEBNF: TEBNF; AName, AExpressionString: string); overload;
 
+      class function Parser(AEBNF: TEBNF): TRule.IParser; static;
+
       property EBNF: TEBNF read FEBNF;
       property Expression: TExpression read GetExpression;
       property ExpressionString: string read GetExpressionString;
@@ -134,7 +245,7 @@ type
     end;
 
     /// <summary>Builds an abstract syntax tree from a given EBNF expression.</summary>
-    TLexer = class(TInterfacedObject)
+    TLexer = class
     private
       FSyntaxTree: ISyntaxTree;
       FCurrentSyntaxTree: ISyntaxTree;
@@ -177,13 +288,14 @@ type
   public
     constructor Create;
 
+    function ExpressionParser: TExpression.IParser;
+    function ParseExpression(AText: string): TExpression;
+
     function AddRule(AName: string; AExpression: TExpression): TRule;
     property RuleStrings[AName: string]: string read GetRuleString write SetRuleString; default;
     property Rules: IReadonlyList<TRule> read GetRules;
 
     function FindRule(AName: string): TRule;
-
-    function ParseExpression(AExpressionString: string): TExpression;
 
   end;
 
@@ -235,6 +347,11 @@ begin
   FRules := TObjectList<TRule>.Create;
 end;
 
+function TEBNF.ExpressionParser: TExpression.IParser;
+begin
+  Result := TExpression.TParser.Create(Self);
+end;
+
 function TEBNF.FindRule(AName: string): TRule;
 begin
   for Result in FRules do
@@ -253,139 +370,11 @@ begin
   Result := FindRule(AName).ExpressionString;
 end;
 
-function TEBNF.ParseExpression(AExpressionString: string): TExpression;
-var
-  I, TextStart: Integer;
-  Expressions: IStack<TExpression>;
-  ControlChars: IStack<Char>;
-  IsRule, NeedsConcatenation: Boolean;
-
-  function ReachedEnd: Boolean;
-  begin
-    Result := I = Length(AExpressionString) + 1;
-  end;
-
-  function First: Char;
-  begin
-    Result := AExpressionString[I];
-  end;
-
-  procedure SkipWhitespace;
-  begin
-    while not ReachedEnd and First.IsWhiteSpace do
-      Inc(I);
-  end;
-
-  procedure CombineExpressionsFor(AChar: Char; AClass: TVariadicExpressionClass);
-  var
-    Count: Integer;
-  begin
-    Count := 1;
-    while not ControlChars.Empty and (ControlChars.Top = AChar) do
-    begin
-      ControlChars.Pop;
-      Inc(Count);
-    end;
-    if Count > Expressions.Count then
-      raise ELexingRuleError.Create('Expected expression after alternation or concatenation.');
-    Expressions.Push(AClass.Create(Expressions.PopMany.Iterate.Take(Count).ToList.Reverse));
-  end;
-
-  procedure CombineExpressions;
-  begin
-    if ControlChars.Top = '|' then
-      CombineExpressionsFor('|', TAlternation)
-    else if ControlChars.Top = ',' then
-      CombineExpressionsFor(',', TConcatenation);
-  end;
-
+function TEBNF.ParseExpression(AText: string): TExpression;
 begin
-  I := 1;
-  Expressions := TStack<TExpression>.Create;
-  ControlChars := TStack<Char>.Create;
-  NeedsConcatenation := False;
-  while not ReachedEnd do
-  begin
-    SkipWhitespace;
-    if ReachedEnd then
-      Break;
-    IsRule := False;
-    case First of
-      '{', '[', '(':
-        begin
-          if NeedsConcatenation then
-            ControlChars.Push(',');
-          ControlChars.Push(First);
-          NeedsConcatenation := False;
-        end;
-      '|', ',':
-        begin
-          ControlChars.Push(First);
-          NeedsConcatenation := False;
-        end;
-      '}':
-        begin
-          CombineExpressions;
-          if ControlChars.Top <> '{' then
-            raise ELexingRuleError.CreateFmt('Attempt to close "%s" with "}".', [ControlChars.Top]);
-          ControlChars.Pop;
-          Expressions.Push(TRepetition.Create(Expressions.Pop));
-          NeedsConcatenation := True;
-        end;
-      ']':
-        begin
-          CombineExpressions;
-          if ControlChars.Top <> '[' then
-            raise ELexingRuleError.CreateFmt('Attempt to close "%s" with "]".', [ControlChars.Top]);
-          ControlChars.Pop;
-          Expressions.Push(TOptional.Create(Expressions.Pop));
-          NeedsConcatenation := True;
-        end;
-      ')':
-        begin
-          CombineExpressions;
-          if ControlChars.Top <> '(' then
-            raise ELexingRuleError.CreateFmt('Attempt to close "%s" with ")".', [ControlChars.Top]);
-          ControlChars.Pop;
-          NeedsConcatenation := True;
-        end;
-      '"':
-        begin
-          if NeedsConcatenation then
-            ControlChars.Push(',');
-          TextStart := I;
-          repeat
-            Inc(I);
-            if ReachedEnd then
-              raise ELexingRuleError.Create('Found unterminated terminal.');
-          until First = '"';
-          Expressions.Push(TTerminal.Create(AExpressionString.Substring(TextStart, I - TextStart - 1)));
-          NeedsConcatenation := True;
-        end;
-    else
-      if NeedsConcatenation then
-        ControlChars.Push(',');
-      IsRule := True;
-      TextStart := I - 1;
-      while True do
-      begin
-        Inc(I);
-        if ReachedEnd or First.IsWhiteSpace or CharInSet(First, ['{', '}', '[', ']', '(', ')', '"', '|', ',']) then
-          Break;
-      end;
-      Expressions.Push(FindRule(AExpressionString.Substring(TextStart, I - TextStart - 1)));
-      NeedsConcatenation := True;
-    end;
-    if not IsRule then
-      Inc(I);
-  end;
-  while not ControlChars.Empty do
-    CombineExpressions;
-  //if not ControlChars.Empty then
-  //  raise ELexingRuleError.CreateFmt('Unclosed bracket "%s".', [ControlChars.Top]);
-  if not Expressions.Count = 1 then
-    raise ELexingRuleError.Create('Is this even reachable? If yes, investiage.');
-  Result := Expressions.Top;
+  Result := ExpressionParser.Optional(AText);
+  if Result = nil then
+    raise ELexingRuleError.Create('Invalid EBNF-Rule.');
 end;
 
 procedure TEBNF.SetRuleString(AName: string; const Value: string);
@@ -399,7 +388,7 @@ function TEBNF.TRule.Analyze(ALexer: TLexer): Boolean;
 begin
   if not ALexer.AdvancedSinceRule(Self) then
     Exit(False);
-  Writeln(Name);
+  // Writeln(Name);
   ALexer.BeginRule(Self);
   Result := Expression.Analyze(ALexer);
   ALexer.EndRule(Result);
@@ -432,8 +421,20 @@ begin
 end;
 
 function TEBNF.TRule.Lex<T>(AText: string): ISyntaxTree;
+var
+  Lexer: T;
 begin
-  Result := T.Create(Self, AText).SyntaxTree;
+  Lexer := T.Create(Self, AText);
+  try
+    Result := Lexer.SyntaxTree;
+  finally
+    Lexer.Free;
+  end;
+end;
+
+class function TEBNF.TRule.Parser(AEBNF: TEBNF): TRule.IParser;
+begin
+  Result := TParser.Create(AEBNF);
 end;
 
 function TEBNF.TRule.GetExpression: TExpression;
@@ -575,6 +576,11 @@ begin
   FExpression := AExpression;
 end;
 
+class function TEBNF.TUnaryExpression.Parser(AEBNF: TEBNF): IParser;
+begin
+  Result := TParser.Create(AEBNF);
+end;
+
 { TEBNF.TTerminal }
 
 function TEBNF.TTerminal.Analyze(ALexer: TLexer): Boolean;
@@ -588,6 +594,11 @@ end;
 constructor TEBNF.TTerminal.Create(ATerminal: string);
 begin
   FTerminal := ATerminal;
+end;
+
+class function TEBNF.TTerminal.Parser(AEBNF: TEBNF): TTerminal.IParser;
+begin
+  Result := TParser.Create(AEBNF);
 end;
 
 function TEBNF.TTerminal.ToString: string;
@@ -609,17 +620,20 @@ end;
 
 function TEBNF.TConcatenation.ToString: string;
 begin
-  Result := '( ' + Expressions.Iterate.Generic.Map<string>(
+  Result := Expressions.Iterate.Generic.Map<string>(
     function(E: TExpression): string
     begin
       Result := E.ToString;
+      if E is TAlternation then
+        Result := '(' + Result + ')';
     end
     ).Reduce(
     function(A, B: string): string
     begin
-      Result := A + ', ' + B;
+      // Result := A + ', ' + B;
+      Result := A + ' ' + B;
     end
-    ) + ' )';
+    );
 end;
 
 { TEBNF.TAlternation }
@@ -643,7 +657,7 @@ end;
 
 function TEBNF.TAlternation.ToString: string;
 begin
-  Result := '( ' + Expressions.Iterate.Generic.Map<string>(
+  Result := Expressions.Iterate.Generic.Map<string>(
     function(E: TExpression): string
     begin
       Result := E.ToString;
@@ -653,7 +667,7 @@ begin
     begin
       Result := A + ' | ' + B;
     end
-    ) + ' )';
+    );
 end;
 
 { TEBNF.TOptional }
@@ -670,9 +684,14 @@ begin
     ALexer.Revert;
 end;
 
+class function TEBNF.TOptional.Parser(AEBNF: TEBNF): TOptional.IParser;
+begin
+  Result := TParser.Create(AEBNF);
+end;
+
 function TEBNF.TOptional.ToString: string;
 begin
-  Result := '[ ' + Expression.ToString + ' ]';
+  Result := '[' + Expression.ToString + ']';
 end;
 
 { TEBNF.TRepetition }
@@ -692,9 +711,14 @@ begin
   Result := True;
 end;
 
+class function TEBNF.TRepetition.Parser(AEBNF: TEBNF): TRepetition.IParser;
+begin
+  Result := TParser.Create(AEBNF);
+end;
+
 function TEBNF.TRepetition.ToString: string;
 begin
-  Result := '{ ' + Expression.ToString + ' }';
+  Result := '{' + Expression.ToString + '}';
 end;
 
 { TSyntaxTree }
@@ -719,6 +743,201 @@ begin
   FRule := ARule;
   FParent := AParent;
   FNodes := TList<ISyntaxTree>.Create;
+end;
+
+{ TEBNF.TEBNFParser<T> }
+
+function TEBNF.TEBNFParser<T>.GetEBNF: TEBNF;
+begin
+  Result := FEBNF;
+end;
+
+constructor TEBNF.TEBNFParser<T>.Create(AEBNF: TEBNF);
+begin
+  inherited Create;
+  FEBNF := AEBNF;
+end;
+
+{ TEBNF.TExpression.TParser }
+
+function TEBNF.TExpression.TParser.Parse: Boolean;
+
+  function ParseExpression(var AExpression: TExpression): Boolean;
+  begin
+    SkipWhitespace;
+    case First of
+      '{':
+        AExpression := TRepetition.Parser(EBNF).Require(Info);
+      '[':
+        AExpression := TOptional.Parser(EBNF).Require(Info);
+      '(':
+        AExpression := GroupParser(EBNF).Require(Info);
+      '"':
+        AExpression := TTerminal.Parser(EBNF).Require(Info);
+      'a' .. 'z', 'A' .. 'Z', '_':
+        AExpression := TRule.Parser(EBNF).Require(Info);
+    else
+      Exit(False);
+    end;
+    Result := True;
+  end;
+
+  function ParseConcatenation(var AExpression: TExpression): Boolean;
+  var
+    Expressions: IList<TExpression>;
+  begin
+    Result := ParseExpression(AExpression);
+    if not Result then
+      Exit;             
+    Expressions := TList<TExpression>.Create;
+    repeat
+      Expressions.Add(AExpression);
+      SkipWhitespace;
+      StartsWith(','); // skip
+    until not ParseExpression(AExpression);
+    if Expressions.Count = 1 then
+      AExpression := Expressions.First
+    else
+      AExpression := TConcatenation.Create(Expressions);
+  end;
+
+  function ParseAlternation(var AExpression: TExpression): Boolean;
+  var
+    Expressions: IList<TExpression>;
+  begin
+    Result := ParseConcatenation(AExpression);
+    if not Result then
+      Exit;
+    SkipWhitespace;
+    if not StartsWith('|') then
+      Exit;
+    Expressions := TList<TExpression>.Create;
+    Expressions.Add(AExpression);
+    repeat
+      if not ParseConcatenation(AExpression) then
+        raise EParseError.Create('Expected next alternation option.');
+      Expressions.Add(AExpression);
+      SkipWhitespace;
+    until not StartsWith('|');
+    AExpression := TAlternation.Create(Expressions)
+  end;
+
+var
+  Expression: TExpression;
+begin
+  Result := ParseAlternation(Expression);
+  if Result then
+    ParseResult := Expression;
+end;
+
+class function TEBNF.TExpression.TParser.GetResultName: string;
+begin
+  Result := 'EBNF-Expression';
+end;
+
+{ TEBNF.TTerminal.TParser }
+
+function TEBNF.TTerminal.TParser.Parse: Boolean;
+var
+  Text: string;
+begin
+  Result := StartsWith('"');
+  if not Result then
+    Exit;
+  Text := '';
+  while not StartsWith('"') do
+  begin
+    if First = '\' then
+      Advance;
+    Text := Text + First;
+    Advance;
+  end;
+  ParseResult := TTerminal.Create(Text);
+end;
+
+class function TEBNF.TTerminal.TParser.GetResultName: string;
+begin
+  Result := 'EBNF-Terminal';
+end;
+
+{ TEBNF.TOptional.TParser }
+
+function TEBNF.TOptional.TParser.Parse: Boolean;
+begin
+  Result := StartsWith('[');
+  SkipWhitespace;
+  ParseResult := TOptional.Create(TExpression.Parser(EBNF).Require(Info));
+  SkipWhitespace;
+  if not StartsWith(']') then
+    raise EParseError.Create('Expected closing bracket "]".');
+end;
+
+class function TEBNF.TOptional.TParser.GetResultName: string;
+begin
+  Result := 'EBNF-Optional';
+end;
+
+{ TEBNF.TRepetition.TParser }
+
+function TEBNF.TRepetition.TParser.Parse: Boolean;
+begin
+  Result := StartsWith('{');
+  SkipWhitespace;
+  ParseResult := TRepetition.Create(TExpression.Parser(EBNF).Require(Info));
+  SkipWhitespace;
+  if not StartsWith('}') then
+    raise EParseError.Create('Expected closing bracket "]".');
+end;
+
+class function TEBNF.TRepetition.TParser.GetResultName: string;
+begin
+  Result := 'EBNF-Repetition';
+end;
+
+{ TEBNF.TRule.TParser }
+
+function TEBNF.TRule.TParser.Parse: Boolean;
+var
+  Identifier: string;
+begin
+  Identifier := ReadWhile(['a' .. 'z', 'A' .. 'Z', '_', '0' .. '9']);
+  Result := Identifier.Length <> 0;
+  if Result then
+    ParseResult := EBNF.FindRule(Identifier);
+end;
+
+class function TEBNF.TRule.TParser.GetResultName: string;
+begin
+  Result := 'EBNF-Rule';
+end;
+
+{ TEBNF.TExpression.TGroupParser }
+
+function TEBNF.TExpression.TGroupParser.Parse: Boolean;
+begin
+  Result := StartsWith('(');
+  SkipWhitespace;
+  ParseResult := TExpression.Parser(EBNF).Require(Info);
+  SkipWhitespace;
+  if not StartsWith(')') then
+    raise EParseError.Create('Expected closing bracket "]".');
+end;
+
+class function TEBNF.TExpression.TGroupParser.GetResultName: string;
+begin
+  Result := 'EBNF-Group';
+end;
+
+{ TEBNF.TExpression }
+
+class function TEBNF.TExpression.GroupParser(AEBNF: TEBNF): TExpression.IParser;
+begin
+  Result := TGroupParser.Create(AEBNF);
+end;
+
+class function TEBNF.TExpression.Parser(AEBNF: TEBNF): TExpression.IParser;
+begin
+  Result := TParser.Create(AEBNF);
 end;
 
 end.

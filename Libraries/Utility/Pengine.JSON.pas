@@ -1001,7 +1001,7 @@ end;
 
 class function TJBase.Parse(AText: string): TJBase;
 begin
-  Result := Parser.OwnParseResult;
+  Result := Parser.Optional(AText);
 end;
 
 class function TJBase.Parser: IParser;

@@ -7,6 +7,7 @@ program LexerTesting;
 
 uses
   System.SysUtils,
+
   Pengine.Lexing;
 
 procedure DrawSyntaxTree(ASyntaxTree: ISyntaxTree; AIndent: Integer = 0);
@@ -39,6 +40,8 @@ begin
   try
 
     EBNF := TEBNF.Create;
+
+    EBNF['test'] := '"a" | test test';
 
     EBNF['Name'] := '"abc"';
     EBNF['Numeral'] := '"123"';
@@ -77,10 +80,10 @@ begin
       '"==" | "~=" | "and" | "or"';
     EBNF['unop'] := '"-" | "not" | "#" | "~"';
 
-    // for var Rule in EBNF.Rules do
-      // Writeln(Rule.Name, ' ::= ', Rule.ExpressionString);
+    //for var Rule in EBNF.Rules do
+    //  Writeln(Rule.Name, ' ::= ', Rule.ExpressionString);
 
-    Test(EBNF.FindRule('chunk'), 'abc = abc.abc');
+    Test(EBNF.FindRule('test'), 'aaaa');
 
   except
     on E: Exception do
