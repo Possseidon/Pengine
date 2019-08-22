@@ -111,6 +111,7 @@ type
     function ToBytes: TBytes;
 
     function EnsureColor: TColorRGB;
+
   end;
 
 function ColorRGB(R, G, B: Single): TColorRGB;
