@@ -109,12 +109,14 @@ begin
     // Set up default icon
     if not Reg.OpenKey('Software\Classes\' + AProgramName + '\DefaultIcon', True) then
       Exit(False);
+    // With path and icon index separated by a comma
     Reg.WriteString('', AIconPath + ',' + AIconIndex.ToString);
     Reg.CloseKey;
 
     // Set up link to exe
     if not Reg.OpenKey('Software\Classes\' + AProgramName + '\Shell\Open\Command', True) then
       Exit(False);
+    // With start parameters
     Reg.WriteExpandString('', Format('"%s" %s', [AOpenWith, AParamString]));
     Reg.CloseKey;
 
@@ -142,14 +144,18 @@ begin
   try
     Reg.RootKey := HKEY_CURRENT_USER;
 
+    // Find extension
     if not Reg.OpenKey('Software\Classes\' + AExtension, False) then
       Exit(False);
+    // And get the attached program name
     ProgramName := Reg.ReadString('');
     Reg.CloseKey;
 
+    // Delete the extension key
     if not Reg.DeleteKey('Software\Classes\' + AExtension) then
       Exit(False);
 
+    // Delete the program name
     if not ProgramName.IsEmpty then
       Reg.DeleteKey('Software\Classes\' + ProgramName);
 

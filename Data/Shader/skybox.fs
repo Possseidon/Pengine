@@ -1,4 +1,4 @@
-#version 420
+#version 430
 
 struct stripe 
 {
@@ -19,10 +19,7 @@ out vec4 outcolor;
 void main()
 {  
   if (stripeCount < 2)
-  {
-    outcolor = vec4(0, 0, 0, 0);
-    return;
-  }
+    discard;
   
   float pitch = acos(dot(normalize(fpos), vec3(0, -1, 0)));
   

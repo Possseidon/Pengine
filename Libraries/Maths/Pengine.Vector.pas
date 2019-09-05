@@ -1753,6 +1753,7 @@ type
 
   private
     FFaceNormals: array [TBasicDir3] of TLine3;
+
     function GetFaceNormal(ADir: TBasicDir3): TLine3; inline;
     procedure SetFaceNormal(ADir: TBasicDir3; const Value: TLine3); inline;
 
