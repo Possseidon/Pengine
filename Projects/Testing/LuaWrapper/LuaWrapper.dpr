@@ -12,25 +12,20 @@ uses
 
   Pengine.TimeManager,
   Pengine.DebugConsole,
-  Pengine.Lua,
-  Pengine.LuaDefaultLibs,
-  Pengine.LuaHeader,
-  Pengine.LuaWrapper,
   Pengine.Vector,
-  Pengine.EventHandling;
+  Pengine.EventHandling,
+  Pengine.Lua,
+  Pengine.Lua.Header,
+  Pengine.Lua.Wrapper;
 
 type
 
   TLuaVector3 = class(TLuaWrapper<TVector3>)
-  public type
-
-    PData = TLuaWrapper<TVector3>.PData;
-
   public
-    class function RecordName: AnsiString; override;
+    class function LuaName: AnsiString; override;
 
   protected
-    class function TryConvertType(L: TLuaState; out AData: PData; AIndex: Integer): Boolean; override;
+    class function TryConvertType(L: TLuaState; out AData: TLuaWrapper<TVector3>.PData; AIndex: Integer): Boolean; override;
 
   published
     class function Lua_dot(L: TLuaState): Integer; static; cdecl;
@@ -53,9 +48,7 @@ type
   TTest = class
   public type
 
-    TEventInfo = TSenderEventInfo<TTest>;
-
-    TEvent = TEvent<TEventInfo>;
+    TEvent = TEvent<TTest>;
 
     TState = (
       &stOn,
@@ -89,17 +82,17 @@ type
   TLuaTest = class(TLuaWrapper<TTest>)
   public type
 
-    TLuaEvent = class(TLuaEvent<TTest.TEvent.TAccess, TTest.TEventInfo>)
+    TLuaEvent = class(TLuaEvent<TTest>)
     protected
-      class procedure PushParams(L: TLuaState; AInfo: TTest.TEventInfo); override;
+      class procedure PushParams(L: TLuaState; AInfo: TTest); override;
 
     public
-      class function RecordName: AnsiString; override;
+      class function LuaName: AnsiString; override;
 
     end;
 
   public
-    class function RecordName: AnsiString; override;
+    class function LuaName: AnsiString; override;
 
   published
     class function LuaGet_text(L: TLuaState): Integer; static; cdecl;
@@ -119,20 +112,20 @@ type
 
   end;
 
-  TLuaLocation3 = class(TLuaWrapper<TLocation3>)
+  TLuaLocation3 = class(TLuaClassWrapper<TLocation3>)
   public type
 
-    TLuaChangeEvent = class(TLuaEvent<TLocation3.TChangeEvent.TAccess, TLocation3.TChangeEventInfo>)
+    TLuaChangeEvent = class(TLuaEvent<TLocation3.TChangeEventInfo>)
     protected
       class procedure PushParams(L: TLuaState; AInfo: TLocation3.TChangeEventInfo); override;
 
     public
-      class function RecordName: AnsiString; override;
+      class function LuaName: AnsiString; override;
 
     end;
 
   public
-    class function RecordName: AnsiString; override;
+    class function LuaName: AnsiString; override;
 
   published
     class function Lua_reset(L: TLuaState): Integer; static; cdecl;
@@ -154,46 +147,25 @@ type
 
   end;
 
-  TLuaLibPrint = class(TLuaLib)
-  protected
-    class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
+  TManagedRecord = record
+    Text: string;
+  end;
 
+  TLuaManagedRecord = class(TLuaWrapper<TManagedRecord>)
   published
-    class function Lua_print(L: TLuaState): Integer; static; cdecl;
-    class function Lua_gc(L: TLuaState): Integer; static; cdecl;
+    class function LuaGet_text(L: TLuaState): Integer; static; cdecl;
+    class function LuaSet_text(L: TLuaState): Integer; static; cdecl;
 
   end;
 
-  { TLuaLibDebug }
+{ TLuaVector3 }
 
-class procedure TLuaLibPrint.CreateEntry(AEntry: TLuaLib.TTableEntry);
-begin
-  AEntry.AddPublished(Self);
-end;
-
-class function TLuaLibPrint.Lua_gc(L: TLuaState): Integer;
-begin
-  L.GC(LUA_GCCOLLECT, 0);
-  Result := 0;
-end;
-
-class function TLuaLibPrint.Lua_print(L: TLuaState): Integer;
-var
-  I: Integer;
-begin
-  Write(L.ToString(1));
-  for I := 2 to L.Top do
-    Write(#9, L.ToString(I));
-  Writeln;
-  Result := 0;
-end;
-
-class function TLuaVector3.RecordName: AnsiString;
+class function TLuaVector3.LuaName: AnsiString;
 begin
   Result := 'vec3';
 end;
 
-class function TLuaVector3.TryConvertType(L: TLuaState; out AData: PData; AIndex: Integer): Boolean;
+class function TLuaVector3.TryConvertType(L: TLuaState; out AData: TLuaWrapper<TVector3>.PData; AIndex: Integer): Boolean;
 var
   Value: TLuaNumber;
 begin
@@ -213,8 +185,6 @@ begin
   L.PushNumber(Vec.Dot(CheckArg(L, 2)^));
   Result := 1;
 end;
-
-{ TLuaVector3 }
 
 class function TLuaVector3.Lua_cross(L: TLuaState): Integer;
 var
@@ -369,33 +339,33 @@ begin
   Result := 0;
 end;
 
-class function TLuaLocation3.RecordName: AnsiString;
+class function TLuaLocation3.LuaName: AnsiString;
 begin
   Result := 'location3';
 end;
 
-{ TLuaLocation3.TLuaChangeEvent2 }
+{ TLuaLocation3.TLuaChangeEvent }
 
 class procedure TLuaLocation3.TLuaChangeEvent.PushParams(L: TLuaState; AInfo: TLocation3.TChangeEventInfo);
 begin
-  TLuaLocation3.Push(L, AInfo.Sender);
-  TLuaVector3.Push(L, AInfo.Sender.Pos);
-  TLuaVector3.Push(L, AInfo.Sender.Offset);
+  TLuaLocation3.Push(L, AInfo.Location);
+  TLuaVector3.Push(L, AInfo.Location.Pos);
+  TLuaVector3.Push(L, AInfo.Location.Offset);
 end;
 
-class function TLuaLocation3.TLuaChangeEvent.RecordName: AnsiString;
+class function TLuaLocation3.TLuaChangeEvent.LuaName: AnsiString;
 begin
   Result := 'location3 change event';
 end;
 
 { TTest }
 
-function TTest.GetOnTextChange: TEvent.TAccess;
+function TTest.GetOnTextChange: TTest.TEvent.TAccess;
 begin
   Result := FOnTextChange.Access;
 end;
 
-function TTest.GetOnVectorChange: TEvent.TAccess;
+function TTest.GetOnVectorChange: TTest.TEvent.TAccess;
 begin
   Result := FOnVectorChange.Access;
 end;
@@ -405,7 +375,7 @@ begin
   if Text = Value then
     Exit;
   FText := Value;
-  FOnTextChange.Execute(TEventInfo.Create(Self));
+  FOnTextChange.Execute(Self);
 end;
 
 procedure TTest.SetVector(const Value: TVector3);
@@ -413,18 +383,18 @@ begin
   if Vector = Value then
     Exit;
   FVector := Value;
-  FOnVectorChange.Execute(TEventInfo.Create(Self));
+  FOnVectorChange.Execute(Self);
 end;
 
 { TLuaTest.TLuaEvent }
 
-class procedure TLuaTest.TLuaEvent.PushParams(L: TLuaState; AInfo: TTest.TEventInfo);
+class procedure TLuaTest.TLuaEvent.PushParams(L: TLuaState; AInfo: TTest);
 begin
   inherited;
-  TLuaTest.Push(L, AInfo.Sender);
+  TLuaTest.Push(L, AInfo);
 end;
 
-class function TLuaTest.TLuaEvent.RecordName: AnsiString;
+class function TLuaTest.TLuaEvent.LuaName: AnsiString;
 begin
   Result := 'test change event';
 end;
@@ -446,7 +416,7 @@ end;
 class function TLuaTest.LuaGet_state(L: TLuaState): Integer;
 begin
   TLuaEnumWrapper<TTest.TState>.Push(L, Check(L, 1).State);
-  Result := 0;
+  Result := 1;
 end;
 
 class function TLuaTest.LuaGet_text(L: TLuaState): Integer;
@@ -482,7 +452,7 @@ end;
 class function TLuaTest.LuaSet_state(L: TLuaState): Integer;
 begin
   Check(L, 1).State := TLuaEnumWrapper<TTest.TState>.Check(L, 2)^;
-  Result := 1;
+  Result := 0;
 end;
 
 class function TLuaTest.LuaSet_text(L: TLuaState): Integer;
@@ -497,7 +467,7 @@ begin
   Result := 0;
 end;
 
-class function TLuaTest.RecordName: AnsiString;
+class function TLuaTest.LuaName: AnsiString;
 begin
   Result := 'test';
 end;
@@ -508,17 +478,27 @@ var
   Test, Test2: TTest;
   Code: string;
   OldTop: Integer;
+  ManagedRec: TManagedRecord;
+
+{ TLuaManagedRecord }
+
+class function TLuaManagedRecord.LuaGet_text(L: TLuaState): Integer;
+begin
+  L.PushString(Check(L, 1).Text);
+  Result := 1;
+end;
+
+class function TLuaManagedRecord.LuaSet_text(L: TLuaState): Integer;
+begin
+  Check(L, 1).Text := string(L.CheckString(2));
+  Result := 0;
+end;
 
 begin
   ReportMemoryLeaksOnShutdown := True;
   try
     Lua := TLua.Create;
-
-    Lua.AddLib<TLuaLibBasic>;
-    Lua.AddLib<TLuaLibTable>;
-    Lua.AddLib<TLuaLibMath>;
-    Lua.AddLib<TLuaLibCoroutine>;
-    Lua.AddLib<TLuaLibPrint>;
+    Lua.L.LOpenLibs;
     Lua.AddLib<TLuaLibVector3>;
     Lua.AddLib<TLuaLibEnum<TTest.TState>>;
 
@@ -532,6 +512,9 @@ begin
     TLuaLocation3.Push(Lua.L, Location);
     Lua.L.SetGlobal('l');
 
+    TLuaLocation3.PushOwned(Lua.L, TLocation3.Create);
+    Lua.L.SetGlobal('l2');
+
     Test := TTest.Create;
     TLuaTest.Push(Lua.L, Test);
     Lua.L.SetGlobal('test');
@@ -539,6 +522,10 @@ begin
     Test2 := TTest.Create;
     TLuaTest.Push(Lua.L, Test2);
     Lua.L.SetGlobal('test2');
+
+    ManagedRec.Text := 'test';
+    TLuaManagedRecord.Push(Lua.L, ManagedRec);
+    Lua.L.SetGlobal('rec');
 
     while True do
     begin
@@ -573,15 +560,12 @@ begin
 
       if OldTop <> Lua.L.Top + 1 then
       begin
-        Lua.L.PushCFunction(TLuaLibPrint.Lua_print);
+        Lua.L.GetGlobal('print');
         Lua.L.Insert(OldTop);
         Lua.L.Call(Lua.L.Top - OldTop, 0);
       end;
 
     end;
-
-    // TLuaTest.TLuaEvent.ClearEvents(Lua.L, Test.OnTextChange);
-    // TLuaTest.TLuaEvent.ClearEvents(Lua.L, Test.OnVectorChange);
 
     Lua.Free;
 

@@ -48,7 +48,9 @@ implementation
 { TMarchingCubes }
 
 class constructor TMarchingCubes.Create;
+
 type
+
   TLine = record
     Start: TPlanePoint;
     Stop: TPlanePoint;

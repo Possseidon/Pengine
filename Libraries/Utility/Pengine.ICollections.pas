@@ -27,24 +27,6 @@ type
 
   end;
 
-  {
-  TDefault<T> = class
-  private
-  class var
-    FEquateFunc: TFunc<T, T, Boolean>;
-    FCompareFunc: TFunc<T, T, Boolean>;
-    FHashFunc: TFunc<T, Cardinal>;
-
-  public
-    class constructor Create;
-
-    class property EquateFunc: TFunc<T, T, Boolean> read FEquateFunc;
-    class property CompareFunc: TFunc<T, T, Boolean> read FCompareFunc;
-    class property HashFunc: TFunc<T, Cardinal> read FHashFunc;
-
-  end;
-  }
-
   TPair<K, V> = record
   private
     FKey: K;

@@ -2118,7 +2118,7 @@ end;
 
 function TVector2.ToString: string;
 begin
-  Result := Format('[%f|%f]', [X, Y]);
+  Result := Format('[%f|%f]', [X, Y], TFormatSettings.Invariant);
 end;
 
 class operator TVector2.Implicit(const A: TVector2): string;
@@ -2476,7 +2476,7 @@ end;
 
 function TVector3.ToString: string;
 begin
-  Result := Format('[%f|%f|%f]', [X, Y, Z]);
+  Result := Format('[%f|%f|%f]', [X, Y, Z], TFormatSettings.Invariant);
 end;
 
 class operator TVector3.Implicit(const A: TVector3): string;
@@ -3225,7 +3225,7 @@ end;
 
 function TBounds1.ToString: string;
 begin
-  Result := Format('<%f~%f>', [C1, C2]);
+  Result := Format('<%f~%f>', [C1, C2], TFormatSettings.Invariant);
 end;
 
 class operator TBounds1.Implicit(const ABounds: TBounds1): string;
