@@ -130,6 +130,9 @@ type
   published
     class function Lua_reset(L: TLuaState): Integer; static; cdecl;
 
+    class function LuaGet_parent(L: TLuaState): Integer; static; cdecl;
+    class function LuaSet_parent(L: TLuaState): Integer; static; cdecl;
+
     class function LuaGet_pos(L: TLuaState): Integer; static; cdecl;
     class function LuaSet_pos(L: TLuaState): Integer; static; cdecl;
 
@@ -147,6 +150,15 @@ type
 
   end;
 
+  TLuaLibLocation3 = class(TLuaLib)
+  protected
+    class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
+
+  published
+    class function __call(L: TLuaState): Integer; static; cdecl;
+
+  end;
+
   TManagedRecord = record
     Text: string;
   end;
@@ -155,6 +167,24 @@ type
   published
     class function LuaGet_text(L: TLuaState): Integer; static; cdecl;
     class function LuaSet_text(L: TLuaState): Integer; static; cdecl;
+
+  end;
+
+  ITest = interface
+    procedure Test;
+  end;
+
+  TLuaInterfaceTest = class(TLuaWrapper<ITest>)
+  published
+    class function Lua_test(L: TLuaState): Integer; static; cdecl;
+
+  end;
+
+  TInterfaceTest = class(TInterfacedObject, ITest)
+  public
+    destructor Destroy; override;
+
+    procedure Test;
 
   end;
 
@@ -312,6 +342,12 @@ begin
   Result := 1;
 end;
 
+class function TLuaLocation3.LuaGet_parent(L: TLuaState): Integer;
+begin
+  TLuaLocation3.Push(L, Check(L, 1).Parent);
+  Result := 1;
+end;
+
 class function TLuaLocation3.LuaGet_pos(L: TLuaState): Integer;
 begin
   TLuaVector3.Push(L, Check(L, 1).Pos);
@@ -324,6 +360,23 @@ begin
   TLuaChangeEvent.Push(L, Check(L, 1).OnChanged);
   L.PushValue(2);
   L.Call(2, 0);
+  Result := 0;
+end;
+
+class function TLuaLocation3.LuaSet_parent(L: TLuaState): Integer;
+var
+  Self, Other, Current: TLocation3;
+begin
+  Self := Check(L, 1)^;
+  Other := Check(L, 2)^;
+  Current := Other;
+  while Current <> nil do
+  begin
+    if Current = Self then
+      L.Error('cannot set recursive location3 parents');
+    Current := Current.Parent;
+  end;
+  Self.Parent := Other;
   Result := 0;
 end;
 
@@ -472,19 +525,11 @@ begin
   Result := 'test';
 end;
 
-var
-  Lua: TLua;
-  Location: TLocation3;
-  Test, Test2: TTest;
-  Code: string;
-  OldTop: Integer;
-  ManagedRec: TManagedRecord;
-
 { TLuaManagedRecord }
 
 class function TLuaManagedRecord.LuaGet_text(L: TLuaState): Integer;
 begin
-  L.PushString(Check(L, 1).Text);
+  L.PushString(AnsiString(Check(L, 1).Text));
   Result := 1;
 end;
 
@@ -494,12 +539,55 @@ begin
   Result := 0;
 end;
 
+{ TLuaLibLocation3 }
+
+class procedure TLuaLibLocation3.CreateEntry(AEntry: TLuaLib.TTableEntry);
+begin
+  AEntry.Add('TLocation3').AddPublished(Self);
+end;
+
+class function TLuaLibLocation3.__call(L: TLuaState): Integer;
+begin
+  TLuaLocation3.PushOwned(L, TLocation3.Create(L.CheckArgOrDefault(2, False)));
+  Result := 1;
+end;
+
+{ TInterfaceTest }
+
+destructor TInterfaceTest.Destroy;
+begin
+  Writeln('Goodbye!');
+  inherited;
+end;
+
+procedure TInterfaceTest.Test;
+begin
+  Writeln('This is test!');
+end;
+
+{ TLuaInterfaceTest }
+
+class function TLuaInterfaceTest.Lua_test(L: TLuaState): Integer;
+begin
+  Check(L, 1).Test;
+  Result := 0;
+end;
+
+var
+  Lua: TLua;
+  Location: TLocation3;
+  Test, Test2: TTest;
+  Code: string;
+  OldTop: Integer;
+  ManagedRec: TManagedRecord;
+
 begin
   ReportMemoryLeaksOnShutdown := True;
   try
     Lua := TLua.Create;
     Lua.L.LOpenLibs;
     Lua.AddLib<TLuaLibVector3>;
+    Lua.AddLib<TLuaLibLocation3>;
     Lua.AddLib<TLuaLibEnum<TTest.TState>>;
 
     TLuaVector3.Push(Lua.L, Vec3(1, 2, 3));
@@ -526,6 +614,9 @@ begin
     ManagedRec.Text := 'test';
     TLuaManagedRecord.Push(Lua.L, ManagedRec);
     Lua.L.SetGlobal('rec');
+
+    TLuaInterfaceTest.Push(Lua.L, TInterfaceTest.Create);
+    Lua.L.SetGlobal('intf');
 
     while True do
     begin

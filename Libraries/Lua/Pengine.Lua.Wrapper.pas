@@ -13,6 +13,8 @@ uses
 
 type
 
+  ELuaWrapperError = class(Exception);
+
   TLuaWrapperClass = class of TLuaWrapper;
 
   TLuaWrapper = class
@@ -36,11 +38,18 @@ type
 
     PData = ^T;
 
+  public const
+
+    PointerTypes = [tkClass, tkInterface, tkClassRef, tkPointer];
+
   private
     class function Index(L: TLuaState): Integer; static; cdecl;
     class function NewIndex(L: TLuaState): Integer; static; cdecl;
 
     class function GC(L: TLuaState): Integer; static; cdecl;
+    class function DefaultEquals(L: TLuaState): Integer; static; cdecl;
+
+    class procedure CheckLuaFunctionDelcaration(AMethod: TRttiMethod); static;
 
   protected
     class function TryConvertType(L: TLuaState; out AData: PData; AIndex: Integer): Boolean; virtual;
@@ -135,6 +144,14 @@ begin
   Result := CheckArg(L, AIndex);
 end;
 
+class procedure TLuaWrapper<T>.CheckLuaFunctionDelcaration(AMethod: TRttiMethod);
+begin
+  if not AMethod.IsStatic then
+    raise ELuaWrapperError.CreateFmt('Lua Function "%s" must be static.', [AMethod.Name]);
+  if AMethod.CallingConvention <> ccCdecl then
+    raise ELuaWrapperError.CreateFmt('Lua Function "%s" must be cdecl.', [AMethod.Name]);
+end;
+
 class function TLuaWrapper<T>.CheckX(L: TLuaState; AIndex: Integer): Pointer;
 begin
   Result := Check(L, AIndex);
@@ -143,6 +160,12 @@ end;
 class procedure TLuaWrapper<T>.CustomizeMetatable(L: TLuaState; AValue: T);
 begin
   // nothing
+end;
+
+class function TLuaWrapper<T>.DefaultEquals(L: TLuaState): Integer;
+begin
+  L.PushBoolean(CompareMem(Check(L, 1), Check(L, 2), SizeOf(T)));
+  Result := 1;
 end;
 
 class function TLuaWrapper<T>.GC(L: TLuaState): Integer;
@@ -183,7 +206,10 @@ begin
 
   // If nil, call index metamethod if not nil
   if L.IsNil(L.UpvalueIndex(2)) then
-    Exit(0);
+  begin
+    L.PushNil;
+    Exit(1);
+  end;
   L.PushValue(L.UpvalueIndex(2));
   L.PushValue(1);
   L.PushValue(2);
@@ -222,6 +248,11 @@ class function TLuaWrapper<T>.TryConvertType(L: TLuaState; out AData: PData; AIn
 var
   ClassType: TLuaWrapperClass;
 begin
+  if (GetTypeKind(T) in PointerTypes) and L.IsNil(AIndex) then
+  begin
+    PPointer(AData)^ := nil;
+    Exit(True);
+  end;
   ClassType := GetClass(L, AIndex);
   Result := (ClassType <> nil) and ClassType.InheritsFrom(Self);
   if Result then
@@ -235,6 +266,12 @@ var
   Func: TLuaCFunction;
   RttiMethod: TRttiMethod;
 begin
+  if (GetTypeKind(T) in PointerTypes) and (PPointer(@AValue)^ = nil) then
+  begin
+    L.PushNil;
+    Exit;
+  end;
+
   // (1) Create record userdata
   // use move to avoid problems with managed records
   DataPointer := L.NewUserdata(SizeOf(T));
@@ -301,16 +338,19 @@ begin
         Continue;
       if RttiMethod.Name.StartsWith('Lua_') then
       begin
+        CheckLuaFunctionDelcaration(RttiMethod);
         L.PushCFunction(RttiMethod.CodeAddress);
         L.SetField(PAnsiChar(AnsiString(RttiMethod.Name.Substring(4))), -4);
       end
       else if RttiMethod.Name.StartsWith('LuaGet_') then
       begin
+        CheckLuaFunctionDelcaration(RttiMethod);
         L.PushCFunction(RttiMethod.CodeAddress);
         L.SetField(PAnsiChar(AnsiString(RttiMethod.Name.Substring(7))), -3);
       end
       else if RttiMethod.Name.StartsWith('LuaSet_') then
       begin
+        CheckLuaFunctionDelcaration(RttiMethod);
         L.PushCFunction(RttiMethod.CodeAddress);
         L.SetField(PAnsiChar(AnsiString(RttiMethod.Name.Substring(7))), -2);
       end;
@@ -328,10 +368,17 @@ begin
     L.PushCClosure(NewIndex, 2);
     L.SetField('__newindex', -2);
 
+    if L.GetField('__eq') = ltNil then
+    begin
+      L.PushCFunction(DefaultEquals);
+      L.SetField('__eq', -3);
+    end;
+    L.Pop;
+
     if (GetTypeKind(T) = tkClass) or IsManagedType(T) then
     begin
       L.PushCFunction(GC);
-      L.SetField('__gc',  -2);
+      L.SetField('__gc', -2);
     end;
 
     // Save the metatable in the registry
