@@ -74,7 +74,7 @@ type
 
   end;
 
-  {$M+}
+{$M+}
 
   TLuaEvent<T> = class(TLuaWrapper<TEvent<T>.TAccess>)
   private
@@ -121,7 +121,30 @@ type
 
   end;
 
-  {$M-}
+  TLuaSetWrapper<T> = class(TLuaWrapper<T>)
+  private
+    class function __add(L: TLuaState): Integer; static; cdecl;
+    class function __sub(L: TLuaState): Integer; static; cdecl;
+    class function __mul(L: TLuaState): Integer; static; cdecl;
+
+    class function __eq(L: TLuaState): Integer; static; cdecl;
+    class function __lt(L: TLuaState): Integer; static; cdecl;
+    class function __le(L: TLuaState): Integer; static; cdecl;
+
+    class function Lua_contains(L: TLuaState): Integer; static; cdecl;
+
+  end;
+
+  TLuaLibSet<T> = class(TLuaLib)
+  protected
+    class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
+
+  published
+    class function __call(L: TLuaState): Integer; static; cdecl;
+
+  end;
+
+{$M-}
 
 implementation
 
@@ -644,6 +667,57 @@ begin
   L.PushBoolean(True);
   L.SetField('owned', -2);
   L.Pop;
+end;
+
+{ TLuaSetWrapper<T> }
+
+class function TLuaSetWrapper<T>.__add(L: TLuaState): Integer;
+begin
+
+end;
+
+class function TLuaSetWrapper<T>.__sub(L: TLuaState): Integer;
+begin
+
+end;
+
+class function TLuaSetWrapper<T>.__mul(L: TLuaState): Integer;
+begin
+
+end;
+
+class function TLuaSetWrapper<T>.__eq(L: TLuaState): Integer;
+begin
+  L.PushBoolean(CompareMem(Check(L, 1), Check(L, 2), SizeOf(T)));
+  Result := 1;
+end;
+
+class function TLuaSetWrapper<T>.__lt(L: TLuaState): Integer;
+begin
+
+end;
+
+class function TLuaSetWrapper<T>.__le(L: TLuaState): Integer;
+begin
+
+end;
+
+class function TLuaSetWrapper<T>.Lua_contains(L: TLuaState): Integer;
+begin
+
+end;
+
+{ TLuaLibSet<T> }
+
+class procedure TLuaLibSet<T>.CreateEntry(AEntry: TLuaLib.TTableEntry);
+begin
+  inherited;
+
+end;
+
+class function TLuaLibSet<T>.__call(L: TLuaState): Integer;
+begin
+
 end;
 
 end.

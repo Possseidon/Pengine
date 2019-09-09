@@ -16,9 +16,18 @@ uses
   Pengine.EventHandling,
   Pengine.Lua,
   Pengine.Lua.Header,
-  Pengine.Lua.Wrapper;
+  Pengine.Lua.Wrapper, System.TypInfo;
 
 type
+
+  TLuaLibVector3 = class(TLuaLib)
+  protected
+    class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
+
+  published
+    class function __call(L: TLuaState): Integer; static; cdecl;
+
+  end;
 
   TLuaVector3 = class(TLuaWrapper<TVector3>)
   public
@@ -51,15 +60,18 @@ type
     TEvent = TEvent<TTest>;
 
     TState = (
-      &stOn,
-      &stOff,
-      &stUndefined
+      stOn,
+      stOff,
+      stUndefined
       );
+
+    TStates = set of TState;
 
   private
     FText: string;
     FVector: TVector3;
     FState: TState;
+    FStates: TStates;
     FOnTextChange: TEvent;
     FOnVectorChange: TEvent;
 
@@ -73,6 +85,7 @@ type
     property Text: string read FText write SetText;
     property Vector: TVector3 read FVector write SetVector;
     property State: TState read FState write FState;
+    property States: TStates read FStates write FStates;
 
     property OnTextChange: TEvent.TAccess read GetOnTextChange;
     property OnVectorChange: TEvent.TAccess read GetOnVectorChange;
@@ -103,6 +116,9 @@ type
 
     class function LuaGet_state(L: TLuaState): Integer; static; cdecl;
     class function LuaSet_state(L: TLuaState): Integer; static; cdecl;
+
+    class function LuaGet_states(L: TLuaState): Integer; static; cdecl;
+    class function LuaSet_states(L: TLuaState): Integer; static; cdecl;
 
     class function LuaGet_onTextChange(L: TLuaState): Integer; static; cdecl;
     class function LuaSet_onTextChange(L: TLuaState): Integer; static; cdecl;
@@ -138,15 +154,6 @@ type
 
     class function LuaGet_onChange(L: TLuaState): Integer; static; cdecl;
     class function LuaSet_onChange(L: TLuaState): Integer; static; cdecl;
-
-  end;
-
-  TLuaLibVector3 = class(TLuaLib)
-  protected
-    class procedure CreateEntry(AEntry: TLuaLib.TTableEntry); override;
-
-  published
-    class function __call(L: TLuaState): Integer; static; cdecl;
 
   end;
 
@@ -188,14 +195,15 @@ type
 
   end;
 
-{ TLuaVector3 }
+  { TLuaVector3 }
 
 class function TLuaVector3.LuaName: AnsiString;
 begin
   Result := 'vec3';
 end;
 
-class function TLuaVector3.TryConvertType(L: TLuaState; out AData: TLuaWrapper<TVector3>.PData; AIndex: Integer): Boolean;
+class function TLuaVector3.TryConvertType(L: TLuaState; out AData: TLuaWrapper<TVector3>.PData;
+  AIndex: Integer): Boolean;
 var
   Value: TLuaNumber;
 begin
@@ -472,6 +480,12 @@ begin
   Result := 1;
 end;
 
+class function TLuaTest.LuaGet_states(L: TLuaState): Integer;
+begin
+  TLuaSetWrapper<TTest.TStates>.Push(L, Check(L, 1).States);
+  Result := 1;
+end;
+
 class function TLuaTest.LuaGet_text(L: TLuaState): Integer;
 begin
   L.PushString(AnsiString(Check(L, 1).Text));
@@ -505,6 +519,12 @@ end;
 class function TLuaTest.LuaSet_state(L: TLuaState): Integer;
 begin
   Check(L, 1).State := TLuaEnumWrapper<TTest.TState>.Check(L, 2)^;
+  Result := 0;
+end;
+
+class function TLuaTest.LuaSet_states(L: TLuaState): Integer;
+begin
+  Check(L, 1).States := TLuaSetWrapper<TTest.TStates>.Check(L, 2)^;
   Result := 0;
 end;
 
@@ -584,6 +604,9 @@ var
 begin
   ReportMemoryLeaksOnShutdown := True;
   try
+    Writeln(SizeOf(TTest.TStates));
+    Writeln(ByteOffsetOfSet(TypeInfo(TTest.TStates)));
+
     Lua := TLua.Create;
     Lua.L.LOpenLibs;
     Lua.AddLib<TLuaLibVector3>;
@@ -617,6 +640,8 @@ begin
 
     TLuaInterfaceTest.Push(Lua.L, TInterfaceTest.Create);
     Lua.L.SetGlobal('intf');
+
+
 
     while True do
     begin
