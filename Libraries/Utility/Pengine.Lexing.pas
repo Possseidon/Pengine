@@ -21,7 +21,7 @@ type
     TAnalyzeResult = (
       arNoMatch,
       arMatch,
-      arRequiresRecursion
+      arRecursion
       );
 
     TExpression = class;
@@ -72,7 +72,7 @@ type
       end;
 
     protected
-      function Analyze(ALexer: TLexer): TAnalyzeResult; virtual; abstract;
+      function Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult; virtual; abstract;
 
     public
       class function Parser(AEBNF: TEBNF): TExpression.IParser; static;
@@ -98,7 +98,7 @@ type
       FTerminal: string;
 
     protected
-      function Analyze(ALexer: TLexer): TAnalyzeResult; override;
+      function Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult; override;
 
     public
       constructor Create(ATerminal: string);
@@ -142,7 +142,7 @@ type
 
     TConcatenation = class(TVariadicExpression)
     protected
-      function Analyze(ALexer: TLexer): TAnalyzeResult; override;
+      function Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult; override;
 
     public
       function ToString: string; override;
@@ -151,7 +151,7 @@ type
 
     TAlternation = class(TVariadicExpression)
     protected
-      function Analyze(ALexer: TLexer): TAnalyzeResult; override;
+      function Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult; override;
 
     public
       function ToString: string; override;
@@ -173,7 +173,7 @@ type
       end;
 
     protected
-      function Analyze(ALexer: TLexer): TAnalyzeResult; override;
+      function Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult; override;
 
     public
       class function Parser(AEBNF: TEBNF): TOptional.IParser; static;
@@ -197,7 +197,7 @@ type
       end;
 
     protected
-      function Analyze(ALexer: TLexer): TAnalyzeResult; override;
+      function Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult; override;
 
     public
       class function Parser(AEBNF: TEBNF): TRepetition.IParser; static;
@@ -230,7 +230,7 @@ type
       function GetExpressionString: string;
 
     protected
-      function Analyze(ALexer: TLexer): TAnalyzeResult; override;
+      function Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult; override;
 
     public
       constructor Create(AEBNF: TEBNF; AName: string; AExpression: TExpression); overload;
@@ -390,7 +390,7 @@ end;
 
 { TEBNF.TRule }
 
-function TEBNF.TRule.Analyze(ALexer: TLexer): TAnalyzeResult;
+function TEBNF.TRule.Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult;
 begin
   if not ALexer.AdvancedSinceRule(Self) then
     Exit(arRequiresRecursion);
@@ -597,14 +597,13 @@ end;
 
 { TEBNF.TTerminal }
 
-function TEBNF.TTerminal.Analyze(ALexer: TLexer): TAnalyzeResult;
+function TEBNF.TTerminal.Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult;
 begin
   Writeln('Testing ', ToString, '...');
   ALexer.SkipWhitespace;
   if not ALexer.ReachedEnd and ALexer.StartsWith(Terminal) then
-    Result := arMatch
-  else
-    Result := arNoMatch;
+    Exit(arMatch);
+  Result := arNoMatch;
 end;
 
 constructor TEBNF.TTerminal.Create(ATerminal: string);
@@ -624,15 +623,22 @@ end;
 
 { TEBNF.TConcatenation }
 
-function TEBNF.TConcatenation.Analyze(ALexer: TLexer): TAnalyzeResult;
+function TEBNF.TConcatenation.Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult;
 var
   Expression: TExpression;
 begin
   Writeln('Testing ', ToString, '...');
+  ALexer.Save;
   for Expression in Expressions do
-    if not Expression.Analyze(ALexer) then
-      Exit(False);
-  Result := True;
+  begin
+    Result := Expression.Analyze(ALexer, AAllowRecursion);
+    if Result <> arMatch then
+    begin
+      ALexer.Revert;
+      Exit;
+    end;
+  end;
+  ALexer.DiscardSave;
 end;
 
 function TEBNF.TConcatenation.ToString: string;
@@ -655,7 +661,7 @@ end;
 
 { TEBNF.TAlternation }
 
-function TEBNF.TAlternation.Analyze(ALexer: TLexer): TAnalyzeResult;
+function TEBNF.TAlternation.Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult;
 var
   Expression, LongestExpression: TExpression;
   LongestPosition: Integer;
@@ -666,19 +672,18 @@ begin
   for Expression in Expressions do
   begin
     ALexer.Save;
-    if Expression.Analyze(ALexer) then
-    begin
-      if ALexer.Position > LongestPosition then
-      begin
-        LongestExpression := Expression;
-        LongestPosition := ALexer.Position;
-      end;
+    case Expression.Analyze(ALexer, False) of
+      arMatch:
+        if ALexer.Position > LongestPosition then
+        begin
+          LongestExpression := Expression;
+          LongestPosition := ALexer.Position;
+        end;
     end;
     ALexer.Revert;
   end;
-  Result := LongestExpression <> nil;
-  if Result then
-    LongestExpression.Analyze(ALexer);
+  if LongestExpression <> nil then
+    Exit(LongestExpression.Analyze(ALexer, AAllowRecursion));
 end;
 
 function TEBNF.TAlternation.ToString: string;
@@ -698,7 +703,7 @@ end;
 
 { TEBNF.TOptional }
 
-function TEBNF.TOptional.Analyze(ALexer: TLexer): TAnalyzeResult;
+function TEBNF.TOptional.Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult;
 begin
   Writeln('Testing ', ToString, '...');
   if ALexer.ReachedEnd then
@@ -723,7 +728,7 @@ end;
 
 { TEBNF.TRepetition }
 
-function TEBNF.TRepetition.Analyze(ALexer: TLexer): TAnalyzeResult;
+function TEBNF.TRepetition.Analyze(ALexer: TLexer; AAllowRecursion: Boolean): TAnalyzeResult;
 begin
   Writeln('Testing ', ToString, '...');
   Result := True;

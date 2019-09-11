@@ -1,1 +1,1 @@
-$(PENGINE)\Components;$(PENGINE)\Lua;$(PENGINE)\Maths;$(PENGINE)\OpenGL;$(PENGINE)\Utility;$(PENGINE)\Minecraft;$(PENGINE)\GdiPlus\Lib;$(PENGINE)\Factorio
+$(PENGINE)\Components;$(PENGINE)\Lua;$(PENGINE)\Maths;$(PENGINE)\OpenGL;$(PENGINE)\Utility;$(PENGINE)\Minecraft;$(PENGINE)\GdiPlus\Lib;$(PENGINE)\Factorio;$(PENGINE)\Networking
