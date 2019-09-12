@@ -1,12 +1,15 @@
-unit SocketDefine;
+unit Pengine.Sockets;
 
 interface
 
 uses
   System.SysUtils,
+  System.Classes,
 
   Winapi.Windows,
-  Winapi.WinSock;
+  Winapi.WinSock,
+
+  Pengine.ICollections;
 
 type
 
@@ -89,49 +92,111 @@ type
     FAddressFamily: TAddressFamily;
     FSocketType: TSocketType;
     FProtocolType: TProtocolType;
+    FBlocking: Boolean;
 
     class function MakeSockAddr(AAddressFamily: TAddressFamily; AAddress: Integer; APort: Word): TSockAddr; static;
 
-    function GetAvailable: Integer;
+    procedure SetBlocking(const Value: Boolean);
+
+  protected
+    constructor Create(AHandle: Winapi.WinSock.TSocket); overload;
+    constructor Create(AAddressFamily: TAddressFamily; ASocketType: TSocketType; AProtocolType: TProtocolType);
+      overload;
 
   public
     class constructor Create;
     class destructor Destroy;
 
-    constructor Create(AAddressFamily: TAddressFamily; ASocketType: TSocketType; AProtocolType: TProtocolType);
     destructor Destroy; override;
 
     class function FormatError(AError: Integer): string; static;
     class procedure RaiseLastError; static;
 
-    procedure Listen(ABacklog: Integer = SOMAXCONN);
-
-    procedure Bind(AAddress: Integer; APort: Word = 0); overload;
-    procedure Bind(AAddress: string; APort: Word = 0); overload;
-
-    procedure Connect(AAddress: Integer; APort: Word = 0); overload;
-    procedure Connect(AAddress: string; APort: Word = 0); overload;
+    property Handle: Winapi.WinSock.TSocket read FHandle;
 
     procedure GetSockName(out AAddress: Integer; out APort: Word); overload;
     procedure GetSockName(out AAddress: string; out APort: Word); overload;
 
-    property Available: Integer read GetAvailable;
-    
-    procedure SendBuffer(const AData; ASize: Integer); 
-    procedure Send<T>(const AData: T); 
-    procedure SendBytes(ABytes: TBytes);
-
-    procedure ReceiveBuffer(var AData; ASize: Integer);
-    procedure Receive<T>(var AData: T); 
-    function ReceiveAll(ABlocking: Boolean = False): TBytes; 
-    function ReceiveBytes(ASize: Integer): TBytes; inline;
-    
-    property Handle: Winapi.WinSock.TSocket read FHandle;
-
+    property Blocking: Boolean read FBlocking write SetBlocking;
     property AddressFamily: TAddressFamily read FAddressFamily;
     property SocketType: TSocketType read FSocketType;
     property ProtocolType: TProtocolType read FProtocolType;
 
+  end;
+
+  TServerSocket = class;
+
+  TClientSocket = class(TSocket)
+  private
+    FParent: TServerSocket;
+    FDisconnected: Boolean;
+
+    function GetAvailable: Integer;
+    function GetDisconnected: Boolean;
+
+  public
+    constructor Create; overload;
+    constructor Create(AParent: TServerSocket; AHandle: Winapi.WinSock.TSocket); overload;
+
+    procedure Connect(AAddress: Integer; APort: Word = 0); overload;
+    procedure Connect(AAddress: string; APort: Word = 0); overload;
+
+    procedure GetPeerName(out AAddress: Integer; out APort: Word); overload;
+    procedure GetPeerName(out AAddress: string; out APort: Word); overload;
+
+    procedure SendBuffer(const AData; ASize: Integer);
+    procedure Send<T>(const AData: T);
+    procedure SendBytes(ABytes: TBytes);
+
+    function CanReceive: Boolean;
+    property Available: Integer read GetAvailable;
+    procedure ReceiveBuffer(var AData; ASize: Integer);
+    procedure Receive<T>(var AData: T); overload;
+    function Receive<T>: T; overload;
+    function ReceiveAll: TBytes;
+    function ReceiveBytes(ASize: Integer): TBytes; inline;
+
+    property Disconnected: Boolean read GetDisconnected;
+
+  end;
+
+  TServerSocket = class(TSocket)
+  private
+    FClients: IObjectList<TClientSocket>;
+
+    function GetClients: IReadonlyList<TClientSocket>;
+
+  public
+    constructor Create;
+
+    property Clients: IReadonlyList<TClientSocket> read GetClients;
+
+    procedure Bind(AAddress: Integer; APort: Word = 0); overload;
+    procedure Bind(AAddress: string; APort: Word = 0); overload;
+
+    procedure Listen(ABacklog: Integer = SOMAXCONN);
+
+    function CanAccept: Boolean;
+    function Accept: TClientSocket;
+    function AcceptAll: Integer;
+
+    procedure CleanupDisconnectedClients;
+
+  end;
+  
+  TSocketStream = class(TStream)
+  private
+    FClient: TClientSocket;
+  
+  public
+    constructor Create(AClient: TClientSocket);
+ 
+    function Read(var Buffer; Count: Integer): Integer; override;
+    function Write(const Buffer; Count: Integer): Integer; override;
+    function Seek(Offset: Integer; Origin: Word): Integer; override;
+
+    property Client: TClientSocket read FClient;
+    
   end;
 
 implementation
@@ -146,9 +211,35 @@ begin
   FillChar(Result.sin_zero[0], SizeOf(Result.sin_zero), 0);
 end;
 
-function TSocket.GetAvailable: Integer;
+procedure TSocket.SetBlocking(const Value: Boolean);
+var
+  Arg: Integer;
 begin
-  ioctlsocket(Handle, FIONREAD, Result);
+  if Blocking = Value then
+    Exit;
+  FBlocking := Value;
+  if Value then
+    Arg := 0
+  else
+    Arg := 1;
+  if ioctlsocket(Handle, FIONBIO, Arg) = SOCKET_ERROR then
+    RaiseLastError;
+end;
+
+constructor TSocket.Create(AHandle: Winapi.WinSock.TSocket);
+begin
+  FHandle := AHandle;
+  FBlocking := True;
+end;
+
+constructor TSocket.Create(AAddressFamily: TAddressFamily; ASocketType: TSocketType; AProtocolType: TProtocolType);
+begin
+  FAddressFamily := AAddressFamily;
+  FSocketType := ASocketType;
+  FProtocolType := AProtocolType;
+  Create(socket(Ord(AddressFamily), Ord(SocketType), Ord(ProtocolType)));
+  if Handle = INVALID_SOCKET then
+    RaiseLastError;
 end;
 
 class constructor TSocket.Create;
@@ -166,24 +257,14 @@ begin
   end;
 end;
 
-destructor TSocket.Destroy;
-begin
-  closesocket(Handle);
-end;
-
-constructor TSocket.Create(AAddressFamily: TAddressFamily; ASocketType: TSocketType; AProtocolType: TProtocolType);
-begin
-  FAddressFamily := AAddressFamily;
-  FSocketType := ASocketType;
-  FProtocolType := AProtocolType;
-  FHandle := socket(Ord(AddressFamily), Ord(SocketType), Ord(ProtocolType));
-  if Handle = INVALID_SOCKET then
-    RaiseLastError;
-end;
-
 class destructor TSocket.Destroy;
 begin
   WSACleanup;
+end;
+
+destructor TSocket.Destroy;
+begin
+  closesocket(Handle);
 end;
 
 class function TSocket.FormatError(AError: Integer): string;
@@ -200,40 +281,6 @@ begin
   raise ESocketError.Create(FormatError(WSAGetLastError));
 end;
 
-procedure TSocket.Listen(ABacklog: Integer);
-begin
-  if Winapi.WinSock.Listen(Handle, ABacklog) = SOCKET_ERROR then
-    RaiseLastError;
-end;
-
-procedure TSocket.Bind(AAddress: Integer; APort: Word);
-var
-  SockAddr: TSockAddr;
-begin
-  SockAddr := MakeSockAddr(AddressFamily, AAddress, APort);
-  if Winapi.WinSock.Bind(Handle, SockAddr, SizeOf(SockAddr)) = SOCKET_ERROR then
-    RaiseLastError;
-end;
-
-procedure TSocket.Bind(AAddress: string; APort: Word);
-begin
-  Bind(inet_addr(PAnsiChar(AnsiString(AAddress))), APort);
-end;
-
-procedure TSocket.Connect(AAddress: Integer; APort: Word);
-var
-  SockAddr: TSockAddr;
-begin
-  SockAddr := MakeSockAddr(AddressFamily, AAddress, APort);
-  if Winapi.WinSock.Connect(Handle, SockAddr, SizeOf(SockAddr)) = SOCKET_ERROR then
-    RaiseLastError;
-end;
-
-procedure TSocket.Connect(AAddress: string; APort: Word);
-begin
-  Connect(inet_addr(PAnsiChar(AnsiString(AAddress))), APort);
-end;
-
 procedure TSocket.GetSockName(out AAddress: Integer; out APort: Word);
 var
   SockAddr: TSockAddr;
@@ -248,66 +295,248 @@ end;
 
 procedure TSocket.GetSockName(out AAddress: string; out APort: Word);
 var
-  AddressInt: in_addr;
+  Address: TInAddr;
 begin
-  GetSockName(AddressInt.S_addr, APort);
-  AAddress := string(inet_ntoa(AddressInt));
+  GetSockName(Address.S_addr, APort);
+  AAddress := string(inet_ntoa(Address));
 end;
 
-procedure TSocket.SendBuffer(const AData; ASize: Integer);
+{ TClientSocket }
+
+function TClientSocket.GetAvailable: Integer;
+begin
+  ioctlsocket(Handle, FIONREAD, Result);
+end;
+
+function TClientSocket.GetDisconnected: Boolean;
+var
+  Buffer: Byte;
+begin
+  if FDisconnected then
+    Exit(True);
+  if not CanReceive then
+    Exit(False);
+  Result := Winapi.WinSock.recv(Handle, Buffer, 1, MSG_PEEK) = 0;
+  FDisconnected := Result;
+end;
+
+constructor TClientSocket.Create;
+begin
+  inherited Create(afInterNetwork, stStream, ptTcp);
+end;
+
+constructor TClientSocket.Create(AParent: TServerSocket; AHandle: Winapi.WinSock.TSocket);
+begin
+  inherited Create(AHandle);
+  FParent := AParent;
+end;
+
+procedure TClientSocket.Connect(AAddress: Integer; APort: Word);
+var
+  SockAddr: TSockAddr;
+begin
+  SockAddr := MakeSockAddr(AddressFamily, AAddress, APort);
+  if Winapi.WinSock.Connect(Handle, SockAddr, SizeOf(SockAddr)) = SOCKET_ERROR then
+    RaiseLastError;
+end;
+
+procedure TClientSocket.Connect(AAddress: string; APort: Word);
+begin
+  Connect(inet_addr(PAnsiChar(AnsiString(AAddress))), APort);
+end;
+
+procedure TClientSocket.GetPeerName(out AAddress: Integer; out APort: Word);
+var
+  SockAddr: TSockAddr;
+  NameLen: Integer;
+begin
+  if Winapi.WinSock.GetPeerName(Handle, SockAddr, NameLen) = SOCKET_ERROR then
+    RaiseLastError;
+  Assert(NameLen = SizeOf(SockAddr));
+  AAddress := SockAddr.sin_addr.S_addr;
+  APort := htons(SockAddr.sin_port);
+end;
+
+procedure TClientSocket.GetPeerName(out AAddress: string; out APort: Word);
+var
+  Address: TInAddr;
+begin
+  GetPeerName(Address.S_addr, APort);
+  AAddress := string(inet_ntoa(Address));
+end;
+
+procedure TClientSocket.SendBuffer(const AData; ASize: Integer);
 var
   Sent, Offset: Integer;
 begin
   Offset := 0;
   while Offset < ASize do
   begin
-    Sent := Winapi.WinSock.send(Handle, (PByte(@AData) + Offset)^, ASize, 0);
+    Sent := Winapi.WinSock.Send(Handle, (PByte(@AData) + Offset)^, ASize, 0);
     if Sent = SOCKET_ERROR then
       RaiseLastError;
     Inc(Offset, Sent);
   end;
 end;
 
-procedure TSocket.SendBytes(ABytes: TBytes);
+procedure TClientSocket.Send<T>(const AData: T);
+begin
+  Assert(not IsManagedType(T));
+  SendBuffer(AData, SizeOf(T));
+end;
+
+procedure TClientSocket.SendBytes(ABytes: TBytes);
 begin
   SendBuffer(ABytes[0], Length(ABytes));
 end;
 
-procedure TSocket.Send<T>(const AData: T);
-begin
-  SendBuffer(AData, SizeOf(T));
-end;
-
-procedure TSocket.ReceiveBuffer(var AData; ASize: Integer);
-begin
-  Winapi.WinSock.recv(Handle, AData, ASize, 0);
-end;
-
-function TSocket.ReceiveAll(ABlocking: Boolean): TBytes;
+function TClientSocket.CanReceive: Boolean;
+const
+  Timeout: TTimeVal = (tv_sec: 0; tv_usec: 0);
 var
-  AvailableData: Integer;
+  FDSet: TFDSet;
 begin
-  AvailableData := Available;
-  if AvailableData = 0 then
-  begin
-    if not ABlocking then
-      Exit(nil);
-    repeat
-      AvailableData := Available;
-    until AvailableData > 0;
-  end;
-  Result := ReceiveBytes(AvailableData);
+  FDSet.fd_count := 1;
+  FDSet.fd_array[0] := Handle;
+  Result := Winapi.WinSock.select(0, @FDSet, nil, nil, @Timeout) <> 0;
 end;
 
-procedure TSocket.Receive<T>(var AData: T);
+procedure TClientSocket.ReceiveBuffer(var AData; ASize: Integer);
+var
+  Err: Integer;
 begin
+  Err := Winapi.WinSock.recv(Handle, AData, ASize, 0);
+  if (Err = 0) and (ASize > 0) then
+    FDisconnected := True
+  else if Err = SOCKET_ERROR then
+    RaiseLastError;
+end;
+
+procedure TClientSocket.Receive<T>(var AData: T);
+begin                          
+  Assert(not IsManagedType(T));
   ReceiveBuffer(AData, SizeOf(AData));
 end;
 
-function TSocket.ReceiveBytes(ASize: Integer): TBytes;
+function TClientSocket.Receive<T>: T;
+begin
+  Receive(Result);
+end;
+
+function TClientSocket.ReceiveAll: TBytes;
+begin
+  if CanReceive then
+    Result := ReceiveBytes(Available)
+  else
+    Result := nil;
+end;
+
+function TClientSocket.ReceiveBytes(ASize: Integer): TBytes;
 begin
   SetLength(Result, ASize);
   ReceiveBuffer(Result[0], ASize);
+end;
+
+{ TServerSocket }
+
+function TServerSocket.GetClients: IReadonlyList<TClientSocket>;
+begin
+  Result := FClients.ReadonlyList;
+end;
+
+constructor TServerSocket.Create;
+begin
+  inherited Create(afInterNetwork, stStream, ptTcp);
+  FClients := TObjectList<TClientSocket>.Create;
+end;
+
+procedure TServerSocket.Bind(AAddress: Integer; APort: Word);
+var
+  SockAddr: TSockAddr;
+begin
+  SockAddr := MakeSockAddr(AddressFamily, AAddress, APort);
+  if Winapi.WinSock.Bind(Handle, SockAddr, SizeOf(SockAddr)) = SOCKET_ERROR then
+    RaiseLastError;
+end;
+
+procedure TServerSocket.Bind(AAddress: string; APort: Word);
+begin
+  Bind(inet_addr(PAnsiChar(AnsiString(AAddress))), APort);
+end;
+
+procedure TServerSocket.Listen(ABacklog: Integer);
+begin
+  if Winapi.WinSock.Listen(Handle, ABacklog) = SOCKET_ERROR then
+    RaiseLastError;
+end;
+
+function TServerSocket.CanAccept: Boolean;
+const
+  Timeout: TTimeVal = (tv_sec: 0; tv_usec: 0);
+var
+  FDSet: TFDSet;
+begin
+  FDSet.fd_count := 1;
+  FDSet.fd_array[0] := Handle;
+  Result := Winapi.WinSock.select(0, @FDSet, nil, nil, @Timeout) <> 0;
+end;
+
+procedure TServerSocket.CleanupDisconnectedClients;
+var
+  I: Integer;
+begin
+  for I := FClients.MaxIndex downto 0 do
+    if FClients[I].Disconnected then
+      FClients.RemoveAt(I);
+end;
+
+function TServerSocket.Accept: TClientSocket;
+var
+  Address: TSockAddr;
+  AcceptedSocket: Winapi.WinSock.TSocket;
+begin
+  AcceptedSocket := Winapi.WinSock.Accept(Handle, @Address, nil);
+  if AcceptedSocket = INVALID_SOCKET then
+    RaiseLastError;
+  Result := TClientSocket.Create(AcceptedSocket);
+  Result.FAddressFamily := AddressFamily;
+  Result.FSocketType := SocketType;
+  Result.FProtocolType := ProtocolType;
+  FClients.Add(Result);
+end;
+
+function TServerSocket.AcceptAll: Integer;
+begin
+  Result := 0;
+  while CanAccept do
+  begin
+    Accept;
+    Inc(Result);
+  end;
+end;
+
+{ TSocketStream }
+
+constructor TSocketStream.Create(AClient: TClientSocket);
+begin
+  FClient := AClient;
+end;
+
+function TSocketStream.Read(var Buffer; Count: Integer): Integer;
+begin
+  FClient.ReceiveBuffer(Buffer, Count);
+  Result := Count;
+end;
+
+function TSocketStream.Write(const Buffer; Count: Integer): Integer;
+begin
+  FClient.SendBuffer(Buffer, Count);
+  Result := Count;
+end;
+
+function TSocketStream.Seek(Offset: Integer; Origin: Word): Integer;
+begin
+  Result := 0;
 end;
 
 end.

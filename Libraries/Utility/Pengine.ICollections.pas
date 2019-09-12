@@ -318,7 +318,7 @@ type
 
   end;
 
-  /// <summary>An sorted collection, where the order of elements is given by a compare function.</summary>
+  /// <summary>A sorted collection, where the order of elements is given by a compare function.</summary>
   ISortedList<T> = interface(IListBase<T>)
     /// <summary>Finds the index, where the item needs to be positioned.</summary>
     /// <remarks>If the exact item is found, gives the index of that item.</remarks>
