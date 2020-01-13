@@ -4,11 +4,15 @@ interface
 
 uses
   System.SysUtils,
+  System.IOUtils,
 
   GdiPlus,
 
+  Pengine.JSON,
+  Pengine.JSON.Serialization,
+  Pengine.Interfaces,
   Pengine.ICollections,
-  Pengine.LuaHeader,
+  Pengine.Lua.Header,
   Pengine.IntMaths;
 
 type
@@ -414,6 +418,58 @@ type
 
     end;
 
+    {
+      "name": "angelsaddons-warehouses",
+      "version": "0.4.1",
+      "factorio_version": "0.17",
+      "title": "Angel's Addons - Warehouses",
+      "author": "Arch666Angel",
+      "contact": "",
+      "homepage": "https://forums.factorio.com/viewtopic.php?f=185&t=30962",
+      "description": "Adds warehouses to the game.",
+      "dependencies": [
+      "base >= 0.17.0",
+      "? angelsrefining >= 0.3.0"
+      ]
+    }
+
+    TMod = class(TInterfaceBase, IJSerializable)
+    private
+      FPath: string;
+      FName: string;
+      FVersion: string;
+      FFactorioVersion: string;
+      FTitle: string;
+      FAuthor: string;
+      FContact: string;
+      FHomepage: string;
+      FDescription: string;
+      FDependencies: IList<string>;
+
+      function GetDependencies: IReadonlyList<string>;
+
+      procedure ReadInfoFile;
+
+    public
+      constructor Create(APath: string);
+
+      property Path: string read FPath;
+
+      property Name: string read FName;
+      property Version: string read FVersion;
+      property FactorioVersion: string read FFactorioVersion;
+      property Title: string read FTitle;
+      property Author: string read FAuthor;
+      property Contact: string read FAuthor;
+      property Homepage: string read FHomepage;
+      property Description: string read FDescription;
+      property Dependencies: IReadonlyList<string> read GetDependencies;
+
+      function GetJVersion: Integer;
+      procedure DefineJStorage(ASerializer: TJSerializer);
+
+    end;
+
   public const
 
     PrototypeClasses: array [TPrototype.TType] of TPrototypeClass = (
@@ -485,6 +541,8 @@ type
       );
 
   private
+    FAvailableMods: IObjectList<TMod>;
+    FActiveMods: IList<TMod>;
     FExpensive: Boolean;
     FPrototypeLists: array [TPrototype.TType] of ISortedObjectList<TPrototype>;
     FPrototypeMaps: array [TPrototype.TType] of IMap<AnsiString, TPrototype>;
@@ -516,9 +574,19 @@ type
     function GetAssemblingMachineOrder: IReadonlyList<TAssemblingMachine>;
     function GetInserterOrder: IReadonlyList<TInserter>;
     function GetTransportBeltOrder: IReadonlyList<TTransportBelt>;
+    function GetActiveMods: IReadonlyList<TMod>;
+    function GetAvailableMods: IReadonlyList<TMod>;
 
   public
-    constructor Create(AExpensive: Boolean = False);
+    constructor Create;
+
+    property AvailableMods: IReadonlyList<TMod> read GetAvailableMods;
+    property ActiveMods: IReadonlyList<TMod> read GetActiveMods;
+
+    procedure ActivateMod(AMod: TMod);
+    procedure DeactivateMod(AMod: TMod);
+
+    procedure Reload(AExpensive: Boolean = False);
 
     property Expensive: Boolean read FExpensive;
 
@@ -562,6 +630,11 @@ implementation
 
 { TFactorio }
 
+procedure TFactorio.ActivateMod(AMod: TMod);
+begin
+  FActiveMods.Add(AMod);
+end;
+
 class function TFactorio.ComparePrototypes(A, B: TPrototype): Boolean;
 begin
   Result := A.Order < B.Order;
@@ -572,7 +645,137 @@ begin
   Result := A.Order < B.Order;
 end;
 
-constructor TFactorio.Create(AExpensive: Boolean);
+constructor TFactorio.Create;
+begin
+
+end;
+
+procedure TFactorio.DeactivateMod(AMod: TMod);
+begin
+  FActiveMods.Remove(AMod);
+end;
+
+class function TFactorio.ExpandPath(APath: string): string;
+begin
+  Result := APath.Replace('__base__', 'data/base').Replace('__core__', 'data/core');
+end;
+
+function TFactorio.GetActiveMods: IReadonlyList<TMod>;
+begin
+
+end;
+
+function TFactorio.GetAssemblingMachine: IReadonlyMap<AnsiString, TAssemblingMachine>;
+begin
+  Result := Get<TAssemblingMachine>;
+end;
+
+function TFactorio.GetAssemblingMachineOrder: IReadonlyList<TAssemblingMachine>;
+begin
+  Result := Order<TAssemblingMachine>;
+end;
+
+function TFactorio.GetAvailableMods: IReadonlyList<TMod>;
+begin
+
+end;
+
+function TFactorio.GetCraftingMachine: IReadonlyMap<AnsiString, TCraftingMachine>;
+begin
+  Result := FCraftingMachineMap.ReadonlyMap;
+end;
+
+function TFactorio.GetCraftingMachineOrder: IReadonlyList<TCraftingMachine>;
+begin
+  Result := FCraftingMachineList.ReadonlyList;
+end;
+
+function TFactorio.GetFluid: IReadonlyMap<AnsiString, TFluid>;
+begin
+  Result := Get<TFluid>;
+end;
+
+function TFactorio.GetFluidOrder: IReadonlyList<TFluid>;
+begin
+  Result := Order<TFluid>;
+end;
+
+function TFactorio.GetGrouped: IReadonlyMap<AnsiString, TGrouped>;
+begin
+  Result := FGroupedMap.ReadonlyMap;
+end;
+
+function TFactorio.GetInserter: IReadonlyMap<AnsiString, TInserter>;
+begin
+  Result := Get<TInserter>;
+end;
+
+function TFactorio.GetInserterOrder: IReadonlyList<TInserter>;
+begin
+  Result := Order<TInserter>;
+end;
+
+function TFactorio.GetItem: IReadonlyMap<AnsiString, TItemOrFluid>;
+begin
+  Result := FItemMap.ReadonlyMap;
+end;
+
+function TFactorio.GetItemGroup: IReadonlyMap<AnsiString, TItemGroup>;
+begin
+  Result := Get<TItemGroup>;
+end;
+
+function TFactorio.GetItemGroupOrder: IReadonlyList<TItemGroup>;
+begin
+  Result := Order<TItemGroup>;
+end;
+
+function TFactorio.GetItemSubgroup: IReadonlyMap<AnsiString, TItemSubgroup>;
+begin
+  Result := Get<TItemSubgroup>;
+end;
+
+function TFactorio.GetRecipe: IReadonlyMap<AnsiString, TRecipe>;
+begin
+  Result := Get<TRecipe>;
+end;
+
+function TFactorio.GetRecipeCategory: IReadonlyMap<AnsiString, TRecipeCategory>;
+begin
+  Result := Get<TRecipeCategory>;
+end;
+
+function TFactorio.GetRecipeCategoryOrder: IReadonlyList<TRecipeCategory>;
+begin
+  Result := Order<TRecipeCategory>;
+end;
+
+function TFactorio.GetRecipeOrder: IReadonlyList<TRecipe>;
+begin
+  Result := Order<TRecipe>;
+end;
+
+function TFactorio.GetTransportBelt: IReadonlyMap<AnsiString, TTransportBelt>;
+begin
+  Result := Get<TTransportBelt>;
+end;
+
+function TFactorio.GetTransportBeltOrder: IReadonlyList<TTransportBelt>;
+begin
+  Result := Order<TTransportBelt>;
+end;
+
+function TFactorio.Order(AType: TPrototype.TType): IReadonlyList<TPrototype>;
+begin
+  Result := FPrototypeLists[AType].ReadonlyList;
+end;
+
+function TFactorio.Order<T>: IReadonlyList<T>;
+begin
+  Result := IReadonlyList<T>(FPrototypeLists[T.GetType].ReadonlyList);
+end;
+
+procedure TFactorio.Reload(AExpensive: Boolean);
 const
   InitCode: PAnsiChar =
     'defines = setmetatable({}, {__index = function(t) return t end})'#10 +
@@ -669,116 +872,6 @@ begin
   FCraftingMachineList := TSortedList<TCraftingMachine>.Create;
   FCraftingMachineList.Compare := ComparePrototypes<TCraftingMachine>;
   FCraftingMachineList.AddRange(FCraftingMachineMap.Values);
-end;
-
-class function TFactorio.ExpandPath(APath: string): string;
-begin
-  Result := APath.Replace('__base__', 'data/base').Replace('__core__', 'data/core');
-end;
-
-function TFactorio.GetAssemblingMachine: IReadonlyMap<AnsiString, TAssemblingMachine>;
-begin
-  Result := Get<TAssemblingMachine>;
-end;
-
-function TFactorio.GetAssemblingMachineOrder: IReadonlyList<TAssemblingMachine>;
-begin
-  Result := Order<TAssemblingMachine>;
-end;
-
-function TFactorio.GetCraftingMachine: IReadonlyMap<AnsiString, TCraftingMachine>;
-begin
-  Result := FCraftingMachineMap.ReadonlyMap;
-end;
-
-function TFactorio.GetCraftingMachineOrder: IReadonlyList<TCraftingMachine>;
-begin
-  Result := FCraftingMachineList.ReadonlyList;
-end;
-
-function TFactorio.GetFluid: IReadonlyMap<AnsiString, TFluid>;
-begin
-  Result := Get<TFluid>;
-end;
-
-function TFactorio.GetFluidOrder: IReadonlyList<TFluid>;
-begin
-  Result := Order<TFluid>;
-end;
-
-function TFactorio.GetGrouped: IReadonlyMap<AnsiString, TGrouped>;
-begin
-  Result := FGroupedMap.ReadonlyMap;
-end;
-
-function TFactorio.GetInserter: IReadonlyMap<AnsiString, TInserter>;
-begin
-  Result := Get<TInserter>;
-end;
-
-function TFactorio.GetInserterOrder: IReadonlyList<TInserter>;
-begin
-  Result := Order<TInserter>;
-end;
-
-function TFactorio.GetItem: IReadonlyMap<AnsiString, TItemOrFluid>;
-begin
-  Result := FItemMap.ReadonlyMap;
-end;
-
-function TFactorio.GetItemGroup: IReadonlyMap<AnsiString, TItemGroup>;
-begin
-  Result := Get<TItemGroup>;
-end;
-
-function TFactorio.GetItemGroupOrder: IReadonlyList<TItemGroup>;
-begin
-  Result := Order<TItemGroup>;
-end;
-
-function TFactorio.GetItemSubgroup: IReadonlyMap<AnsiString, TItemSubgroup>;
-begin
-  Result := Get<TItemSubgroup>;
-end;
-
-function TFactorio.GetRecipe: IReadonlyMap<AnsiString, TRecipe>;
-begin
-  Result := Get<TRecipe>;
-end;
-
-function TFactorio.GetRecipeCategory: IReadonlyMap<AnsiString, TRecipeCategory>;
-begin
-  Result := Get<TRecipeCategory>;
-end;
-
-function TFactorio.GetRecipeCategoryOrder: IReadonlyList<TRecipeCategory>;
-begin
-  Result := Order<TRecipeCategory>;
-end;
-
-function TFactorio.GetRecipeOrder: IReadonlyList<TRecipe>;
-begin
-  Result := Order<TRecipe>;
-end;
-
-function TFactorio.GetTransportBelt: IReadonlyMap<AnsiString, TTransportBelt>;
-begin
-  Result := Get<TTransportBelt>;
-end;
-
-function TFactorio.GetTransportBeltOrder: IReadonlyList<TTransportBelt>;
-begin
-  Result := Order<TTransportBelt>;
-end;
-
-function TFactorio.Order(AType: TPrototype.TType): IReadonlyList<TPrototype>;
-begin
-  Result := FPrototypeLists[AType].ReadonlyList;
-end;
-
-function TFactorio.Order<T>: IReadonlyList<T>;
-begin
-  Result := IReadonlyList<T>(FPrototypeLists[T.GetType].ReadonlyList);
 end;
 
 function TFactorio.Get(AType: TPrototype.TType): IReadonlyMap<AnsiString, TPrototype>;
@@ -1476,6 +1569,50 @@ begin
           end) then
           Exit;
   Result := nil;
+end;
+
+{ TFactorio.TModInfo }
+
+constructor TFactorio.TMod.Create(APath: string);
+begin
+  FPath := APath;
+  FDependencies := TList<string>.Create;
+  ReadInfoFile;
+end;
+
+procedure TFactorio.TMod.DefineJStorage(ASerializer: TJSerializer);
+begin
+  ASerializer.Define('name', FName);
+  ASerializer.Define('version', FVersion);
+  ASerializer.Define('factorio_version', FFactorioVersion);
+  ASerializer.Define('title', FTitle);
+  ASerializer.Define('author', FAuthor);
+  ASerializer.Define('contact', FContact);
+  ASerializer.Define('homepage', FHomepage);
+  ASerializer.Define('description', FDescription);
+  ASerializer.DefineCollection('dependencies', FDependencies);
+end;
+
+function TFactorio.TMod.GetDependencies: IReadonlyList<string>;
+begin
+  Result := FDependencies.ReadonlyList;
+end;
+
+function TFactorio.TMod.GetJVersion: Integer;
+begin
+  Result := 0;
+end;
+
+procedure TFactorio.TMod.ReadInfoFile;
+var
+  JInfo: TJObject;
+begin
+  JInfo := TJObject.CreateFromFile(TPath.Combine(Path, 'info.json'));
+  try
+    TJSerializer.Unserialize(Self, JInfo);
+  finally
+    JInfo.Free;
+  end;
 end;
 
 end.

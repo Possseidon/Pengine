@@ -114,6 +114,7 @@ begin
   LoadFont('SGA');
   LoadFont('FAL1');
   LoadFont('FAL2');
+  LoadFont('ZUISH');
 
   LoadWords;
 

@@ -22,6 +22,7 @@ uses
   Pengine.ICollections,
   Pengine.IntMaths,
   Pengine.Utility,
+  Pengine.EventHandling,
 
   Pengine.Factorio.General,
 
@@ -69,6 +70,8 @@ type
     FTargetWidth: Integer;
     FTargetHeight: Integer;
     FSelectedGroup: TFactorio.TItemGroup;
+    FMachineArrayChangeSubscription: IEventSubscription;
+    FMachineArrayRemoveSubscription: IEventSubscription;
 
     procedure DrawBox(G: IGPGraphics; X, Y, Size: Integer; AType: TBoxDrawType);
 
@@ -167,8 +170,8 @@ begin
   Top := Mouse.CursorPos.Y - 100;
 
   FMachineArray := AMachineArray;
-  FMachineArray.OnRemove.Add(MachineArrayDestroy);
-  FMachineArray.OnChange.Add(MachineArrayChange);
+  FMachineArrayRemoveSubscription := FMachineArray.OnRemove.Subscribe(MachineArrayDestroy);
+  FMachineArrayChangeSubscription := FMachineArray.OnChange.Subscribe(MachineArrayChange);
   if FMachineArray.HasRecipe then
     FSelectedGroup := FMachineArray.Recipe.Group;
   MachineArrayChange;
@@ -186,8 +189,8 @@ procedure TfrmRecipes.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   if FMachineArray <> nil then
   begin
-    FMachineArray.OnRemove.Remove(MachineArrayDestroy);
-    FMachineArray.OnChange.Remove(MachineArrayChange);
+    FMachineArrayChangeSubscription := nil;
+    FMachineArrayRemoveSubscription := nil;
     FMachineArray := nil;
   end;
 end;

@@ -417,6 +417,26 @@ begin
     if Attribute.Location <> -1 then
     begin
       glEnableVertexAttribArray(Attribute.Location);
+      // TODO: Matrices (not sure about mat2) needs to be handles like this instead, but might still give some problems:
+      {
+        if Attribute.DataType = dtMat2x4 then
+        begin
+        glVertexAttribPointer(
+        Attribute.Location,
+        4,
+        Ord(Attribute.BaseDataType),
+        True,
+        GLProgram.AttributeStride,
+        Pointer(Attribute.Offset));
+        glVertexAttribPointer(
+        Attribute.Location + 1,
+        4,
+        Ord(Attribute.BaseDataType),
+        True,
+        GLProgram.AttributeStride,
+        Pointer(Attribute.Offset + SizeOf(Single) * 4));
+        end
+      }
       glVertexAttribPointer(
         Attribute.Location,
         Attribute.BaseCount,

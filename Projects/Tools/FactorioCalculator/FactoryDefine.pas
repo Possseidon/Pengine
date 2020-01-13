@@ -30,19 +30,14 @@ type
   IConnectionNet = interface;
 
   TMachinePort = class
-  public type
-
-    TEventInfo = TSenderEventInfo<TMachinePort>;
-    TEvent = TEvent<TEventInfo>;
-
   private
     FMachineArray: TMachineArray;
-    FOnRemove: TEvent;
+    FOnRemove: TEvent<TMachinePort>;
 
     function GetItemsPerSecond: Single; virtual;
     function GetCraftingMachine: TFactorio.TCraftingMachine;
     function GetRecipe: TFactorio.TRecipe;
-    function GetOnRemove: TEvent.TAccess;
+    function GetOnRemove: TEvent<TMachinePort>.TAccess;
 
     function GetPos: TVector2; virtual; abstract;
     function GetBounds: TBounds2;
@@ -76,7 +71,7 @@ type
 
     procedure Draw(G: IGPGraphics); virtual;
 
-    property OnRemove: TEvent.TAccess read GetOnRemove;
+    property OnRemove: TEvent<TMachinePort>.TAccess read GetOnRemove;
 
   end;
 
@@ -125,12 +120,6 @@ type
   end;
 
   TMachineArray = class(TInterfaceBase, IJSerializable)
-  public type
-
-    TEventInfo = TSenderEventInfo<TMachineArray>;
-
-    TEvent = TEvent<TEventInfo>;
-
   private
     FFactorio: TFactorio;
     FFactory: TFactory;
@@ -141,8 +130,8 @@ type
     FCraftingMachine: TFactorio.TCraftingMachine;
     FCount: Integer;
     FPerformance: Single;
-    FOnChange: TEvent;
-    FOnRemove: TEvent;
+    FOnChange: TEvent<TMachineArray>;
+    FOnRemove: TEvent<TMachineArray>;
 
     function GetIndex: Integer;
 
@@ -160,8 +149,8 @@ type
     function GetOutputs: IReadonlyList<TMachineOutput>;
     function GetPortHeight: Integer;
 
-    function GetOnChange: TEvent.TAccess;
-    function GetOnRemove: TEvent.TAccess;
+    function GetOnChange: TEvent<TMachineArray>.TAccess;
+    function GetOnRemove: TEvent<TMachineArray>.TAccess;
 
     procedure Change;
     procedure GeneratePorts;
@@ -206,8 +195,8 @@ type
 
     property PortHeight: Integer read GetPortHeight;
 
-    property OnChange: TEvent.TAccess read GetOnChange;
-    property OnRemove: TEvent.TAccess read GetOnRemove;
+    property OnChange: TEvent<TMachineArray>.TAccess read GetOnChange;
+    property OnRemove: TEvent<TMachineArray>.TAccess read GetOnRemove;
 
     procedure Draw(G: IGPGraphics);
 
@@ -233,8 +222,8 @@ type
     function GetPos: TVector2;
     procedure SetPos(const Value: TVector2);
     function GetBounds: TBounds2;
-    function GetOnChange: TEvent<TSenderEventInfo<IConnectionNet>>.TAccess;
-    function GetOnRemove: TEvent<TSenderEventInfo<IConnectionNet>>.TAccess;
+    function GetOnChange: TEvent<IConnectionNet>.TAccess;
+    function GetOnRemove: TEvent<IConnectionNet>.TAccess;
 
     property MachinePorts: IReadonlyList<TMachinePort> read GetMachinePorts;
     property Outputs: IIterate<TMachineOutput> read GetOutputs;
@@ -255,25 +244,19 @@ type
 
     procedure Draw(G: IGPGraphics);
 
-    property OnChange: TEvent<TSenderEventInfo<IConnectionNet>>.TAccess read GetOnChange;
-    property OnRemove: TEvent<TSenderEventInfo<IConnectionNet>>.TAccess read GetOnRemove;
+    property OnChange: TEvent<IConnectionNet>.TAccess read GetOnChange;
+    property OnRemove: TEvent<IConnectionNet>.TAccess read GetOnRemove;
 
   end;
 
   TConnectionNet = class(TInterfacedObject, IConnectionNet, IJSerializable)
-  public type
-
-    TEventInfo = TSenderEventInfo<IConnectionNet>;
-
-    TEvent = TEvent<TEventInfo>;
-
   private
     FFactorio: TFactorio;
     FFactory: TFactory;
     FPos: TVector2;
     FMachinePorts: IList<TMachinePort>;
-    FOnChange: TEvent;
-    FOnRemove: TEvent;
+    FOnChange: TEvent<IConnectionNet>;
+    FOnRemove: TEvent<IConnectionNet>;
 
     function GetMachinePorts: IReadonlyList<TMachinePort>;
     function GetOutputs: IIterate<TMachineOutput>;
@@ -289,8 +272,8 @@ type
     procedure SetPos(const Value: TVector2);
     function GetBounds: TBounds2;
 
-    function GetOnChange: TEvent.TAccess;
-    function GetOnRemove: TEvent.TAccess;
+    function GetOnChange: TEvent<IConnectionNet>.TAccess;
+    function GetOnRemove: TEvent<IConnectionNet>.TAccess;
 
     procedure Change;
 
@@ -322,8 +305,8 @@ type
 
     procedure Draw(G: IGPGraphics);
 
-    property OnChange: TEvent.TAccess read GetOnChange;
-    property OnRemove: TEvent.TAccess read GetOnRemove;
+    property OnChange: TEvent<IConnectionNet>.TAccess read GetOnChange;
+    property OnRemove: TEvent<IConnectionNet>.TAccess read GetOnRemove;
 
     // IJSerializable
     function GetJVersion: Integer;
@@ -332,71 +315,34 @@ type
   end;
 
   TFactory = class(TInterfaceBase, IJSerializable)
-  public type
-
-    TEventInfo = TSenderEventInfo<TFactory>;
-
-    TEvent = TEvent<TEventInfo>;
-
-    TMachineArrayEventInfo = class(TEventInfo)
-    private
-      FMachineArray: TMachineArray;
-
-    public
-      constructor Create(ASender: TFactory; AMachineArray: TMachineArray);
-
-      property MachineArray: TMachineArray read FMachineArray;
-
-    end;
-
-    TMachineArrayEvent = TEvent<TMachineArrayEventInfo>;
-
-    TConnectionNetEventInfo = class(TEventInfo)
-    private
-      FConnectionNet: IConnectionNet;
-
-    public
-      constructor Create(ASender: TFactory; AConnectionNet: IConnectionNet);
-
-      property ConnectionNet: IConnectionNet read FConnectionNet;
-
-    end;
-
-    TConnectionNetEvent = TEvent<TConnectionNetEventInfo>;
-
   private
     FFactorio: TFactorio;
     FMachineArrays: IObjectList<TMachineArray>;
     FConnectionNets: IList<IConnectionNet>;
-    FOnMachineArrayAdd: TMachineArrayEvent;
-    FOnMachineArrayChange: TMachineArrayEvent;
-    FOnMachineArrayRemove: TMachineArrayEvent;
-    FOnMachineArrayOrderChange: TEvent;
-    FOnConnectionNetAdd: TConnectionNetEvent;
-    FOnConnectionNetChange: TConnectionNetEvent;
-    FOnConnectionNetRemove: TConnectionNetEvent;
-    FOnConnectionNetOrderChange: TEvent;
+    FOnMachineArrayAdd: TEvent<TMachineArray>;
+    FOnMachineArrayChange: TEvent<TMachineArray>;
+    FOnMachineArrayRemove: TEvent<TMachineArray>;
+    FOnMachineArrayOrderChange: TEvent<TFactory>;
+    FOnConnectionNetAdd: TEvent<IConnectionNet>;
+    FOnConnectionNetChange: TEvent<IConnectionNet>;
+    FOnConnectionNetRemove: TEvent<IConnectionNet>;
+    FOnConnectionNetOrderChange: TEvent<TFactory>;
 
     function GetMachineArrays: IReadonlyList<TMachineArray>;
     function GetConnectionNets: IReadonlyList<IConnectionNet>;
 
-    procedure MachineArrayChange(AInfo: TMachineArray.TEventInfo);
-    procedure MachineArrayRemove(AInfo: TMachineArray.TEventInfo);
-    procedure ConnectionNetChange(AInfo: TConnectionNet.TEventInfo);
-    procedure ConnectionNetRemove(AInfo: TConnectionNet.TEventInfo);
+    function GetOnMachineArrayAdd: TEvent<TMachineArray>.TAccess;
+    function GetOnMachineArrayChange: TEvent<TMachineArray>.TAccess;
+    function GetOnMachineArrayRemove: TEvent<TMachineArray>.TAccess;
+    function GetOnMachineArayIndexChange: TEvent<TFactory>.TAccess;
 
-    function GetOnMachineArrayAdd: TMachineArrayEvent.TAccess;
-    function GetOnMachineArrayChange: TMachineArrayEvent.TAccess;
-    function GetOnMachineArrayRemove: TMachineArrayEvent.TAccess;
-
-    function GetOnConnectionNetAdd: TConnectionNetEvent.TAccess;
-    function GetOnConnectionNetChange: TConnectionNetEvent.TAccess;
-    function GetOnConnectionNetRemove: TConnectionNetEvent.TAccess;
+    function GetOnConnectionNetAdd: TEvent<IConnectionNet>.TAccess;
+    function GetOnConnectionNetChange: TEvent<IConnectionNet>.TAccess;
+    function GetOnConnectionNetRemove: TEvent<IConnectionNet>.TAccess;
+    function GetOnConnectionNetIndexChange: TEvent<TFactory>.TAccess;
 
     function CreateMachineArray: TMachineArray;
     function CreateConnectionNet: IConnectionNet;
-    function GetOnConnectionNetIndexChange: TEvent.TAccess;
-    function GetOnMachineArayIndexChange: TEvent.TAccess;
 
   public
     constructor Create(AFactorio: TFactorio);
@@ -423,15 +369,15 @@ type
 
     procedure Clear;
 
-    property OnMachineArrayAdd: TMachineArrayEvent.TAccess read GetOnMachineArrayAdd;
-    property OnMachineArrayRemove: TMachineArrayEvent.TAccess read GetOnMachineArrayRemove;
-    property OnMachineArrayChange: TMachineArrayEvent.TAccess read GetOnMachineArrayChange;
-    property OnMachineArrayIndexChange: TEvent.TAccess read GetOnMachineArayIndexChange;
+    property OnMachineArrayAdd: TEvent<TMachineArray>.TAccess read GetOnMachineArrayAdd;
+    property OnMachineArrayRemove: TEvent<TMachineArray>.TAccess read GetOnMachineArrayRemove;
+    property OnMachineArrayChange: TEvent<TMachineArray>.TAccess read GetOnMachineArrayChange;
+    property OnMachineArrayIndexChange: TEvent<TFactory>.TAccess read GetOnMachineArayIndexChange;
 
-    property OnConnectionNetAdd: TConnectionNetEvent.TAccess read GetOnConnectionNetAdd;
-    property OnConnectionNetRemove: TConnectionNetEvent.TAccess read GetOnConnectionNetRemove;
-    property OnConnectionNetChange: TConnectionNetEvent.TAccess read GetOnConnectionNetChange;
-    property OnConnectionNetIndexChange: TEvent.TAccess read GetOnConnectionNetIndexChange;
+    property OnConnectionNetAdd: TEvent<IConnectionNet>.TAccess read GetOnConnectionNetAdd;
+    property OnConnectionNetRemove: TEvent<IConnectionNet>.TAccess read GetOnConnectionNetRemove;
+    property OnConnectionNetChange: TEvent<IConnectionNet>.TAccess read GetOnConnectionNetChange;
+    property OnConnectionNetIndexChange: TEvent<TFactory>.TAccess read GetOnConnectionNetIndexChange;
 
     function MachineArrayAt(APos: TVector2): TMachineArray;
     function MachinePortAt(APos: TVector2): TMachinePort;
@@ -514,16 +460,6 @@ begin
   end;
 end;
 
-procedure TFactory.ConnectionNetChange(AInfo: TConnectionNet.TEventInfo);
-begin
-  FOnConnectionNetAdd.Execute(TConnectionNetEventInfo.Create(Self, AInfo.Sender));
-end;
-
-procedure TFactory.ConnectionNetRemove(AInfo: TConnectionNet.TEventInfo);
-begin
-  FOnConnectionNetRemove.Execute(TConnectionNetEventInfo.Create(Self, AInfo.Sender));
-end;
-
 constructor TFactory.Create(AFactorio: TFactorio);
 begin
   FFactorio := AFactorio;
@@ -534,23 +470,23 @@ end;
 function TFactory.CreateConnectionNet: IConnectionNet;
 begin
   Result := TConnectionNet.Create(Self);
-  Result.OnChange.Add(ConnectionNetChange);
-  Result.OnRemove.Add(ConnectionNetRemove);
-  FOnConnectionNetAdd.Execute(TConnectionNetEventInfo.Create(Self, Result));
+  Result.OnChange.Add(FOnConnectionNetChange.Execute);
+  Result.OnRemove.Add(FOnConnectionNetRemove.Execute);
+  FOnConnectionNetAdd.Execute(Result);
 end;
 
 function TFactory.CreateMachineArray: TMachineArray;
 begin
   Result := TMachineArray.Create(Self);
-  Result.OnChange.Add(MachineArrayChange);
-  Result.OnRemove.Add(MachineArrayRemove);
-  FOnMachineArrayAdd.Execute(TMachineArrayEventInfo.Create(Self, Result));
+  Result.OnChange.Add(FOnMachineArrayChange.Execute);
+  Result.OnRemove.Add(FOnMachineArrayRemove.Execute);
+  FOnMachineArrayAdd.Execute(Result);
 end;
 
 procedure TFactory.DefineJStorage(ASerializer: TJSerializer);
 begin
-  ASerializer.DefineList<TMachineArray>('MachineArrays', FMachineArrays, CreateMachineArray);
-  ASerializer.DefineList<IConnectionNet>('ConnectionNets', FConnectionNets, CreateConnectionNet);
+  ASerializer.DefineCollection<TMachineArray>('MachineArrays', FMachineArrays, CreateMachineArray);
+  ASerializer.DefineCollection<IConnectionNet>('ConnectionNets', FConnectionNets, CreateConnectionNet);
 end;
 
 procedure TFactory.Disconnect(AMachinePort: TMachinePort);
@@ -585,42 +521,42 @@ begin
   Result := FMachineArrays.ReadonlyList;
 end;
 
-function TFactory.GetOnConnectionNetAdd: TConnectionNetEvent.TAccess;
+function TFactory.GetOnConnectionNetAdd: TEvent<IConnectionNet>.TAccess;
 begin
   Result := FOnConnectionNetAdd.Access;
 end;
 
-function TFactory.GetOnConnectionNetChange: TConnectionNetEvent.TAccess;
+function TFactory.GetOnConnectionNetChange: TEvent<IConnectionNet>.TAccess;
 begin
   Result := FOnConnectionNetChange.Access;
 end;
 
-function TFactory.GetOnConnectionNetIndexChange: TEvent.TAccess;
+function TFactory.GetOnConnectionNetIndexChange: TEvent<TFactory>.TAccess;
 begin
   Result := FOnConnectionNetOrderChange.Access;
 end;
 
-function TFactory.GetOnConnectionNetRemove: TConnectionNetEvent.TAccess;
+function TFactory.GetOnConnectionNetRemove: TEvent<IConnectionNet>.TAccess;
 begin
   Result := FOnConnectionNetRemove.Access;
 end;
 
-function TFactory.GetOnMachineArayIndexChange: TEvent.TAccess;
+function TFactory.GetOnMachineArayIndexChange: TEvent<TFactory>.TAccess;
 begin
   Result := FOnMachineArrayOrderChange.Access;
 end;
 
-function TFactory.GetOnMachineArrayAdd: TMachineArrayEvent.TAccess;
+function TFactory.GetOnMachineArrayAdd: TEvent<TMachineArray>.TAccess;
 begin
   Result := FOnMachineArrayAdd.Access;
 end;
 
-function TFactory.GetOnMachineArrayChange: TMachineArrayEvent.TAccess;
+function TFactory.GetOnMachineArrayChange: TEvent<TMachineArray>.TAccess;
 begin
   Result := FOnMachineArrayChange.Access;
 end;
 
-function TFactory.GetOnMachineArrayRemove: TMachineArrayEvent.TAccess;
+function TFactory.GetOnMachineArrayRemove: TEvent<TMachineArray>.TAccess;
 begin
   Result := FOnMachineArrayRemove.Access;
 end;
@@ -643,16 +579,6 @@ begin
     if APos in Result.Bounds then
       Exit;
   Result := nil;
-end;
-
-procedure TFactory.MachineArrayChange(AInfo: TMachineArray.TEventInfo);
-begin
-  FOnMachineArrayChange.Execute(TMachineArrayEventInfo.Create(Self, AInfo.Sender));
-end;
-
-procedure TFactory.MachineArrayRemove(AInfo: TMachineArray.TEventInfo);
-begin
-  FOnMachineArrayRemove.Execute(TMachineArrayEventInfo.Create(Self, AInfo.Sender));
 end;
 
 function TFactory.MachinePortAt(APos: TVector2): TMachinePort;
@@ -690,13 +616,13 @@ end;
 procedure TFactory.SetConnectionNetIndex(AConnectionNet: IConnectionNet; AIndex: Integer);
 begin
   FConnectionNets.Move(AConnectionNet, AIndex);
-  FOnConnectionnetOrderChange.Execute(TEventInfo.Create(Self));
+  FOnConnectionnetOrderChange.Execute(Self);
 end;
 
 procedure TFactory.SetMachineArrayIndex(AMachineArray: TMachineArray; AIndex: Integer);
 begin
   FMachineArrays.Move(AMachineArray, AIndex);
-  FOnMachineArrayOrderChange.Execute(TEventInfo.Create(Self));
+  FOnMachineArrayOrderChange.Execute(Self);
 end;
 
 procedure TFactory.ToggleConnection(A, B: TMachinePort);
@@ -732,7 +658,7 @@ end;
 
 procedure TMachineArray.Change;
 begin
-  FOnChange.Execute(TEventInfo.Create(Self));
+  FOnChange.Execute(Self);
 end;
 
 procedure TMachineArray.CheckFactory;
@@ -854,7 +780,7 @@ end;
 
 destructor TMachineArray.Destroy;
 begin
-  FOnRemove.Execute(TEventInfo.Create(Self));
+  FOnRemove.Execute(Self);
   inherited;
 end;
 
@@ -894,7 +820,7 @@ begin
 
 end;
 
-function TMachineArray.GetOnRemove: TEvent.TAccess;
+function TMachineArray.GetOnRemove: TEvent<TMachineArray>.TAccess;
 begin
   Result := FOnRemove.Access;
 end;
@@ -1018,7 +944,7 @@ begin
   Result := 0;
 end;
 
-function TMachineArray.GetOnChange: TEvent.TAccess;
+function TMachineArray.GetOnChange: TEvent<TMachineArray>.TAccess;
 begin
   Result := FOnChange.Access;
 end;
@@ -1086,14 +1012,6 @@ begin
   Change;
 end;
 
-{ TFactory.TMachineArrayEventInfo }
-
-constructor TFactory.TMachineArrayEventInfo.Create(ASender: TFactory; AMachineArray: TMachineArray);
-begin
-  inherited Create(ASender);
-  FMachineArray := AMachineArray;
-end;
-
 { TFactoryPort }
 
 constructor TMachinePort.Create(AMachineArray: TMachineArray);
@@ -1105,7 +1023,7 @@ destructor TMachinePort.Destroy;
 begin
   if IsConnected then
     ConnectionNet.Remove(Self);
-  FOnRemove.Execute(TEventInfo.Create(Self));
+  FOnRemove.Execute(Self);
   inherited;
 end;
 
@@ -1159,7 +1077,7 @@ begin
     / Recipe.EnergyRequired;
 end;
 
-function TMachinePort.GetOnRemove: TEvent.TAccess;
+function TMachinePort.GetOnRemove: TEvent<TMachinePort>.TAccess;
 begin
   Result := FOnRemove.Access;
 end;
@@ -1282,12 +1200,12 @@ begin
   Result := FMachinePorts.Iterate.Generic.OfType<TMachineInput>;
 end;
 
-function TConnectionNet.GetOnChange: TEvent.TAccess;
+function TConnectionNet.GetOnChange: TEvent<IConnectionNet>.TAccess;
 begin
   Result := FOnChange.Access;
 end;
 
-function TConnectionNet.GetOnRemove: TEvent.TAccess;
+function TConnectionNet.GetOnRemove: TEvent<IConnectionNet>.TAccess;
 begin
   Result := FOnRemove.Access;
 end;
@@ -1396,7 +1314,7 @@ end;
 
 procedure TConnectionNet.Change;
 begin
-  FOnChange.Execute(TEventInfo.Create(Self));
+  FOnChange.Execute(Self);
 end;
 
 function TConnectionNet.Add(AMachinePort: TMachinePort): Boolean;
@@ -1469,7 +1387,7 @@ end;
 
 destructor TConnectionNet.Destroy;
 begin
-  FOnRemove.Execute(TEventInfo.Create(Self));
+  FOnRemove.Execute(Self);
   inherited;
 end;
 
@@ -1573,14 +1491,6 @@ begin
         G.DrawImage(Belts[I].Icon, Pos.X + (I - Belts.Count / 2) * 32, Pos.Y, 32, 32);
     end;
   end;
-end;
-
-{ TFactory.TConnectionNetEventInfo }
-
-constructor TFactory.TConnectionNetEventInfo.Create(ASender: TFactory; AConnectionNet: IConnectionNet);
-begin
-  inherited Create(ASender);
-  FConnectionNet := AConnectionNet;
 end;
 
 end.

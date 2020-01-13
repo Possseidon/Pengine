@@ -15,9 +15,12 @@ type
     TPlanePoint = record
       Position: TVector3;
       Direction: TVector3;
+      Corner: TCorner3;
 
-      constructor Create(APosition, ADirection: TVector3);
+      constructor Create(APosition, ADirection: TVector3; ACorner: TCorner3);
 
+      /// <summary>Return true when Position and Direction are equal.</summary>
+      /// <remarks>The Corners are ignored.</remarks>
       class operator Equal(const A, B: TPlanePoint): Boolean;
 
     end;
@@ -25,21 +28,23 @@ type
     TPlaneInfo = record
       Points: array [0 .. 2] of TPlanePoint;
 
+      function MakePlane(AOffset: Single = 0.5): TPlane3;
+
     end;
 
   private
     class var
       FLookup: array [Byte] of TArray<TPlaneInfo>;
 
-    class function NewPlanePoint(APosition, ADirection: TVector3): TPlanePoint; overload;
-    class function NewPlanePoint(APosition: TIntVector3; AAxis: TCoordAxis3): TPlanePoint; overload;
+    class function NewPlanePoint(ACorner: TCorner3; ADirection: TVector3): TPlanePoint; overload;
+    class function NewPlanePoint(ACorner: TCorner3; AAxis: TCoordAxis3): TPlanePoint; overload;
+    class function NewInvertedPlanePoint(ACorner: TCorner3; AAxis: TCoordAxis3): TPlanePoint;
     class function NewPlaneInfo(A, B, C: TPlanePoint): TPlaneInfo;
 
   public
     class constructor Create;
 
-    class function GetTriangles(ACorners: TCorners3; AOffset: Single = 0.5): TArray<TPlane3>; overload;
-    // class function GetVoxelTriangles(ACorners: TCorners3): TArray<TPlane3>;
+    class function GetPlanes(ACorners: TCorners3): TArray<TPlaneInfo>; overload;
 
   end;
 
@@ -132,8 +137,7 @@ var
   Flipped: Boolean;
   Corner: TCorner3;
   Offset, J, K: Integer;
-  PlanePoint: TPlanePoint;
-  Center, CenterLow, CenterHigh: TPlanePoint;
+  Center: TPlanePoint;
 begin
   for I := 0 to 255 do
   begin
@@ -150,8 +154,8 @@ begin
       case Length(MaskedCorners) of
         1:
           AddLine(NewLine(CountWindings(MaskedCorners[0]), False,
-            NewPlanePoint(Corner3Pos[MaskedCorners[0]], Right),
-            NewPlanePoint(Corner3Pos[MaskedCorners[0]], Up)
+            NewPlanePoint(MaskedCorners[0], Right),
+            NewPlanePoint(MaskedCorners[0], Up)
             ));
         2:
           if CornersConnected(MaskedCorners[0], MaskedCorners[1]) then
@@ -161,27 +165,27 @@ begin
             if Flipped then
               Normal := -Normal;
             AddLine(NewLine(Flipped, False,
-              NewPlanePoint(Corner3Pos[MaskedCorners[0]], Normal),
-              NewPlanePoint(Corner3Pos[MaskedCorners[1]], Normal)
+              NewPlanePoint(MaskedCorners[0], Normal),
+              NewPlanePoint(MaskedCorners[1], Normal)
               ));
           end
           else
           begin
             AddLine(NewLine(CountWindings(MaskedCorners[0]), False,
-              NewPlanePoint(Corner3Pos[MaskedCorners[0]], Right),
-              NewPlanePoint(Corner3Pos[MaskedCorners[0]], Up)
+              NewPlanePoint(MaskedCorners[0], Right),
+              NewPlanePoint(MaskedCorners[0], Up)
               ));
             AddLine(NewLine(CountWindings(MaskedCorners[1]), False,
-              NewPlanePoint(Corner3Pos[MaskedCorners[1]], Right),
-              NewPlanePoint(Corner3Pos[MaskedCorners[1]], Up)
+              NewPlanePoint(MaskedCorners[1], Right),
+              NewPlanePoint(MaskedCorners[1], Up)
               ));
           end;
         3:
           begin
             Corner := TCorner3(ILog2(Byte(CubeSideCornerMask[Dir] - Corners)));
             AddLine(NewLine(not CountWindings(Corner), True,
-              NewPlanePoint(Corner3Pos[Corner], Right),
-              NewPlanePoint(Corner3Pos[Corner], Up)
+              NewInvertedPlanePoint(Corner, Right),
+              NewInvertedPlanePoint(Corner, Up)
               ));
           end;
       end;
@@ -220,47 +224,25 @@ begin
     for J := 0 to LoopCount - 1 do
     begin
       Loop := Loops[J];
-      SetLength(FLookup[I], Offset + Loop.Count);
-      case Loop.Count of
-        3:
-          FLookup[I][Offset] := NewPlaneInfo(Loop.Points[0], Loop.Points[1], Loop.Points[2]);
-      else
-        Center := NewPlanePoint(0, 0);
-        for K := 0 to Loop.Count - 1 do
-        begin
-          Center.Position := Center.Position + Loop.Points[K].Position;
-          Center.Direction := Center.Direction + Loop.Points[K].Direction;
-        end;
-        Center.Position := Center.Position / Loop.Count;
-        Center.Direction := Center.Direction / Loop.Count;
+      SetLength(FLookup[I], Offset + Loop.Count - 2);
 
-        for K := 0 to Loop.Count - 1 do
-          FLookup[I][Offset + K] := NewPlaneInfo(Loop.Points[K], Loop.Points[K + 1], Center);
-        FLookup[I][Offset + Loop.Count - 1] := NewPlaneInfo(Loop.Points[Loop.Count - 1], Loop.Points[0], Center);
-      end;
-      Inc(Offset, Loop.Count);
+      for K := 0 to Loop.Count - 3 do
+        FLookup[I][Offset + K] := NewPlaneInfo(Loop.Points[0], Loop.Points[K + 1], Loop.Points[K + 2]);
+
+      Inc(Offset, Loop.Count - 2);
     end;
   end;
 end;
 
-class function TMarchingCubes.GetTriangles(ACorners: TCorners3; AOffset: Single): TArray<TPlane3>;
-var
-  Info: TArray<TPlaneInfo>;
-  I: Integer;
-  Pos: TVector3;
+class function TMarchingCubes.GetPlanes(ACorners: TCorners3): TArray<TPlaneInfo>;
 begin
-  Info := FLookup[Byte(ACorners)];
-  SetLength(Result, Length(Info));
-  for I := 0 to Length(Info) - 1 do
-  begin
-    Pos := Info[I].Points[0].Position;
-    Result[I].Create(
-      Pos + AOffset * TVector3(Info[I].Points[0].Direction),
-      Pos.VectorTo(Info[I].Points[1].Position) + AOffset * (Info[I].Points[1].Direction -
-      TVector3(Info[I].Points[0].Direction)),
-      Pos.VectorTo(Info[I].Points[2].Position) + AOffset * (Info[I].Points[2].Direction -
-      TVector3(Info[I].Points[0].Direction)));
-  end;
+  Result := FLookup[Byte(ACorners)];
+end;
+
+class function TMarchingCubes.NewInvertedPlanePoint(ACorner: TCorner3; AAxis: TCoordAxis3): TPlanePoint;
+begin
+  Result := NewPlanePoint(ACorner, AAxis);
+  Result.Corner := TCorner3(Byte(Result.Corner) xor (1 shl (Ord(AAxis) - Ord(caX))));
 end;
 
 class function TMarchingCubes.NewPlaneInfo(A, B, C: TPlanePoint): TPlaneInfo;
@@ -270,31 +252,44 @@ begin
   Result.Points[2] := C;
 end;
 
-class function TMarchingCubes.NewPlanePoint(APosition: TIntVector3; AAxis: TCoordAxis3): TPlanePoint;
+class function TMarchingCubes.NewPlanePoint(ACorner: TCorner3; AAxis: TCoordAxis3): TPlanePoint;
 var
-  Dir: TIntVector3;
+  Pos, Dir: TIntVector3;
 begin
+  Pos := Corner3Pos[ACorner];
   Dir := 0;
-  Dir[AAxis] := 1 - APosition[AAxis] * 2;
-  Result.Create(APosition, Dir);
+  Dir[AAxis] := 1 - Pos[AAxis] * 2;
+  Result.Create(Pos, Dir, ACorner);
 end;
 
-class function TMarchingCubes.NewPlanePoint(APosition, ADirection: TVector3): TPlanePoint;
+class function TMarchingCubes.NewPlanePoint(ACorner: TCorner3; ADirection: TVector3): TPlanePoint;
 begin
-  Result.Create(APosition, ADirection);
+  Result.Create(Corner3Pos[ACorner], ADirection, ACorner);
 end;
 
 { TMarchingCubes.TPlanePoint }
 
-constructor TMarchingCubes.TPlanePoint.Create(APosition, ADirection: TVector3);
+constructor TMarchingCubes.TPlanePoint.Create(APosition, ADirection: TVector3; ACorner: TCorner3);
 begin
   Position := APosition;
   Direction := ADirection;
+  Corner := ACorner;
 end;
 
 class operator TMarchingCubes.TPlanePoint.Equal(const A, B: TPlanePoint): Boolean;
 begin
+  // Corner is not relevant
   Result := (A.Position = B.Position) and (A.Direction = B.Direction);
+end;
+
+{ TMarchingCubes.TPlaneInfo }
+
+function TMarchingCubes.TPlaneInfo.MakePlane(AOffset: Single): TPlane3;
+begin
+  Result.Create(
+    Points[0].Position + AOffset * TVector3(Points[0].Direction),
+    Points[0].Position.VectorTo(Points[1].Position) + AOffset * (Points[1].Direction - TVector3(Points[0].Direction)),
+    Points[0].Position.VectorTo(Points[2].Position) + AOffset * (Points[2].Direction - TVector3(Points[0].Direction)));
 end;
 
 end.

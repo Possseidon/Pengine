@@ -54,7 +54,6 @@ object frmMain: TfrmMain
     ParentFont = False
     TabOrder = 0
     OnKeyPress = edtInputKeyPress
-    ExplicitWidth = 348
   end
   object Panel1: TPanel
     AlignWithMargins = True
@@ -64,7 +63,6 @@ object frmMain: TfrmMain
     Height = 38
     Align = alTop
     TabOrder = 1
-    ExplicitWidth = 348
     object lbStatistics: TLabel
       Left = 414
       Top = 11
@@ -109,7 +107,8 @@ object frmMain: TfrmMain
       Items.Strings = (
         'Standard Galactic Alphabet'
         'Futurama Alien Alphabet One'
-        'Futurama Alien Alphabet Two')
+        'Futurama Alien Alphabet Two'
+        'Zuish')
     end
   end
 end

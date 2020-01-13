@@ -17,7 +17,7 @@ type
   TDefault = class
   private
     class function HashString(A: UnicodeString): Cardinal; overload; static; inline;
-    {$IFDEF WINDOWS}
+    {$IFDEF MSWINDOWS}
     class function HashString(A: AnsiString): Cardinal; overload; static; inline;
     {$ENDIF}
   public
@@ -247,17 +247,18 @@ type
 
   /// <summary>Serves as a base for both IList<T> and ISortedList<T>.</summary>
   IListBase<T> = interface(ICollection<T>)
+    function GetItem(AIndex: Integer): T;
     function GetCapacity: Integer;
     procedure SetCapacity(const Value: Integer);
+
+    function GetMaxIndex: Integer;
+    function GetFirst: T;
+    function GetLast: T;
+
     function GetCompare: TFunc<T, T, Boolean>;
     function GetEquate: TFunc<T, T, Boolean>;
     procedure SetCompare(const Value: TFunc<T, T, Boolean>);
     procedure SetEquate(const Value: TFunc<T, T, Boolean>);
-
-    function GetItem(AIndex: Integer): T;
-    function GetMaxIndex: Integer;
-    function GetFirst: T;
-    function GetLast: T;
 
     property Items[AIndex: Integer]: T read GetItem; default;
     property Capacity: Integer read GetCapacity write SetCapacity;
@@ -287,8 +288,12 @@ type
   /// <summary>An ordered collection of items.</summary>
   IList<T> = interface(IListBase<T>)
     procedure SetItem(AIndex: Integer; AItem: T);
+    procedure SetFirst(const Value: T);
+    procedure SetLast(const Value: T);
 
     property Items[AIndex: Integer]: T read GetItem write SetItem; default;
+    property First: T read GetFirst write SetFirst;
+    property Last: T read GetLast write SetLast;
 
     procedure Insert(AIndex: Integer; AItem: T);
     procedure InsertRange(AIndex: Integer; AItems: array of T); overload;
@@ -602,6 +607,8 @@ type
     IReadonlyCollection<T>)
   private
     procedure SetItem(AIndex: Integer; AValue: T);
+    procedure SetFirst(const Value: T);
+    procedure SetLast(const Value: T);
 
   public
     constructor Create; overload; override;
@@ -625,6 +632,8 @@ type
 
     // IList<T>
     property Items[AIndex: Integer]: T read GetItem write SetItem; default;
+    property First: T read GetFirst write SetFirst;
+    property Last: T read GetLast write SetLast;
 
     function Add(AItem: T): Boolean;
     procedure AddRange(AItems: array of T); overload;
@@ -1597,7 +1606,7 @@ begin
       end;
     tkUString:
       Result := PUnicodeString(@A)^ = PUnicodeString(@B)^;
-    {$IFDEF WINDOWS}
+    {$IFDEF MSWINDOWS}
     tkLString:
       Result := PAnsiString(@A)^ = PAnsiString(@B)^;
     {$ENDIF}
@@ -1649,7 +1658,7 @@ begin
     }
     tkUString:
       Result := HashString(PUnicodeString(@A)^);
-    {$IFDEF WINDOWS}
+    {$IFDEF MSWINDOWS}
     tkLString:
       Result := HashString(PAnsiString(@A)^);
     {$ENDIF}
@@ -1663,7 +1672,8 @@ begin
   Result := THashBobJenkins.GetHashValue(A[1], Length(A) * SizeOf(WideChar));
 end;
 
-{$IFDEF WINDOWS}
+{$IFDEF MSWINDOWS}
+
 
 class function TDefault.HashString(A: AnsiString): Cardinal;
 begin
@@ -1698,7 +1708,7 @@ begin
       Exit(PShortInt(@A)^ < PShortInt(@B)^);
     if TypeInfo(T) = TypeInfo(Byte) then
       Exit(PByte(@A)^ < PByte(@B)^);
-    {$IFDEF WINDOWS}
+    {$IFDEF MSWINDOWS}
     if TypeInfo(T) = TypeInfo(AnsiChar) then
       Exit(PAnsiChar(@A)^ < PAnsiChar(@B)^);
     {$ENDIF}
@@ -1733,7 +1743,7 @@ begin
       Exit(PExtended(@A)^ < PExtended(@B)^);
 
     // strings
-    {$IFDEF WINDOWS}
+    {$IFDEF MSWINDOWS}
     if TypeInfo(T) = TypeInfo(AnsiString) then
       Exit(PAnsiString(@A)^ < PAnsiString(@B)^);
     {$ENDIF}
@@ -1748,12 +1758,12 @@ end;
 
 { TDefault<T> }
 {
-class constructor TDefault<T>.Create;
-begin
+  class constructor TDefault<T>.Create;
+  begin
   FEquateFunc := TDefault.Equate<T>;
   FCompareFunc := TDefault.Compare<T>;
   FHashFunc := TDefault.Hash<T>;
-end;
+  end;
 }
 { TPair<K, V> }
 
@@ -1872,11 +1882,6 @@ procedure TListBase<T>.RangeCheck(AIndex: Integer);
 begin
   if (AIndex < 0) or (AIndex >= Count) then
     raise EListError.Create('List index out of range.')at ReturnAddress;
-end;
-
-function TListBase<T>.DataPointer: Pointer;
-begin
-  Result := @FItems[0];
 end;
 
 procedure TListBase<T>.DoRemoveAt(AIndex: Integer);
@@ -2031,11 +2036,6 @@ begin
   Result := FCompare;
 end;
 
-function TListBase<T>.GetEnumerator: IIterator<T>;
-begin
-  Result := TListIterator<T>.Create(Self);
-end;
-
 function TListBase<T>.GetEquate: TFunc<T, T, Boolean>;
 begin
   Result := FEquate;
@@ -2055,6 +2055,11 @@ begin
     FEquate := Value
   else
     FEquate := TDefault.Equate<T>;
+end;
+
+function TListBase<T>.GetEnumerator: IIterator<T>;
+begin
+  Result := TListIterator<T>.Create(Self);
 end;
 
 function TListBase<T>.Empty: Boolean;
@@ -2081,16 +2086,21 @@ begin
   DoRemoveRange(AIndex, ACount);
 end;
 
-function TListBase<T>.Reverse: IIterate<T>;
-begin
-  Result := TListReverseIterate<T>.Create(Self);
-end;
-
 function TListBase<T>.Extract(AIndex: Integer): T;
 begin
   RangeCheck(AIndex);
   Result := Items[AIndex];
   RemoveAt(AIndex);
+end;
+
+function TListBase<T>.Reverse: IIterate<T>;
+begin
+  Result := TListReverseIterate<T>.Create(Self);
+end;
+
+function TListBase<T>.DataPointer: Pointer;
+begin
+  Result := @FItems[0];
 end;
 
 { TListBaseIterator<T> }
@@ -2110,6 +2120,16 @@ end;
 procedure TList<T>.SetItem(AIndex: Integer; AValue: T);
 begin
   FItems[AIndex] := AValue;
+end;
+
+procedure TList<T>.SetFirst(const Value: T);
+begin
+  Items[0] := Value;
+end;
+
+procedure TList<T>.SetLast(const Value: T);
+begin
+  Items[MaxIndex] := Value;
 end;
 
 constructor TList<T>.Create;
@@ -2143,18 +2163,6 @@ end;
 function TList<T>.Iterate: IIterate<T>;
 begin
   Result := TIterableIterate<T>.Create(Self);
-end;
-
-procedure TList<T>.Move(AFrom, ATo: Integer);
-begin
-  if AFrom = ATo then
-    Exit;
-  Insert(ATo, Extract(AFrom));
-end;
-
-procedure TList<T>.Move(AItem: T; AIndex: Integer);
-begin
-  Move(IndexOf(AItem), AIndex);
 end;
 
 function TList<T>.ReadonlyCollection: IReadonlyCollection<T>;
@@ -2229,15 +2237,16 @@ begin
   Result := -1;
 end;
 
-function TList<T>.TrySort: Boolean;
+procedure TList<T>.Move(AFrom, ATo: Integer);
 begin
-  Result := inherited;
+  if AFrom = ATo then
+    Exit;
+  Insert(ATo, Extract(AFrom));
 end;
 
-procedure TList<T>.Sort;
+procedure TList<T>.Move(AItem: T; AIndex: Integer);
 begin
-  if not TrySort then
-    raise EListError.Create('Invalid sort function.');
+  Move(IndexOf(AItem), AIndex);
 end;
 
 procedure TList<T>.Swap(AIndex1, AIndex2: Integer);
@@ -2259,6 +2268,17 @@ end;
 procedure TList<T>.Swap(AItem1, AItem2: T);
 begin
   Swap(IndexOf(AItem1), IndexOf(AItem2));
+end;
+
+function TList<T>.TrySort: Boolean;
+begin
+  Result := inherited;
+end;
+
+procedure TList<T>.Sort;
+begin
+  if not TrySort then
+    raise EListError.Create('Invalid sort function.');
 end;
 
 function TList<T>.Copy: IList<T>;

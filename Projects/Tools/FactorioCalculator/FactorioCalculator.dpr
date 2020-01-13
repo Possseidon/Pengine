@@ -6,7 +6,9 @@ uses
   FactoryDefine in 'FactoryDefine.pas',
   RecipeForm in 'RecipeForm.pas' {frmRecipes},
   FactoryFrame in 'FactoryFrame.pas' {frmFactory: TFrame},
-  FactoryActions in 'FactoryActions.pas';
+  FactoryActions in 'FactoryActions.pas',
+  Vcl.Themes,
+  Vcl.Styles;
 
 {$R *.res}
 

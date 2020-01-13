@@ -6,22 +6,17 @@ uniform mat4 view_matrix;
 uniform mat4 mvp_matrix;
 
 in vec3 vpos;
-in vec2 vtexcoord;
-in vec2 vborderlow;
-in vec2 vborderhigh;
+in vec3 vtex_factors;
+in vec4 vtex_border0;
+in vec4 vtex_border1;
+in vec4 vtex_border2;
 in vec3 vnormal;
-in vec3 vtangent;
-in vec3 vbitangent;
 
-out vec2 ftexcoord;
-out vec3 fnormal;
-out vec3 ftangent;
-out vec3 fbitangent;
-out vec3 fcam;
 out vec3 fpos;
-// out vec3 frawpos;
-flat out vec2 fborderlow;
-flat out vec2 fborderhigh;
+out vec3 ftex_factors;
+flat out mat3x4 ftex_borders;
+out vec3 fnormal;
+flat out vec3 fcam;
 
 vec3 cam()
 {
@@ -32,15 +27,10 @@ void main()
 {
   vec4 p = model_matrix * vec4(vpos, 1);
   fpos = p.xyz / p.w;
-  // frawpos = vpos;
-  fcam = cam();
-  
-  ftexcoord = vtexcoord;
+  ftex_factors = vtex_factors;
+  ftex_borders = mat3x4(vtex_border0, vtex_border1, vtex_border2);
   fnormal = normalize(model_rmatrix * vnormal);
-  ftangent = normalize(model_rmatrix * vtangent);
-  fbitangent = normalize(model_rmatrix * vbitangent);
-  fborderlow = vborderlow;
-  fborderhigh = vborderhigh;
+  fcam = cam();  
   
   gl_Position = mvp_matrix * vec4(vpos, 1);
 }

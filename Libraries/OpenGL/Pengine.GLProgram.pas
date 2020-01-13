@@ -21,7 +21,7 @@ uses
   Pengine.Hasher,
   Pengine.Matrix,
   Pengine.GLEnums,
-  Pengine.GLState, 
+  Pengine.GLState,
   Pengine.Vector,
   Pengine.ResourceManager;
 
@@ -277,7 +277,8 @@ uses
 
 { TShader.TAttribute }
 
-constructor TGLProgram.TAttribute.Create(AShader: TGLProgram; AName: AnsiString; ADataType: TGLDataType; ACount: Integer);
+constructor TGLProgram.TAttribute.Create(AShader: TGLProgram; AName: AnsiString; ADataType: TGLDataType;
+  ACount: Integer);
 begin
   inherited;
   FOffset := -1;
@@ -653,7 +654,8 @@ end;
 
 { TShader.TVariable }
 
-constructor TGLProgram.TVariable.Create(AShader: TGLProgram; AName: AnsiString; ADataType: TGLDataType; ACount: Integer);
+constructor TGLProgram.TVariable.Create(AShader: TGLProgram; AName: AnsiString; ADataType: TGLDataType;
+  ACount: Integer);
 begin
   FProgram := AShader;
   FName := AName;
@@ -906,4 +908,3 @@ begin
 end;
 
 end.
-

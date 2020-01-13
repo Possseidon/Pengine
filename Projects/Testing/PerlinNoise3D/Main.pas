@@ -56,11 +56,9 @@ type
 
     TData = record
       Pos: TVector3;
-      TexCoord: TTexCoord2;
-      Border: TBounds2;
+      TexFactors: TVector3;
+      TexBorders: array [0 .. 2] of TBounds2;
       Normal: TVector3;
-      Tangent: TVector3;
-      Bitangent: TVector3;
     end;
 
   protected
@@ -81,7 +79,8 @@ type
     FSun: TDirectionalLightShaded;
     FCameraLight: TPointLight;
     FNoise: TPerlinNoise3;
-    FLineThicknessUniform: TGLProgram.TUniform<Single>;
+    FTriFactorsCubicUniform: TGLProgram.TUniform<Integer>;
+    FTexFactorsCubicUniform: TGLProgram.TUniform<Integer>;
     FMap: array of array of array of Byte;
     FSize: TIntVector3;
 
@@ -90,12 +89,8 @@ type
 
     procedure BuildVAO;
 
-    procedure SetLineThickness(const Value: Single);
-    function GetLineThickness: Single;
     function GetMap(APos: TIntVector3): Byte;
     procedure SetMap(APos: TIntVector3; const Value: Byte);
-
-    property LineThickness: Single read GetLineThickness write SetLineThickness;
 
     procedure Build(ABreak: Boolean);
 
@@ -113,6 +108,9 @@ var
   frmMain: TfrmMain;
 
 implementation
+
+uses
+  dglOpenGL;
 
 {$R *.dfm}
 
@@ -133,18 +131,16 @@ class function TModelGLProgram.GetAttributeOrder: TGLProgram.TAttributeOrder;
 begin
   Result := [
     'vpos',
-    'vtexcoord',
-    'vborderlow',
-    'vborderhigh',
-    'vnormal',
-    'vtangent',
-    'vbitangent'
-    ];
+    'vtex_factors',
+    'vtex_border0',
+    'vtex_border1',
+    'vtex_border2',
+    'vnormal'];
 end;
 
 class procedure TModelGLProgram.GetData(out AName: string; out AResource: Boolean);
 begin
-  AResource := True;
+  AResource := False;
   if AResource then
     AName := 'MODEL'
   else
@@ -170,25 +166,96 @@ begin
     FCamera.Location.Slide(-DeltaTime);
 
   if Input.KeyTyped('Q') then
-    LineThickness := LineThickness / 2;
+    FTriFactorsCubicUniform.Value := (FTriFactorsCubicUniform.Value + 1) mod 3;
   if Input.KeyTyped('E') then
-    LineThickness := LineThickness * 2;
+    FTexFactorsCubicUniform.Value := (FTexFactorsCubicUniform.Value + 1) mod 3;
 
-  if not FCamera.Moving then
-  begin
+  {
+    if not FCamera.Moving then
+    begin
     if Input.ButtonPressed(mbLeft) then
-      Build(True);
+    Build(True);
     if Input.ButtonPressed(mbRight) then
-      Build(False);
-  end;
+    Build(False);
+    end;
+  }
 
   FCameraLight.Position := FCamera.Location.RealPosition;
-  // FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0), DeltaTime * 10);
+  // FSun.Direction := FSun.Direction.Rotate(Vec3(0, 1, 0), DeltaTime * 2);
 end;
 
-function TfrmMain.GetLineThickness: Single;
+procedure TfrmMain.BuildVAO;
+var
+  VBOData: IList<TModelGLProgram.TData>;
+  Normals: IMap<TVector3, TVector3>;
+  P: TIntVector3;
+  Corners: TCorners3;
+  Corner: TCorner3;
+  PlaneInfo: TMarchingCubes.TPlaneInfo;
+  I: Integer;
+  Stopwatch: TStopwatch;
+  NormalPair: TPair<TVector3, TVector3>;
+  Texture: Integer;
+  Data: TModelGLProgram.TData;
+  Plane: TPlane3;
+  Normal: TVector3;
 begin
-  Result := FLineThicknessUniform.Value;
+  Stopwatch := TStopwatch.StartNew;
+
+  Normals := TMap<TVector3, TVector3>.Create;
+  VBOData := TList<TModelGLProgram.TData>.Create;
+  for P in IBounds3(-1, FSize) do
+  begin
+    // build set of all adjacent block directions
+    Corners := [];
+    for Corner := Low(TCorner3) to High(TCorner3) do
+    begin
+      Texture := Map[P + Corner3Pos[Corner]];
+      if Texture <> 0 then
+        Include(Corners, Corner);
+    end;
+
+    for PlaneInfo in TMarchingCubes.GetPlanes(Corners) do
+    begin
+      Plane := PlaneInfo.MakePlane;
+      for I := 0 to 2 do
+      begin
+        Data.TexBorders[I] := FTextureAtlas[Map[P + Corner3Pos[PlaneInfo.Points[I].Corner]].ToString].Bounds;
+        Data.TexFactors := 0;
+        Data.TexFactors[TCoordAxis3(I + Ord(caX))] := 1;
+        Data.Pos := (Plane[TriangleTexCoords[I]] + P - TVector3(FSize) / 2) * 0.1;
+        if Normals.Get(Data.Pos, Normal) then
+          Normals[Data.Pos] := Normal + Plane.Normal
+        else
+          Normals[Data.Pos] := Plane.Normal;
+        // Data.Normal := Plane.Normal;
+        VBOData.Add(Data);
+      end;
+    end;
+
+  end;
+
+  for NormalPair in Normals do
+    Normals[NormalPair.Key] := NormalPair.Value.Normalize;
+
+  TParallel.For(0, VBOData.MaxIndex,
+    procedure(I: Integer)
+    var
+      Data: TModelGLProgram.TData;
+    begin
+      Data := VBOData[I];
+      Data.Normal := Normals[Data.Pos];
+      VBOData[I] := Data;
+    end);
+
+  Writeln('Filling VBO: ', Stopwatch.Elapsed.ToString);
+  Writeln('Triangles: ', VBOData.Count);
+
+  Stopwatch := TStopwatch.StartNew;
+  FVAO.VBO.Generate(VBOData.Count, buDynamicDraw, VBOData.DataPointer);
+  Writeln('Sending VBO to GPU: ', Stopwatch.Elapsed.ToString);
+
+  FLightSystem.RenderShadows;
 end;
 
 function TfrmMain.GetMap(APos: TIntVector3): Byte;
@@ -196,6 +263,12 @@ begin
   if APos in FSize then
     Exit(FMap[APos.X, APos.Y, APos.Z]);
   Result := 0;
+end;
+
+procedure TfrmMain.SetMap(APos: TIntVector3; const Value: Byte);
+begin
+  if APos in FSize then
+    FMap[APos.X, APos.Y, APos.Z] := Value;
 end;
 
 procedure TfrmMain.Build(ABreak: Boolean);
@@ -220,115 +293,53 @@ end;
 procedure TfrmMain.Generate;
 var
   Stopwatch: TStopwatch;
-  Rays: IList<TVector3>;
-  P2: TIntVector2;
 begin
   Stopwatch := TStopwatch.StartNew;
 
   FSize := 128;
   SetLength(FMap, FSize.X, FSize.Y, FSize.Z);
 
-  Rays := TList<TVector3>.Create;
-
-  for P2 in IVec2(10, 10) do
-    Rays.Add(TVector3.NormalFrom2D(TVector2(P2) / 10));
-
-  TParallel.&For(0, FSize.Volume - 1,
+  TParallel.For(0, FSize.Volume - 1,
     procedure(I: Integer)
     var
       P: TIntVector3;
       D: TVector3;
-      Ray: TVector3;
+      V: Single;
     begin
       P := IVec3(I mod FSize.X, I div FSize.X mod FSize.Y, I div FSize.X div FSize.Y);
-      D := TVector3(P).VectorTo(4).Normalize;
+      D := TVector3(P).VectorTo(64).Normalize;
+      {
+        if FNoise[Vec3(P.X * 5 / FSize.X, 0, P.Z * 7 / FSize.Z)] > (P.Y / FSize.Y * 4 - 3.5) then
+        Map[P] := 2;
+      }
+      if TVector3(P).DistanceTo(64) / 64 < FNoise[D * 3] * 0.25 + 0.75 then
+      begin
+        V := FNoise[D * 4];
+        if V < -0.2 then
+          Map[P] := 1
+        else if V < -0.1 then
+          Map[P] := 2
+        else if V < 0 then
+          Map[P] := 3
+        else if V < 0.1 then
+          Map[P] := 4
+        else if V < 0.2 then
+          Map[P] := 5
+        else
+          Map[P] := 6;
+      end;
 
-      // if FNoise[Vec3(P.X * 5 / FSize.X, 0, P.Z * 7 / FSize.Z)] > (P.Y / FSize.Y * 4 - 3.5) then
-      // Map[P] := 1;
+      if (FNoise[TVector3(P * 3 + 51) / FSize * 2] + 0.2 * FNoise[TVector3(P) / FSize * 7]) > 0.2 then
+        Map[P] := 0;
 
-      // if TVector3(P).DistanceTo(4) / 4 < FNoise[D * 3] * 0.25 + 0.75 then
-      // Map[P] := 1;
-
-      // if (FNoise[TVector3(P * 3 + 51) / FSize * 2] + 0.2 * FNoise[TVector3(P) / FSize * 7]) > 0.2 then
-      // Map[P] := 0;
-
-      for Ray in Rays do
-        if ((TVector3(P) / TVector3(FSize)).DistanceTo(0.5) < 0.5) and
-          (Line3(TVector3(FSize) / 2, Ray).Height(P) < 3) and
-          (Line3(TVector3(FSize) / 2, Ray).OrthoProj(P) >= 0) then
-          Map[P] := 1;
     end);
   Writeln('Generating Map: ', Stopwatch.Elapsed.ToString);
 
   BuildVAO;
 end;
 
-procedure TfrmMain.BuildVAO;
-var
-  VBOData: IList<TModelGLProgram.TData>;
-  P: TIntVector3;
-  Corners: TCorners3;
-  Corner: TCorner3;
-  Plane: TPlane3;
-  I: Integer;
-  Stopwatch: TStopwatch;
-
-  procedure AddTriangle(APlane: TPlane3; ATexTile: TTexTile; APos: TVector3; AVBOData: IList<TModelGLProgram.TData>;
-  ASize: TIntVector3); inline;
-  var
-    TexCoord: TTexCoord2;
-    Data: TModelGLProgram.TData;
-  begin
-    Data.Border := ATexTile.BoundsHalfPixelInset;
-    Data.Normal := APlane.Normal;
-    Data.Tangent := APlane.DX;
-    Data.Bitangent := APlane.DY;
-    for TexCoord in TriangleTexCoords do
-    begin
-      Data.Pos := (APlane[TexCoord] + APos - TVector3(ASize) / 2) * 0.1;
-      Data.TexCoord := ATexTile.Bounds[TexCoord];
-      AVBOData.Add(Data);
-    end;
-  end;
-
-begin
-  Stopwatch := TStopwatch.StartNew;
-  VBOData := TList<TModelGLProgram.TData>.Create;
-  for P in IBounds3(-1, FSize) do
-  begin
-    for I := 1 to 1 do
-    begin
-      // build set of all adjacent block directions
-      Corners := [];
-      for Corner := Low(TCorner3) to High(TCorner3) do
-        if Map[P + Corner3Pos[Corner]] = I then
-          Include(Corners, Corner);
-
-      for Plane in TMarchingCubes.GetTriangles(Corners) do
-        AddTriangle(Plane, FTextureAtlas[I.ToString], P, VBOData, FSize);
-    end;
-  end;
-
-  Writeln('Filling VBO: ', Stopwatch.Elapsed.ToString);
-  Writeln('Triangles: ', VBOData.Count);
-
-  Stopwatch := TStopwatch.StartNew;
-  FVAO.VBO.Generate(VBOData.Count, buDynamicDraw, VBOData.DataPointer);
-  Writeln('Sending VBO to GPU: ', Stopwatch.Elapsed.ToString);
-
-  FLightSystem.RenderShadows;
-end;
-
 procedure TfrmMain.Init;
-var
-  B: Byte;
-  M: Integer;
 begin
-  M := 0;
-  for B := 0 to 255 do
-    M := Max(M, Length(TMarchingCubes.GetTriangles(TCorners3(B))));
-  Writeln('Max triangles: ', M);
-
   Context.VSync := False;
   // Context.Samples := Context.MaxSamples;
 
@@ -343,7 +354,8 @@ begin
   FNoise := TPerlinNoise3.Create;
   FNoise.GradientSource := TGradient3.Create;
 
-  FLineThicknessUniform := FModelGLProgram.Data.Uniform<Single>('linethickness');
+  FTriFactorsCubicUniform := FModelGLProgram.Data.Uniform<Integer>('triFactorsStyle');
+  FTexFactorsCubicUniform := FModelGLProgram.Data.Uniform<Integer>('texFactorsStyle');
 
   FSkybox.AddStripe(ColorRGB(0.4, 0.6, 0.8), -90);
   FSkybox.AddStripe(ColorRGB(0.5, 0.7, 0.9), 0);
@@ -355,7 +367,7 @@ begin
   FCamera.AddRenderable(FSkybox);
   FCamera.AddRenderable(FVAO);
 
-  FCamera.Location.Offset := Vec3(0, 0, 20);
+  FCamera.Location.Offset := Vec3(0, 0, 10);
   FCamera.Location.TurnAngle := -30;
   FCamera.Location.PitchAngle := -20;
 
@@ -363,18 +375,28 @@ begin
   FTextureAtlas.AddSubType('smap', FModelGLProgram.Data.UniformSampler('specularmap'), 0);
   // Default color should be different! Something fishy!
   FTextureAtlas.AddSubType('nmap', FModelGLProgram.Data.UniformSampler('normalmap'), ColorRGB(1.0, 0.5, 0.5));
-  FTextureAtlas.Texture.MagFilter := magNearest;
-  FTextureAtlas.SubTypes[0].Texture.MagFilter := magNearest;
-  FTextureAtlas.SubTypes[1].Texture.MagFilter := magNearest;
+  FTextureAtlas.Texture.MagFilter := magLinear;
+  FTextureAtlas.SubTypes[0].Texture.MagFilter := magLinear;
+  FTextureAtlas.SubTypes[1].Texture.MagFilter := magLinear;
 
   // FStoneTexture := FTextureAtlas.AddFromFile('stone', 'Data/stone.png');
-  FTextureAtlas.AddFromResource('1', 'STONE');
-
+  // FTextureAtlas.AddFromResource('1', 'STONE');
+  FTextureAtlas.AddFromFile('1', 'Data/realstone.png');
+  FTextureAtlas.AddFromFile('2', 'Data/dirt.jpg');
+  FTextureAtlas.AddFromFile('3', 'Data/rectangles.png');
+  FTextureAtlas.AddFromFile('4', 'Data/pebbles.png');
+  FTextureAtlas.AddFromFile('5', 'Data/test.png');
+  FTextureAtlas.AddFromFile('6', 'Data/grass.jpg');
+  {
+  }
+  // FTextureAtlas.AddFromFile('3', 'Data/grass.jpg');
   FTextureAtlas.Generate;
 
   FLightSystem.BindToGLProgram(FModelGLProgram.Data);
+  FLightSystem.Ambient := 1.0;
 
   FSun := TDirectionalLightShaded.Create(FLightSystem);
+  FSun.Color := ColorRGB(0.7, 0.7, 0.7);
   FSun.Direction := Vec3(-0.2, -1, -0.3);
   FSun.AddOccluder(FVAO);
   FSun.Size := 24;
@@ -388,19 +410,10 @@ begin
 
   // Game.OnRender.Add(FLightSystem.RenderShadows);
 
+  // glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+
   Generate;
   BuildVAO;
-end;
-
-procedure TfrmMain.SetLineThickness(const Value: Single);
-begin
-  FLineThicknessUniform.Value := Value;
-end;
-
-procedure TfrmMain.SetMap(APos: TIntVector3; const Value: Byte);
-begin
-  if APos in FSize then
-    FMap[APos.X, APos.Y, APos.Z] := Value;
 end;
 
 procedure TfrmMain.Finalize;

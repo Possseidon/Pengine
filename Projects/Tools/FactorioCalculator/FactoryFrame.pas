@@ -25,20 +25,14 @@ uses
 type
 
   TCamera = class
-  public type
-
-    TEventInfo = TSenderEventInfo<TCamera>;
-
-    TEvent = TEvent<TEventInfo>;
-
   private
-    FOnChange: TEvent;
+    FOnChange: TEvent<TCamera>;
     FPos: TVector2;
     FScale: Single;
 
     procedure SetPos(const Value: TVector2);
     procedure SetScale(const Value: Single);
-    function GetOnChange: TEvent.TAccess;
+    function GetOnChange: TEvent<TCamera>.TAccess;
 
   public
     constructor Create;
@@ -46,7 +40,7 @@ type
     procedure Assign(AFrom: TCamera);
     function Copy: TCamera;
 
-    property OnChange: TEvent.TAccess read GetOnChange;
+    property OnChange: TEvent<TCamera>.TAccess read GetOnChange;
 
     procedure Reset;
 
@@ -83,7 +77,7 @@ type
     function CalculateCameraMatrix: IGPMatrix;
 
     function TransformHelper(APos: TVector2; ABack: Boolean): TVector2;
-    function FactoryToMouse(APos: TVector2): TVector2;
+    // function FactoryToMouse(APos: TVector2): TVector2;
     function MouseToFactory(X, Y: Single): TVector2; overload;
     function MouseToFactory(APos: TVector2): TVector2; overload;
 
@@ -326,10 +320,12 @@ begin
   DrawConnection(G);
 end;
 
-function TfrmFactory.FactoryToMouse(APos: TVector2): TVector2;
-begin
+{
+  function TfrmFactory.FactoryToMouse(APos: TVector2): TVector2;
+  begin
   Result := TransformHelper(APos, False);
-end;
+  end;
+}
 
 procedure TfrmFactory.FrameMouseWheel(Sender: TObject; Shift: TShiftState;
   WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
@@ -399,7 +395,7 @@ begin
   Reset;
 end;
 
-function TCamera.GetOnChange: TEvent.TAccess;
+function TCamera.GetOnChange: TEvent<TCamera>.TAccess;
 begin
   Result := FOnChange.Access;
 end;
@@ -420,7 +416,7 @@ begin
   if Pos = Value then
     Exit;
   FPos := Value;
-  FOnChange.Execute(TEventInfo.Create(Self));
+  FOnChange.Execute(Self);
 end;
 
 procedure TCamera.SetScale(const Value: Single);
@@ -428,7 +424,7 @@ begin
   if Scale = Value then
     Exit;
   FScale := Value;
-  FOnChange.Execute(TEventInfo.Create(Self));
+  FOnChange.Execute(Self);
 end;
 
 procedure TCamera.Zoom(AFactor: Single; APos: TVector2);

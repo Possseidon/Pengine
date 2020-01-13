@@ -7,13 +7,13 @@ uses
   System.Math,
   System.RegularExpressions,
   System.IOUtils,
-  System.JSON, // TODO: Replace with Pengine.JSON
   System.Classes,
 
   Winapi.Windows,
 
+  Pengine.JSON,
   Pengine.Color,
-  Pengine.Collections,
+  Pengine.ICollections,
   Pengine.GLState,
   Pengine.IntMaths,
   Pengine.Hasher,
@@ -22,8 +22,7 @@ uses
   Pengine.EventHandling,
   Pengine.Vector,
   Pengine.Bitfield,
-  Pengine.GLProgram,
-  Pengine.CollectionInterfaces;
+  Pengine.GLProgram;
 
 type
 
@@ -49,23 +48,18 @@ type
   public type
 
     TFreeRows = class
-    public type
-
-      TRows = TArray<TIntBounds1>;
-
     private
-      FRows: TRows;
+      FRows: IList<TIntBounds1>;
       FSize: Integer;
 
-      function GetRows: TRows.TReader;
+      function GetRows: IReadonlyList<TIntBounds1>;
 
       procedure SetSize(const Value: Integer);
 
     public
       constructor Create(ASize: Integer = 0);
-      destructor Destroy; override;
 
-      property Rows: TRows.TReader read GetRows;
+      property Rows: IReadonlyList<TIntBounds1> read GetRows;
       property Size: Integer read FSize write SetSize;
 
       function Find(AStart, ASize: Integer; out APos: Integer): Boolean;
@@ -78,19 +72,14 @@ type
     end;
 
     TFreeSpace = class
-    public type
-
-      TRows = TObjectArray<TFreeRows>;
-
     private
-      FRows: TRows;
+      FRows: IObjectList<TFreeRows>;
       FSize: TIntVector2;
 
       procedure SetSize(const Value: TIntVector2);
 
     public
       constructor Create; overload;
-      destructor Destroy; override;
 
       property Size: TIntVector2 read FSize write SetSize;
 
@@ -106,31 +95,24 @@ type
     public type
 
       TMode = (tmNone, tmTextures, tmGrid, tmFont, tmRegions);
-      TValues = TMap<string, Single, TStringHasher>;
-      TRegions = TArray<TBounds2>;
 
     private
       FMode: TMode;
-      // Grid
-      FGrid: array [TCoordAxis2] of TSingleArray;
-      // Font
-      FWidths: array [Byte] of Single;
-      // Regions
-      // TODO: FRegions: TRegions;
+      FGrid: array [TCoordAxis2] of IList<Single>;
+      FFontWidths: array [Byte] of Single;
+      // TODO: FRegions: IList<TBounds2>;
+      FValues: IMap<string, Single>;
 
-      FValues: TValues;
-
-      procedure LoadGrid(ATexture: TTextureData; ATextures: TArray<TTextureData>);
-      procedure LoadFont(ATexture: TTextureData; ATextures: TArray<TTextureData>);
-      procedure LoadRegions(ATexture: TTextureData; ATextures: TArray<TTextureData>);
+      procedure LoadGrid(ATexture: TTextureData; const ATextures: IList<TTextureData>);
+      procedure LoadFont(ATexture: TTextureData; const ATextures: IList<TTextureData>);
+      procedure LoadRegions(ATexture: TTextureData; const ATextures: IList<TTextureData>);
 
     public
       constructor Create(AInfo: string);
-      destructor Destroy; override;
 
-      function GetTextureArray(ATexture: TTextureData): TArray<TTextureData>;
+      function GetTextureArray(ATexture: TTextureData): IList<TTextureData>;
 
-      function OwnValues: TValues;
+      function OwnValues: IMap<string, Single>;
 
     end;
 
@@ -143,30 +125,24 @@ type
         tsAdded
         );
 
-      TSubTextures = TObjectArray<TTextureData>;
-
-      TSubTiles = TRefArray<TTile>;
-
-      TInfoValues = TMap<string, Single, TStringHasher>;
-
     public const
 
       CharSpacingPixelsIdentifier = 'CharSpacingPixels';
 
     private
       FAtlas: TTextureAtlas;
-      FSubTiles: TSubTiles;
+      FSubTiles: IList<TTile>;
       FSubTileIndex: Integer;
       FName: string;
       FTexture: TTextureData;
-      FSubTextures: TSubTextures;
+      FSubTextures: IObjectList<TTextureData>;
       FState: TState;
       FPosition: TIntVector2;
-      FInfoValues: TInfoValues;
+      FInfoValues: IMap<string, Single>;
 
-      function GetSubTextures: TSubTextures.TReader;
+      function GetSubTextures: IReadonlyList<TTextureData>;
 
-      function GetSubTiles: TSubTiles.TReader;
+      function GetSubTiles: IReadonlyList<TTile>;
       function GetSubTile(AIndex: Integer): TTile;
 
       function GetPosition: TIntVector2;
@@ -178,7 +154,7 @@ type
       function GetSize: TIntVector2;
       function GetAspect: Single;
 
-      function GetInfoValues: TInfoValues.TReader;
+      function GetInfoValues: IReadonlyMap<string, Single>;
 
     public
       constructor Create(AAtlas: TTextureAtlas; AName: string; ATexture: TTextureData; AInfo: TInfo = nil); overload;
@@ -189,10 +165,10 @@ type
       property Name: string read FName;
 
       property Texture: TTextureData read FTexture;
-      property SubTextures: TSubTextures.TReader read GetSubTextures;
+      property SubTextures: IReadonlyList<TTextureData> read GetSubTextures;
 
       function HasSubTiles: Boolean;
-      property SubTiles: TSubTiles.TReader read GetSubTiles;
+      property SubTiles: IReadonlyList<TTile> read GetSubTiles;
       property SubTilesHelper[AIndex: Integer]: TTile read GetSubTile; default;
       property SubTileIndex: Integer read FSubTileIndex;
 
@@ -205,13 +181,11 @@ type
       property Size: TIntVector2 read GetSize;
       property Aspect: Single read GetAspect;
 
-      property InfoValues: TInfoValues.TReader read GetInfoValues;
+      property InfoValues: IReadonlyMap<string, Single> read GetInfoValues;
 
       function TextWidth(AText: string): Single;
 
     end;
-
-    TTiles = TToObjectMap<string, TTile, TStringHasher>;
 
     TSubType = class
     private
@@ -231,14 +205,12 @@ type
 
     end;
 
-    TSubTypes = TObjectArray<TSubType>;
-
   private
     FTexture: TTexture2D;
-    FSubTypes: TSubTypes;
+    FSubTypes: IObjectList<TSubType>;
     FSubTypesLocked: Boolean;
     FFreeSpace: TFreeSpace;
-    FTiles: TTiles;
+    FTiles: IToObjectMap<string, TTile>;
     FOnChanged: TEvent;
 
     function GetGLState: TGLState;
@@ -248,7 +220,7 @@ type
     function GetSize: Integer;
 
     procedure Resize(ASize: TIntVector2);
-    function GetSubTypes: TSubTypes.TReader;
+    function GetSubTypes: IReadonlyList<TSubType>;
 
     function GetOnChanged: TEvent.TAccess; inline;
 
@@ -267,7 +239,7 @@ type
     procedure Remove(AName: string);
 
     function AddSubType(ASuffix: string; ASampler: TGLProgram.TUniformSampler; ADefaultColor: TColorRGBA): TSubType;
-    property SubTypes: TSubTypes.TReader read GetSubTypes;
+    property SubTypes: IReadonlyList<TSubType> read GetSubTypes;
 
     property Texture: TTexture2D read FTexture;
 
@@ -293,15 +265,15 @@ constructor TTextureAtlas.TTile.Create(AAtlas: TTextureAtlas; AName: string; ATe
 var
   I: Integer;
   SubTile: TTile;
-  Values: TInfoValues;
-  Textures: TArray<TTextureData>;
+  Values: IMap<string, Single>;
+  Textures: IList<TTextureData>;
 begin
   if AInfo = nil then
   begin
     FAtlas := AAtlas;
     FName := AName;
     FTexture := ATexture;
-    FSubTextures := TSubTextures.Create;
+    FSubTextures := TObjectList<TTextureData>.Create;
     for I := 0 to Atlas.SubTypes.MaxIndex do
       FSubTextures.Add(nil);
   end
@@ -309,7 +281,6 @@ begin
   begin
     Textures := AInfo.GetTextureArray(ATexture);
     Create(AAtlas, AName, Textures);
-    Textures.Free;
     Values := AInfo.OwnValues;
     for SubTile in FSubTiles do
       SubTile.FInfoValues := Values;
@@ -323,9 +294,7 @@ var
   SubTile: TTile;
   Index: Integer;
 begin
-  FSubTiles := TSubTiles.Create;
-  if ATextures.CountOptimized then
-    FSubTiles.Capacity := ATextures.Count;
+  FSubTiles := TList<TTile>.Create;
   First := True;
   Index := 1;
   for Texture in ATextures do
@@ -337,9 +306,10 @@ begin
       First := False;
       Continue;
     end;
-    SubTile := FSubTiles.Add(TTile.Create(AAtlas, AName, Texture));
+    SubTile := TTile.Create(AAtlas, AName, Texture);
     SubTile.FSubTiles := FSubTiles;
     SubTile.FSubTileIndex := Index;
+    FSubTiles.Add(SubTile);
     Inc(Index);
   end;
 end;
@@ -349,13 +319,8 @@ var
   I: Integer;
 begin
   if HasSubTiles and (Self = FSubTiles[0]) then
-  begin
     for I := 1 to FSubTiles.MaxIndex do
       FSubTiles[I].Free;
-    FSubTiles.Free;
-    FInfoValues.Free;
-  end;
-  FSubTextures.Free;
   FTexture.Free;
   inherited;
 end;
@@ -375,9 +340,9 @@ begin
   Result := Atlas.HalfPixelInset(Bounds);
 end;
 
-function TTextureAtlas.TTile.GetInfoValues: TInfoValues.TReader;
+function TTextureAtlas.TTile.GetInfoValues: IReadonlyMap<string, Single>;
 begin
-  Result := FInfoValues.Reader;
+  Result := FInfoValues.ReadonlyMap;
 end;
 
 function TTextureAtlas.TTile.GetPosition: TIntVector2;
@@ -392,9 +357,9 @@ begin
   Result := FTexture.Size;
 end;
 
-function TTextureAtlas.TTile.GetSubTextures: TSubTextures.TReader;
+function TTextureAtlas.TTile.GetSubTextures: IReadonlyList<TTextureData>;
 begin
-  Result := FSubTextures.Reader;
+  Result := FSubTextures.ReadonlyList;
 end;
 
 function TTextureAtlas.TTile.GetSubTile(AIndex: Integer): TTile;
@@ -402,9 +367,9 @@ begin
   Result := FSubTiles[AIndex];
 end;
 
-function TTextureAtlas.TTile.GetSubTiles: TSubTiles.TReader;
+function TTextureAtlas.TTile.GetSubTiles: IReadonlyList<TTile>;
 begin
-  Result := FSubTiles.Reader;
+  Result := FSubTiles.ReadonlyList;
 end;
 
 function TTextureAtlas.TTile.GetTexelBounds: TIntBounds2;
@@ -443,7 +408,7 @@ end;
 function TTextureAtlas.Add(AName: string; ATexture: TTextureData; AInfo: TInfo): TTile;
 begin
   FSubTypesLocked := True;
-  if FTiles.KeyExists(AName) then
+  if FTiles.ContainsKey(AName) then
     raise ETextureAtlasTileExists.Create;
   Result := TTile.Create(Self, AName, ATexture, AInfo);
   FTiles[AName] := Result;
@@ -452,7 +417,7 @@ end;
 function TTextureAtlas.Add(AName: string; ATextures: IIterable<TTextureData>): TTile;
 begin
   FSubTypesLocked := True;
-  if FTiles.KeyExists(AName) then
+  if FTiles.ContainsKey(AName) then
     raise ETextureAtlasTileExists.Create;
   Result := TTile.Create(Self, AName, ATextures);
   FTiles[AName] := Result;
@@ -534,33 +499,33 @@ begin
   end;
 end;
 
-function TTextureAtlas.AddSubType(ASuffix: string; ASampler: TGLProgram.TUniformSampler; ADefaultColor: TColorRGBA): TSubType;
+function TTextureAtlas.AddSubType(ASuffix: string; ASampler: TGLProgram.TUniformSampler; ADefaultColor: TColorRGBA)
+  : TSubType;
 begin
   if FSubTypesLocked then
     raise ETextureAtlasSubTypesLocked.Create;
-  Result := FSubTypes.Add(TSubType.Create(GLState, ASuffix, ADefaultColor));
+  Result := TSubType.Create(GLState, ASuffix, ADefaultColor);
+  FSubTypes.Add(Result);
   Result.Uniform(ASampler);
 end;
 
 constructor TTextureAtlas.Create(AGLState: TGLState);
 begin
   FTexture := TTexture2D.Create(AGLState);
-  FSubTypes := TSubTypes.Create;
-  FTiles := TTiles.Create;
+  FSubTypes := TObjectList<TSubType>.Create;
+  FTiles := TToObjectMap<string, TTile>.Create;
   FFreeSpace := TFreeSpace.Create;
 end;
 
 procedure TTextureAtlas.Remove(AName: string);
 begin
-  if not FTiles.TryRemove(AName) then
+  if not FTiles.Remove(AName) then
     raise ETextureAtlasTileNotFound.Create;
 end;
 
 destructor TTextureAtlas.Destroy;
 begin
   FFreeSpace.Free;
-  FTiles.Free;
-  FSubTypes.Free;
   FTexture.Free;
   inherited;
 end;
@@ -569,7 +534,7 @@ procedure TTextureAtlas.Generate(ARegenerate: Boolean);
 var
   Tile, SubTile: TTile;
   MinSize: Integer;
-  TileArray: TArray<TTile>;
+  TileArray: ISortedList<TTile>;
   Changed: Boolean;
 
   procedure PositionTile(ATile: TTile);
@@ -626,21 +591,25 @@ begin
     Changed := True;
   end;
 
-  TileArray := FTiles.Values.ToArray;
-  TileArray.Sort(
-    function(ALeft, ARight: TTile): Boolean
+  TileArray := TSortedList<TTile>.Create;
+  TileArray.Compare :=
+      function(ALeft, ARight: TTile): Boolean
     begin
       Result := ALeft.Size.Y > ARight.Size.Y;
-    end
-    );
+    end;
+  TileArray.AddRange(FTiles.Values);
 
   // find positions
   for Tile in TileArray do
+  begin
     if Tile.HasSubTiles then
+    begin
       for SubTile in Tile.SubTiles do
-        PositionTile(SubTile)
+        PositionTile(SubTile);
+    end
     else
       PositionTile(Tile);
+  end;
 
   // add image data
   for Tile in TileArray do
@@ -650,7 +619,7 @@ begin
     else
       AddTile(Tile);
 
-  TileArray.Free;
+  TileArray := nil;
 
   if Changed then
     FOnChanged.Execute;
@@ -708,9 +677,9 @@ begin
   Result := FTexture.Width;
 end;
 
-function TTextureAtlas.GetSubTypes: TSubTypes.TReader;
+function TTextureAtlas.GetSubTypes: IReadonlyList<TSubType>;
 begin
-  Result := FSubTypes.Reader;
+  Result := FSubTypes.ReadonlyList;
 end;
 
 procedure TTextureAtlas.Resize(ASize: TIntVector2);
@@ -761,9 +730,9 @@ end;
 
 { TTextureAtlas.TFreeRows }
 
-function TTextureAtlas.TFreeRows.GetRows: TRows.TReader;
+function TTextureAtlas.TFreeRows.GetRows: IReadonlyList<TIntBounds1>;
 begin
-  Result := FRows.Reader;
+  Result := FRows.ReadonlyList;
 end;
 
 procedure TTextureAtlas.TFreeRows.SetSize(const Value: Integer);
@@ -790,7 +759,7 @@ begin
     begin
       FRows[I] := IBounds1(FRows[I].C1, Value).Clamp(FRows[I]);
       if FRows[I].Length <= 0 then
-        FRows.RemoveLast
+        FRows.RemoveAt(FRows.MaxIndex)
       else
         Break;
     end;
@@ -801,16 +770,10 @@ end;
 
 constructor TTextureAtlas.TFreeRows.Create(ASize: Integer);
 begin
-  FRows := TRows.Create;
+  FRows := TList<TIntBounds1>.Create;
   FSize := ASize;
   if FSize > 0 then
     FRows.Add(IBounds1(Size));
-end;
-
-destructor TTextureAtlas.TFreeRows.Destroy;
-begin
-  FRows.Free;
-  inherited;
 end;
 
 function TTextureAtlas.TFreeRows.Find(AStart, ASize: Integer; out APos: Integer): Boolean;
@@ -869,7 +832,7 @@ begin
       else
       begin
         // split
-        FRows.Insert(IBounds1(ARange.C2 + 1, FRows[I].C2 + 1), I + 1);
+        FRows.Insert(I + 1, IBounds1(ARange.C2 + 1, FRows[I].C2 + 1));
         FRows[I] := IBounds1(FRows[I].C1, ARange.C1);
       end;
     end;
@@ -927,7 +890,7 @@ begin
       else
       begin
         // create new cleared section
-        FRows.Insert(ARange, I);
+        FRows.Insert(I, ARange);
       end;
     end;
 
@@ -961,7 +924,7 @@ begin
 
   while FSize.Y > Value.Y do
   begin
-    FRows.RemoveLast;
+    FRows.RemoveAt(FRows.MaxIndex);
     Dec(FSize.Y);
   end;
 
@@ -989,13 +952,7 @@ end;
 
 constructor TTextureAtlas.TFreeSpace.Create;
 begin
-  FRows := TRows.Create;
-end;
-
-destructor TTextureAtlas.TFreeSpace.Destroy;
-begin
-  FRows.Free;
-  inherited;
+  FRows := TObjectList<TFreeRows>.Create;
 end;
 
 procedure TTextureAtlas.TFreeSpace.Clear;
@@ -1096,49 +1053,44 @@ end;
 
 constructor TTextureAtlas.TInfo.Create(AInfo: string);
 var
-  Info: TJSONObject;
-  BaseNode, WidthsNode: TJSONObject;
-  PairNode: TJSONPair;
-  NumberNode: TJSONNumber;
+  Info: TJObject;
+  BaseNode, WidthsNode: TJObject;
+  PairNode: TJPair;
   Index: Integer;
-  ArrayNode: TJSONArray;
-  ValueNode: TJSONValue;
+  ArrayNode: TJArray;
+  ValueNode: TJValue;
   Axis: TCoordAxis2;
   I: Integer;
 begin
-  Info := TJSONObject.ParseJSONValue(AInfo) as TJSONObject;
-  if Info = nil then
-    raise ETextureAtlasInvalidInfoFile.Create('The texture info file is not valid json.');
+  Info := TJObject.Parse(AInfo);
   try
-
     FMode := tmNone;
 
-    if Info.TryGetValue<TJSONObject>('Grid', BaseNode) then
+    if Info.Get('Grid', BaseNode) then
     begin
       if FMode <> tmNone then
         raise ETextureAtlasInvalidInfoFile.Create('Only one texture info mode can be used at once.');
       FMode := tmGrid;
       for Axis := Low(TCoordAxis2) to High(TCoordAxis2) do
       begin
-        if BaseNode.TryGetValue<TJSONValue>(string(CoordAxisNames[Axis]), ValueNode) then
+        if BaseNode.Get(CoordAxisNames[Axis], ValueNode) then
         begin
-          FGrid[Axis] := TSingleArray.Create;
-          if ValueNode is TJSONArray then
+          FGrid[Axis] := TList<Single>.Create;
+          if ValueNode.IsArray then
           begin
-            ArrayNode := TJSONArray(ValueNode);
-            for ValueNode in ArrayNode do
+            for ValueNode in ValueNode.AsArray do
             begin
-              if not (ValueNode is TJSONNumber) then
+              if not ValueNode.IsNumber then
                 raise ETextureAtlasInvalidInfoFile.CreateFmt('Expected number in Grid.%s.', [CoordAxisNames[Axis]]);
-              FGrid[Axis].Add(TJSONNumber(ValueNode).AsDouble);
+              FGrid[Axis].Add(ValueNode);
             end;
             if FGrid[Axis].Empty then
               raise ETextureAtlasInvalidInfoFile.CreateFmt('Expected number in Grid.%s.', [CoordAxisNames[Axis]]);
           end
-          else if ValueNode is TJSONNumber then
+          else if ValueNode.IsNumber then
           begin
             // leave FGrid[Axis] as nil to mark, that we used FTextures
-            for I := 1 to TJSONNumber(ValueNode).AsInt do
+            for I := 1 to ValueNode.AsInt do
               FGrid[Axis].Add(1);
           end
           else
@@ -1149,20 +1101,20 @@ begin
       end;
     end;
 
-    if Info.TryGetValue<TJSONObject>('Font', BaseNode) then
+    if Info.Get('Font', BaseNode) then
     begin
       if FMode <> tmNone then
         raise ETextureAtlasInvalidInfoFile.Create('Only one texture info mode can be used at once.');
       FMode := tmFont;
-      if BaseNode.TryGetValue<TJSONObject>('Widths', WidthsNode) then
+      if BaseNode.Get('Widths', WidthsNode) then
       begin
         for PairNode in WidthsNode do
         begin
-          case PairNode.JsonString.Value.Length of
+          case PairNode.Key.Length of
             1:
-              Index := Ord(PairNode.JsonString.Value[1]);
+              Index := Ord(PairNode.Key[1]);
             2:
-              if not TryStrToInt(PairNode.JsonString.Value, Index) then
+              if not TryStrToInt(PairNode.Key, Index) then
                 raise ETextureAtlasInvalidInfoFile.Create('Invalid hex index for char width.');
           else
             raise ETextureAtlasInvalidInfoFile.Create('Only chars or hex indices are allowed.');
@@ -1170,14 +1122,14 @@ begin
 
           if not(Index in IBounds1(256)) then
             raise ETextureAtlasInvalidInfoFile.Create('Only char indices from 00 to FF are allowed.');
-          if not PairNode.JsonValue.TryGetValue<TJSONNumber>(NumberNode) or not(NumberNode.AsDouble in Bounds1(0, 1)) then
+          if not PairNode.Value.IsNumber or not(PairNode.Value.AsFloat in Bounds1(0, 1)) then
             raise ETextureAtlasInvalidInfoFile.Create('Only 0 < width <= 1 are allowed char widths.');
-          FWidths[Index] := NumberNode.AsDouble;
+          FFontWidths[Index] := PairNode.Value.AsFloat;
         end;
       end;
     end;
 
-    if Info.TryGetValue<TJSONObject>('Regions', BaseNode) then
+    if Info.Get('Regions', BaseNode) then
     begin
       if FMode <> tmNone then
         raise ETextureAtlasInvalidInfoFile.Create('Only one texture info mode can be used at once.');
@@ -1185,11 +1137,11 @@ begin
       raise ENotImplemented.Create('Texture info file with regions.');
     end;
 
-    if Info.TryGetValue<TJSONObject>('Values', BaseNode) then
+    if Info.Get('Values', BaseNode) then
     begin
-      FValues := TValues.Create;
+      FValues := TMap<string, Single>.Create;
       for PairNode in BaseNode do
-        FValues[PairNode.JsonString.Value] := PairNode.JsonValue.GetValue<TJSONNumber>.AsDouble;
+        FValues[PairNode.Key] := PairNode.Value;
     end;
 
   finally
@@ -1197,19 +1149,9 @@ begin
   end;
 end;
 
-destructor TTextureAtlas.TInfo.Destroy;
-var
-  Axis: TCoordAxis2;
+function TTextureAtlas.TInfo.GetTextureArray(ATexture: TTextureData): IList<TTextureData>;
 begin
-  for Axis := Low(TCoordAxis2) to High(TCoordAxis2) do
-    FGrid[Axis].Free;
-  FValues.Free;
-  inherited;
-end;
-
-function TTextureAtlas.TInfo.GetTextureArray(ATexture: TTextureData): TArray<TTextureData>;
-begin
-  Result := TArray<TTextureData>.Create;
+  Result := TList<TTextureData>.Create;
   case FMode of
     tmNone:
       raise ETextureAtlasInvalidInfoFile.Create('Either Grid, Font or Regions node expected in texture info file.');
@@ -1217,12 +1159,12 @@ begin
       LoadGrid(ATexture, Result);
     tmFont:
       LoadFont(ATexture, Result);
-    tmRegions: 
+    tmRegions:
       LoadRegions(ATexture, Result);
   end;
 end;
 
-procedure TTextureAtlas.TInfo.LoadFont(ATexture: TTextureData; ATextures: TArray<TTextureData>);
+procedure TTextureAtlas.TInfo.LoadFont(ATexture: TTextureData; const ATextures: IList<TTextureData>);
 var
   Pos, PixelPos: TIntVector2;
   I: Integer;
@@ -1230,37 +1172,50 @@ var
   CharSize: TIntVector2;
 begin
   ATextures.Capacity := IBounds2(16).Area;
-  ATextures.ForceCount(ATextures.Capacity);
+  for I := 0 to ATextures.Capacity - 1 do
+    ATextures.Add(nil);
   CharSize := ATexture.Size div 16;
   for Pos in IBounds2(16) do
   begin
     I := Pos.X + (15 - Pos.Y) * 16;
-    if FWidths[I] = 0 then
+    if FFontWidths[I] = 0 then
     begin
       for PixelPos in IBounds2I(1, CharSize) do
       begin
         if ATexture.Pixels[CharSize * (Pos + 1) - PixelPos.YX].A <> 0 then
           Break;
       end;
-      FWidths[I] := 1 - (PixelPos.Y - 1) / (ATexture.Size.X div 16);
+      FFontWidths[I] := 1 - (PixelPos.Y - 1) / (ATexture.Size.X div 16);
     end;
     Bounds := (Pos * CharSize).Bounds(CharSize);
     Bounds.LineY := (ATexture.Height - Bounds.LineY).Normalize;
-    Bounds.C2.X := Bounds.C1.X + Floor((ATexture.Size.X div 16) * FWidths[I]) - 1;
+    Bounds.C2.X := Bounds.C1.X + Floor((ATexture.Size.X div 16) * FFontWidths[I]) - 1;
     ATextures[I] := ATexture.CreateSubTexture(Bounds);
   end;
 end;
 
-procedure TTextureAtlas.TInfo.LoadGrid(ATexture: TTextureData; ATextures: TArray<TTextureData>);
+procedure TTextureAtlas.TInfo.LoadGrid(ATexture: TTextureData; const ATextures: IList<TTextureData>);
+
+  function SumOf(List: IList<Single>): Single;
+  var
+    Value: Single;
+  begin
+    Result := 0;
+    for Value in List do
+      Result := Result + Value;
+  end;
+
 var
   Size, GridPos: TIntVector2;
   Pos, Sum: TVector2;
   Bounds: TBounds2;
+  I: Integer;
 begin
   Size := IVec2(FGrid[caX].Count, FGrid[caY].Count);
-  Sum := Vec2(FGrid[caX].Sum, FGrid[caY].Sum);
+  Sum := Vec2(SumOf(FGrid[caX]), SumOf(FGrid[caY]));
   ATextures.Capacity := Size.X * Size.Y;
-  ATextures.ForceCount(ATextures.Capacity);
+  for I := 0 to ATextures.Capacity - 1 do
+    ATextures.Add(nil);
   Pos := 0;
   for GridPos in Size do
   begin
@@ -1274,12 +1229,12 @@ begin
   end;
 end;
 
-procedure TTextureAtlas.TInfo.LoadRegions(ATexture: TTextureData; ATextures: TArray<TTextureData>);
+procedure TTextureAtlas.TInfo.LoadRegions(ATexture: TTextureData; const ATextures: IList<TTextureData>);
 begin
   raise ENotImplemented.Create('Texture info file LoadRegions function.');
 end;
 
-function TTextureAtlas.TInfo.OwnValues: TValues;
+function TTextureAtlas.TInfo.OwnValues: IMap<string, Single>;
 begin
   Result := FValues;
   FValues := nil;
