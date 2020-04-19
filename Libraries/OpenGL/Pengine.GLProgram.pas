@@ -360,7 +360,7 @@ begin
 
   ShaderObject := glCreateShader(Ord(GLShaderTypes[ShaderType]));
 
-  Data := @AText[1];
+  Data := PGLchar(AText);
   glShaderSource(ShaderObject, 1, @Data, @ShaderLength);
   glCompileShader(ShaderObject);
 
