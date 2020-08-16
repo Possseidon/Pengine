@@ -300,7 +300,7 @@ end;
 
 procedure TOwned<T>.Reset;
 begin
-  FreeAndNil(FValue);
+  FValue := nil;
 end;
 
 procedure TOwned<T>.SetValue(const Value: T);
