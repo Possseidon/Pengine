@@ -6,13 +6,9 @@ uses
   dglOpenGL,
 
   System.SysUtils,
-
   {$IFDEF DEBUG}
-
   System.RTTI,
-
   {$ENDIF}
-
   Pengine.Interfaces,
   Pengine.GLEnums,
   Pengine.Collections,
@@ -243,9 +239,11 @@ type
 
   end;
 
-  TGLSingleState<T; E: TEqualler<T>> = class abstract(TGLSingleState<T>)
+  TGLSingleState<T; E: TEqualler<T> //
+    > = class abstract(TGLSingleState<T>)
   protected
     procedure SetState(const Value: T); override;
+
   end;
 
   // glEnable/glDisable
@@ -258,8 +256,7 @@ type
     procedure Assign(AState: TGLSingleState); override;
 
   public
-    constructor Create(AType: TGLSingleState.TType; AFlag: TGLenum; APengineDefault: Boolean;
-      AGLDefault: Boolean = False);
+    constructor Create(AType: TGLSingleState.TType; AFlag: TGLenum; APengineDefault: Boolean; AGLDefault: Boolean);
 
     procedure SendState; override;
 
@@ -271,12 +268,14 @@ type
   public
     procedure SendState; override;
     function GetType: TGLSingleState.TType; override;
+
   end;
 
   TGLDepthMaskState = class(TGLSingleState<Boolean, TBoolEqualler>)
   public
     procedure SendState; override;
     function GetType: TGLSingleState.TType; override;
+
   end;
 
   TGLEnumState<T> = class(TGLSingleState<T, TEnumEqualler<T>>);
@@ -285,18 +284,21 @@ type
   public
     procedure SendState; override;
     function GetType: TGLSingleState.TType; override;
+
   end;
 
   TGLCullFaceState = class(TGLEnumState<TGLCullFace>)
   public
     procedure SendState; override;
     function GetType: TGLSingleState.TType; override;
+
   end;
 
   TGLBlendFuncState = class(TGLEnumState<TGLBlendFunc>)
   public
     procedure SendState; override;
     function GetType: TGLSingleState.TType; override;
+
   end;
 
   TGLStateRevertSet = class;
@@ -388,13 +390,13 @@ var
 
 begin
   // Flag (glEnable/glDisable)
-  FStates[stDepthTest] := TGLFlagState.Create(stDepthTest, GL_DEPTH_TEST, True);
-  FStates[stSeamlessCubemap] := TGLFlagState.Create(stSeamlessCubemap, GL_TEXTURE_CUBE_MAP_SEAMLESS, True);
-  FStates[stDepthClamp] := TGLFlagState.Create(stDepthClamp, GL_DEPTH_CLAMP, True);
-  FStates[stBlend] := TGLFlagState.Create(stBlend, GL_BLEND, False);
-  FStates[stCullFace] := TGLFlagState.Create(stCullFace, GL_CULL_FACE, True);
-  FStates[stDebugOutput] := TGLFlagState.Create(stDebugOutput, GL_DEBUG_OUTPUT, False);
-  FStates[stDebugOutputSynced] := TGLFlagState.Create(stDebugOutputSynced, GL_DEBUG_OUTPUT_SYNCHRONOUS, False);
+  FStates[stDepthTest] := TGLFlagState.Create(stDepthTest, GL_DEPTH_TEST, True, False);
+  FStates[stSeamlessCubemap] := TGLFlagState.Create(stSeamlessCubemap, GL_TEXTURE_CUBE_MAP_SEAMLESS, True, False);
+  FStates[stDepthClamp] := TGLFlagState.Create(stDepthClamp, GL_DEPTH_CLAMP, True, False);
+  FStates[stBlend] := TGLFlagState.Create(stBlend, GL_BLEND, False, False);
+  FStates[stCullFace] := TGLFlagState.Create(stCullFace, GL_CULL_FACE, True, False);
+  FStates[stDebugOutput] := TGLFlagState.Create(stDebugOutput, GL_DEBUG_OUTPUT, False, False);
+  FStates[stDebugOutputSynced] := TGLFlagState.Create(stDebugOutputSynced, GL_DEBUG_OUTPUT_SYNCHRONOUS, False, False);
   // Other booleans (using their own separate functions)
   FStates[stDepthMask] := TGLDepthMaskState.Create(True);
   // TColorRGBA
@@ -405,7 +407,6 @@ begin
   FStates[stBlendFunc] := TGLBlendFuncState.Create(TGLBlendFunc.Make);
 
   {$IFDEF DEBUG}
-
   Uninitialized := '';
   for S := Low(TGLSingleState.TType) to High(TGLSingleState.TType) do
   begin
@@ -529,7 +530,7 @@ begin
 end;
 
 constructor TGLFlagState.Create(AType: TGLSingleState.TType; AFlag: TGLenum; APengineDefault: Boolean;
-  AGLDefault: Boolean = False);
+  AGLDefault: Boolean);
 begin
   FType := AType;
   FFlag := AFlag;
