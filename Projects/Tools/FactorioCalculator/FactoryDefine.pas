@@ -14,7 +14,6 @@ uses
   Pengine.ICollections,
   Pengine.Vector,
   Pengine.EventHandling,
-  Pengine.Utility,
   Pengine.Color,
 
   GdiPlus,
@@ -317,8 +316,9 @@ type
   TFactory = class(TInterfaceBase, IJSerializable)
   private
     FFactorio: TFactorio;
-    FMachineArrays: IObjectList<TMachineArray>;
+    // FConnectionNets MUST be before FMachineArrays to ensure correct destruction order
     FConnectionNets: IList<IConnectionNet>;
+    FMachineArrays: IObjectList<TMachineArray>;
     FOnMachineArrayAdd: TEvent<TMachineArray>;
     FOnMachineArrayChange: TEvent<TMachineArray>;
     FOnMachineArrayRemove: TEvent<TMachineArray>;
@@ -463,8 +463,8 @@ end;
 constructor TFactory.Create(AFactorio: TFactorio);
 begin
   FFactorio := AFactorio;
-  FMachineArrays := TObjectList<TMachineArray>.Create;
   FConnectionNets := TList<IConnectionNet>.Create;
+  FMachineArrays := TObjectList<TMachineArray>.Create;
 end;
 
 function TFactory.CreateConnectionNet: IConnectionNet;
@@ -1486,9 +1486,9 @@ begin
     for I := 0 to Belts.MaxIndex do
     begin
       if ItemsPerSecond <= Belts[I].ItemsPerSecond / 2 then
-        G.DrawImage(Belts[I].Icon, Pos.X + 8 + (I - Belts.Count / 2) * 32, Pos.Y, 16, 32, 0, 0, 16, 32, UnitPixel)
+        G.DrawImage(Belts[I].IconMipmapFor(32), Pos.X + 8 + (I - Belts.Count / 2) * 32, Pos.Y, 16, 32, 0, 0, 16, 32, UnitPixel)
       else
-        G.DrawImage(Belts[I].Icon, Pos.X + (I - Belts.Count / 2) * 32, Pos.Y, 32, 32);
+        G.DrawImage(Belts[I].IconMipmapFor(32), Pos.X + (I - Belts.Count / 2) * 32, Pos.Y, 32, 32);
     end;
   end;
 end;

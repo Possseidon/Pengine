@@ -5,6 +5,11 @@ interface
 uses
   System.SysUtils,
   System.IOUtils,
+  System.Math,
+  System.Win.Registry,
+  System.RegularExpressions,
+  
+  Winapi.Windows,
 
   GdiPlus,
 
@@ -33,43 +38,52 @@ type
         ptItemSubgroup,
 
         // Recipe
-        ptRecipeCategory,
         ptRecipe,
+        ptRecipeCategory,
 
         // Item
-        ptItem,
         ptAmmo,
         ptArmor,
+        ptBlueprint,
+        ptBlueprintBook,
         ptCapsule,
+        ptCopyPasteTool,
+        ptDeconstructionItem,
         ptEquipment,
         ptGun,
+        ptItem,
         ptItemWithEntityData,
         ptMiningTool,
         ptModule,
         ptRailPlanner,
         ptRepairTool,
+        ptSelectionTool,
+        ptSpidertronRemote,
         ptTool,
+        ptUpgradeItem,
 
         // Fluid
         ptFluid,
 
-        // Other
+        // CraftingMachines
         ptAssemblingMachine,
-        ptRocketSilo,
         ptFurnace,
+        ptRocketSilo,
+
+        // Other
         ptInserter,
         ptTransportBelt
         );
 
     public const
 
-      ItemTypes = [ptItem .. ptTool];
+      ItemTypes = [ptAmmo .. ptUpgradeItem];
 
-      ItemOrFluidTypes = [ptItem .. ptFluid];
+      ItemOrFluidTypes = [ptAmmo .. ptFluid];
 
-      GroupedTypes = [ptItem .. ptFluid];
+      GroupedTypes = [ptAmmo .. ptFluid];
 
-      CraftingMachines = [ptAssemblingMachine, ptRocketSilo, ptFurnace];
+      CraftingMachines = [ptAssemblingMachine .. ptRocketSilo];
 
     private
       FFactorio: TFactorio;
@@ -79,11 +93,14 @@ type
       FIconPath: string;
       FIconMipmaps: IList<IGPBitmap>;
       FIconMipmapCount: Integer;
+      FFlags: ISet<AnsiString>;
+      FHidden: Boolean;
 
-      function GenerateMissingo(AMipmapLayer: Integer): IGPBitmap;
+      function GenerateMissingno(AMipmapLayer: Integer): IGPBitmap;
       function GetDisplayName: AnsiString;
 
       function GetIcon: IGPBitmap;
+      function GetFlags: IReadonlySet<AnsiString>;
 
     protected
       function GetIconMipmaps: IReadonlyList<IGPBitmap>; virtual;
@@ -106,6 +123,11 @@ type
       property IconPath: string read FIconPath;
       property Icon: IGPBitmap read GetIcon;
       property IconMipmaps: IReadonlyList<IGPBitmap> read GetIconMipmaps;
+
+      function IconMipmapFor(ASize: Cardinal): IGPBitmap;
+
+      property Flags: IReadonlySet<AnsiString> read GetFlags;
+      property Hidden: Boolean read FHidden;
 
     end;
 
@@ -245,6 +267,7 @@ type
       property EnergyRequired: Single read FEnergyRequired;
       property Ingredients: IReadonlyList<TIngredient> read GetIngredients;
       property Results: IReadonlyList<TResult> read GetResults;
+      function ResultHidden: Boolean;
 
       property CategoryName: AnsiString read FCategoryName;
       property Category: TRecipeCategory read GetCategory;
@@ -418,6 +441,48 @@ type
 
     end;
 
+    TBlueprint = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TBlueprintBook = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TCopyPasteTool = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TDeconstructionItem = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TSelectionTool = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TSpidertronRemote = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
+    TUpgradeItem = class(TItem)
+    public
+      class function GetType: TPrototype.TType; override;
+
+    end;
+
     {
       "name": "angelsaddons-warehouses",
       "version": "0.4.1",
@@ -478,30 +543,39 @@ type
       TItemSubgroup,
 
       // Recipe
-      TRecipeCategory,
       TRecipe,
+      TRecipeCategory,
 
       // Item
-      TItem,
       TAmmo,
       TArmor,
+      TBlueprint,
+      TBlueprintBook,
       TCapsule,
+      TCopyPasteTool,
+      TDeconstructionItem,
       TEquipment,
       TGun,
+      TItem,
       TItemWithEntityData,
       TMiningTool,
       TModule,
       TRailPlanner,
       TRepairTool,
+      TSelectionTool,
+      TSpidertronRemote,
       TTool,
+      TUpgradeItem,
 
       // Fluid
       TFluid,
 
-      // Other
+      // CraftingMachine
       TAssemblingMachine,
-      TRocketSilo,
       TFurnace,
+      TRocketSilo,
+
+      // Other
       TInserter,
       TTransportBelt
       );
@@ -512,35 +586,45 @@ type
       'item-subgroup',
 
       // Recipe
-      'recipe-category',
       'recipe',
+      'recipe-category',
 
       // Item
-      'item',
       'ammo',
       'armor',
+      'blueprint',
+      'blueprint-book',
       'capsule',
+      'copy-paste-tool',
+      'deconstruction-item',
       'equipment',
       'gun',
+      'item',
       'item-with-entity-data',
       'mining-tool',
       'module',
       'rail-planner',
       'repair-tool',
+      'selection-tool',
+      'spidertron-remote',
       'tool',
+      'upgrade-item',
 
       // Fluid
       'fluid',
 
-      // Other
+      // CraftingMachine
       'assembling-machine',
-      'rocket-silo',
       'furnace',
+      'rocket-silo',
+
+      // Other
       'inserter',
       'transport-belt'
       );
 
   private
+    FPath: string;
     FAvailableMods: IObjectList<TMod>;
     FActiveMods: IList<TMod>;
     FExpensive: Boolean;
@@ -550,7 +634,7 @@ type
     FItemMap: IMap<AnsiString, TItemOrFluid>;
     FCraftingMachineList: ISortedList<TCraftingMachine>;
     FCraftingMachineMap: IMap<AnsiString, TCraftingMachine>;
-
+    
     function GetGrouped: IReadonlyMap<AnsiString, TGrouped>;
     function GetItem: IReadonlyMap<AnsiString, TItemOrFluid>;
     function GetFluidOrder: IReadonlyList<TFluid>;
@@ -579,14 +663,15 @@ type
 
   public
     constructor Create;
+    procedure Load(AExpensive: Boolean = False);
+
+    class function FindGameDirectory: string; static;
 
     property AvailableMods: IReadonlyList<TMod> read GetAvailableMods;
     property ActiveMods: IReadonlyList<TMod> read GetActiveMods;
 
     procedure ActivateMod(AMod: TMod);
     procedure DeactivateMod(AMod: TMod);
-
-    procedure Reload(AExpensive: Boolean = False);
 
     property Expensive: Boolean read FExpensive;
 
@@ -620,7 +705,7 @@ type
     function Get(AType: TPrototype.TType): IReadonlyMap<AnsiString, TPrototype>; overload;
 
     // Replaces __base__ and __core__
-    class function ExpandPath(APath: string): string; static;
+    function ExpandPath(APath: string): string;
     class function ComparePrototypes(A, B: TPrototype): Boolean; overload; static;
     class function ComparePrototypes<T: TPrototype>(A, B: T): Boolean; overload; static;
 
@@ -647,7 +732,7 @@ end;
 
 constructor TFactorio.Create;
 begin
-
+  FPath := FindGameDirectory;
 end;
 
 procedure TFactorio.DeactivateMod(AMod: TMod);
@@ -655,9 +740,61 @@ begin
   FActiveMods.Remove(AMod);
 end;
 
-class function TFactorio.ExpandPath(APath: string): string;
+function TFactorio.ExpandPath(APath: string): string;
+var
+  CorePath, BasePath: string;
 begin
-  Result := APath.Replace('__base__', 'data/base').Replace('__core__', 'data/core');
+  CorePath := TPath.Combine(FPath, 'data/core');
+  BasePath := TPath.Combine(FPath, 'data/base');
+  Result := APath.Replace('__core__', CorePath).Replace('__base__', BasePath);
+end;
+
+class function TFactorio.FindGameDirectory: string;
+var
+  Registry: TRegistry;
+  Path, Line: string;
+  LibraryRegex: TRegEx;
+  Match: TMatch;
+begin
+  // Find Steam directory in:
+  // HKEY_LOCAL_MACHINE\SOFTWARE\Valve\Steam
+  // HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Valve\Steam
+  Registry := TRegistry.Create(KEY_READ);
+  try
+    Registry.RootKey := HKEY_LOCAL_MACHINE;
+    Registry.OpenKeyReadOnly('SOFTWARE\Valve\Steam');
+    Path := Registry.ReadString('InstallPath');
+    Registry.CloseKey;
+
+    if Path.IsEmpty then
+    begin
+      Registry.OpenKeyReadOnly('SOFTWARE\WOW6432Node\Valve\Steam');
+      Path := Registry.ReadString('InstallPath');
+      Registry.CloseKey;
+    end;
+
+    if Path.IsEmpty then
+      raise EFactorio.Create('Could not find Steam directory.');
+
+    LibraryRegex := TRegex.Create('^\s*"\d+"\s*(.+)\s*$');
+    for Line in TFile.ReadAllLines(TPath.Combine(Path, 'steamapps\libraryfolders.vdf')) do
+    begin
+      Match := LibraryRegex.Match(Line);
+      if Match.Success then
+      begin
+        if not TJString.StringParser.Optional(Match.Groups[1].Value, Path) then
+          raise EFactorio.Create('Could not parse Steam library path.');
+        Path := TPath.Combine(Path, 'steamapps\common\Factorio');
+        if TDirectory.Exists(Path) then
+          Exit(Path);
+      end;
+    end;
+
+    raise EFactorio.Create('Factorio does not seem to be installed on Steam.');
+
+  finally
+    Registry.Free;
+  end;
 end;
 
 function TFactorio.GetActiveMods: IReadonlyList<TMod>;
@@ -775,7 +912,7 @@ begin
   Result := IReadonlyList<T>(FPrototypeLists[T.GetType].ReadonlyList);
 end;
 
-procedure TFactorio.Reload(AExpensive: Boolean);
+procedure TFactorio.Load(AExpensive: Boolean);
 const
   InitCode: PAnsiChar =
     'defines = setmetatable({}, {__index = function(t) return t end})'#10 +
@@ -799,17 +936,22 @@ var
   PrototypeType: TPrototype.TType;
   PrototypeName: AnsiString;
   UnsortedLists: array [TPrototype.TType] of IList<TPrototype>;
+  OldDir: string;
 begin
   FExpensive := AExpensive;
 
   L := NewLuaState(LuaDefaultAlloc);
-  L.LOpenLibs;
+  L.LOpenLibs;    
+     
+  OldDir := GetCurrentDir;
+  SetCurrentDir(FPath);    
   if L.LDoString(InitCode) then
   begin
     ErrorMessage := L.ToString;
     L.Pop;
     raise Exception.Create(string(AnsiString(ErrorMessage)));
-  end;
+  end;  
+  SetCurrentDir(OldDir);
 
   for PrototypeType := Low(TPrototype.TType) to High(TPrototype.TType) do
   begin
@@ -887,8 +1029,13 @@ end;
 { TFactorio.TPrototype }
 
 constructor TFactorio.TPrototype.Create(AFactorio: TFactorio; L: TLuaState);
+var
+  I: TLuaInteger;
+  Flag: AnsiString;
 begin
   FFactorio := AFactorio;
+  FFlags := TSet<AnsiString>.Create;
+
   L.GetField('name');
   FName := L.ToString;
   L.Pop;
@@ -902,13 +1049,27 @@ begin
   L.Pop;
 
   if L.GetField('icon') = ltString then
-    FIconPath := TFactorio.ExpandPath(string(AnsiString(L.ToString)));
+    FIconPath := Factorio.ExpandPath(string(AnsiString(L.ToString)));
   L.Pop;
 
   if L.GetField('icon_mipmaps') = ltNumber then
     FIconMipmapCount := L.ToInteger
   else
     FIconMipmapCount := 1;
+  L.Pop;
+
+  if L.GetField('flags') = ltTable then
+  begin
+    for I := 1 to L.RawLen do
+    begin
+      L.GetI(I);
+      Flag := L.ToString;
+      FFlags.Add(Flag);
+      if Flag = 'hidden' then
+        FHidden := True;
+      L.Pop;
+    end;
+  end;
   L.Pop;
 end;
 
@@ -931,7 +1092,7 @@ begin
   Result := nil;
 end;
 
-function TFactorio.TPrototype.GenerateMissingo(AMipmapLayer: Integer): IGPBitmap;
+function TFactorio.TPrototype.GenerateMissingno(AMipmapLayer: Integer): IGPBitmap;
 var
   Size: Integer;
   G: IGPGraphics;
@@ -945,7 +1106,7 @@ begin
 
   G := TGPGraphics.Create(Result);
   G.TextRenderingHint := TextRenderingHintAntiAlias;
-  Font := TGPFont.Create('Tahoma', 7);
+  Font := TGPFont.Create('Tahoma', 14);
   Brush := TGPSolidBrush.Create(TGPColor.Black);
   Pen := TGPPen.Create(TGPColor.Black);
   BgBrush := TGPLinearGradientBrush.Create(TGPRectF.Create(0, 0, Size, Size), $3FFF0000, $3F7F0000, 90);
@@ -976,6 +1137,11 @@ begin
   end;
 end;
 
+function TFactorio.TPrototype.GetFlags: IReadonlySet<AnsiString>;
+begin
+  Result := FFlags.ReadonlySet;
+end;
+
 function TFactorio.TPrototype.GetIcon: IGPBitmap;
 begin
   Result := IconMipmaps[0];
@@ -993,7 +1159,7 @@ begin
     if FIconPath.IsEmpty or not FileExists(FIconPath) then
     begin
       for I := 0 to FIconMipmapCount - 1 do
-        FIconMipmaps.Add(GenerateMissingo(I));
+        FIconMipmaps.Add(GenerateMissingno(I));
     end
     else
     begin
@@ -1021,6 +1187,18 @@ end;
 class function TFactorio.TPrototype.GetTypeName: AnsiString;
 begin
   Result := PrototypeNames[GetType];
+end;
+
+function TFactorio.TPrototype.IconMipmapFor(ASize: Cardinal): IGPBitmap;
+var
+  MipmapIndex: Integer;
+begin
+  for MipmapIndex := 0 to FIconMipmapCount - 1 do
+  begin
+    Result := IconMipmaps[MipmapIndex];
+    if ASize >= Result.Width then
+      Break;
+  end;
 end;
 
 { TFactorio.TItem }
@@ -1165,6 +1343,15 @@ end;
 class function TFactorio.TRecipe.GetType: TPrototype.TType;
 begin
   Result := ptRecipe;
+end;
+
+function TFactorio.TRecipe.ResultHidden: Boolean;
+begin
+  Result := Results.Iterate.Any(
+    function(RecipeResult: TResult): Boolean
+    begin
+      Result := RecipeResult.Item.Hidden;
+    end);
 end;
 
 { TFactorio.TCraftingMachine }
@@ -1613,6 +1800,55 @@ begin
   finally
     JInfo.Free;
   end;
+end;
+
+{ TFactorio.TBlueprint }
+
+class function TFactorio.TBlueprint.GetType: TPrototype.TType;
+begin
+  Result := ptBlueprint;
+end;
+
+{ TFactorio.TBlueprintBook }
+
+class function TFactorio.TBlueprintBook.GetType: TPrototype.TType;
+begin
+  Result := ptBlueprintBook;
+end;
+
+{ TFactorio.TCopyPasteTool }
+
+class function TFactorio.TCopyPasteTool.GetType: TPrototype.TType;
+begin
+  Result := ptCopyPasteTool;
+end;
+
+{ TFactorio.TDeconstructionItem }
+
+class function TFactorio.TDeconstructionItem.GetType: TPrototype.TType;
+begin
+  Result := ptDeconstructionItem;
+end;
+
+{ TFactorio.TSelectionTool }
+
+class function TFactorio.TSelectionTool.GetType: TPrototype.TType;
+begin
+  Result := ptSelectionTool;
+end;
+
+{ TFactorio.TSpidertronRemote }
+
+class function TFactorio.TSpidertronRemote.GetType: TPrototype.TType;
+begin
+  Result := ptSpidertronRemote;
+end;
+
+{ TFactorio.TUpgradeItem }
+
+class function TFactorio.TUpgradeItem.GetType: TPrototype.TType;
+begin
+  Result := ptUpgradeItem;
 end;
 
 end.

@@ -260,7 +260,7 @@ begin
       BoxType := dtDefault;
     DrawBox(G, 1 + I * 38, 1, 34, BoxType);
 
-    G.DrawImage(Machine.Icon, 2 + I * 38, 2);
+    G.DrawImage(Machine.IconMipmapFor(32), 2 + I * 38, 2, 32, 32);
     Inc(I);
   end;
   G.EndContainer(C);
@@ -285,7 +285,7 @@ begin
       BoxType := dtDefault;
     DrawBox(G, 1 + I * 70, 1, 66, BoxType);
 
-    G.DrawImage(Group.Icon, 2 + I * 70, 2);
+    G.DrawImage(Group.IconMipmapFor(64), 2 + I * 70, 2, 64, 64);
     Inc(I);
   end;
   G.EndContainer(C);
@@ -376,7 +376,7 @@ begin
         BoxType := dtDefault;
       DrawBox(G, 1 + Pos.X * 38, 1 + Pos.Y * 38, 34, BoxType);
 
-      G.DrawImage(Recipe.Icon, 2 + Pos.X * 38, 2 + Pos.Y * 38);
+      G.DrawImage(Recipe.IconMipmapFor(32), 2 + Pos.X * 38, 2 + Pos.Y * 38, 32, 32);
       Inc(Pos.X);
     end;
     Pos.X := 0;
@@ -395,10 +395,14 @@ begin
   if not FMachineArray.HasCraftingMachine then
     Exit(TEmptyIterable<IIterate<TFactorio.TRecipe>>.Create.Iterate);
 
-  Result := Subgroups.Generic.Map < IIterate < TFactorio.TRecipe >> (
+  Result := Subgroups.Generic.Map<IIterate<TFactorio.TRecipe>> (
     function(Subgroup: TFactorio.TItemSubgroup): IIterate<TFactorio.TRecipe>
     begin
-      Result := Subgroup.Recipes.Iterate.Where(FMachineArray.CraftingMachine.CanCraft);
+      Result := Subgroup.Recipes.Iterate.Where(
+        function(Recipe: TFactorio.TRecipe): Boolean
+        begin
+          Result := {not Recipe.ResultHidden and }FMachineArray.CraftingMachine.CanCraft(Recipe);
+        end)
     end);
 end;
 

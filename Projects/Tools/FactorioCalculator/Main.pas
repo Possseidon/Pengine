@@ -87,6 +87,7 @@ implementation
 constructor TfrmMain.Create(AOwner: TComponent);
 begin
   FFactorio := TFactorio.Create;
+  FFactorio.Load;
   inherited;
   UpdateCaption;
 end;
